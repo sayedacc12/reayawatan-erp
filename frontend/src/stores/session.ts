@@ -5,6 +5,7 @@ export interface SessionUser {
   id: string;
   fullName: string;
   email: string;
+  organizationId: string | null;
   organizationName: string | null;
   isSuperadmin: boolean;
   isPlatformAdmin: boolean;
