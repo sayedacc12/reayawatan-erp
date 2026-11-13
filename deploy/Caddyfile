@@ -1,0 +1,6 @@
+# بدون DOMAIN: يعمل على http://<IP> مباشرة.
+# مع DOMAIN (مثل sanabelerp.com): يصدر شهادة HTTPS تلقائيًا من Let's Encrypt.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy frontend:80
+}
