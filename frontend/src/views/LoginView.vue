@@ -63,8 +63,13 @@ async function submit() {
 
     <div class="layout">
       <section class="hero">
-        <div class="hero-mark"><BrandMark :size="64" /></div>
-        <p class="eyebrow">منصة الجمعيات الذكية</p>
+        <div class="brand-row">
+          <div class="hero-mark"><BrandMark :size="64" /></div>
+          <div>
+            <div class="wordmark">سنابل</div>
+            <p class="eyebrow">منصة إدارة الجمعيات الخيرية</p>
+          </div>
+        </div>
         <h1>
           منصة واحدة<br />
           لإدارة
@@ -88,7 +93,7 @@ async function submit() {
           <div class="form-head">
             <BrandMark :size="40" />
             <div>
-              <h2>مرحبًا بعودتك</h2>
+              <h2>مرحبًا بك في سنابل</h2>
               <p>سجّل الدخول للمتابعة</p>
             </div>
           </div>
@@ -163,10 +168,12 @@ async function submit() {
 
 /* الجانب التعريفي */
 .hero { animation: rise 0.9s cubic-bezier(.2,.8,.2,1) both; }
-.hero-mark { width: 84px; height: 84px; border-radius: 22px; display: grid; place-items: center; margin-bottom: 22px;
+.brand-row { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
+.wordmark { font-size: 2.3rem; font-weight: 700; line-height: 1.1; background: linear-gradient(90deg, #ffffff, #a7f3e9 50%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-mark { width: 84px; height: 84px; border-radius: 22px; display: grid; place-items: center; flex-shrink: 0;
   background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 0 60px rgba(45,212,191,0.35); animation: float 6s ease-in-out infinite; }
 @keyframes float { 50% { transform: translateY(-8px); } }
-.eyebrow { color: var(--teal); font-weight: 600; letter-spacing: 0.02em; margin: 0 0 10px; }
+.eyebrow { color: var(--teal); font-weight: 600; letter-spacing: 0.02em; margin: 4px 0 0; }
 .hero h1 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.25; font-weight: 700; }
 .word-wrap { display: inline-block; min-width: 4.5em; }
 .word { display: inline-block; background: linear-gradient(90deg, #5eead4, #a5f3fc 40%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -231,7 +238,10 @@ async function submit() {
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; gap: 28px; max-width: 460px; }
   .hero { text-align: center; }
-  .hero-mark { margin-inline: auto; width: 68px; height: 68px; }
+  .brand-row { justify-content: center; margin-bottom: 14px; }
+  .hero-mark { width: 64px; height: 64px; }
+  .wordmark { font-size: 1.9rem; }
+  .brand-row > div:last-child { text-align: right; }
   .hero h1 { font-size: 1.9rem; }
   .lead, .chips { display: none; }
   .glass-inner { padding: 26px 20px 20px; }

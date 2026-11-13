@@ -25,7 +25,8 @@ function logout() {
     <header class="topbar">
       <div class="topbar-start">
         <RouterLink to="/" class="home-link" title="كل التطبيقات">
-          <BrandMark :size="30" />
+          <BrandMark :size="32" />
+          <span class="product">سنابل</span>
           <span class="org-name">{{ session.user?.organizationName ?? 'إدارة المنصة' }}</span>
         </RouterLink>
         <RouterLink to="/" class="apps-btn" title="كل التطبيقات">
@@ -84,7 +85,8 @@ function logout() {
 @keyframes line { to { background-position: 200% 0; } }
 .topbar-start { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .home-link { color: #fff; display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
-.org-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.product { font-size: 1.15rem; background: linear-gradient(90deg, #fff, #a7f3e9 60%, #f5c66b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.org-name { font-weight: 500; color: rgba(255,255,255,.75); border-inline-start: 1px solid rgba(255,255,255,.25); padding-inline-start: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 .apps-btn { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.85); padding: 6px 12px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); transition: background .2s, border-color .2s; }
 .apps-btn:hover { background: rgba(255,255,255,.1); border-color: rgba(94,234,212,.5); }

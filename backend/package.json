@@ -1,7 +1,7 @@
 {
   "name": "charity-erp-backend",
   "version": "1.0.0",
-  "description": "Charity ERP backend (NestJS modular monolith)",
+  "description": "Sanabel ERP backend (NestJS modular monolith)",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
