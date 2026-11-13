@@ -1,0 +1,9 @@
+import type { RouteRecordRaw } from 'vue-router';
+import { coreRoutes } from './core/routes';
+import { platformRoutes } from './platform/routes';
+
+/**
+ * شاشات كل وحدة تُسجَّل هنا. لإضافة وحدة: أنشئ src/modules/<code>/routes.ts
+ * وأضفها للمصفوفة. كل route يحمل meta.permission ومساره يطابق menu في manifest الخلفية.
+ */
+export const moduleRoutes: RouteRecordRaw[] = [...platformRoutes, ...coreRoutes];
