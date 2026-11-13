@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
+import { useToast } from '../../../stores/toast';
+import { passwordProblem } from '../../../validation';
+
+const toast = useToast();
 
 interface Org {
   id: string;
@@ -40,12 +44,19 @@ function openCreate() {
   createError.value = '';
   createOpen.value = true;
 }
+const pwProblem = computed(() => passwordProblem(form.adminPassword));
+
 async function create() {
   createError.value = '';
+  if (pwProblem.value) {
+    createError.value = pwProblem.value;
+    return;
+  }
   saving.value = true;
   try {
     await api('/platform/organizations', { method: 'POST', json: { ...form, slug: form.slug.trim().toLowerCase() } });
     createOpen.value = false;
+    toast.success(`تم إنشاء جمعية "${form.name}"`);
     await load();
   } catch (e) {
     createError.value = (e as Error).message;
@@ -59,6 +70,7 @@ async function toggleActive(o: Org) {
   if (o.isActive && !confirm(`إيقاف "${o.name}"؟ لن يستطيع أي مستخدم فيها الدخول حتى تُفعّل مرة أخرى.`)) return;
   try {
     await api(`/platform/organizations/${o.id}`, { method: 'PATCH', json: { isActive: !o.isActive } });
+    toast.success(o.isActive ? `تم إيقاف "${o.name}"` : `تم تفعيل "${o.name}"`);
     await load();
   } catch (e) {
     error.value = `تعذر ${verb} الجمعية: ${(e as Error).message}`;
@@ -76,6 +88,7 @@ async function saveModules() {
   if (!modulesFor.value) return;
   try {
     await api(`/platform/organizations/${modulesFor.value.id}/modules`, { method: 'PUT', json: { modules: selectedModules.value } });
+    toast.success(`تم حفظ خدمات "${modulesFor.value.name}"`);
     modulesFor.value = null;
     await load();
   } catch (e) {
@@ -121,7 +134,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
       </table>
     </div>
 
-    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
+    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false" @keydown.esc="createOpen = false">
       <form class="card modal" @submit.prevent="create">
         <h2 style="margin-bottom: 16px">جمعية جديدة</h2>
         <div v-if="createError" class="alert alert-error">{{ createError }}</div>
@@ -133,7 +146,8 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
         <h2 style="margin: 18px 0 12px; font-size: 1rem">مدير نظام الجمعية</h2>
         <div class="field"><label>الاسم</label><input v-model="form.adminFullName" class="input" required /></div>
         <div class="field"><label>البريد الإلكتروني</label><input v-model="form.adminEmail" class="input" type="email" dir="ltr" required /></div>
-        <div class="field"><label>كلمة المرور المبدئية (8 أحرف على الأقل)</label><input v-model="form.adminPassword" class="input" type="password" dir="ltr" minlength="8" required autocomplete="new-password" /></div>
+        <div class="field"><label>كلمة المرور المبدئية (8 أحرف على الأقل)</label><input v-model="form.adminPassword" :class="['input', { invalid: pwProblem }]" type="password" dir="ltr" minlength="8" required autocomplete="new-password" />
+          <small v-if="pwProblem" class="field-error">{{ pwProblem }}</small></div>
         <div class="modal-actions">
           <button class="btn btn-primary" :disabled="saving">إنشاء الجمعية</button>
           <button type="button" class="btn" @click="createOpen = false">إلغاء</button>
@@ -141,7 +155,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
       </form>
     </div>
 
-    <div v-if="modulesFor" class="modal-backdrop" @click.self="modulesFor = null">
+    <div v-if="modulesFor" class="modal-backdrop" @click.self="modulesFor = null" @keydown.esc="modulesFor = null">
       <div class="card modal">
         <h2 style="margin-bottom: 6px">خدمات {{ modulesFor.name }}</h2>
         <p class="muted" style="margin-top: 0">الوحدات الأساسية مفعلة دائمًا. فعّل الخدمات الإضافية التي اشتركت فيها الجمعية.</p>

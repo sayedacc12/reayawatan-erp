@@ -2,16 +2,17 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
+import { useToast } from '../../../stores/toast';
 import type { ModuleInfo, RoleRow } from '../types';
 
 const session = useSession();
+const toast = useToast();
 const canManage = computed(() => session.can('core.roles.manage'));
 const roles = ref<RoleRow[]>([]);
 const modules = ref<ModuleInfo[]>([]);
 const selectedId = ref<string | null>(null);
 const isNew = ref(false);
 const error = ref('');
-const saved = ref(false);
 const saving = ref(false);
 const form = reactive({ name: '', description: '', permissions: new Set<string>() });
 
@@ -29,7 +30,6 @@ function select(r: RoleRow) {
   isNew.value = false;
   selectedId.value = r.id;
   error.value = '';
-  saved.value = false;
   form.name = r.name;
   form.description = r.description ?? '';
   form.permissions = new Set(r.permissions);
@@ -39,7 +39,6 @@ function startNew() {
   isNew.value = true;
   selectedId.value = null;
   error.value = '';
-  saved.value = false;
   form.name = '';
   form.description = '';
   form.permissions = new Set();
@@ -63,8 +62,8 @@ function toggleModule(m: ModuleInfo) {
 
 async function save() {
   error.value = '';
-  saved.value = false;
   saving.value = true;
+  const isNewSave = isNew.value;
   const body = { name: form.name, description: form.description, permissions: [...form.permissions] };
   try {
     const role = isNew.value
@@ -72,7 +71,7 @@ async function save() {
       : await api<RoleRow>(`/roles/${selectedId.value}`, { method: 'PATCH', json: body });
     await load();
     select(role);
-    saved.value = true;
+    toast.success(isNewSave ? `تم إنشاء دور "${role.name}"` : 'تم حفظ الدور');
     await session.refresh();
   } catch (e) {
     error.value = (e as Error).message;
@@ -89,6 +88,7 @@ async function remove() {
   try {
     await api(`/roles/${r.id}`, { method: 'DELETE' });
     selectedId.value = null;
+    toast.success(`تم حذف دور "${r.name}"`);
     await load();
     await session.refresh();
   } catch (e) {
@@ -118,7 +118,6 @@ async function remove() {
 
       <section v-if="showEditor" class="card editor">
         <div v-if="error" class="alert alert-error">{{ error }}</div>
-        <div v-if="saved" class="alert alert-success">تم الحفظ</div>
         <form @submit.prevent="save">
           <div class="row">
             <div class="field" style="flex: 1"><label>اسم الدور</label><input v-model="form.name" class="input" :disabled="!canManage" required /></div>

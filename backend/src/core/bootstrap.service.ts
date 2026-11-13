@@ -30,12 +30,13 @@ export class BootstrapService implements OnApplicationBootstrap {
         organizationId: null,
         fullName: 'مدير المنصة',
         email,
+        username: 'admin',
         passwordHash: await bcrypt.hash(password, 12),
         isPlatformAdmin: true,
       }));
       this.logger.warn(
         generated
-          ? `Created platform admin ${email} with generated password: ${password}  (change it after first login)`
+          ? `Created platform admin "admin" (${email}) with generated password: ${password}  (change it after first login)`
           : `Created platform admin ${email} (password from PLATFORM_ADMIN_PASSWORD)`,
       );
     });

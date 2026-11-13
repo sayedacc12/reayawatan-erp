@@ -15,6 +15,7 @@ export interface AuthUser {
   organizationId: string | null;
   organizationName: string | null;
   email: string;
+  username: string | null;
   fullName: string;
   isSuperadmin: boolean;
   isPlatformAdmin: boolean;

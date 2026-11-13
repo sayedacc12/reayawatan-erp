@@ -60,6 +60,27 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     await http.get('/api/users').expect(401);
   });
 
+  let usernameToken: string;
+  it('platform admin logs in with username admin', async () => {
+    const res = await http.post('/api/auth/login').send({ login: 'Admin', password: 'Platform123' }).expect(200);
+    expect(res.body.user.username).toBe('admin');
+    usernameToken = res.body.accessToken;
+    await http.post('/api/auth/login').send({ login: 'nobody', password: 'Platform123' }).expect(401);
+  });
+
+  it('rejects Arabic or reused passwords on change', async () => {
+    const t = usernameToken;
+    const arabic = await http.post('/api/auth/change-password').set(as(t))
+      .send({ currentPassword: 'Platform123', newPassword: 'كلمةسر123456' }).expect(400);
+    expect(JSON.stringify(arabic.body.message)).toContain('الإنجليزية');
+    const same = await http.post('/api/auth/change-password').set(as(t))
+      .send({ currentPassword: 'Platform123', newPassword: 'Platform123' }).expect(400);
+    expect(same.body.message).toContain('تختلف');
+    await http.post('/api/platform/organizations').set(as(t)).send({
+      name: 'جمعية', slug: 'ar-pass', adminFullName: 'مدير', adminEmail: 'ar@test.org', adminPassword: 'سرسرسرسر1',
+    }).expect(400);
+  });
+
   it('platform admin creates associations but cannot reach their data', async () => {
     const res = await login('PLATFORM@test.org', 'Platform123').expect(200);
     platformToken = res.body.accessToken;

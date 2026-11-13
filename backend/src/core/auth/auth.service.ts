@@ -20,14 +20,16 @@ export class AuthService {
     private readonly catalog: ModuleCatalogService,
   ) {}
 
-  async login(email: string, password: string) {
+  /** الدخول بالبريد الإلكتروني أو باسم المستخدم */
+  async login(login: string, password: string) {
+    const id = login.trim().toLowerCase();
     const user = await this.users.findOne({
-      where: { email: email.trim().toLowerCase() },
+      where: id.includes('@') ? { email: id } : { username: id },
       select: { id: true, passwordHash: true },
     });
     const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) {
-      throw new UnauthorizedException('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      throw new UnauthorizedException('بيانات الدخول أو كلمة المرور غير صحيحة');
     }
     // يتحقق من أن الحساب والجمعية نشطان
     if (!(await this.resolver.resolve(user.id))) {
@@ -51,6 +53,9 @@ export class AuthService {
     });
     if (!user || !(await bcrypt.compare(current, user.passwordHash))) {
       throw new BadRequestException('كلمة المرور الحالية غير صحيحة');
+    }
+    if (current === next) {
+      throw new BadRequestException('كلمة المرور الجديدة يجب أن تختلف عن الحالية');
     }
     await this.users.update(user.id, { passwordHash: await bcrypt.hash(next, 12) });
   }

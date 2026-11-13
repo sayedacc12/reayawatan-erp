@@ -5,6 +5,7 @@ export interface SessionUser {
   id: string;
   fullName: string;
   email: string;
+  username: string | null;
   organizationId: string | null;
   organizationName: string | null;
   isSuperadmin: boolean;
@@ -33,10 +34,11 @@ export const useSession = defineStore('session', {
       if (!permission) return true;
       return !!this.user && this.user.permissions.includes(permission);
     },
-    async login(email: string, password: string) {
+    /** login: البريد الإلكتروني أو اسم المستخدم */
+    async login(login: string, password: string) {
       const res = await api<SessionPayload & { accessToken: string }>('/auth/login', {
         method: 'POST',
-        json: { email, password },
+        json: { login, password },
       });
       token.set(res.accessToken);
       this.apply(res);
