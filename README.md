@@ -30,6 +30,10 @@ docker compose up -d --build
 # افتح http://localhost:8080 وادخل بحساب مدير المنصة من .env
 ```
 
+## التشغيل على سيرفر (إنتاج)
+
+أمر واحد بيشغّل النظام مع HTTPS تلقائي. التفاصيل في [deploy/README.md](deploy/README.md).
+
 ## التطوير
 
 ```bash
