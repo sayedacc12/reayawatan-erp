@@ -42,6 +42,7 @@ export class SettingsService {
       workflowId: a.workflowId, workflowName: a.workflow?.name ?? null, portalVisible: a.portalVisible,
       isActive: a.isActive, sortOrder: a.sortOrder, requestCount: byProject.get(a.id) ?? 0,
       services: a.services, multiServices: a.multiServices, allowConcurrent: a.allowConcurrent, recurrence: a.recurrence,
+      fundingType: a.fundingType, zakatEligible: a.zakatEligible, approvalStatus: a.approvalStatus,
     }));
   }
 
@@ -89,7 +90,7 @@ export class SettingsService {
       out.services = dto.services.map((x: ServiceDto) => {
         if (names.has(x.name)) throw new BadRequestException(`الخدمة "${x.name}" مكررة`);
         names.add(x.name);
-        return { name: x.name, cost: x.cost ?? null };
+        return { name: x.name, cost: x.cost ?? null, description: x.description ?? null, portalVisible: x.portalVisible ?? true };
       });
     }
     if (dto.multiServices !== undefined) out.multiServices = dto.multiServices;

@@ -44,6 +44,11 @@ export const MARITAL: Opt[] = [
   { value: 'widowed', label: 'أرمل / أرملة' },
   { value: 'divorced', label: 'مطلق / مطلقة' },
 ];
+export const RESIDENCIES: Opt[] = [
+  { value: 'citizen', label: 'مواطن' },
+  { value: 'resident', label: 'مقيم' },
+  { value: 'visitor', label: 'زائر' },
+];
 export const HOUSING: Opt[] = [
   { value: 'owned', label: 'ملك' },
   { value: 'rented', label: 'إيجار' },
@@ -124,7 +129,7 @@ export const SUPPORT_DECISIONS: Opt[] = [
 
 const maps = {
   status: toMap(STATUSES), category: toMap(CATEGORIES), aid: toMap(AID_TYPES), decision: toMap(DECISIONS),
-  gender: toMap(GENDERS), marital: toMap(MARITAL), housing: toMap(HOUSING), doc: toMap(DOC_TYPES),
+  gender: toMap(GENDERS), marital: toMap(MARITAL), housing: toMap(HOUSING), residency: toMap(RESIDENCIES), doc: toMap(DOC_TYPES),
   request: toMap(REQUEST_STATUSES), action: toMap(ACTION_LABELS), ticket: toMap(TICKET_TYPES), ticketStatus: toMap(TICKET_STATUSES),
   field: toMap(FIELD_TYPES), outcome: toMap(OUTCOMES), recurrence: toMap(RECURRENCES), contribution: toMap(CONTRIBUTION_STATUSES),
 };

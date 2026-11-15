@@ -4,10 +4,10 @@ import {
   IsDateString, IsIn, IsInt, IsUUID, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 import {
-  AID_TYPES, CASE_STATUSES, CATEGORIES, DOCUMENT_TYPES, GENDERS, HOUSING_TYPES, MARITAL_STATUSES, RESEARCH_DECISIONS,
+  AID_TYPES, CASE_STATUSES, CATEGORIES, DOCUMENT_TYPES, GENDERS, HOUSING_TYPES, MARITAL_STATUSES, RESEARCH_DECISIONS, RESIDENCIES,
 } from './constants';
 import type {
-  AidType, CaseStatus, Category, DocumentType, Gender, HousingType, MaritalStatus, ResearchDecision,
+  AidType, CaseStatus, Category, DocumentType, Gender, HousingType, MaritalStatus, ResearchDecision, Residency,
 } from './constants';
 
 /** يحول النص الفاضي لـ null ويشيل المسافات، ويحوّل الأرقام العربية (٠-٩) لإنجليزية */
@@ -43,6 +43,12 @@ export class CreateBeneficiaryDto {
 
   @IsOptional() @clean() @IsString() @MaxLength(100)
   city?: string | null;
+
+  @IsOptional() @clean() @IsString() @MaxLength(60)
+  nationality?: string | null;
+
+  @IsOptional() @IsIn([...RESIDENCIES, null], { message: 'اختر فئة الإقامة' })
+  residency?: Residency | null;
 
   @IsOptional() @clean() @IsString() @MaxLength(300)
   address?: string | null;

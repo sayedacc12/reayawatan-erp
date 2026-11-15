@@ -11,11 +11,21 @@ export type Recurrence = 'once' | 'weekly' | 'monthly' | 'quarterly' | 'semiannu
 export interface ProjectService {
   name: string;
   cost?: number | null;
+  /** نبذة عن الخدمة تظهر للمستفيد */
+  description?: string | null;
+  /** تظهر في بوابة المستفيدين (الافتراضي: نعم) */
+  portalVisible?: boolean;
 }
+
+/** نوع المشروع حسب طبيعة تمويله: مقيد، غير مقيد، تشغيلي (يحدده نظام إدارة المشاريع) */
+export type FundingType = 'restricted' | 'unrestricted' | 'operational';
+
+/** حالة اعتماد المشروع في مراحل اعتماد المشاريع */
+export type ApprovalStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected';
 
 /**
  * شجرة الأنشطة بثلاث مستويات: محور ← برنامج ← مشروع.
- * طلبات المستفيدين تُقدَّم على مستوى المشروع.
+ * طلبات المستفيدين تُقدَّم على مستوى المشروع، وخدمات المشروع هي المستوى الرابع.
  */
 @Entity('activities')
 @Index('IDX_activities_org_parent', ['organizationId', 'parentId'])
@@ -76,6 +86,19 @@ export class Activity {
   /** تكرار الدعم */
   @Column({ type: 'varchar', length: 12, default: 'once' })
   recurrence!: Recurrence;
+
+  // ---- بيانات نظام إدارة المشاريع (للمشاريع) ----
+
+  @Column({ name: 'funding_type', type: 'varchar', length: 12, default: 'restricted' })
+  fundingType!: FundingType;
+
+  /** المشروع ضمن بنود الزكاة */
+  @Column({ name: 'zakat_eligible', default: false })
+  zakatEligible!: boolean;
+
+  /** المشاريع القديمة معتمدة افتراضيًا، والجديدة تبدأ مسودة من نظام إدارة المشاريع */
+  @Column({ name: 'approval_status', type: 'varchar', length: 12, default: 'approved' })
+  approvalStatus!: ApprovalStatus;
 
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;

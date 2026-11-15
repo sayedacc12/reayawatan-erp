@@ -2,6 +2,8 @@
 export const GENDERS = ['male', 'female'] as const;
 export const MARITAL_STATUSES = ['single', 'married', 'widowed', 'divorced'] as const;
 export const HOUSING_TYPES = ['owned', 'rented', 'shared', 'other'] as const;
+/** فئة الإقامة: مواطن، مقيم، زائر (لاشتراطات الداعمين) */
+export const RESIDENCIES = ['citizen', 'resident', 'visitor'] as const;
 /** دورة حياة الحالة: جديدة ← تحت الدراسة ← مستحقة/غير مستحقة، ويمكن إيقافها */
 export const CASE_STATUSES = ['new', 'under_review', 'eligible', 'ineligible', 'suspended'] as const;
 export const CATEGORIES = [
@@ -14,6 +16,7 @@ export const DOCUMENT_TYPES = ['national_id', 'death_certificate', 'medical_repo
 export type Gender = (typeof GENDERS)[number];
 export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
 export type HousingType = (typeof HOUSING_TYPES)[number];
+export type Residency = (typeof RESIDENCIES)[number];
 export type CaseStatus = (typeof CASE_STATUSES)[number];
 export type Category = (typeof CATEGORIES)[number];
 export type ResearchDecision = (typeof RESEARCH_DECISIONS)[number];

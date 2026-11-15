@@ -7,6 +7,7 @@ import { dataSourceOptions } from './config/data-source';
 import { CoreModule } from './core/core.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
+import { ProjectsModule } from './modules/projects/projects.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -19,6 +20,7 @@ import { HealthController } from './health.controller';
     CoreModule,
     BeneficiariesModule,
     FundraisingModule,
+    ProjectsModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],
   controllers: [HealthController],

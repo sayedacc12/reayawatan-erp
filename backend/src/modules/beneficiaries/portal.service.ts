@@ -45,7 +45,8 @@ export class PortalService {
     const forms = await this.db.getRepository(DynamicForm).find({ where: { organizationId } });
     const def = workflows.find((w) => w.isDefault);
     const list = all
-      .filter((p) => p.level === 'project' && p.portalVisible)
+      // المشروع لازم يكون معتمدًا من مراحل اعتماد المشاريع
+      .filter((p) => p.level === 'project' && p.portalVisible && p.approvalStatus === 'approved')
       // لازم البرنامج والمحور نشطين كمان
       .filter((p) => byId.has(p.parentId!) && byId.has(byId.get(p.parentId!)!.parentId!))
       .map((p) => {
@@ -57,7 +58,7 @@ export class PortalService {
         return {
           id: p.id, name: p.name, description: p.description, program: program.name, axis: axis.name,
           applicationForm: form ? { name: form.name, fields: form.fields } : null,
-          services: p.services, multiServices: p.multiServices, allowConcurrent: p.allowConcurrent,
+          services: (p.services ?? []).filter((x) => x.portalVisible !== false), multiServices: p.multiServices, allowConcurrent: p.allowConcurrent,
           recurrence: p.recurrence, recurrenceLabel: RECURRENCE_LABEL[p.recurrence],
           eligibility: null as null | { canApply: boolean; reason: string | null; nextDate: string | null },
           project: p,

@@ -11,6 +11,7 @@ const paths: Record<string, string> = {
   globe: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M2 12h20 M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z',
   grid: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z',
   coins: 'M9 10a6 3 0 1 0 0-.01 M3 7v6c0 1.7 2.7 3 6 3s6-1.3 6-3V7 M15 10.2c3.4.3 6 1.6 6 3.3 0 1.7-2.7 3-6 3 M21 13.5v4c0 1.7-2.7 3-6 3-2 0-3.8-.5-4.9-1.3 M3 13v4c0 1.7 2.7 3 6 3',
+  layers: 'M12 2 2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
 };
 const d = () => paths[props.name ?? ''] ?? paths.grid;
 </script>

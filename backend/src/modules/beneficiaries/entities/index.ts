@@ -16,7 +16,7 @@ export {
   Activity, AidDisbursement, Beneficiary, BeneficiaryDocument, BeneficiaryRequest, BeneficiarySettings, CaseResearch, DynamicForm, FamilyMember,
   RequestAction, Ticket, Workflow, WorkflowStage,
 };
-export type { ActivityLevel, ProjectService, Recurrence } from './activity.entity';
+export type { ActivityLevel, ApprovalStatus, FundingType, ProjectService, Recurrence } from './activity.entity';
 export type { FieldType, FormField, FormStatus, FormStep, FormHistoryEntry, ScoreOutcome, ScoreRule, SupportAnswer, SupportDecision } from './dynamic-form.entity';
 export type { ContributionStatus, JournalEntry, RequestStatus } from './beneficiary-request.entity';
 export type { RequestDecision } from './request-action.entity';
