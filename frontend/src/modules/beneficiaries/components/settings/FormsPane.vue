@@ -2,17 +2,24 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../../api';
 import { useToast } from '../../../../stores/toast';
+import { useSession } from '../../../../stores/session';
 import { FIELD_TYPES, OUTCOMES, color, label, scoreOf } from '../../labels';
-import type { DynamicForm, FormField, ScoreRule } from '../../types';
+import type { DynamicForm, FormField, ScoreRule, WorkflowRow } from '../../types';
 import DynamicFields from '../DynamicFields.vue';
 
 const toast = useToast();
+const session = useSession();
+const canApprove = computed(() => session.can('beneficiaries.forms.approve'));
 const forms = ref<DynamicForm[]>([]);
+const workflows = ref<WorkflowRow[]>([]);
 const error = ref('');
 
 async function load() {
   try {
-    forms.value = await api<DynamicForm[]>('/beneficiaries/settings/forms');
+    [forms.value, workflows.value] = await Promise.all([
+      api<DynamicForm[]>('/beneficiaries/settings/forms'),
+      api<WorkflowRow[]>('/beneficiaries/settings/workflows'),
+    ]);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -23,6 +30,8 @@ type EditField = FormField & { optionsText: string; scoresText: string[] };
 const open = ref(false);
 const editing = ref<DynamicForm | null>(null);
 const formError = ref('');
+const target = reactive({ workflowId: '', stageId: '' });
+const pickWf = computed(() => workflows.value.find((w) => w.id === target.workflowId));
 const form = reactive({ name: '', description: '', scored: false, fields: [] as EditField[], rules: [] as ScoreRule[] });
 const preview = ref<Record<string, unknown>>({});
 
@@ -54,8 +63,18 @@ function openForm(f?: DynamicForm) {
     name: f?.name ?? '', description: f?.description ?? '', scored: !!f?.scored, rules: (f?.rules ?? []).map((r) => ({ ...r })),
     fields: f ? f.fields.map(toEdit) : [toEdit({ key: '', label: '', type: 'text', required: false })],
   });
+  if (!f) {
+    const wf = workflows.value.find((w) => w.isDefault) ?? workflows.value[0];
+    target.workflowId = wf?.id ?? '';
+    target.stageId = firstFree(wf);
+  }
   open.value = true;
 }
+function firstFree(w?: WorkflowRow) {
+  const st = w?.stages.find((s) => !s.formId);
+  return st?.id ?? (w && !w.applicationFormId ? 'application' : '');
+}
+function onWfChange() { target.stageId = firstFree(pickWf.value); }
 function addField() { form.fields.push(toEdit({ key: '', label: '', type: 'text', required: false })); }
 function move(i: number, d: number) { const s = form.fields; [s[i], s[i + d]] = [s[i + d], s[i]]; }
 const cleanFields = () => form.fields.map((f, i): FormField => {
@@ -72,6 +91,10 @@ const previewScore = computed(() => (form.scored ? scoreOf({ fields: cleanFields
 async function save() {
   formError.value = '';
   try {
+    if (!editing.value && (!target.workflowId || !target.stageId)) {
+      formError.value = 'لازم تختار سير العمل والمرحلة اللي النموذج هيتعمل عليها';
+      return;
+    }
     if (!weightOk.value) {
       formError.value = `إجمالي الأهمية النسبية لازم يكون 100%، الإجمالي دلوقتي ${totalWeight.value}%`;
       return;
@@ -81,12 +104,27 @@ async function save() {
       rules: form.scored ? form.rules.map((r) => ({ ...r, contributionPercent: r.outcome === 'contribution' ? r.contributionPercent : undefined })) : [],
     };
     if (editing.value) await api(`/beneficiaries/settings/forms/${editing.value.id}`, { method: 'PUT', json: body });
-    else await api('/beneficiaries/settings/forms', { method: 'POST', json: body });
+    else {
+      await api('/beneficiaries/settings/forms', {
+        method: 'POST', json: { ...body, workflowId: target.workflowId, stageId: target.stageId === 'application' ? null : target.stageId },
+      });
+    }
+    const wasApproved = editing.value?.status === 'approved';
     open.value = false;
-    toast.success('تم حفظ النموذج');
+    toast.success(wasApproved ? 'تم الحفظ، والنموذج رجع مسودة لحد ما مدير الشاشة يعتمده' : 'تم حفظ النموذج، ومستني اعتماد مدير الشاشة');
     await load();
   } catch (e) {
     formError.value = (e as Error).message;
+  }
+}
+async function approve(f: DynamicForm) {
+  if (!confirm(`اعتماد النموذج "${f.name}"؟ بعد الاعتماد المرحلة اللي عليها النموذج مش هتتحذف.`)) return;
+  try {
+    await api(`/beneficiaries/settings/forms/${f.id}/approve`, { method: 'POST' });
+    toast.success('تم اعتماد النموذج');
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
   }
 }
 async function remove(f: DynamicForm) {
@@ -104,7 +142,7 @@ async function remove(f: DynamicForm) {
 <template>
   <section>
     <div class="pane-head">
-      <p class="muted">النماذج بتتربط بمراحل سير العمل (زي نموذج البحث الاجتماعي) أو بتقديم الطلب. ضيف الحقول اللي محتاجها وغيّرها في أي وقت.</p>
+      <p class="muted">كل نموذج بيتعمل على مرحلة من مراحل سير العمل (زي البحث الاجتماعي) أو على تقديم الطلب. النموذج بيبدأ مسودة، ومايشتغلش غير بعد ما مدير الشاشة يعتمده.</p>
       <button class="btn btn-primary btn-sm" @click="openForm()">+ نموذج جديد</button>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
@@ -112,21 +150,47 @@ async function remove(f: DynamicForm) {
     <div class="grid">
       <article v-for="(f, i) in forms" :key="f.id" class="card fcard" :style="{ '--i': i }">
         <h3>{{ f.name }} <span v-if="f.scored" class="sbadge">تقييم آلي</span></h3>
+        <div class="meta">
+          <span :class="['st', f.status ?? 'approved']">{{ f.status === 'draft' ? '⏳ مسودة، مستني الاعتماد' : '✓ معتمد' }}</span>
+          <span v-for="p in f.placements" :key="`${p.workflowId}-${p.stageId}`" class="place">📍 {{ p.workflowName }} ← {{ p.stageName }}</span>
+        </div>
+        <p class="muted small who">{{ [f.createdByName && `أنشأه: ${f.createdByName}`, f.status === 'approved' && f.approvedByName && `اعتمده: ${f.approvedByName}`].filter(Boolean).join(' · ') }}</p>
         <p v-if="f.description" class="muted small">{{ f.description }}</p>
         <ul class="fields"><li v-for="x in f.fields" :key="x.key">{{ x.label }}<span class="muted"> · {{ label('field', x.type) }}</span><b v-if="x.required" class="req">*</b><span v-if="x.weight" class="wchip">{{ x.weight }}%</span></li></ul>
         <div v-if="f.scored && f.rules?.length" class="rchips">
           <span v-for="(r, j) in f.rules" :key="j" class="rchip" :style="{ '--c': color('outcome', r.outcome) }">{{ r.min }}–{{ r.max }}%: {{ label('outcome', r.outcome) }}<template v-if="r.contributionPercent"> {{ r.contributionPercent }}%</template></span>
         </div>
-        <div class="acts"><button class="btn btn-sm" @click="openForm(f)">تعديل</button><button class="btn btn-sm btn-danger" @click="remove(f)">حذف</button></div>
+        <div class="acts">
+          <button v-if="f.status === 'draft' && canApprove" class="btn btn-sm btn-primary" @click="approve(f)">اعتماد</button>
+          <button class="btn btn-sm" @click="openForm(f)">تعديل</button>
+          <button v-if="f.status !== 'approved'" class="btn btn-sm btn-danger" @click="remove(f)">حذف</button>
+        </div>
       </article>
     </div>
 
     <div v-if="open" class="modal-backdrop" @click.self="open = false">
-      <form class="card modal builder" @submit.prevent="save">
+      <div class="card modal builder">
         <h2 class="mt">{{ editing ? 'تعديل النموذج' : 'نموذج جديد' }}</h2>
         <div v-if="formError" class="alert alert-error">{{ formError }}</div>
+        <div v-if="editing?.status === 'approved'" class="alert alert-warn">النموذج ده معتمد. أي تعديل هيرجّعه مسودة لحد ما مدير الشاشة يعتمده تاني، ولحد كده قرارات المرحلة هتقف.</div>
+        <div v-if="!editing" class="target">
+          <p class="sec">النموذج ده هيتعمل على</p>
+          <div class="two">
+            <div class="field"><label>سير العمل *</label>
+              <select v-model="target.workflowId" form="form-builder" class="input" required @change="onWfChange"><option value="" disabled>اختار سير العمل</option><option v-for="w in workflows" :key="w.id" :value="w.id">{{ w.name }}</option></select>
+            </div>
+            <div class="field"><label>المرحلة *</label>
+              <select v-model="target.stageId" form="form-builder" class="input" required>
+                <option value="" disabled>اختار المرحلة</option>
+                <option value="application" :disabled="!!pickWf?.applicationFormId">تقديم الطلب (يعبّيه مقدم الطلب){{ pickWf?.applicationFormId ? ' · عليها نموذج' : '' }}</option>
+                <option v-for="(s, i) in pickWf?.stages ?? []" :key="s.id" :value="s.id" :disabled="!!s.formId">{{ i + 1 }}. {{ s.name }}{{ s.formId ? ` · عليها نموذج (${s.formName})` : '' }}</option>
+              </select>
+            </div>
+          </div>
+          <p v-if="!workflows.length" class="muted small">لازم تعمل سير عمل الأول من تبويب "سير العمل".</p>
+        </div>
         <div class="cols">
-          <div>
+          <form id="form-builder" class="bcol" @submit.prevent="save">
             <div class="field"><label>اسم النموذج *</label><input v-model="form.name" class="input" required placeholder="مثال: نموذج البحث الاجتماعي" /></div>
             <div class="field"><label>الوصف</label><input v-model="form.description" class="input" /></div>
             <label class="scored-toggle">
@@ -182,7 +246,7 @@ async function remove(f: DynamicForm) {
               </div>
               <button type="button" class="btn btn-sm" @click="addRule">+ إضافة قاعدة</button>
             </template>
-          </div>
+          </form>
           <div class="preview">
             <p class="sec">معاينة</p>
             <div class="pv card">
@@ -197,8 +261,8 @@ async function remove(f: DynamicForm) {
             </div>
           </div>
         </div>
-        <div class="modal-actions"><button class="btn btn-primary">حفظ النموذج</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
-      </form>
+        <div class="modal-actions"><button class="btn btn-primary" form="form-builder">حفظ النموذج</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
+      </div>
     </div>
   </section>
 </template>
@@ -213,7 +277,15 @@ async function remove(f: DynamicForm) {
 .small { font-size: .82rem; margin: 4px 0 0; }
 .fields { margin: 10px 0; padding-inline-start: 18px; font-size: .88rem; flex: 1; }
 .req { color: var(--danger); margin-inline-start: 4px; }
-.acts { display: flex; gap: 6px; }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.st { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.st.draft { background: #fef3c7; color: #92400e; } .st.approved { background: #dcfce7; color: #166534; }
+.place { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); }
+.who { min-height: 1em; }
+.target { padding: 12px; border: 1px dashed var(--primary); border-radius: 12px; margin-bottom: 14px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.alert-warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 .builder { max-width: 1000px; }
 .mt { margin-bottom: 14px; }
 .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }

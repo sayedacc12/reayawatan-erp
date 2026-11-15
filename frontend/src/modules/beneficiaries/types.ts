@@ -124,7 +124,12 @@ export interface FormField {
 }
 export type ScoreOutcome = 'reject' | 'approve' | 'contribution';
 export interface ScoreRule { min: number; max: number; outcome: ScoreOutcome; contributionPercent?: number }
-export interface DynamicForm { id: string; name: string; description: string | null; fields: FormField[]; scored?: boolean; rules?: ScoreRule[] }
+export type FormStatus = 'draft' | 'approved';
+export interface FormPlacement { workflowId: string; workflowName: string; stageId: string | null; stageName: string }
+export interface DynamicForm {
+  id: string; name: string; description: string | null; fields: FormField[]; scored?: boolean; rules?: ScoreRule[];
+  status?: FormStatus; createdByName?: string | null; approvedByName?: string | null; approvedAt?: string | null; placements?: FormPlacement[];
+}
 
 export type Recurrence = 'once' | 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 export interface ProjectService { name: string; cost?: number | null }
@@ -138,11 +143,11 @@ export interface ActivityRow {
 export interface StageRow {
   id?: string; name: string; instructions: string | null; formId: string | null; formName?: string | null;
   roleId: string | null; roleName?: string | null; canReject: boolean; canReturn: boolean; activeRequests?: number;
-  kind: 'standard' | 'contribution'; formScored?: boolean;
+  kind: 'standard' | 'contribution'; formScored?: boolean; formStatus?: FormStatus | null;
 }
 export interface WorkflowRow {
   id: string; name: string; description: string | null; isDefault: boolean; applicationFormId: string | null;
-  applicationFormName: string | null; applicationFormFields?: FormField[] | null; stages: StageRow[];
+  applicationFormName: string | null; applicationFormStatus?: FormStatus | null; applicationFormFields?: FormField[] | null; stages: StageRow[];
 }
 
 export type RequestStatus = 'in_progress' | 'returned' | 'approved' | 'rejected' | 'cancelled';
@@ -183,7 +188,7 @@ export interface RequestDetail {
   workflow: {
     id: string; name: string;
     applicationForm: { id: string; name: string; fields: FormField[] } | null;
-    stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; kind?: 'standard' | 'contribution'; form?: { id: string; name: string; fields: FormField[]; scored?: boolean; rules?: ScoreRule[] } | null }[];
+    stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; kind?: 'standard' | 'contribution'; form?: { id: string; name: string; fields: FormField[]; scored?: boolean; rules?: ScoreRule[]; status?: FormStatus } | null }[];
   } | null;
   actions: RequestAction[];
 }

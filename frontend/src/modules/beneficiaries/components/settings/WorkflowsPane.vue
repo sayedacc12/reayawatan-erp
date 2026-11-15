@@ -2,19 +2,17 @@
 import { onMounted, reactive, ref } from 'vue';
 import { api } from '../../../../api';
 import { useToast } from '../../../../stores/toast';
-import type { DynamicForm, StageRow, WorkflowRow } from '../../types';
+import type { StageRow, WorkflowRow } from '../../types';
 
 const toast = useToast();
 const workflows = ref<WorkflowRow[]>([]);
-const forms = ref<DynamicForm[]>([]);
 const roles = ref<{ id: string; name: string }[]>([]);
 const error = ref('');
 
 async function load() {
   try {
-    [workflows.value, forms.value, roles.value] = await Promise.all([
+    [workflows.value, roles.value] = await Promise.all([
       api<WorkflowRow[]>('/beneficiaries/settings/workflows'),
-      api<DynamicForm[]>('/beneficiaries/settings/forms'),
       api<{ id: string; name: string }[]>('/beneficiaries/settings/roles'),
     ]);
   } catch (e) {
@@ -28,14 +26,15 @@ const editing = ref<WorkflowRow | null>(null);
 const formError = ref('');
 const saving = ref(false);
 const blankStage = (): StageRow => ({ name: '', instructions: '', formId: null, roleId: null, canReject: true, canReturn: true, kind: 'standard' });
-const form = reactive({ name: '', description: '', isDefault: false, applicationFormId: null as string | null, stages: [] as StageRow[] });
+const form = reactive({ name: '', description: '', isDefault: false, stages: [] as StageRow[] });
+const STATUS_LABEL = { draft: 'مسودة', approved: 'معتمد' } as const;
+const locked = (s: StageRow) => s.formStatus === 'approved';
 
 function openForm(w?: WorkflowRow) {
   editing.value = w ?? null;
   formError.value = '';
   Object.assign(form, {
     name: w?.name ?? '', description: w?.description ?? '', isDefault: w?.isDefault ?? !workflows.value.length,
-    applicationFormId: w?.applicationFormId ?? null,
     stages: w ? w.stages.map((s) => ({ ...s })) : [
       { ...blankStage(), name: 'مراجعة الطلب' }, { ...blankStage(), name: 'البحث الاجتماعي' }, { ...blankStage(), name: 'الاعتماد النهائي' },
     ],
@@ -51,8 +50,8 @@ async function save() {
   formError.value = '';
   try {
     const body = {
-      name: form.name, description: form.description, isDefault: form.isDefault, applicationFormId: form.applicationFormId,
-      stages: form.stages.map((s) => ({ id: s.id, name: s.name, instructions: s.instructions, formId: s.formId, roleId: s.roleId, canReject: s.canReject, canReturn: s.canReturn, kind: s.kind })),
+      name: form.name, description: form.description, isDefault: form.isDefault,
+      stages: form.stages.map((s) => ({ id: s.id, name: s.name, instructions: s.instructions, roleId: s.roleId, canReject: s.canReject, canReturn: s.canReturn, kind: s.kind })),
     };
     if (editing.value) await api(`/beneficiaries/settings/workflows/${editing.value.id}`, { method: 'PUT', json: body });
     else await api('/beneficiaries/settings/workflows', { method: 'POST', json: body });
@@ -90,7 +89,7 @@ async function remove(w: WorkflowRow) {
       <header>
         <div>
           <h3>{{ w.name }} <span v-if="w.isDefault" class="def">الافتراضي</span></h3>
-          <p class="muted small">نموذج التقديم: {{ w.applicationFormName ?? 'بدون' }}<template v-if="w.description"> · {{ w.description }}</template></p>
+          <p class="muted small">نموذج التقديم: {{ w.applicationFormName ?? 'بدون' }}<span v-if="w.applicationFormStatus" :class="['st', w.applicationFormStatus]">{{ STATUS_LABEL[w.applicationFormStatus] }}</span><template v-if="w.description"> · {{ w.description }}</template></p>
         </div>
         <span class="acts"><button class="btn btn-sm" @click="openForm(w)">تعديل</button><button class="btn btn-sm btn-danger" @click="remove(w)">حذف</button></span>
       </header>
@@ -100,7 +99,7 @@ async function remove(w: WorkflowRow) {
           <span class="dot">{{ i + 1 }}</span>
           <b>{{ s.name }}</b>
           <small v-if="s.kind === 'contribution'" class="chip contrib">💰 تأكيد مساهمة المستفيد</small>
-          <small v-if="s.formName" class="chip form">📝 {{ s.formName }}<template v-if="s.formScored"> · تقييم آلي</template></small>
+          <small v-if="s.formName" class="chip form">📝 {{ s.formName }}<template v-if="s.formScored"> · تقييم آلي</template><span v-if="s.formStatus" :class="['st', s.formStatus]">{{ STATUS_LABEL[s.formStatus] }}</span></small>
           <small v-if="s.roleName" class="chip role">👤 {{ s.roleName }}</small>
           <small v-if="s.activeRequests" class="chip count">{{ s.activeRequests }} طلب الآن</small>
         </li>
@@ -115,7 +114,7 @@ async function remove(w: WorkflowRow) {
         <div class="two">
           <div class="field"><label>الاسم *</label><input v-model="form.name" class="input" required /></div>
           <div class="field"><label>نموذج بيانات الطلب (يعبّيه مقدم الطلب)</label>
-            <select v-model="form.applicationFormId" class="input"><option :value="null">بدون نموذج</option><option v-for="f in forms" :key="f.id" :value="f.id">{{ f.name }}</option></select>
+            <div class="ro">{{ editing?.applicationFormName ?? 'بدون نموذج' }}<span v-if="editing?.applicationFormStatus" :class="['st', editing.applicationFormStatus]">{{ STATUS_LABEL[editing.applicationFormStatus] }}</span></div>
           </div>
         </div>
         <div class="field"><label>الوصف</label><input v-model="form.description" class="input" /></div>
@@ -131,7 +130,7 @@ async function remove(w: WorkflowRow) {
                 <div class="mv">
                   <button type="button" class="icon" :disabled="i === 0" title="لأعلى" @click="move(i, -1)">▲</button>
                   <button type="button" class="icon" :disabled="i === form.stages.length - 1" title="لأسفل" @click="move(i, 1)">▼</button>
-                  <button type="button" class="icon danger" :disabled="form.stages.length === 1" title="حذف" @click="form.stages.splice(i, 1)">✕</button>
+                  <button type="button" class="icon danger" :disabled="form.stages.length === 1 || locked(s)" :title="locked(s) ? 'المرحلة دي عليها نموذج معتمد، مينفعش تتحذف' : 'حذف'" @click="form.stages.splice(i, 1)">✕</button>
                 </div>
               </div>
               <select v-model="s.kind" class="input">
@@ -140,7 +139,7 @@ async function remove(w: WorkflowRow) {
               </select>
               <p v-if="s.kind === 'contribution'" class="muted small khint">المرحلة دي بتشتغل بس لو نتيجة التقييم طلبت مساهمة من المستفيد، غير كده بتتعدى تلقائي. القبول فيها = التحقق من المبلغ وتوجيه القيد المحاسبي.</p>
               <div class="row3">
-                <select v-model="s.formId" class="input"><option :value="null">بدون نموذج (قرار فقط)</option><option v-for="f in forms" :key="f.id" :value="f.id">نموذج: {{ f.name }}</option></select>
+                <div class="ro">📝 {{ s.formName ?? 'بدون نموذج (قرار فقط)' }}<span v-if="s.formStatus" :class="['st', s.formStatus]">{{ STATUS_LABEL[s.formStatus] }}</span><span v-if="locked(s)" class="lock">🔒</span></div>
                 <select v-model="s.roleId" class="input"><option :value="null">أي موظف معه صلاحية المعالجة</option><option v-for="r in roles" :key="r.id" :value="r.id">المسؤول: {{ r.name }}</option></select>
               </div>
               <input v-model="s.instructions" class="input" placeholder="تعليمات للمسؤول (اختياري)" />
@@ -152,6 +151,7 @@ async function remove(w: WorkflowRow) {
             </div>
           </div>
         </TransitionGroup>
+        <p class="muted small hint">النماذج بتتضاف للمراحل من تبويب "النماذج"، والمرحلة اللي عليها نموذج معتمد مينفعش تتحذف.</p>
         <button type="button" class="btn btn-sm add" @click="form.stages.push(blankStage())">+ إضافة مرحلة</button>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="saving">حفظ</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
       </form>
@@ -179,6 +179,11 @@ async function remove(w: WorkflowRow) {
 .chip { font-size: .72rem; padding: 1px 8px; border-radius: 999px; align-self: flex-start; }
 .chip.form { background: #eef2ff; color: #4338ca; } .chip.role { background: #ecfeff; color: #0e7490; } .chip.count { background: #fef3c7; color: #92400e; }
 .chip.contrib { background: #fdf2f8; color: #be185d; }
+.st { font-size: .68rem; font-weight: 700; padding: 0 6px; border-radius: 99px; margin-inline-start: 6px; }
+.st.draft { background: #fef3c7; color: #92400e; } .st.approved { background: #dcfce7; color: #166534; }
+.ro { display: flex; align-items: center; gap: 4px; padding: 8px 12px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface-2); font-size: .9rem; min-height: 40px; }
+.lock { margin-inline-start: auto; }
+.hint { margin: 6px 0; }
 .khint { margin: 0; font-size: .8rem; }
 .mt { margin-bottom: 14px; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }

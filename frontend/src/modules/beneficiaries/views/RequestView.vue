@@ -40,6 +40,7 @@ const decision = reactive({
   estimatedCost: '' as number | '', contributionAmount: '' as number | '',
 });
 const isContribution = computed(() => stage.value?.kind === 'contribution');
+const formDraft = computed(() => stage.value?.form?.status === 'draft');
 /** معاينة نتيجة التقييم الآلي وهو بيعبّي النموذج */
 const liveScore = computed(() => (stage.value?.form?.scored ? scoreOf(stage.value.form, decision.formData) : null));
 /** قرار الباحث من حقل تقييم الباحث (لو موجود) */
@@ -162,10 +163,11 @@ async function resubmit() {
             </div>
             <form v-if="r.canDecide" @submit.prevent="decide">
               <div v-if="decisionError" class="alert alert-error">{{ decisionError }}</div>
+              <div v-if="formDraft" class="alert draft-alert">⏳ نموذج "{{ stage.form?.name }}" في المرحلة دي لسه مسودة ومستني اعتماد مدير الشاشة. القبول والرفض هيتفتحوا بعد الاعتماد، والإرجاع متاح.</div>
               <div class="choices">
-                <button type="button" :class="['choice approve', { on: decision.decision === 'approve' }]" @click="choose('approve')">✓ {{ isContribution ? 'تأكيد المساهمة' : isLast ? 'اعتماد نهائي' : 'قبول وتحويل للمرحلة التالية' }}</button>
+                <button type="button" :disabled="formDraft" :class="['choice approve', { on: decision.decision === 'approve' }]" @click="choose('approve')">✓ {{ isContribution ? 'تأكيد المساهمة' : isLast ? 'اعتماد نهائي' : 'قبول وتحويل للمرحلة التالية' }}</button>
                 <button v-if="stage.canReturn" type="button" :class="['choice ret', { on: decision.decision === 'return' }]" @click="choose('return')">↩ {{ isContribution ? 'إرجاع للمستفيد يرفع من جديد' : isFirst ? 'إرجاع لمقدم الطلب' : 'إرجاع للمرحلة السابقة' }}</button>
-                <button v-if="stage.canReject" type="button" :class="['choice reject', { on: decision.decision === 'reject' }]" @click="choose('reject')">✕ رفض</button>
+                <button v-if="stage.canReject" type="button" :disabled="formDraft" :class="['choice reject', { on: decision.decision === 'reject' }]" @click="choose('reject')">✕ رفض</button>
               </div>
               <Transition name="page">
                 <div v-if="decision.decision" class="d-body">
@@ -322,6 +324,8 @@ async function resubmit() {
 .choice.approve { --c: #059669; } .choice.ret { --c: #d97706; } .choice.reject { --c: #dc2626; }
 .choice:hover { border-color: var(--c); color: var(--c); }
 .choice.on { background: var(--c); border-color: var(--c); color: #fff; box-shadow: 0 8px 20px color-mix(in srgb, var(--c) 35%, transparent); }
+.draft-alert { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.choice:disabled { opacity: .4; cursor: not-allowed; }
 .stage-form { padding: 14px; border-radius: 12px; background: var(--surface-2); margin-bottom: 14px; border: 1px solid var(--border); }
 .form-title { margin: 0 0 10px; font-weight: 700; color: var(--primary); }
 .done-card { padding: 18px; display: flex; gap: 14px; align-items: center; background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #fcd34d; }

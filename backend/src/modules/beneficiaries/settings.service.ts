@@ -198,12 +198,12 @@ export class SettingsService {
     const atStage = new Map(active.map((r) => [r.stage_id, r.count]));
     return rows.map((w) => ({
       id: w.id, name: w.name, description: w.description, isDefault: w.isDefault,
-      applicationFormId: w.applicationFormId, applicationFormName: w.applicationForm?.name ?? null,
+      applicationFormId: w.applicationFormId, applicationFormName: w.applicationForm?.name ?? null, applicationFormStatus: w.applicationForm?.status ?? null,
       applicationFormFields: w.applicationForm?.fields ?? null,
       stages: (w.stages ?? []).map((s) => ({
         id: s.id, name: s.name, instructions: s.instructions, sortOrder: s.sortOrder,
         formId: s.formId, formName: s.form?.name ?? null, roleId: s.roleId, roleName: s.role?.name ?? null,
-        canReject: s.canReject, canReturn: s.canReturn, kind: s.kind, formScored: !!s.form?.scored,
+        canReject: s.canReject, canReturn: s.canReturn, kind: s.kind, formScored: !!s.form?.scored, formStatus: s.form?.status ?? null,
         activeRequests: atStage.get(s.id) ?? 0,
       })),
     }));
