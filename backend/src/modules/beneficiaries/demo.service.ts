@@ -91,7 +91,8 @@ export class DemoService {
         { key: 'rooms', label: 'عدد الغرف', type: 'number' },
         { key: 'no_income', label: 'لا يوجد دخل ثابت للأسرة', type: 'checkbox', weight: 20 },
         { key: 'income_verified', label: 'تم التحقق من الدخل', type: 'checkbox' },
-        { key: 'assessment', label: 'تقييم الباحث', type: 'select', required: true, options: ['مستحق جدًا', 'مستحق', 'غير مستحق'], weight: 50, optionScores: [100, 60, 0] },
+        { key: 'need', label: 'درجة الاحتياج', type: 'select', required: true, options: ['عالية', 'متوسطة', 'منخفضة'], weight: 50, optionScores: [100, 60, 0] },
+        { key: 'assessment', label: 'تقييم الباحث', type: 'support', required: true },
         { key: 'recommendation', label: 'توصية الباحث', type: 'textarea', required: true },
       ], true),
       rules: normalizeRules([
@@ -106,7 +107,7 @@ export class DemoService {
     }));
     const stages = [
       { name: 'مراجعة الطلب', instructions: 'تأكد من اكتمال البيانات والمستندات', roleId: managerRole.id, canReject: true },
-      { name: 'البحث الاجتماعي', instructions: 'زيارة ميدانية وتعبئة نموذج البحث', formId: researchForm.id, roleId: researcherRole.id, canReject: false },
+      { name: 'البحث الاجتماعي', instructions: 'زيارة ميدانية وتعبئة نموذج البحث', formId: researchForm.id, roleId: researcherRole.id },
       { name: 'لجنة الحالات', instructions: 'مناقشة الحالة وتحديد نوع المساعدة' },
       { name: 'تأكيد مساهمة المستفيد', kind: 'contribution' as const, instructions: 'راجع إثبات المساهمة اللي رفعه المستفيد من البوابة', roleId: managerRole.id },
       { name: 'الاعتماد النهائي', instructions: 'اعتماد الطلب من مدير الحالات', roleId: managerRole.id },
@@ -200,22 +201,23 @@ export class DemoService {
       }, people[i].portal ? 'portal' : 'staff');
     const decide = (id: string, decision: 'approve' | 'reject' | 'return', notes?: string, formData?: Record<string, unknown>) =>
       this.requests.decide(setup.actor, id, { decision, notes, formData });
-    const research = (assessment: string, recommendation: string, housing = 'سيئة', noIncome = true) => ({
-      visit_date: daysAgo(5), housing, rooms: 2, no_income: noIncome, income_verified: true, assessment, recommendation,
+    const research = (need: string, recommendation: string, housing = 'سيئة', noIncome = true, supportPercent?: number) => ({
+      visit_date: daysAgo(5), housing, rooms: 2, no_income: noIncome, income_verified: true, need, recommendation,
+      assessment: supportPercent ? { decision: 'partial', percent: supportPercent } : { decision: 'full' },
     });
 
     // 1) معتمد نهائيًا ومصروف عليه
     const r1 = await submit(0, setup.projects.widows, 'أرملة وأعول طفلين والإيجار أكبر من دخلي', 3, 1000);
     await decide(r1, 'approve', 'البيانات مكتملة');
-    await decide(r1, 'approve', 'تمت الزيارة', research('مستحق جدًا', 'كفالة شهرية 1000 جنيه'));
+    await decide(r1, 'approve', 'تمت الزيارة', research('عالية', 'كفالة شهرية 1000 جنيه'));
     await decide(r1, 'approve', 'وافقت اللجنة على كفالة شهرية');
     await decide(r1, 'approve', 'اعتماد نهائي');
     await this.beneficiaries.addAid(setup.actor, ids[0], { aidType: 'cash', amount: 1000, disbursedOn: daysAgo(2), description: 'كفالة شهر', referenceNo: 'R-1001', requestId: r1 });
 
-    // 2) علاج: التقييم 45% فالقواعد بتطلب مساهمة 30% من المستفيد، ومستني يرفع إثبات المساهمة من البوابة
+    // 2) علاج: الباحث قيّمه "مستحق بنسبة" 70% على الجمعية و30% على المستفيد، ومستني يرفع إثبات المساهمة من البوابة
     const r2 = await submit(1, setup.projects.surgery, 'محتاج عملية قلب مفتوح والتأمين لا يغطي', 2, 25000, ['عملية جراحية']);
     await decide(r2, 'approve');
-    await decide(r2, 'approve', undefined, research('مستحق', 'الأسرة تقدر تساهم بجزء من التكلفة', 'متوسطة', false));
+    await decide(r2, 'approve', undefined, research('متوسطة', 'الأسرة تقدر تساهم بجزء من التكلفة', 'متوسطة', false, 70));
     await decide(r2, 'approve', 'الجمعية تتحمل 70% والمستفيد 30%');
 
     // 3) في مرحلة البحث الاجتماعي
@@ -229,7 +231,7 @@ export class DemoService {
     // 5) في لجنة الحالات
     const r5 = await submit(4, setup.projects.school, 'ثلاثة أطفال في المدارس ومحتاجة أدوات', 4, 1500, ['حقيبة مدرسية', 'مصروفات دراسية']);
     await decide(r5, 'approve');
-    await decide(r5, 'approve', undefined, research('مستحق', 'حقيبة مدرسية لكل طفل'));
+    await decide(r5, 'approve', undefined, research('متوسطة', 'حقيبة مدرسية لكل طفل'));
 
     // 6) مرفوض
     const r6 = await submit(5, setup.projects.school, 'طالب جامعي ومحتاج مصاريف', 1, 3000, ['مصروفات دراسية']);

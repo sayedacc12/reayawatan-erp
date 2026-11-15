@@ -18,6 +18,10 @@ export class SupportRulesScoring1794737469932 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "research_score" numeric(5,2)`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "research_outcome" character varying(20)`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "contribution_percent" numeric(5,2)`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "support_percent" numeric(5,2)`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "rule_suggestion" jsonb`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "rule_deviation" boolean NOT NULL DEFAULT false`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "deviation_reason" text`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "contribution_status" character varying(12) NOT NULL DEFAULT 'none'`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "contribution_amount" numeric(14,2)`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" ADD "contribution_document_id" uuid`);
@@ -35,6 +39,10 @@ export class SupportRulesScoring1794737469932 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "contribution_document_id"`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "contribution_amount"`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "contribution_status"`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "deviation_reason"`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "rule_deviation"`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "rule_suggestion"`);
+        await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "support_percent"`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "contribution_percent"`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "research_outcome"`);
         await queryRunner.query(`ALTER TABLE "beneficiary_requests" DROP COLUMN "research_score"`);

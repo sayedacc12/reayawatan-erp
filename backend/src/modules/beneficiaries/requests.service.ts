@@ -2,11 +2,12 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, EntityManager, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { scoreAnswers, validateAnswers } from './dynamic-forms';
+import { scoreAnswers, supportDecision, validateAnswers } from './dynamic-forms';
 import { DocumentStorage } from './document-storage.service';
 import {
   Activity, Beneficiary, BeneficiaryDocument, BeneficiaryRequest, BeneficiarySettings, DynamicForm, FormField, Recurrence,
   RequestAction, RequestDecision, Workflow, WorkflowStage,
+  type ScoreOutcome,
 } from './entities';
 import { DecisionDto, ListRequestsQuery, ResubmitDto } from './requests.dto';
 import { SettingsService } from './settings.service';
@@ -88,7 +89,7 @@ export class RequestsService {
     }
     const total = await qb.getCount();
     const rows = await qb
-      .select(['r.id', 'r.requestNo', 'r.status', 'r.source', 'r.createdAt', 'r.updatedAt', 'r.closedAt'])
+      .select(['r.id', 'r.requestNo', 'r.status', 'r.source', 'r.createdAt', 'r.updatedAt', 'r.closedAt', 'r.ruleDeviation'])
       .addSelect(['b.id', 'b.fullName', 'b.fileNo', 'p.id', 'p.name', 's.id', 's.name', 's.sortOrder'])
       .orderBy('r.updated_at', 'DESC')
       .offset((page - 1) * pageSize)
@@ -101,6 +102,7 @@ export class RequestsService {
         beneficiary: { id: r.beneficiary!.id, fullName: r.beneficiary!.fullName, fileNo: r.beneficiary!.fileNo },
         project: { id: r.project!.id, name: r.project!.name },
         stage: r.currentStage ? { id: r.currentStage.id, name: r.currentStage.name } : null,
+        ruleDeviation: r.ruleDeviation,
       })),
       total, page, pageSize,
     };
@@ -150,8 +152,10 @@ export class RequestsService {
       applicationData: r.applicationData, createdAt: r.createdAt, updatedAt: r.updatedAt, closedAt: r.closedAt,
       currentStageId: r.currentStageId,
       services: r.services, estimatedCost: r.estimatedCost,
-      research: r.researchScore === null ? null : {
+      research: r.researchOutcome === null ? null : {
         score: r.researchScore, outcome: r.researchOutcome, contributionPercent: r.contributionPercent ?? 0,
+        supportPercent: r.supportPercent, supportAmount: this.supportAmount(r),
+        suggestion: r.ruleSuggestion, deviation: r.ruleDeviation, deviationReason: r.deviationReason,
       },
       contribution: {
         status: r.contributionStatus, percent: r.contributionPercent ?? 0, amount: r.contributionAmount,
@@ -275,24 +279,41 @@ export class RequestsService {
       if (dto.decision === 'approve') {
         const form = stage.form ? { form: stage.form, data: validateAnswers(stage.form.fields, dto.formData) } : null;
         let score: number | null = null;
-        if (form?.form.scored) {
-          // التقييم الآلي للبحث الاجتماعي وتطبيق القواعد
-          const result = scoreAnswers(form.form, form.data);
-          if (result.outcome === 'reject') {
-            throw new BadRequestException(`نتيجة التقييم ${result.score}% والقواعد بتقول رفض. اختار "رفض" واكتب السبب`);
-          }
-          score = result.score;
+        const explicit = form ? supportDecision(form.form.fields, form.data) : null;
+        if (explicit?.decision === 'none') throw new BadRequestException('تقييم الباحث "غير مستحق". اختار "رفض" واكتب السبب');
+        const rule = form?.form.scored ? scoreAnswers(form.form, form.data) : null;
+        if (rule || explicit) {
+          // قرار الباحث: مستحق = الجمعية 100%، مستحق بنسبة = نسبة الجمعية والباقي على المستفيد.
+          // من غير حقل تقييم الباحث، القبول = اقتراح القواعد (ولو القواعد قالت رفض = قبول كامل مخالف للقاعدة)
+          const support = explicit
+            ? (explicit.decision === 'full' ? 100 : explicit.percent!)
+            : rule!.outcome === 'contribution' ? 100 - rule!.contributionPercent : 100;
+          const contribution = Math.round((100 - support) * 100) / 100;
           Object.assign(r, {
-            researchScore: result.score, researchOutcome: result.outcome, contributionPercent: result.contributionPercent,
+            researchOutcome: support === 100 ? 'approve' : 'contribution', supportPercent: support, contributionPercent: contribution,
           });
+          if (rule) {
+            score = rule.score;
+            this.applyRule(r, rule, r.researchOutcome!, contribution, dto.notes);
+          }
         }
         if (stage.kind === 'contribution') await this.verifyContribution(em, r, dto);
         await this.log(em, actor, r.id, stage, 'approve', dto.notes ?? null, form, score);
         await this.advance(em, actor, r, stages, idx + 1);
       } else {
         if (!dto.notes) throw new BadRequestException(dto.decision === 'reject' ? 'اكتب سبب الرفض' : 'اكتب سبب الإرجاع');
+        let form: { form: DynamicForm; data: Record<string, unknown> } | null = null;
+        let score: number | null = null;
         if (dto.decision === 'reject') {
           if (!stage.canReject) throw new BadRequestException('هذه المرحلة لا تسمح بالرفض');
+          // الرفض في مرحلة التقييم: نسجل النتيجة ونعلّم الحالة لو القواعد كانت بتقترح قبول
+          if (stage.form?.scored && dto.formData && Object.keys(dto.formData).length) {
+            form = { form: stage.form, data: validateAnswers(stage.form.fields, dto.formData) };
+            const rule = scoreAnswers(stage.form, form.data);
+            score = rule.score;
+            Object.assign(r, { researchOutcome: 'reject', supportPercent: 0, contributionPercent: null });
+            this.applyRule(r, rule, 'reject', 0, dto.notes);
+          }
           Object.assign(r, { status: 'rejected', currentStageId: null, closedAt: new Date() });
         } else {
           if (!stage.canReturn) throw new BadRequestException('هذه المرحلة لا تسمح بالإرجاع');
@@ -303,7 +324,7 @@ export class RequestsService {
           // الإرجاع من أول مرحلة = لمقدم الطلب
           else r.status = 'returned';
         }
-        await this.log(em, actor, r.id, stage, dto.decision, dto.notes);
+        await this.log(em, actor, r.id, stage, dto.decision, dto.notes, form, score);
       }
       await em.save(r);
     });
@@ -358,6 +379,32 @@ export class RequestsService {
         description: `${acc?.contributionDescription || 'مساهمة مستفيد'} - طلب رقم ${r.requestNo}`,
       } : null,
     });
+  }
+
+  /**
+   * القواعد استرشادية: بنسجل اقتراحها، ولو قرار الباحث اختلف عنها لازم يكتب السبب،
+   * والحالة بتتعلّم علشان تبان للمعتمد النهائي
+   */
+  private applyRule(
+    r: BeneficiaryRequest, rule: { score: number; outcome: ScoreOutcome | null; contributionPercent: number },
+    decided: ScoreOutcome, contribution: number, notes?: string | null,
+  ) {
+    r.researchScore = rule.score;
+    r.ruleSuggestion = rule.outcome ? { score: rule.score, outcome: rule.outcome, contributionPercent: rule.contributionPercent } : null;
+    const differs = !!rule.outcome && (rule.outcome !== decided
+      || (decided === 'contribution' && Math.abs(rule.contributionPercent - contribution) > 0.001));
+    if (differs && !notes) {
+      const suggested = rule.outcome === 'contribution' ? `قبول بمساهمة ${rule.contributionPercent}% من المستفيد` : rule.outcome === 'reject' ? 'رفض' : 'قبول';
+      throw new BadRequestException(`القاعدة بتقترح "${suggested}" (النتيجة ${rule.score}%) وقرارك مختلف. اكتب سبب الاختلاف في الملاحظات`);
+    }
+    r.ruleDeviation = differs;
+    r.deviationReason = differs ? notes ?? null : null;
+  }
+
+  /** المبلغ اللي الجمعية بتتحمله = اللي بيتحسب ضمن بيانات الدعم في المشروع */
+  private supportAmount(r: BeneficiaryRequest) {
+    if (r.supportPercent === null || r.estimatedCost === null) return null;
+    return Math.round(r.estimatedCost * r.supportPercent) / 100;
   }
 
   private requiredAmount(r: BeneficiaryRequest) {

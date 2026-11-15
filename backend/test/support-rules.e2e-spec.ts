@@ -166,13 +166,13 @@ describe('Scored research, contribution and support rules', () => {
     const staffView = (await http.get(`/api/beneficiaries/requests/${ids.req}`).set(as(admin)).expect(200)).body;
     expect(staffView.estimatedCost).toBe(21000);
 
-    // 0.6×0 + 0 = 0% → القواعد بتقول رفض، فالقبول ممنوع
+    // 0.6×0 + 0 = 0% → القاعدة بتقترح رفض، فالقبول محتاج سبب الاختلاف
     const blocked = await decide({ decision: 'approve', formData: { housing: 'جيدة', no_income: false } }).expect(400);
-    expect(blocked.body.message).toContain('رفض');
+    expect(blocked.body.message).toContain('سبب الاختلاف');
 
     // سيئة (60×100%) + دخل موجود (0) = 60% → مساهمة 30% من 21000 = 6300
     const scored = await decide({ decision: 'approve', formData: { housing: 'سيئة', no_income: false } }).expect(201);
-    expect(scored.body.research).toEqual({ score: 60, outcome: 'contribution', contributionPercent: 30 });
+    expect(scored.body.research).toMatchObject({ score: 60, outcome: 'contribution', contributionPercent: 30, supportPercent: 70, supportAmount: 14700, deviation: false });
     expect(scored.body.contribution).toMatchObject({ status: 'awaiting', percent: 30, requiredAmount: 6300 });
     expect(scored.body.actions.at(-1).score).toBe(60);
 
@@ -243,5 +243,82 @@ describe('Scored research, contribution and support rules', () => {
       .send({ decision: 'approve', contributionAmount: 6000, notes: 'دفع في المقر' }).expect(201);
     expect(paid.body.contribution).toMatchObject({ status: 'verified', amount: 6000 });
     expect(paid.body.contribution.journal.amount).toBe(6000);
+  });
+  it('lets the researcher decide eligible / partially eligible with the association share / not eligible', async () => {
+    const form = await http.post('/api/beneficiaries/settings/forms').set(as(admin)).send({
+      name: 'بحث بقرار الباحث', fields: [{ key: 'assessment', label: 'تقييم الباحث', type: 'support', required: true }],
+    }).expect(201);
+    await http.post('/api/beneficiaries/settings/forms').set(as(admin)).send({
+      name: 'غلط', fields: [{ label: 'أ', type: 'support' }, { label: 'ب', type: 'support' }],
+    }).expect(400);
+    const wf = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({
+      name: 'بقرار الباحث', stages: [{ name: 'البحث', formId: form.body.id }, { name: 'المساهمة', kind: 'contribution' }, { name: 'الاعتماد' }],
+    }).expect(201);
+    const project = await http.post('/api/beneficiaries/settings/activities').set(as(admin)).send({
+      level: 'project', name: 'دعم جزئي', parentId: ids.program, workflowId: wf.body.id, allowConcurrent: true, recurrence: 'monthly',
+      services: [{ name: 'علاج', cost: 10000 }],
+    }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة بنسبة', gender: 'male', category: 'other' }).expect(201);
+    const open = async () => (await http.post('/api/beneficiaries/requests').set(as(admin))
+      .send({ beneficiaryId: b.body.id, projectId: project.body.id, services: ['علاج'] }).expect(201)).body.id as string;
+    const decide = (id: string, body: Record<string, unknown>) => http.post(`/api/beneficiaries/requests/${id}/decision`).set(as(admin)).send(body);
+
+    const r1 = await open();
+    await decide(r1, { decision: 'approve', formData: {} }).expect(400); // مطلوب
+    await decide(r1, { decision: 'approve', formData: { assessment: { decision: 'partial' } } }).expect(400); // النسبة مطلوبة
+    await decide(r1, { decision: 'approve', formData: { assessment: { decision: 'partial', percent: 100 } } }).expect(400);
+    const none = await decide(r1, { decision: 'approve', formData: { assessment: { decision: 'none' } } }).expect(400);
+    expect(none.body.message).toContain('غير مستحق');
+    await decide(r1, { decision: 'reject', notes: 'غير مستحق' }).expect(201);
+
+    const r2 = await open();
+    const partial = await decide(r2, { decision: 'approve', formData: { assessment: { decision: 'partial', percent: 65 } } }).expect(201);
+    expect(partial.body.research).toMatchObject({ outcome: 'contribution', supportPercent: 65, supportAmount: 6500, contributionPercent: 35 });
+    expect(partial.body.contribution).toMatchObject({ status: 'awaiting', percent: 35, requiredAmount: 3500 });
+
+    const r3 = await open();
+    const full = await decide(r3, { decision: 'approve', formData: { assessment: { decision: 'full' } } }).expect(201);
+    expect(full.body.research).toMatchObject({ outcome: 'approve', supportPercent: 100, supportAmount: 10000 });
+    expect(full.body.actions.map((a: { decision: string }) => a.decision)).toEqual(['submitted', 'approve', 'skipped']);
+  });
+  it('treats the rules as guidance: a different decision needs a reason and flags the case', async () => {
+    const form = await http.post('/api/beneficiaries/settings/forms').set(as(admin)).send({
+      name: 'بحث استرشادي', scored: true, rules,
+      fields: [{ ...housing, weight: 60, optionScores: [0, 50, 100] }, { ...noIncome, weight: 40 }, { key: 'assessment', label: 'تقييم الباحث', type: 'support', required: true }],
+    }).expect(201);
+    const wf = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({
+      name: 'استرشادي', stages: [{ name: 'البحث', formId: form.body.id }, { name: 'المساهمة', kind: 'contribution' }, { name: 'الاعتماد' }],
+    }).expect(201);
+    const project = await http.post('/api/beneficiaries/settings/activities').set(as(admin)).send({
+      level: 'project', name: 'استرشادي', parentId: ids.program, workflowId: wf.body.id, allowConcurrent: true, recurrence: 'monthly',
+    }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة استرشادية', gender: 'male', category: 'other' }).expect(201);
+    const open = async () => (await http.post('/api/beneficiaries/requests').set(as(admin))
+      .send({ beneficiaryId: b.body.id, projectId: project.body.id }).expect(201)).body.id as string;
+    const decide = (id: string, body: Record<string, unknown>) => http.post(`/api/beneficiaries/requests/${id}/decision`).set(as(admin)).send(body);
+
+    // القاعدة: 60% → مساهمة 30%. الباحث قرر مستحق بالكامل
+    const r1 = await open();
+    const data = { housing: 'سيئة', no_income: false, assessment: { decision: 'full' } };
+    await decide(r1, { decision: 'approve', formData: data }).expect(400);
+    const d1 = await decide(r1, { decision: 'approve', formData: data, notes: 'الأسرة عليها ديون علاج' }).expect(201);
+    expect(d1.body.research).toMatchObject({
+      outcome: 'approve', supportPercent: 100, deviation: true, deviationReason: 'الأسرة عليها ديون علاج',
+      suggestion: { score: 60, outcome: 'contribution', contributionPercent: 30 },
+    });
+    const flagged = await http.get('/api/beneficiaries/requests').set(as(admin)).expect(200);
+    expect(flagged.body.items.find((x: { id: string }) => x.id === r1).ruleDeviation).toBe(true);
+
+    // نسبة مختلفة عن القاعدة = اختلاف برضه
+    const r2 = await open();
+    await decide(r2, { decision: 'approve', formData: { ...data, assessment: { decision: 'partial', percent: 50 } } }).expect(400);
+    // نفس نسبة القاعدة = مفيش اختلاف
+    const same = await decide(r2, { decision: 'approve', formData: { ...data, assessment: { decision: 'partial', percent: 70 } } }).expect(201);
+    expect(same.body.research.deviation).toBe(false);
+
+    // الرفض والقاعدة بتقترح قبول
+    const r3 = await open();
+    const rej = await decide(r3, { decision: 'reject', notes: 'دخل غير معلن', formData: { housing: 'سيئة', no_income: true, assessment: { decision: 'none' } } }).expect(201);
+    expect(rej.body.research).toMatchObject({ outcome: 'reject', deviation: true, suggestion: { outcome: 'approve', score: 100 } });
   });
 });

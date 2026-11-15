@@ -1,7 +1,10 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Organization } from '../../../core/entities';
 
-export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
+/** support = تقييم الباحث: مستحق / مستحق بنسبة (مع نسبة دعم الجمعية) / غير مستحق */
+export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'support';
+export type SupportDecision = 'full' | 'partial' | 'none';
+export interface SupportAnswer { decision: SupportDecision; percent?: number }
 
 export interface FormField {
   /** مفتاح ثابت بالإنجليزي يُحفظ به الجواب */

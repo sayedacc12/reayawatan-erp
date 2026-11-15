@@ -103,6 +103,21 @@ export class BeneficiaryRequest {
   @Column({ name: 'contribution_percent', type: 'numeric', precision: 5, scale: 2, nullable: true, transformer: money })
   contributionPercent!: number | null;
 
+  /** نسبة دعم الجمعية من التكلفة (الباقي على المستفيد) */
+  @Column({ name: 'support_percent', type: 'numeric', precision: 5, scale: 2, nullable: true, transformer: money })
+  supportPercent!: number | null;
+
+  /** اقتراح قواعد التقييم (استرشادي للباحث) */
+  @Column({ name: 'rule_suggestion', type: 'jsonb', nullable: true })
+  ruleSuggestion!: { score: number; outcome: 'reject' | 'approve' | 'contribution'; contributionPercent: number } | null;
+
+  /** قرار الباحث اختلف عن اقتراح القواعد: بيظهر بعلامة للمعتمد النهائي */
+  @Column({ name: 'rule_deviation', type: 'boolean', default: false })
+  ruleDeviation!: boolean;
+
+  @Column({ name: 'deviation_reason', type: 'text', nullable: true })
+  deviationReason!: string | null;
+
   // ---- مساهمة المستفيد ----
   @Column({ name: 'contribution_status', type: 'varchar', length: 12, default: 'none' })
   contributionStatus!: ContributionStatus;

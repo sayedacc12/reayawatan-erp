@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
-import type { FieldType, FormField, ScoreOutcome, ScoreRule } from './entities';
+import type { FieldType, FormField, ScoreOutcome, ScoreRule, SupportAnswer } from './entities';
 
-export const FIELD_TYPES: FieldType[] = ['text', 'textarea', 'number', 'date', 'select', 'checkbox'];
+export const FIELD_TYPES: FieldType[] = ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'support'];
 
 /** يتحقق من تعريف حقول نموذج قادم من شاشة الإعدادات وينظفه */
 export function normalizeFields(input: unknown, scored = false): FormField[] {
@@ -36,6 +36,7 @@ export function normalizeFields(input: unknown, scored = false): FormField[] {
       throw new BadRequestException(`إجمالي الأهمية النسبية للبنود لازم يكون 100%، الإجمالي الحالي ${round(total)}%`);
     }
   }
+  if (fields.filter((f) => f.type === 'support').length > 1) throw new BadRequestException('النموذج فيه حقل "تقييم الباحث" واحد بس');
   return fields;
 }
 
@@ -127,7 +128,8 @@ export function validateAnswers(fields: FormField[], input: unknown): Record<str
   for (const f of fields) {
     let v = data[f.key];
     if (typeof v === 'string') v = v.trim();
-    const empty = v === undefined || v === null || v === '' || (f.type === 'checkbox' && v !== true);
+    const empty = v === undefined || v === null || v === '' || (f.type === 'checkbox' && v !== true)
+      || (f.type === 'support' && !(v as SupportAnswer)?.decision);
     if (empty) {
       if (f.required) {
         throw new BadRequestException(f.type === 'checkbox' ? `لازم تأكيد "${f.label}"` : `الحقل "${f.label}" مطلوب`);
@@ -153,9 +155,28 @@ export function validateAnswers(fields: FormField[], input: unknown): Record<str
       case 'checkbox':
         out[f.key] = true;
         break;
+      case 'support': {
+        const a = v as SupportAnswer;
+        if (!['full', 'partial', 'none'].includes(a.decision)) throw new BadRequestException(`اختر قيمة صحيحة في "${f.label}"`);
+        if (a.decision === 'partial') {
+          const p = Number(a.percent);
+          if (!Number.isFinite(p) || p <= 0 || p >= 100) {
+            throw new BadRequestException(`اكتب نسبة دعم الجمعية في "${f.label}" (أكبر من 0 وأقل من 100)`);
+          }
+          out[f.key] = { decision: 'partial', percent: round(p) };
+        } else out[f.key] = { decision: a.decision };
+        break;
+      }
       default:
         out[f.key] = String(v).slice(0, f.type === 'textarea' ? 5000 : 500);
     }
   }
   return out;
+}
+
+/** قرار الباحث الصريح (لو النموذج فيه حقل تقييم الباحث): بيغلب على اقتراح القواعد */
+export function supportDecision(fields: FormField[], data: Record<string, unknown>): SupportAnswer | null {
+  const f = fields.find((x) => x.type === 'support');
+  const a = f ? (data[f.key] as SupportAnswer | undefined) : undefined;
+  return a?.decision ? a : null;
 }
