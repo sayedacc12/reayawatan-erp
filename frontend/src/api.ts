@@ -36,3 +36,21 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
   }
   return data as T;
 }
+
+/** تحميل ملف محمي (مثل مستند مستفيد) وفتحه في نافذة جديدة */
+export async function openProtectedFile(path: string) {
+  // نفتح النافذة فورًا قبل التحميل حتى لا يمنعها المتصفح
+  const win = window.open('', '_blank');
+  try {
+    const t = token.get();
+    const res = await fetch(`/api${path}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+    if (!res.ok) throw new ApiError(res.status, 'تعذر فتح الملف');
+    const url = URL.createObjectURL(await res.blob());
+    if (win) win.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
+}
