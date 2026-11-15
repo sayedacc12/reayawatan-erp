@@ -3,7 +3,7 @@ import { DataSource, EntityManager, In, MoreThan } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { Organization } from '../../core/entities';
 import {
-  AccCore, addDays, addMonths, ALL_VOUCHER_TYPES, cents, CONTINUOUS, fmtSar, fromCents, monthsBetween, serialSource, today, VOUCHER_LABEL,
+  AccCore, addDays, addMonths, cents, CONTINUOUS, fmtSar, fromCents, monthsBetween, serialSource, today,
 } from './acc-core.service';
 import { SequencesDto, SetupDto, SetupUpdateDto } from './accounting.dto';
 import { EntriesService } from './entries.service';
@@ -38,6 +38,7 @@ export class SetupService {
     const counts: { fiscal_year_id: string; status: string; n: number }[] = await this.db.query(
       'SELECT fiscal_year_id, status, COUNT(*)::int AS n FROM acc_entries WHERE organization_id = $1 GROUP BY 1, 2', [org]);
     const now = today();
+    const [types, labels] = await Promise.all([this.core.allTypes(org), this.core.typeLabels(org)]);
     const last = years[years.length - 1];
     const next = last ? this.nextYearWindow(last) : null;
     return {
@@ -54,10 +55,10 @@ export class SetupService {
           const lock = locks.find((l) => l.fiscalYearId === y.id && l.month === m);
           return { month: m, closed: !!lock, closedAt: lock?.closedAt ?? null, closedByName: lock?.closedByName ?? null };
         }),
-        sequences: ALL_VOUCHER_TYPES.map((t) => {
+        sequences: types.map((t) => {
           const q = seqs.find((x) => x.fiscalYearId === y.id && x.voucherType === t);
           return {
-            voucherType: t, label: VOUCHER_LABEL[t], continuous: CONTINUOUS.includes(t),
+            voucherType: t, label: labels[t] ?? t, continuous: CONTINUOUS.includes(t),
             startSerial: q?.startSerial ?? 1, endSerial: q?.endSerial ?? null, nextSerial: q?.nextSerial ?? 1,
           };
         }),
@@ -117,7 +118,7 @@ export class SetupService {
 
   private async createSequences(em: EntityManager, year: FiscalYear, receipt: number, payment: number) {
     const repo = em.getRepository(VoucherSequence);
-    for (const t of ALL_VOUCHER_TYPES) {
+    for (const t of await this.core.allTypes(year.organizationId, em)) {
       const start = t === 'receipt' ? receipt : t === 'payment' ? payment : 1;
       await repo.save(repo.create({ organizationId: year.organizationId, fiscalYearId: year.id, voucherType: t, startSerial: start, nextSerial: start }));
     }
@@ -135,12 +136,13 @@ export class SetupService {
       const year = await this.core.year(org, yearId, em);
       if (year.status === 'closed') throw new ConflictException('السنة المالية مغلقة');
       const repo = em.getRepository(VoucherSequence);
+      const labels = await this.core.typeLabels(org, em);
       for (const s of dto.sequences) {
         const q = await repo.findOne({ where: { fiscalYearId: year.id, voucherType: s.voucherType } });
         if (!q) continue;
         const used = q.nextSerial > q.startSerial;
         if (s.startSerial !== q.startSerial) {
-          if (used) throw new ConflictException(`صدرت سندات من نوع ${VOUCHER_LABEL[s.voucherType]}، فلا يمكن تغيير أول رقم في المدى`);
+          if (used) throw new ConflictException(`صدرت سندات من نوع ${labels[s.voucherType]}، فلا يمكن تغيير أول رقم في المدى`);
           if (year.isFirst && CONTINUOUS.includes(s.voucherType)) {
             throw new BadRequestException('في السنة المالية الأولى تبدأ سندات القبض والصرف من رقم 1 تلقائيًا');
           }
@@ -148,9 +150,9 @@ export class SetupService {
           q.nextSerial = s.startSerial;
         }
         if (s.endSerial != null && s.endSerial < q.nextSerial - 1) {
-          throw new BadRequestException(`نهاية مدى ${VOUCHER_LABEL[s.voucherType]} أقل من آخر رقم صدر (${q.nextSerial - 1})`);
+          throw new BadRequestException(`نهاية مدى ${labels[s.voucherType]} أقل من آخر رقم صدر (${q.nextSerial - 1})`);
         }
-        if (s.endSerial != null && s.endSerial < q.startSerial) throw new BadRequestException(`نهاية مدى ${VOUCHER_LABEL[s.voucherType]} قبل بدايته`);
+        if (s.endSerial != null && s.endSerial < q.startSerial) throw new BadRequestException(`نهاية مدى ${labels[s.voucherType]} قبل بدايته`);
         q.endSerial = s.endSerial ?? null;
         await repo.save(q);
       }
@@ -280,7 +282,7 @@ export class SetupService {
           `SELECT COUNT(*)::int AS n FROM (${src}) s WHERE ($2::int IS NULL OR voucher_serial < $2 OR voucher_serial > $3)`, [y.id, row.first, row.last]);
         const [all] = await em.query(`SELECT COUNT(*)::int AS n FROM (${src}) s`, [y.id]);
         if ((row.first === null && all.n > 0) || (row.first !== null && r.n > 0) || all.n !== row.count) {
-          throw new ConflictException(`توجد ${VOUCHER_LABEL[row.voucherType]} خارج مدى محضر الجرد المعتمد. أعد إعداد المحضر واعتماده`);
+          throw new ConflictException(`توجد ${(await this.core.typeLabels(org, em))[row.voucherType] ?? row.voucherType} خارج مدى محضر الجرد المعتمد. أعد إعداد المحضر واعتماده`);
         }
       }
       for (const m of monthsBetween(y.startDate, y.endDate)) {

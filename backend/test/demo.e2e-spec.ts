@@ -81,6 +81,15 @@ describe('Demo association across all modules', () => {
     }
   });
 
+  it('accounting: a custom document type of the association with its own numbering', async () => {
+    const finance = await staff('finance');
+    const types = (await http.get('/api/accounting/document-types').set(as(finance)).expect(200)).body as { code: string; name: string; entries: number }[];
+    expect(types).toHaveLength(1);
+    expect(types[0]).toMatchObject({ name: 'سند عهدة نثرية', entries: 2 });
+    const rows = (await http.get(`/api/accounting/entries?type=${types[0].code}`).set(as(finance)).expect(200)).body as { voucherNo: string }[];
+    expect(rows.map((r) => r.voucherNo.split('/')[0]).sort()).toEqual(['1', '2']);
+  });
+
   it('support desk: a support team with tickets in every state and tasks', async () => {
     expect(demo.supportTeam).toHaveLength(2);
     const mgr = (await http.post('/api/auth/login').send({ login: demo.supportTeam[0].email, password: demo.staffPassword }).expect(200)).body.accessToken;

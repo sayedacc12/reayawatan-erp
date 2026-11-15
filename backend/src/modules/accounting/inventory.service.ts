@@ -2,7 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { Organization } from '../../core/entities';
-import { AccCore, ALL_VOUCHER_TYPES, CONTINUOUS, serialSource, VOUCHER_LABEL, voucherNo } from './acc-core.service';
+import { AccCore, CONTINUOUS, isBuiltin, serialSource, voucherNo } from './acc-core.service';
 import { FiscalYear, InventoryRow, VoucherInventory, VoucherSequence } from './entities/accounting.entity';
 
 /** مقارنة صفوف المحضر بغض النظر عن ترتيب المفاتيح (jsonb يعيد ترتيبها) */
@@ -19,7 +19,7 @@ export class InventoryService {
 
   private async snapshot(em: EntityManager, year: FiscalYear): Promise<InventoryRow[]> {
     const out: InventoryRow[] = [];
-    for (const t of ALL_VOUCHER_TYPES) {
+    for (const t of await this.core.allTypes(year.organizationId, em)) {
       const src = serialSource(t).sql;
       const [r]: { first: number | null; last: number | null; count: number; posted: number; cancelled: number; draft: number }[] = await em.query(
         `SELECT MIN(voucher_serial)::int AS first, MAX(voucher_serial)::int AS last, COUNT(*)::int AS count,
@@ -33,6 +33,8 @@ export class InventoryService {
           [year.id, r.first, r.last]);
         missing = serials.map((x) => Number(x.s));
       }
+      // نوع السند الخاص بالجمعية لا يظهر في المحضر إلا إن صدر منه سند في السنة
+      if (!isBuiltin(t) && !r.count) continue;
       out.push({
         voucherType: t, first: r.first, last: r.last, count: r.count, posted: r.posted, cancelled: r.cancelled, draft: r.draft, missing,
       });
@@ -49,6 +51,7 @@ export class InventoryService {
       this.db.getRepository(VoucherSequence).find({ where: { fiscalYearId: year.id } }),
     ]);
     const current = await this.snapshot(this.db.manager, year);
+    const labels = await this.core.typeLabels(org);
     const rows = inv?.rows ?? current;
     return {
       year: { id: year.id, name: year.name, startDate: year.startDate, endDate: year.endDate, status: year.status },
@@ -62,7 +65,7 @@ export class InventoryService {
       rows: rows.map((r) => {
         const seq = seqs.find((s) => s.voucherType === r.voucherType);
         return {
-          ...r, label: VOUCHER_LABEL[r.voucherType], continuous: CONTINUOUS.includes(r.voucherType),
+          ...r, label: labels[r.voucherType] ?? r.voucherType, continuous: CONTINUOUS.includes(r.voucherType),
           firstNo: r.first !== null ? voucherNo(r.voucherType, r.first, year.name) : null,
           lastNo: r.last !== null ? voucherNo(r.voucherType, r.last, year.name) : null,
           rangeStart: seq?.startSerial ?? 1, rangeEnd: seq?.endSerial ?? null,

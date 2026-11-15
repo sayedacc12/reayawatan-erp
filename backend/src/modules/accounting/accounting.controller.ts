@@ -1,14 +1,14 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
-import { today } from './acc-core.service';
+import { isTypeCode, today } from './acc-core.service';
 import {
   AccountDto, AccountUpdateDto, AnalyticDto, AnalyticUpdateDto, BatchPostDto, CashAccountDto, CategoryDto, EntryDto, EntryUpdateDto,
-  InventoryDto, MonthDto, MonthsDto, PartnerDto, ReasonDto, RequestDecisionDto, SequencesDto, SettingsDto, SetupDto, SetupUpdateDto,
+  InventoryDto, MonthDto, MonthsDto, DocumentTypeDto, PartnerDto, ReasonDto, RequestDecisionDto, SequencesDto, SettingsDto, SetupDto, SetupUpdateDto,
   VoucherDecisionDto, VoucherDto, VoucherRequestDto, VoucherStagesDto, WarehouseDto,
 } from './accounting.dto';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AccountsService } from './accounts.service';
-import { EntryStatus, VOUCHER_TYPES, VoucherKind, VoucherStatus, VoucherType } from './entities/accounting.entity';
+import { EntryStatus, VoucherKind, VoucherStatus } from './entities/accounting.entity';
 import { EntriesService } from './entries.service';
 import { InventoryService } from './inventory.service';
 import { MastersService } from './masters.service';
@@ -151,6 +151,33 @@ export class AccountingController {
   @RequirePermissions(P.settings)
   installChart(@CurrentOrgUser() actor: OrgUser) {
     return this.accounts.installChart(actor);
+  }
+
+  // ---------------- أنواع السندات الخاصة بالجمعية ----------------
+
+  @Get('document-types')
+  @RequirePermissions(P.read)
+  documentTypes(@CurrentOrgUser() actor: OrgUser) {
+    return this.masters.listDocumentTypes(actor);
+  }
+
+  @Post('document-types')
+  @RequirePermissions(P.settings)
+  createDocumentType(@CurrentOrgUser() actor: OrgUser, @Body() dto: DocumentTypeDto) {
+    return this.masters.createDocumentType(actor, dto);
+  }
+
+  @Patch('document-types/:id')
+  @RequirePermissions(P.settings)
+  updateDocumentType(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string, @Body() dto: DocumentTypeDto) {
+    return this.masters.updateDocumentType(actor, id, dto);
+  }
+
+  @Delete('document-types/:id')
+  @HttpCode(204)
+  @RequirePermissions(P.settings)
+  async removeDocumentType(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    await this.masters.removeDocumentType(actor, id);
   }
 
   @Get('categories')
@@ -308,7 +335,7 @@ export class AccountingController {
   ) {
     return this.entries.list(actor, {
       status: ['draft', 'posted', 'cancelled'].includes(status ?? '') ? (status as EntryStatus) : undefined,
-      voucherType: (VOUCHER_TYPES as readonly string[]).includes(type ?? '') ? (type as VoucherType) : undefined,
+      voucherType: type && isTypeCode(type) ? type : undefined,
       dateFrom: from ? date(from, '') : undefined, dateTo: to ? date(to, '') : undefined, q: q || undefined,
       fiscalYearId: year && /^[0-9a-f-]{36}$/i.test(year) ? year : undefined,
     });

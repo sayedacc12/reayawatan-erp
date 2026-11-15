@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import AccountCell from '../components/AccountCell.vue';
 import AnalyticPicker, { type Share } from '../components/AnalyticPicker.vue';
-import { ENTRY_STATUS, P, VOUCHER_TYPES, dt, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
+import { ENTRY_STATUS, P, VOUCHER_TYPES, allTypes, docTypes, dt, loadDocTypes, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -30,7 +30,8 @@ const error = ref('');
 const busy = ref(false);
 
 const blank = (): Line => ({ accountId: null, debit: null, credit: null, label: '', partnerId: null, analytic: [] });
-const presetType = ['journal', 'adjustment', 'opening'].includes(String(route.query.type)) ? String(route.query.type) : 'journal';
+const q = String(route.query.type ?? '');
+const presetType = ['journal', 'adjustment', 'opening'].includes(q) || /^d_[a-z0-9]{6,16}$/.test(q) ? q : 'journal';
 const form = reactive({ voucherType: presetType, documentDate: todayStr(), description: '', counterparty: '', lines: [blank(), blank()] as Line[] });
 
 async function load() {
@@ -130,7 +131,8 @@ function cancelEntry() {
   const reason = prompt('سبب إلغاء القيد (يبقى رقمه ويظهر ملغيًا):');
   if (reason) action('cancel', 'أُلغي القيد', { reason });
 }
-const types = computed(() => VOUCHER_TYPES.filter((t) => t.value !== 'receipt' && t.value !== 'payment'));
+const types = computed(() => [...VOUCHER_TYPES.filter((t) => t.value !== 'receipt' && t.value !== 'payment'), ...docTypes.value.filter((d) => d.isActive).map((d) => ({ value: d.code, label: d.name }))]);
+loadDocTypes();
 </script>
 
 <template>
@@ -168,7 +170,7 @@ const types = computed(() => VOUCHER_TYPES.filter((t) => t.value !== 'receipt' &
         <div class="field-row">
           <label class="field"><span>نوع المستند</span>
             <select v-model="form.voucherType" class="input" :disabled="!!entry">
-              <option v-for="t in (entry ? VOUCHER_TYPES : types)" :key="t.value" :value="t.value">{{ t.label }}</option>
+              <option v-for="t in (entry ? allTypes : types)" :key="t.value" :value="t.value">{{ t.label }}</option>
             </select>
           </label>
           <label class="field"><span>تاريخ القيد</span><input class="input" :value="entry?.entryDate ?? todayStr()" disabled /></label>

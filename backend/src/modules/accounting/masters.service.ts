@@ -1,11 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AccCore, cents, fromCents } from './acc-core.service';
-import { CashAccountDto, CategoryDto, PartnerDto, SettingsDto, WarehouseDto } from './accounting.dto';
+import { CashAccountDto, CategoryDto, DocumentTypeDto, PartnerDto, SettingsDto, WarehouseDto } from './accounting.dto';
 import { AccountsService } from './accounts.service';
-import { Account, AccountingSettings, AccountNature, CashAccount, Partner, PartnerBehavior, PartnerCategory, Warehouse } from './entities/accounting.entity';
+import { Account, AccountingSettings, DocumentType, JournalEntry, AccountNature, CashAccount, Partner, PartnerBehavior, PartnerCategory, Warehouse } from './entities/accounting.entity';
 
 export const BEHAVIOR_AR: Record<PartnerBehavior, string> = { customer: 'عملاء', supplier: 'موردون', other: 'تصنيف آخر' };
 
@@ -24,6 +25,60 @@ export class MastersService {
     @InjectRepository(CashAccount) private readonly cash: Repository<CashAccount>,
     @InjectRepository(Warehouse) private readonly warehouses: Repository<Warehouse>,
   ) {}
+
+  // ---------------- أنواع السندات الخاصة بالجمعية ----------------
+
+  async listDocumentTypes(actor: OrgUser) {
+    const rows = await this.core.documentTypes(actor.organizationId);
+    const used: { voucher_type: string; n: number }[] = await this.db.query(
+      'SELECT voucher_type, COUNT(*)::int AS n FROM acc_entries WHERE organization_id = $1 AND voucher_type LIKE $2 GROUP BY 1', [actor.organizationId, 'd\\_%']);
+    return rows.map((d) => ({
+      id: d.id, code: d.code, name: d.name, description: d.description, isActive: d.isActive, sortOrder: d.sortOrder,
+      entries: used.find((u) => u.voucher_type === d.code)?.n ?? 0,
+    }));
+  }
+
+  private async assertTypeName(org: string, name: string, exceptId?: string) {
+    const builtin = ['قيد يومية', 'سند قبض', 'سند صرف', 'قيد افتتاحي', 'قيد تسوية'];
+    if (builtin.includes(name)) throw new ConflictException('الاسم مستخدم لنوع أساسي في النظام');
+    const dup = await this.db.getRepository(DocumentType).findOne({ where: { organizationId: org, name } });
+    if (dup && dup.id !== exceptId) throw new ConflictException('يوجد نوع سند بنفس الاسم');
+  }
+
+  async createDocumentType(actor: OrgUser, dto: DocumentTypeDto) {
+    const org = actor.organizationId;
+    await this.assertTypeName(org, dto.name);
+    const repo = this.db.getRepository(DocumentType);
+    const max = await repo.maximum('sortOrder', { organizationId: org });
+    await repo.save(repo.create({
+      organizationId: org, code: `d_${randomBytes(5).toString('hex')}`, name: dto.name, description: dto.description ?? null,
+      isActive: dto.isActive ?? true, sortOrder: (max ?? 0) + 1,
+    }));
+    return this.listDocumentTypes(actor);
+  }
+
+  async updateDocumentType(actor: OrgUser, id: string, dto: DocumentTypeDto) {
+    const org = actor.organizationId;
+    const repo = this.db.getRepository(DocumentType);
+    const d = await repo.findOne({ where: { id, organizationId: org } });
+    if (!d) throw new NotFoundException('نوع السند غير موجود');
+    await this.assertTypeName(org, dto.name, id);
+    await repo.update({ id }, { name: dto.name, description: dto.description ?? null, ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}) });
+    return this.listDocumentTypes(actor);
+  }
+
+  /** الحذف قبل الاستخدام فقط، وبعده يُوقف النوع ليبقى تسلسله في السجلات ومحاضر الجرد */
+  async removeDocumentType(actor: OrgUser, id: string) {
+    const org = actor.organizationId;
+    const repo = this.db.getRepository(DocumentType);
+    const d = await repo.findOne({ where: { id, organizationId: org } });
+    if (!d) throw new NotFoundException('نوع السند غير موجود');
+    if (await this.db.getRepository(JournalEntry).exists({ where: { organizationId: org, voucherType: d.code } })) {
+      throw new ConflictException('صدرت سندات من هذا النوع، فلا يُحذف. أوقفه بدلًا من ذلك');
+    }
+    await this.db.query('DELETE FROM acc_voucher_sequences WHERE organization_id = $1 AND voucher_type = $2', [org, d.code]);
+    await repo.delete({ id });
+  }
 
   // ---------------- الإعدادات ----------------
 

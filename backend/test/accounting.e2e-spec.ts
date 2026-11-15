@@ -253,6 +253,38 @@ describe('Accounting', () => {
     await http.post(`${A}/voucher/${v.body.id}/request`).set(as(admin)).send({ kind: 'cancel', reason: 'سند اختبار' }).expect(201);
   });
 
+  it('lets the association define its own document types, numbered from 1 each year', async () => {
+    await http.post(`${A}/document-types`).set(as(admin)).send({ name: 'قيد يومية' }).expect(409);
+    const list = (await http.post(`${A}/document-types`).set(as(admin)).send({ name: 'سند عهدة', description: 'صرف وتسوية العهد' }).expect(201)).body;
+    const t = list[0];
+    expect(t.code).toMatch(/^d_[a-z0-9]+$/);
+    const body = { voucherType: t.code, documentDate: '2026-03-20', description: 'عهدة نثرية', lines: [
+      { accountId: ids.bankGl, debit: 0, credit: 40 }, { accountId: ids.expense, debit: 40, credit: 0, analytic: [{ analyticId: ids.cc, percent: 100 }] },
+    ] };
+    const e1 = (await http.post(`${A}/entries`).set(as(admin)).send(body).expect(201)).body;
+    expect(e1).toMatchObject({ voucherNo: '1/2026', voucherLabel: 'سند عهدة', status: 'draft' });
+    const listed = (await http.get(`${A}/entries?type=${t.code}`).set(as(admin)).expect(200)).body;
+    expect(listed.map((x: { id: string }) => x.id)).toEqual([e1.id]);
+    // يدخل في الترحيل الجماعي بنوعه وأرقامه
+    const pv = (await http.post(`${A}/posting/batch`).set(as(admin)).send({ dateFrom: '2026-01-01', dateTo: '2026-12-31', voucherType: t.code, serialFrom: 1, serialTo: 1, preview: true }).expect(201)).body;
+    expect(pv.candidates.map((c: { id: string }) => c.id)).toEqual([e1.id]);
+    await http.post(`${A}/entries/${e1.id}/post`).set(as(admin)).expect(201);
+    // المستخدم لا يُحذف بل يوقف، والموقوف لا تُسجَّل عليه سندات جديدة
+    await http.delete(`${A}/document-types/${t.id}`).set(as(admin)).expect(409);
+    await http.patch(`${A}/document-types/${t.id}`).set(as(admin)).send({ name: 'سند عهدة', isActive: false }).expect(200);
+    await http.post(`${A}/entries`).set(as(admin)).send(body).expect(400);
+    await http.patch(`${A}/document-types/${t.id}`).set(as(admin)).send({ name: 'سند عهدة', isActive: true }).expect(200);
+    // يظهر في تسلسلات السنة ومحضر الجرد باسمه
+    const setup = (await http.get(`${A}/setup`).set(as(admin)).expect(200)).body;
+    expect(setup.years[0].sequences.find((q: { voucherType: string }) => q.voucherType === t.code)).toMatchObject({ label: 'سند عهدة', nextSerial: 2 });
+    const inv = (await http.get(`${A}/inventory/${ids.year}`).set(as(admin)).expect(200)).body;
+    expect(inv.rows.find((r: { voucherType: string }) => r.voucherType === t.code)).toMatchObject({ label: 'سند عهدة', count: 1, firstNo: '1/2026' });
+    // نوع غير مستخدم يُحذف
+    const tmp = (await http.post(`${A}/document-types`).set(as(admin)).send({ name: 'إشعار مدين' }).expect(201)).body.find((d: { name: string }) => d.name === 'إشعار مدين');
+    await http.delete(`${A}/document-types/${tmp.id}`).set(as(admin)).expect(204);
+    await http.post(`${A}/entries`).set(as(admin)).send({ ...body, voucherType: 'd_notexisting1' }).expect(400);
+  });
+
   it('approves the voucher inventory, opens the next year without revenue balances, and closes the year', async () => {
     await http.post(`${A}/inventory/prepare`).set(as(admin)).send({ fiscalYearId: ids.year }).expect(201);
     await http.post(`${A}/inventory/${ids.year}/approve`).set(as(checker)).expect(403);

@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { api } from '../../api';
 import type { SelectOption } from '../fundraising/components/SearchSelect.vue';
 
@@ -78,3 +78,19 @@ export async function loadAnalytic() {
   const r = await api<{ levels: number; accounts: Analytic[] }>('/accounting/analytic');
   return r;
 }
+
+// ---------------- أنواع السندات الخاصة بالجمعية ----------------
+
+export interface DocType { id: string; code: string; name: string; description: string | null; isActive: boolean; sortOrder: number; entries: number }
+/** قائمة مشتركة بين الشاشات والقائمة الجانبية، وتُحدَّث بعد أي تعديل في الإعدادات */
+export const docTypes = ref<DocType[]>([]);
+let docTypesLoaded: Promise<void> | null = null;
+export function loadDocTypes(force = false) {
+  if (!docTypesLoaded || force) {
+    docTypesLoaded = api<DocType[]>('/accounting/document-types').then((r) => { docTypes.value = r; }).catch(() => { docTypesLoaded = null; });
+  }
+  return docTypesLoaded;
+}
+/** كل أنواع المستندات: الأساسية ثم الخاصة بالجمعية */
+export const allTypes = computed(() => [...VOUCHER_TYPES, ...docTypes.value.map((d) => ({ value: d.code, label: d.name }))]);
+export const typeLabel = (code: string) => allTypes.value.find((t) => t.value === code)?.label ?? code;

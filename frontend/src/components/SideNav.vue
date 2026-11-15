@@ -28,7 +28,7 @@ function toggle(name: string) {
   try { localStorage.setItem(key.value, JSON.stringify(open.value)); } catch { /* تجاهل */ }
 }
 // المجموعة التي فيها الشاشة الحالية تنفتح تلقائيًا
-watch(() => route.path, () => {
+watch([() => route.path, blocks], () => {
   for (const b of blocks.value) if (b.kind === 'group' && b.items.some((i) => isActive(i.path)) && !open.value.includes(b.name)) open.value = [...open.value, b.name];
 }, { immediate: true });
 watch(key, () => { open.value = read(); });

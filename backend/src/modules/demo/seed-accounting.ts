@@ -169,6 +169,16 @@ export class AccountingSeed {
       });
     }
 
+    // نوع سند خاص بالجمعية (يظهر تحت العمليات): سند العهدة النثرية بتسلسل مستقل
+    const types = await this.masters.createDocumentType(admin, { name: 'سند عهدة نثرية', description: 'صرف وتسوية العهد النقدية للموظفين' });
+    const custody = types.find((t) => t.name === 'سند عهدة نثرية')!.code;
+    for (const [m, amount, text, post] of [[Math.max(1, month - 1), 600, 'تسوية عهدة مشتريات مكتبية', true], [month, 420, 'عهدة ضيافة لقاء المتطوعين', false]] as const) {
+      await this.entries.create(admin, {
+        voucherType: custody, documentDate: dayOf(m, 8), description: text, post,
+        lines: [{ accountId: id('4120300101'), debit: amount, credit: 0, analytic: share('CC01') }, { accountId: id('1110300101'), debit: 0, credit: amount }],
+      });
+    }
+
     // إغلاق الشهور السابقة بالتسلسل (حتى الشهر قبل الماضي)
     for (let m = 1; m < month - 1; m++) {
       await this.setup.closeMonth(admin, yearId, `${year}-${String(m).padStart(2, '0')}`);

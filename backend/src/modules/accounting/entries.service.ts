@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, EntityManager, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { AccCore, cents, fmtSar, fromCents, monthOf, today, VOUCHER_LABEL, voucherNo } from './acc-core.service';
+import { AccCore, cents, fmtSar, fromCents, monthOf, today, voucherNo } from './acc-core.service';
 import { BatchPostDto, EntryDto, EntryUpdateDto, LineDto } from './accounting.dto';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AccountsService } from './accounts.service';
@@ -54,13 +54,14 @@ export class EntriesService {
       }));
     }
     const rows = await qb.orderBy('e.documentDate', 'DESC').addOrderBy('e.entryNo', 'DESC').take(500).getMany();
-    return rows.map((e) => this.summary(e));
+    const labels = await this.core.typeLabels(actor.organizationId);
+    return rows.map((e) => this.summary(e, labels));
   }
 
-  summary(e: JournalEntry) {
+  summary(e: JournalEntry, labels: Record<string, string>) {
     const year = e.fiscalYear?.name ?? 0;
     return {
-      id: e.id, entryNo: e.entryNo, voucherType: e.voucherType, voucherLabel: VOUCHER_LABEL[e.voucherType], voucherSerial: e.voucherSerial,
+      id: e.id, entryNo: e.entryNo, voucherType: e.voucherType, voucherLabel: labels[e.voucherType] ?? e.voucherType, voucherSerial: e.voucherSerial,
       voucherNo: voucherNo(e.voucherType, e.voucherSerial, year), fiscalYear: year, fiscalYearId: e.fiscalYearId,
       entryDate: e.entryDate, documentDate: e.documentDate, description: e.description, counterparty: e.counterparty,
       status: e.status, statusLabel: STATUS_AR[e.status], source: e.source, total: e.total, createdByName: e.createdByName,
@@ -83,7 +84,7 @@ export class EntriesService {
       : new Map();
     const locked = e.fiscalYear?.status === 'closed' || (await this.core.isMonthLocked(e.organizationId, monthOf(e.documentDate)));
     return {
-      ...this.summary(e), periodLocked: locked,
+      ...this.summary(e, await this.core.typeLabels(e.organizationId)), periodLocked: locked,
       lines: (e.lines ?? []).sort((a, b) => a.lineNo - b.lineNo).map((l) => ({
         id: l.id, lineNo: l.lineNo, accountId: l.accountId, accountCode: l.account?.code, accountName: l.account?.name,
         requiresAnalytic: l.account?.requiresAnalytic ?? false,
@@ -174,7 +175,8 @@ export class EntriesService {
         .where('s.fiscal_year_id = :y AND s.voucher_type = :t', { y: year.id, t: type }).getOneOrFail();
     }
     if (seq.endSerial !== null && seq.nextSerial > seq.endSerial) {
-      throw new ConflictException(`انتهى المدى المحدد لـ${VOUCHER_LABEL[type]} في السنة ${year.name} (حتى الرقم ${seq.endSerial}). عدّل المدى من شاشة الافتتاحيات`);
+      const label = (await this.core.typeLabels(year.organizationId, em))[type] ?? type;
+      throw new ConflictException(`انتهى المدى المحدد لـ${label} في السنة ${year.name} (حتى الرقم ${seq.endSerial}). عدّل المدى من شاشة الافتتاحيات`);
     }
     const serial = seq.nextSerial;
     await repo.update({ id: seq.id }, { nextSerial: serial + 1 });
@@ -190,6 +192,7 @@ export class EntriesService {
       if (dto.voucherType === 'receipt' || dto.voucherType === 'payment') {
         throw new BadRequestException('سندات القبض والصرف تُنشأ من شاشتيها، وتصدر قيودها تلقائيًا عند الاعتماد النهائي');
       }
+      await this.core.assertManualType(org, dto.voucherType, em);
       const year = await this.core.assertWritable(org, dto.documentDate, em);
       if (dto.voucherType === 'opening' && !year.isFirst) {
         throw new BadRequestException('القيد الافتتاحي اليدوي للسنة المالية الأولى فقط، وفي السنوات التالية ينشئه النظام عند فتح السنة الجديدة');
@@ -310,7 +313,8 @@ export class EntriesService {
     if (dto.serialFrom) qb.andWhere('e.voucher_serial >= :sf', { sf: dto.serialFrom });
     if (dto.serialTo) qb.andWhere('e.voucher_serial <= :st', { st: dto.serialTo });
     const rows = await qb.orderBy('e.documentDate', 'ASC').addOrderBy('e.entryNo', 'ASC').getMany();
-    if (dto.preview) return { candidates: rows.map((e) => this.summary(e)), pendingVouchers: await this.pendingVouchers(org, dto), posted: 0, failed: [] };
+    const labels = await this.core.typeLabels(org);
+    if (dto.preview) return { candidates: rows.map((e) => this.summary(e, labels)), pendingVouchers: await this.pendingVouchers(org, dto), posted: 0, failed: [] };
     let posted = 0;
     const failed: { entryNo: number; voucherNo: string; reason: string }[] = [];
     for (const e of rows) {

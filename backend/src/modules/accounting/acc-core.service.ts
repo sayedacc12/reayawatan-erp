@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { AccountingSettings, FiscalYear, PeriodLock, VOUCHER_TYPES, VoucherType } from './entities/accounting.entity';
+import { AccountingSettings, BuiltinVoucherType, CUSTOM_TYPE_RE, DocumentType, FiscalYear, PeriodLock, VOUCHER_TYPES, VoucherType } from './entities/accounting.entity';
 
 /** المبالغ تُحسب بالهللات لتجنب أخطاء الكسور */
 export const cents = (n: number | string | null | undefined) => Math.round(Number(n ?? 0) * 100);
@@ -36,7 +36,7 @@ export function monthsBetween(start: string, end: string) {
   return out;
 }
 
-export const VOUCHER_LABEL: Record<VoucherType, string> = {
+export const VOUCHER_LABEL: Record<BuiltinVoucherType, string> = {
   journal: 'قيد يومية', receipt: 'سند قبض', payment: 'سند صرف', opening: 'قيد افتتاحي', adjustment: 'قيد تسوية',
 };
 /** سندات القبض والصرف تسلسلها مستمر بين السنوات، وباقي السندات تبدأ من 1 كل سنة متبوعة بالسنة */
@@ -45,12 +45,18 @@ export const voucherNo = (type: VoucherType, serial: number, year: number) =>
   CONTINUOUS.includes(type) ? String(serial) : `${serial}/${year}`;
 
 export const ALL_VOUCHER_TYPES = VOUCHER_TYPES;
+/** الأنواع التي تُسجَّل يدويًا من شاشة القيود (القبض والصرف من شاشتيهما) */
+export const MANUAL_BUILTIN: BuiltinVoucherType[] = ['journal', 'adjustment', 'opening'];
+export const isBuiltin = (t: string): t is BuiltinVoucherType => (VOUCHER_TYPES as readonly string[]).includes(t);
+/** رمز نوع مستند صالح الصيغة (أساسي أو خاص بالجمعية) */
+export const isTypeCode = (t: string): t is VoucherType => isBuiltin(t) || CUSTOM_TYPE_RE.test(t);
 
 /**
  * مصدر أرقام كل نوع سند: سندات القبض والصرف أرقامها في جدول السندات (قد يتكرر رقمها في القيود بعد العكس وإعادة الاعتماد)،
  * وباقي الأنواع في جدول القيود. الحالات موحّدة: posted مرحّل، cancelled ملغي، draft لم يكتمل.
  */
 export function serialSource(type: VoucherType) {
+  if (!isTypeCode(type)) throw new BadRequestException('نوع المستند غير صحيح');
   return CONTINUOUS.includes(type)
     ? {
       sql: `SELECT serial AS voucher_serial,
@@ -76,6 +82,31 @@ export class AccCore {
       s = await repo.findOneOrFail({ where: { organizationId: org } });
     }
     return s;
+  }
+
+  /** أنواع السندات الخاصة بالجمعية */
+  async documentTypes(org: string, em: EntityManager = this.db.manager) {
+    return em.getRepository(DocumentType).find({ where: { organizationId: org }, order: { sortOrder: 'ASC', createdAt: 'ASC' } });
+  }
+
+  /** أسماء كل أنواع المستندات للجمعية: الأساسية والخاصة */
+  async typeLabels(org: string, em: EntityManager = this.db.manager): Promise<Record<string, string>> {
+    const custom = await this.documentTypes(org, em);
+    return { ...VOUCHER_LABEL, ...Object.fromEntries(custom.map((d) => [d.code, d.name])) };
+  }
+
+  /** كل أنواع المستندات للجمعية بالترتيب (للتسلسلات ومحضر الجرد) */
+  async allTypes(org: string, em: EntityManager = this.db.manager): Promise<VoucherType[]> {
+    return [...ALL_VOUCHER_TYPES, ...(await this.documentTypes(org, em)).map((d) => d.code)];
+  }
+
+  /** نوع قيد يدوي صالح: قيد يومية أو تسوية أو افتتاحي، أو نوع سند خاص مفعّل */
+  async assertManualType(org: string, type: string, em: EntityManager = this.db.manager) {
+    if (isBuiltin(type)) return type;
+    const d = CUSTOM_TYPE_RE.test(type) ? await em.getRepository(DocumentType).findOne({ where: { organizationId: org, code: type as `d_${string}` } }) : null;
+    if (!d) throw new BadRequestException('نوع المستند غير موجود');
+    if (!d.isActive) throw new BadRequestException(`نوع السند «${d.name}» موقوف من الإعدادات`);
+    return d.code;
   }
 
   /** حجز رقم القيد الرئيسي التالي (رمز 1) */

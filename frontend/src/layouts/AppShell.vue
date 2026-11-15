@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import SideNav from '../components/SideNav.vue';
+import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
 import { loginPath, useSession } from '../stores/session';
 
 const session = useSession();
@@ -14,6 +15,22 @@ const menuOpen = ref(false);
 const currentApp = computed(() =>
   session.apps.find((a) => a.menu.some((m) => route.path.startsWith(m.path))),
 );
+
+/**
+ * قائمة التطبيق الحالي. في النظام المالي تُضاف أنواع السندات الخاصة بالجمعية (من الإعدادات) تلقائيًا تحت «العمليات».
+ */
+const menu = computed(() => {
+  const app = currentApp.value;
+  if (!app) return [];
+  if (app.code !== 'accounting' || !session.can(ACC.read)) return app.menu;
+  const items = [...app.menu];
+  const extra = docTypes.value.filter((d) => d.isActive).map((d) => ({ label: d.name, path: `/accounting/documents/${d.code}`, group: 'العمليات' }));
+  let at = -1;
+  items.forEach((m, i) => { if (m.group === 'العمليات') at = i; });
+  items.splice(at + 1, 0, ...extra);
+  return items;
+});
+watch(() => currentApp.value?.code, (c) => { if (c === 'accounting' && session.can(ACC.read)) loadDocTypes(); }, { immediate: true });
 
 function logout() {
   session.logout();
@@ -63,7 +80,7 @@ function logout() {
       <Transition name="side">
         <nav v-if="currentApp" class="sidebar">
           <p class="side-title">{{ currentApp.name }}</p>
-          <SideNav :items="currentApp.menu" :app-code="currentApp.code" />
+           <SideNav :items="menu" :app-code="currentApp.code" />
         </nav>
       </Transition>
       <main class="content">
