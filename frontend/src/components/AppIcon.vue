@@ -12,6 +12,7 @@ const paths: Record<string, string> = {
   grid: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z',
   coins: 'M9 10a6 3 0 1 0 0-.01 M3 7v6c0 1.7 2.7 3 6 3s6-1.3 6-3V7 M15 10.2c3.4.3 6 1.6 6 3.3 0 1.7-2.7 3-6 3 M21 13.5v4c0 1.7-2.7 3-6 3-2 0-3.8-.5-4.9-1.3 M3 13v4c0 1.7 2.7 3 6 3',
   layers: 'M12 2 2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
+  ledger: 'M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3V4z M4 17a3 3 0 0 1 3-3h12 M8 8h7 M8 11h4 M15 10.5l1.5 1.5 3-3',
   headset: 'M3 14v-2a9 9 0 0 1 18 0v2 M21 14v3a2 2 0 0 1-2 2h-1v-6h3 M3 14v3a2 2 0 0 0 2 2h1v-6H3 M18 19c0 1.5-2 2.5-5 2.5',
 };
 const d = () => paths[props.name ?? ''] ?? paths.grid;

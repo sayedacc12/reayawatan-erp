@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { Permission, Role, User } from '../../core/entities';
+import { ACC_PERMISSIONS as A } from '../accounting/accounting.manifest';
 import { BENEFICIARY_PERMISSIONS as P } from '../beneficiaries/beneficiaries.manifest';
 import { normalizeFields, normalizeRules } from '../beneficiaries/dynamic-forms';
 import { Activity, Beneficiary, BeneficiarySettings, DynamicForm, FamilyMember, Ticket, Workflow, WorkflowStage } from '../beneficiaries/entities';
@@ -58,7 +59,8 @@ export class BeneficiariesSeed {
       quality: [P.formsReview],
       caseManager: [P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove],
       fundraiser: [F.donorsRead, F.donorsManage, F.read, F.create, F.collect, F.reports],
-      finance: [F.donorsRead, F.read, F.process, F.collect, F.journal, F.reports, PR.read, PR.disburse, PR.reports],
+      finance: [F.donorsRead, F.read, F.process, F.collect, F.journal, F.reports, PR.read, PR.disburse, PR.reports,
+        A.read, A.receipts, A.payments, A.approveVouchers, A.entries, A.post, A.cancel, A.partners, A.banks, A.reports],
       projectsManager: [PR.read, PR.manage, PR.approve, PR.support, PR.transfers, PR.amendments, PR.reports, PR.settings, F.read, F.donorsRead, P.read, P.requestsRead],
     };
     const researcherRole = await role('باحث اجتماعي', 'يجري البحث الميداني ويعبّئ نموذج البحث', roleCodes.researcher);
