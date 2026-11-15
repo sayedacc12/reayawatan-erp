@@ -94,24 +94,80 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
     return this.manifests.find((m) => m.code === code && scopeOf(m) === 'organization');
   }
 
-  /** صلاحيات نطاق معين، ومع تمرير enabled تقتصر على الوحدات المفعلة */
-  permissionCodes(scope: Scope, enabled?: Set<string>) {
+  /**
+   * صلاحيات نطاق معين، ومع تمرير enabled تقتصر على الوحدات المفعلة.
+   * ومع تمرير screens (الشاشات المسموحة للجمعية) تُسحب صلاحيات الشاشات غير المسموحة:
+   * - وحدة لا يُسمح بأي شاشة منها تُستبعد بالكامل
+   * - صلاحية تظهر في قوائم الوحدة تبقى فقط لو شاشة مسموحة واحدة على الأقل تستخدمها
+   * - الصلاحيات الداخلية (غير المرتبطة بشاشة في القائمة) تبقى ما دامت الوحدة لها شاشة مسموحة
+   */
+  permissionCodes(scope: Scope, enabled?: Set<string>, screens?: string[] | null) {
+    const allowed = screens ? new Set(screens) : null;
     return this.manifests
       .filter((m) => scopeOf(m) === scope && (!enabled || enabled.has(m.code)))
-      .flatMap((m) => m.permissions.map((p) => p.code));
+      .flatMap((m) => {
+        const codes = m.permissions.map((p) => p.code);
+        if (!allowed || this.isLockedModule(m)) return codes;
+        const open = m.menu.filter((i) => allowed.has(i.path));
+        if (m.menu.length && !open.length) return [];
+        const usedBy = (c: string, items: typeof m.menu) => items.some((i) => i.permission === c || i.anyOf?.includes(c));
+        return codes.filter((c) => !usedBy(c, m.menu) || usedBy(c, open));
+      });
   }
 
-  /** الوحدات التي يملك المستخدم صلاحية لعنصر واحد على الأقل في قائمتها */
-  appsFor(permissions: string[]) {
+  /** الشاشات الأساسية (الإعدادات والصلاحيات) متاحة لكل جمعية ولا يمكن حجبها */
+  private isLockedModule(m: ErpModuleManifest) {
+    return m.code === 'core';
+  }
+
+  /** كل شاشات وحدات الجمعيات مجمعة حسب الوحدة، لشاشة تخصيص الشاشات عند مدير المنصة */
+  screenCatalog() {
+    return this.manifests
+      .filter((m) => scopeOf(m) === 'organization')
+      .map((m) => ({
+        code: m.code, name: m.name, icon: m.icon ?? null,
+        optional: !m.alwaysEnabled, locked: this.isLockedModule(m),
+        screens: m.menu.map(({ label, path }) => ({ label, path })),
+      }));
+  }
+
+  /** كل مسارات الشاشات القابلة للتخصيص */
+  screenPaths() {
+    return this.screenCatalog().filter((m) => !m.locked).flatMap((m) => m.screens.map((s) => s.path));
+  }
+
+  /** اسم الشاشة بالمسار (مثل: المستفيدون ← الطلبات) */
+  screenLabel(path: string) {
+    for (const m of this.screenCatalog()) {
+      const s = m.screens.find((x) => x.path === path);
+      if (s) return `${m.name}: ${s.label}`;
+    }
+    return path;
+  }
+
+  /** الوحدات التي يملك المستخدم صلاحية لعنصر واحد على الأقل في قائمتها (ومع screens: المسموح منها فقط) */
+  appsFor(permissions: string[], screens?: string[] | null) {
     const has = new Set(permissions);
+    const allowed = screens ? new Set(screens) : null;
     return this.manifests
       .map((m) => ({
         code: m.code,
         name: m.name,
         description: m.description,
         icon: m.icon,
-        menu: m.menu.filter((i) => [i.permission, ...(i.anyOf ?? [])].some((p) => has.has(p))).map(({ label, path }) => ({ label, path })),
+        menu: m.menu
+          .filter((i) => [i.permission, ...(i.anyOf ?? [])].some((p) => has.has(p)))
+          .filter((i) => !allowed || scopeOf(m) !== 'organization' || this.isLockedModule(m) || allowed.has(i.path))
+          .map(({ label, path }) => ({ label, path })),
       }))
       .filter((m) => m.menu.length > 0);
+  }
+
+  /** للواجهة: الشاشات المحجوبة عن الجمعية والمسموحة، لمنع فتحها بالرابط المباشر */
+  screenAccess(screens: string[] | null) {
+    if (!screens) return { allowed: [], hidden: [] };
+    const all = this.screenPaths();
+    const set = new Set(screens);
+    return { allowed: all.filter((p) => set.has(p)), hidden: all.filter((p) => !set.has(p)) };
   }
 }

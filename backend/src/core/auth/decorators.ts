@@ -26,6 +26,8 @@ export interface AuthUser {
   isSuperadmin: boolean;
   isPlatformAdmin: boolean;
   permissions: string[];
+  /** الشاشات المسموحة للجمعية (null = كل الشاشات) */
+  allowedScreens?: string[] | null;
 }
 
 /** مستخدم داخل جمعية: organizationId مضمون */

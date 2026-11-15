@@ -85,7 +85,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     const res = await login('PLATFORM@test.org', 'Platform123').expect(200);
     platformToken = res.body.accessToken;
     expect(res.body.user.isPlatformAdmin).toBe(true);
-    expect(res.body.user.permissions).toEqual(['platform.organizations.manage']);
+    expect(res.body.user.permissions).toEqual(['platform.organizations.manage', 'platform.reports.read', 'platform.subscriptions.manage']);
     expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['platform']);
 
     await http.post('/api/platform/organizations').set(as(platformToken)).send({

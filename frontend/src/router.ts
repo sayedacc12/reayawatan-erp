@@ -10,6 +10,10 @@ export const router = createRouter({
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
     // صفحة دخول موظفي كل جمعية
     { path: '/o/:slug', component: () => import('./views/LoginView.vue'), meta: { public: true } },
+    // صفحات الجمعيات العامة: طلب الاشتراك، ومتابعته، ومراجعة العقد الإلكتروني وتوقيعه
+    { path: '/register', component: () => import('./registration/RegisterView.vue'), meta: { open: true, title: 'تسجيل جمعية' } },
+    { path: '/register/:token', component: () => import('./registration/RegisterTrackView.vue'), meta: { open: true, title: 'متابعة طلب الاشتراك' } },
+    { path: '/contract/:token', component: () => import('./registration/ContractSignView.vue'), meta: { open: true, title: 'عقد الاشتراك' } },
     // بوابة المستفيدين: مستقلة عن دخول الموظفين
     {
       path: '/portal/:slug',
@@ -39,6 +43,7 @@ export const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  if (to.meta.open) return true;
   if (to.meta.portal) {
     const portal = usePortal(to.params.slug as string);
     if (to.meta.portalAuth && !portal.token) return `/portal/${to.params.slug}`;
@@ -51,6 +56,8 @@ router.beforeEach(async (to) => {
   if (!session.can(to.meta.permission as string | undefined)) return '/forbidden';
   const anyOf = to.meta.anyPermission as string[] | undefined;
   if (anyOf?.length && !anyOf.some((p) => session.can(p))) return '/forbidden';
+  // الشاشات غير المسموحة للجمعية لا تُفتح حتى بالرابط المباشر
+  if (session.screenHidden(to.path)) return '/forbidden';
   return true;
 });
 

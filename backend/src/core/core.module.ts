@@ -9,6 +9,13 @@ import { AuthService } from './auth/auth.service';
 import { PermissionResolver } from './auth/permission-resolver.service';
 import { BootstrapService } from './bootstrap.service';
 import { CORE_ENTITIES } from './entities';
+import { FileStore } from './files/file-store.service';
+import { ApplicationsService } from './subscriptions/applications.service';
+import { ContractsService } from './subscriptions/contracts.service';
+import { SUBSCRIPTION_ENTITIES } from './subscriptions/entities';
+import { RegistrationController } from './subscriptions/registration.controller';
+import { SubscriptionReportsService } from './subscriptions/reports.service';
+import { SubscriptionReportsController, SubscriptionsController } from './subscriptions/subscriptions.controller';
 import { ModuleCatalogService } from './modules/module-catalog.service';
 import { ModulesController } from './modules/modules.controller';
 import { OrganizationsController } from './organizations/organizations.controller';
@@ -24,7 +31,7 @@ import { UsersService } from './users/users.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature(CORE_ENTITIES),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -33,9 +40,13 @@ import { UsersService } from './users/users.service';
       }),
     }),
   ],
-  controllers: [AuthController, OrganizationsController, UsersController, RolesController, ModulesController],
+  controllers: [
+    AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
+    SubscriptionsController, SubscriptionReportsController, RegistrationController,
+  ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver],
