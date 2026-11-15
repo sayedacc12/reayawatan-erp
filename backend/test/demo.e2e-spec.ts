@@ -60,6 +60,25 @@ describe('Demo association across all modules', () => {
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
+  it('hr: structure, approved jobs, employees with salaries, leaves and performance cards', async () => {
+    const admin = await staff('admin');
+    const s = (await http.get('/api/hr/structure').set(as(admin)).expect(200)).body;
+    expect(s.levels).toHaveLength(3);
+    expect(s.units.length).toBeGreaterThanOrEqual(8);
+    const d = (await http.get('/api/hr/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.headcount).toBe(10);
+    expect(d.alerts.length).toBeGreaterThan(0);
+    expect(d.payroll.employerCost).toBeGreaterThan(d.payroll.gross);
+    expect(d.pendingLeaves).toBeGreaterThan(0);
+    const jobs = (await http.get('/api/hr/jobs').set(as(admin)).expect(200)).body;
+    expect(jobs.filter((j: { status: string }) => j.status === 'draft')).toHaveLength(1);
+    const perf = (await http.get('/api/hr/performance').set(as(admin)).expect(200)).body;
+    expect(perf.cards.some((c: { status: string }) => c.status === 'approved')).toBe(true);
+    expect(perf.cards.some((c: { status: string }) => c.status === 'evaluated')).toBe(true);
+    const plans = (await http.get('/api/hr/plans').set(as(admin)).expect(200)).body;
+    expect(plans.totals.positions).toBe(2);
+  });
+
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
     const finance = await staff('finance');
     const accounts = await http.get('/api/accounting/accounts').set(as(finance)).expect(200);

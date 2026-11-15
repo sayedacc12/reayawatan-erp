@@ -1,0 +1,112 @@
+/* أنماط الموارد البشرية (بادئة hr-)، وتستفيد من أنماط pm- المشتركة */
+.hr-hero { background: linear-gradient(125deg, #120b2e, #23124a 45%, #0b3b46); }
+.hr-hero::before { background: radial-gradient(460px 220px at 90% -20%, rgba(244,114,182,.42), transparent 70%), radial-gradient(520px 260px at 0% 130%, rgba(45,212,191,.45), transparent 70%); }
+.hr-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .14;
+  background-image: radial-gradient(rgba(255,255,255,.9) 1px, transparent 1.4px); background-size: 22px 22px; mask-image: linear-gradient(270deg, transparent, #000 70%); }
+.hr-hero .pm-kicker { color: #f9a8d4; }
+.hr-glow { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; border: 0; font-weight: 700; box-shadow: 0 6px 22px rgba(244,114,182,.35); }
+.hr-glow:hover { filter: brightness(1.06); }
+.hr-ghost { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.22); }
+.hr-ghost:hover { background: rgba(255,255,255,.16); }
+
+.hr-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.hr-grid > .wide { grid-column: 1 / -1; }
+.hr-row-click { cursor: pointer; transition: background .15s; }
+.hr-row-click:hover { background: var(--surface-2); }
+.hr-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hr-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; direction: ltr; unicode-bidi: isolate; font-size: .82rem; }
+.hr-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.hr-toolbar .input { width: auto; min-width: 150px; }
+.hr-toolbar .grow { flex: 1; }
+.hr-sec { font-size: .82rem; font-weight: 700; color: var(--muted); margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; }
+.hr-sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.hr-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 14px; }
+.hr-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.hr-chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; font-size: .8rem; background: var(--surface); }
+.hr-list { margin: 0; padding-inline-start: 18px; display: grid; gap: 4px; }
+.hr-hijri { display: block; font-size: .72rem; color: var(--muted); }
+
+/* التنبيهات */
+.hr-alerts { display: grid; gap: 8px; max-height: 420px; overflow: auto; }
+.hr-alert { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface);
+  border-inline-start: 4px solid var(--c); animation: pm-rise .4s calc(var(--i, 0) * 40ms) var(--ease) both; }
+.hr-alert .pm-muted { display: block; margin-top: 2px; }
+.hr-alert .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 18%, transparent); flex-shrink: 0; }
+.hr-alert.danger .dot { animation: hr-pulse 1.6s infinite; }
+
+/* المخطط التنظيمي: الاتجاه الفيزيائي ثابت للخطوط، والوحدة الأولى على اليمين */
+.hr-org { overflow-x: auto; padding: 8px 4px 16px; direction: ltr; }
+.hr-org ul { list-style: none; margin: 0; padding: 22px 0 0; display: flex; flex-direction: row-reverse; justify-content: center; position: relative; }
+.hr-org > ul { padding-top: 0; }
+.hr-org ul ul::before { content: ''; position: absolute; top: 0; left: 50%; height: 22px; border-left: 2px solid var(--border); }
+.hr-org li { position: relative; padding: 22px 8px 0; display: flex; flex-direction: column; align-items: center; }
+.hr-org li::before { content: ''; position: absolute; top: 0; left: 0; right: 0; border-top: 2px solid var(--border); }
+.hr-org li:first-child::before { left: 0; right: 50%; }
+.hr-org li:last-child::before { left: 50%; right: 0; }
+.hr-org li:only-child::before { display: none; }
+.hr-org li::after { content: ''; position: absolute; top: 0; left: 50%; height: 22px; border-left: 2px solid var(--border); }
+.hr-org > ul > li { padding-top: 0; }
+.hr-org > ul > li::before, .hr-org > ul > li::after { display: none; }
+.hr-node { direction: rtl; }
+.hr-node { min-width: 170px; max-width: 220px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; text-align: center;
+  box-shadow: var(--shadow); position: relative; cursor: pointer; transition: transform .2s var(--ease), box-shadow .2s; animation: pm-rise .45s calc(var(--i, 0) * 50ms) var(--ease) both; }
+.hr-node:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(76,29,149,.18); }
+.hr-node::before { content: ''; position: absolute; inset-inline: 12px; top: -1px; height: 3px; border-radius: 0 0 4px 4px; background: var(--c, var(--primary)); }
+.hr-node .lv { font-size: .7rem; color: var(--c, var(--primary)); font-weight: 700; }
+.hr-node b { display: block; margin: 2px 0; }
+.hr-node .mgr { font-size: .78rem; color: var(--muted); }
+.hr-node .stats { display: flex; gap: 6px; justify-content: center; margin-top: 6px; font-size: .72rem; }
+.hr-node .stats span { background: var(--surface-2); border-radius: 6px; padding: 0 6px; }
+
+/* سلم الرواتب */
+.hr-scale { display: flex; gap: 4px; align-items: flex-end; height: 70px; margin-top: 8px; }
+.hr-scale i { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, #a78bfa, #2dd4bf); animation: hr-grow .7s calc(var(--i) * 40ms) var(--ease) both; transform-origin: bottom; }
+.hr-range { position: relative; height: 10px; border-radius: 10px; background: var(--surface-2); margin: 6px 0; }
+.hr-range i { position: absolute; top: 0; bottom: 0; border-radius: 10px; background: linear-gradient(90deg, #2dd4bf, #a78bfa); }
+.hr-range b { position: absolute; top: -4px; width: 4px; height: 18px; border-radius: 3px; background: #f43f5e; }
+
+/* بطاقات */
+.hr-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.hr-card { padding: 16px; animation: pm-rise .45s calc(var(--i, 0) * 45ms) var(--ease) both; display: flex; flex-direction: column; gap: 8px; }
+.hr-card h3 { margin: 0; font-size: 1rem; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.hr-level { display: flex; gap: 8px; align-items: flex-start; font-size: .82rem; }
+.hr-level .n { width: 22px; height: 22px; flex-shrink: 0; display: grid; place-items: center; border-radius: 7px; background: var(--surface-2); font-weight: 700; font-size: .74rem; }
+.hr-level.req .n { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; }
+
+/* درجة الأداء */
+.hr-score { --v: 0; width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto;
+  background: conic-gradient(var(--c, #a78bfa) calc(var(--v) * 1%), var(--surface-2) 0); position: relative; transition: --v 1s; }
+.hr-score::after { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: var(--surface); }
+.hr-score div { position: relative; z-index: 1; text-align: center; }
+.hr-score strong { font-size: 1.6rem; display: block; }
+.hr-stars { display: inline-flex; gap: 3px; }
+.hr-stars button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700; color: var(--muted); }
+.hr-stars button.on { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; border-color: transparent; }
+.hr-stars button.req { outline: 2px dashed #a78bfa; outline-offset: 1px; }
+.hr-stars button:disabled { cursor: default; }
+.hr-steps { display: flex; gap: 0; margin-bottom: 16px; counter-reset: st; }
+.hr-steps div { flex: 1; text-align: center; font-size: .78rem; color: var(--muted); position: relative; padding-top: 30px; }
+.hr-steps div::before { counter-increment: st; content: counter(st); position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--surface-2); font-weight: 700; z-index: 1; }
+.hr-steps div::after { content: ''; position: absolute; top: 11px; left: 50%; width: 100%; height: 2px; background: var(--border); }
+.hr-steps div:first-child::after { display: none; }
+.hr-steps div.done { color: var(--text); font-weight: 600; }
+.hr-steps div.done::before { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; }
+.hr-steps div.done::after { background: #a78bfa; }
+
+.hr-donut { width: 120px; height: 120px; border-radius: 50%; margin: 6px auto; display: grid; place-items: center; position: relative;
+  background: conic-gradient(#14b8a6 calc(var(--v) * 1%), #f472b6 0); animation: hr-spin-in .9s var(--ease) both; }
+.hr-donut::after { content: ''; position: absolute; inset: 16px; background: var(--surface); border-radius: 50%; }
+.hr-donut b { position: relative; z-index: 1; font-size: 1.3rem; }
+.hr-bars { display: grid; gap: 8px; }
+.hr-bars .r { display: grid; grid-template-columns: 140px 1fr 36px; gap: 8px; align-items: center; font-size: .82rem; }
+.hr-bars .r i { display: block; height: 10px; border-radius: 10px; background: linear-gradient(90deg, #a78bfa, #2dd4bf); animation: pm-fill .9s var(--ease) both; transform-origin: right; }
+
+.hr-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.hr-tab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; font: inherit; color: var(--muted); }
+.hr-tab.on { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; border-color: transparent; font-weight: 600; }
+
+@keyframes hr-pulse { 50% { box-shadow: 0 0 0 8px transparent; } }
+@keyframes hr-grow { from { transform: scaleY(0); } }
+@keyframes hr-spin-in { from { transform: rotate(-90deg) scale(.7); opacity: 0; } }
+@media (max-width: 900px) { .hr-grid { grid-template-columns: 1fr; } .hr-bars .r { grid-template-columns: 100px 1fr 30px; } }
