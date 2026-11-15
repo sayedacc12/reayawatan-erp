@@ -4,7 +4,7 @@ import { OrgUser } from '../../core/auth/decorators';
 import { Activity, AidDisbursement, Beneficiary, BeneficiaryRequest } from '../beneficiaries/entities';
 import { PaymentRequest, ProjectProfile, ProjectSettings, SupportAllocation } from './entities';
 import { FundingBatch, FundingGateway, net } from './funding.gateway';
-import { AllocateDto, DirectPaymentDto, ExecutePaymentDto, GeneralDisbursementDto, PaymentRequestDto, ReasonDto } from './support.dto';
+import { AllocateDto, AllocateSplitDto, DirectPaymentDto, ExecutePaymentDto, GeneralDisbursementDto, PaymentRequestDto, ReasonDto } from './support.dto';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -147,6 +147,43 @@ export class SupportService {
         activityId: project.id, batchId: batch.id, requestId: request.id, beneficiaryId: beneficiary.id,
         amount: dto.amount, notes: dto.notes ?? null, createdByName: actor.fullName,
       }));
+    });
+  }
+
+  /**
+   * تحميل طلب مستفيد على أكثر من داعم في معاملة واحدة.
+   * لا تُحفظ المعاملة إلا إذا كان مجموع المبالغ يساوي المتبقي من احتياج الطلب بالضبط.
+   */
+  async allocateSplit(actor: OrgUser, dto: AllocateSplitDto) {
+    const org = actor.organizationId;
+    return this.db.transaction(async (em) => {
+      await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`support:${org}`]);
+      const { request, beneficiary, project, profile } = await this.loadRequest(em, org, dto.requestId);
+      if (project.approvalStatus !== 'approved') throw new ConflictException('المشروع غير معتمد');
+      if (profile && profile.spendingMode === 'general') throw new ConflictException('هذا المشروع صرفه عام وغير مرتبط بالمستفيدين');
+      const need = this.need(request.estimatedCost, request.supportPercent);
+      if (need === null) throw new BadRequestException('حدّد التكلفة التقديرية للطلب أولًا حتى يُعرف مبلغ الدعم المطلوب');
+      const outstanding = r2(Math.max(0, need - (await this.covered(em, request.id))));
+      if (outstanding <= 0) throw new ConflictException('الطلب مغطى بالكامل');
+      const ids = dto.parts.map((p) => p.batchId);
+      if (new Set(ids).size !== ids.length) throw new BadRequestException('الدفعة مكررة في التحميل');
+      const total = r2(dto.parts.reduce((t, p) => t + p.amount, 0));
+      if (total !== outstanding) {
+        throw new BadRequestException(`مجموع مبالغ الداعمين (${fmt(total)} ريال) يجب أن يساوي مبلغ دعم المستفيد المتبقي (${fmt(outstanding)} ريال) بالضبط`);
+      }
+      const saved: SupportAllocation[] = [];
+      for (const part of dto.parts) {
+        const batch = await this.funding.getBatch(org, part.batchId, em);
+        const problems = this.violations(batch, { project, request, beneficiary, amount: part.amount });
+        if (problems.length) throw new BadRequestException(`لا يمكن التحميل على الدفعة ${batch.batchNo} (${batch.donorName ?? ''}): ${problems.join('، ')}`);
+        await this.funding.reserve(org, batch.id, part.amount, em);
+        saved.push(await em.save(em.create(SupportAllocation, {
+          organizationId: org, allocationNo: await this.nextNo(em, org, 'project_allocations', 'allocation_no'), kind: 'request',
+          activityId: project.id, batchId: batch.id, requestId: request.id, beneficiaryId: beneficiary.id,
+          amount: part.amount, notes: dto.notes ?? null, createdByName: actor.fullName,
+        })));
+      }
+      return saved;
     });
   }
 

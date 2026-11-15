@@ -25,6 +25,7 @@ describe('Project management', () => {
   const ids: Record<string, string> = {};
   const P = '/api/projects';
   const OPS = '/api/projects-ops';
+  const DOC = { idea: 'فكرة المشروع', goals: 'الأهداف', fiscalYear: 2026 };
 
   beforeAll(async () => {
     uploadDir = mkdtempSync(join(tmpdir(), 'sanabel-uploads-'));
@@ -66,9 +67,9 @@ describe('Project management', () => {
     }).expect(201);
     expect(a.body).toMatchObject({ code: 'PRJ-0001', approvalStatus: 'draft', fundingType: 'restricted', zakatEligible: true, spendingMode: 'beneficiaries' });
     ids.a = a.body.id;
-    ids.b = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'أجهزة طبية', parentId: program.body.id, zakatEligible: true }).expect(201)).body.id;
-    ids.media = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'حملة توعية', parentId: program.body.id, spendingMode: 'general' }).expect(201)).body.id;
-    ids.ops = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'رواتب', parentId: program.body.id, fundingType: 'operational' }).expect(201)).body.id;
+    ids.b = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'أجهزة طبية', parentId: program.body.id, zakatEligible: true, ...DOC }).expect(201)).body.id;
+    ids.media = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'حملة توعية', parentId: program.body.id, spendingMode: 'general', ...DOC }).expect(201)).body.id;
+    ids.ops = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'رواتب', parentId: program.body.id, fundingType: 'operational', ...DOC }).expect(201)).body.id;
     const tree = await http.get(`${P}/tree`).set(as(admin)).expect(200);
     expect(tree.body).toHaveLength(6);
   });
@@ -86,6 +87,19 @@ describe('Project management', () => {
     const ben = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'محمد صالح', gender: 'male', category: 'patient', nationality: 'سعودي', residency: 'citizen' }).expect(201);
     ids.ben = ben.body.id;
     await http.post('/api/beneficiaries/requests').set(as(admin)).send({ beneficiaryId: ben.body.id, projectId: ids.a, services: ['جلسة علاج'] }).expect(400);
+
+    // وثيقة المشروع ناقصة: لا يُرسل للاعتماد
+    const incomplete = await http.post(`${P}/${ids.a}/submit`).set(as(admin)).expect(400);
+    expect(incomplete.body.message).toContain('فكرة المشروع');
+    const doc = await http.patch(`${P}/nodes/${ids.a}`).set(as(admin)).send({
+      ...DOC, durationType: 'annual', targetGroups: 'المرضى المحتاجون', location: 'الرياض',
+      phases: [{ name: 'التجهيز', startDate: '2026-01-01', endDate: '2026-02-01' }, { name: 'التنفيذ' }],
+      kpis: [{ name: 'عدد الجلسات', target: 500, unit: 'جلسة' }],
+      budgetLines: [{ item: 'جلسات العلاج', quantity: 90, unitCost: 1000, amount: 90000 }, { item: 'الإدارة', amount: 10000 }],
+    }).expect(200);
+    expect(doc.body).toMatchObject({ budget: 100000, fiscalYear: 2026, durationType: 'annual', idea: 'فكرة المشروع' });
+    expect(doc.body.phases).toHaveLength(2);
+    await http.patch(`${P}/nodes/${ids.a}`).set(as(admin)).send({ phases: [{ name: 'خطأ', startDate: '2026-05-01', endDate: '2026-01-01' }] }).expect(400);
 
     let r = await http.post(`${P}/${ids.a}/submit`).set(as(admin)).expect(200);
     expect(r.body).toMatchObject({ approvalStatus: 'pending', currentStage: { name: 'مراجعة مدير المشاريع' } });
@@ -109,7 +123,7 @@ describe('Project management', () => {
       await http.post(`${P}/${id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(200);
       await http.post(`${P}/${id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(200);
     }
-    const rejected = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'مرفوض', parentId: ids.program }).expect(201)).body.id;
+    const rejected = (await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'مرفوض', parentId: ids.program, ...DOC }).expect(201)).body.id;
     await http.post(`${P}/${rejected}/submit`).set(as(admin)).expect(200);
     await http.post(`${P}/${rejected}/decision`).set(as(admin)).send({ decision: 'reject' }).expect(400);
     r = await http.post(`${P}/${rejected}/decision`).set(as(admin)).send({ decision: 'reject', note: 'خارج الخطة' }).expect(200);
@@ -265,5 +279,43 @@ describe('Project management', () => {
     const fin = await http.get(`${OPS}/reports/financial`).set(as(admin)).expect(200);
     expect(fin.body.totals.spent).toBe(2800);
     await http.get(`${OPS}/reports/nothing`).set(as(admin)).expect(400);
+  });
+
+  it('creates endowment projects in project management (never zakat, waqf money only)', async () => {
+    await http.post(`${P}/nodes`).set(as(admin)).send({ level: 'project', name: 'وقف خاطئ', parentId: ids.program, fundingType: 'endowment', zakatEligible: true }).expect(400);
+    const w = await http.post(`${P}/nodes`).set(as(admin)).send({
+      level: 'project', name: 'وقف العمارة', parentId: ids.program, fundingType: 'endowment', durationType: 'continuous', idea: 'وقف استثماري', goals: 'ريع دائم',
+    }).expect(201);
+    expect(w.body).toMatchObject({ fundingType: 'endowment', zakatEligible: false, durationType: 'continuous', fiscalYear: null });
+    await http.post(`${P}/${w.body.id}/submit`).set(as(admin)).expect(200);
+    const t = await http.get(`${OPS}/transfers/targets/${ids.batchA}`).set(as(admin)).expect(200);
+    expect(t.body.projects.find((p: { id: string }) => p.id === w.body.id).problems.join(' ')).toContain('الأوقاف');
+  });
+
+  it('splits one beneficiary across several donors and saves only when the total is exact', async () => {
+    const d2 = await http.post('/api/fundraising/donors').set(as(admin)).send({ name: 'شركة النماء', type: 'entity' }).expect(201);
+    const opp = (donorId: string, amount: number) => http.post('/api/fundraising/opportunities').set(as(admin)).send({
+      kind: 'cash', donorId, date: '2026-11-05', totalAmount: amount, bankAccountId: ids.bank,
+      lines: [{ targetKind: 'program', activityId: ids.a, mode: 'amount', amount }],
+    }).expect(201);
+    const o1 = await opp(ids.donor, 600);
+    const o2 = await opp(d2.body.id, 800);
+    const batchOf = async (oppId: string) => {
+      const res = await http.get(`/api/fundraising/batches?opportunityId=${oppId}`).set(as(admin)).expect(200);
+      return (Array.isArray(res.body) ? res.body : res.body.items)[0].id as string;
+    };
+    const [b1, b2] = [await batchOf(o1.body.id), await batchOf(o2.body.id)];
+    const ben = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'خالد سعد', gender: 'male', category: 'patient', nationality: 'سعودي', residency: 'citizen' }).expect(201);
+    const req = await http.post('/api/beneficiaries/requests').set(as(admin)).send({ beneficiaryId: ben.body.id, projectId: ids.a, services: ['جلسة علاج'] }).expect(201);
+    await http.post(`/api/beneficiaries/requests/${req.body.id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201);
+    const send = (parts: { batchId: string; amount: number }[]) => http.post(`${OPS}/support/allocate-split`).set(as(admin)).send({ requestId: req.body.id, parts });
+    const short = await send([{ batchId: b1, amount: 600 }, { batchId: b2, amount: 300 }]).expect(400);
+    expect(short.body.message).toContain('بالضبط');
+    await send([{ batchId: b1, amount: 500 }, { batchId: b1, amount: 500 }]).expect(400);
+    const ok = await send([{ batchId: b1, amount: 600 }, { batchId: b2, amount: 400 }]).expect(201);
+    expect(ok.body).toHaveLength(2);
+    const q = await http.get(`${OPS}/support/queue`).set(as(admin)).expect(200);
+    expect(q.body.find((x: { id: string }) => x.id === req.body.id)).toMatchObject({ need: 1000, covered: 1000, outstanding: 0 });
+    await send([{ batchId: b2, amount: 1 }]).expect(409);
   });
 });

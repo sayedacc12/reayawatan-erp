@@ -28,6 +28,8 @@ export class TransfersService {
     if (batch.isZakat && !target.zakatEligible) out.push('الدفعة زكاة والمشروع المنقول إليه ليس ضمن بنود الزكاة');
     if (batch.targetKind === 'operational' && target.fundingType !== 'operational') out.push('الدفعة تشغيلية، فتُنقل إلى مشروع تشغيلي فقط');
     if (batch.targetKind !== 'operational' && target.fundingType === 'operational') out.push('الدفعة مقيدة، فلا تُنقل إلى مشروع تشغيلي');
+    if (batch.targetKind === 'waqf' && target.fundingType !== 'endowment') out.push('الدفعة وقف، فتُنقل إلى مشروع وقف فقط');
+    if (batch.targetKind !== 'waqf' && target.fundingType === 'endowment') out.push('مشاريع الأوقاف تستقبل دفعات الوقف فقط');
     if (conditions.endDate && conditions.endDate < today()) out.push(`انتهت مدة المشروع المتفق عليها مع الداعم في ${conditions.endDate}`);
     if (batch.beneficiaryRequestId) out.push('الدفعة مخصصة لحالة مستفيد بعينها');
     return out;

@@ -1,5 +1,5 @@
-import { Transform } from 'class-transformer';
-import { IsDateString, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, ValidateNested, IsIn, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength } from 'class-validator';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
 const amount = () => [IsNumber({ maxDecimalPlaces: 2 }, { message: 'المبلغ يجب أن يكون رقمًا بحد أقصى منزلتين عشريتين' }), Min(0.01, { message: 'المبلغ يجب أن يكون أكبر من صفر' })];
@@ -14,6 +14,26 @@ export class AllocateDto {
 
   @Amount()
   amount!: number;
+
+  @IsOptional() @trim() @IsString() @MaxLength(1000)
+  notes?: string | null;
+}
+
+export class SplitPartDto {
+  @IsUUID('4', { message: 'اختر الدفعة' })
+  batchId!: string;
+
+  @Amount()
+  amount!: number;
+}
+
+/** تحميل طلب واحد على دفعة أو أكثر (أكثر من داعم). المجموع يساوي المتبقي من احتياج الطلب بالضبط */
+export class AllocateSplitDto {
+  @IsUUID('4', { message: 'اختر الطلب' })
+  requestId!: string;
+
+  @IsArray() @ArrayMinSize(1, { message: 'اختر داعمًا واحدًا على الأقل' }) @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => SplitPartDto)
+  parts!: SplitPartDto[];
 
   @IsOptional() @trim() @IsString() @MaxLength(1000)
   notes?: string | null;

@@ -60,6 +60,8 @@ export class ProjectsService {
       currentStage: p.currentStageId ? { id: p.currentStageId, name: stageName.get(p.currentStageId) ?? '' } : null,
       spendingMode: p.spendingMode, managerName: p.managerName, startDate: p.startDate, endDate: p.endDate,
       budget: p.budget, targetBeneficiaries: p.targetBeneficiaries, goals: p.goals,
+      durationType: p.durationType, fiscalYear: p.fiscalYear, idea: p.idea, targetGroups: p.targetGroups, location: p.location,
+      outcomes: p.outcomes, risks: p.risks, phases: p.phases ?? [], kpis: p.kpis ?? [], budgetLines: p.budgetLines ?? [],
       submittedAt: p.submittedAt, approvedAt: p.approvedAt,
     };
   }
@@ -78,6 +80,8 @@ export class ProjectsService {
           fundingType: dto.fundingType ?? 'restricted', zakatEligible: dto.zakatEligible ?? false, approvalStatus: 'draft',
         });
         await this.createProfile(em, actor.organizationId, created.id, { ...dto, createdByName: actor.fullName });
+        const doc = this.docFields(dto);
+        if (Object.keys(doc).length) await em.update(ProjectProfile, { activityId: created.id }, doc);
         await this.log(em, actor, created.id, 'created');
       });
     }
@@ -111,9 +115,9 @@ export class ProjectsService {
         if (dto.zakatEligible !== undefined) upd.zakatEligible = dto.zakatEligible;
         if ((dto.fundingType ?? a.fundingType) !== 'restricted') upd.zakatEligible = false;
         if (Object.keys(upd).length) await em.update(Activity, { id }, upd);
-        const pu: Partial<ProjectProfile> = {};
+        const pu: Partial<ProjectProfile> = this.docFields(dto);
         for (const k of ['spendingMode', 'managerName', 'startDate', 'endDate', 'budget', 'targetBeneficiaries', 'goals'] as const) {
-          if (dto[k] !== undefined) (pu as Record<string, unknown>)[k] = dto[k];
+          if (dto[k] !== undefined && !(k === 'budget' && pu.budget !== undefined)) (pu as Record<string, unknown>)[k] = dto[k];
         }
         this.checkDates(dto.startDate, dto.endDate);
         if (Object.keys(pu).length) await em.update(ProjectProfile, { activityId: id }, pu);
@@ -182,6 +186,9 @@ export class ProjectsService {
     await this.db.transaction(async (em) => {
       const a = await this.lock(em, actor, id);
       if (!EDITABLE.includes(a.approvalStatus)) throw new ConflictException(`حالة المشروع الآن: ${STATUS_AR[a.approvalStatus]}`);
+      const doc = await em.findOneOrFail(ProjectProfile, { where: { activityId: id } });
+      const missing = [!doc.idea && 'فكرة المشروع', !doc.goals && 'الأهداف', doc.durationType === 'annual' && !doc.fiscalYear && 'السنة المالية'].filter(Boolean);
+      if (missing.length) throw new BadRequestException(`أكمل وثيقة المشروع قبل إرسالها للاعتماد: ${missing.join('، ')}`);
       const stages = await em.find(ApprovalStage, { where: { organizationId: actor.organizationId }, order: { sortOrder: 'ASC' } });
       if (!stages.length) {
         await this.setStatus(em, a, 'approved', null);
@@ -302,6 +309,23 @@ export class ProjectsService {
   async profile(a: Activity) {
     await this.ensureProfiles(a.organizationId);
     return this.profiles.findOneOrFail({ where: { activityId: a.id } });
+  }
+
+  /** حقول وثيقة المشروع. عند إدخال بنود الموازنة تصبح الميزانية مجموعها */
+  private docFields(dto: ProjectFieldsDto): Partial<ProjectProfile> {
+    const out: Record<string, unknown> = {};
+    for (const k of ['durationType', 'fiscalYear', 'idea', 'targetGroups', 'location', 'outcomes', 'risks', 'phases', 'kpis'] as const) {
+      if (dto[k] !== undefined) out[k] = dto[k];
+    }
+    if (dto.durationType === 'continuous') out.fiscalYear = null;
+    for (const ph of dto.phases ?? []) {
+      if (ph.startDate && ph.endDate && ph.startDate > ph.endDate) throw new BadRequestException(`المرحلة "${ph.name}": تاريخ النهاية قبل البداية`);
+    }
+    if (dto.budgetLines !== undefined) {
+      out.budgetLines = dto.budgetLines;
+      if (dto.budgetLines.length) out.budget = Math.round(dto.budgetLines.reduce((t, l) => t + Number(l.amount), 0) * 100) / 100;
+    }
+    return out as Partial<ProjectProfile>;
   }
 
   private checkFunding(type: string, zakat: boolean) {

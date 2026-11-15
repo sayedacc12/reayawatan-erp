@@ -8,6 +8,11 @@ import { ApprovalStage } from './approval-stage.entity';
  * general: صرف عام غير مرتبط بمستفيدين (مثل المشاريع الإعلامية التوعوية) بفواتير مباشرة
  */
 export type SpendingMode = 'beneficiaries' | 'general';
+/** annual: مشروع يُنشأ لسنة مالية محددة. continuous: مشروع مستمر لا يُعاد إنشاؤه كل سنة */
+export type DurationType = 'annual' | 'continuous';
+export interface ProjectPhase { name: string; startDate?: string | null; endDate?: string | null; deliverables?: string | null }
+export interface ProjectKpi { name: string; baseline?: number | null; target?: number | null; unit?: string | null }
+export interface BudgetLine { item: string; quantity?: number | null; unitCost?: number | null; amount: number; notes?: string | null }
 
 /** بيانات المشروع في نظام إدارة المشاريع (سجل واحد لكل مشروع في شجرة الأنشطة) */
 @Entity('project_profiles')
@@ -49,6 +54,46 @@ export class ProjectProfile {
 
   @Column({ type: 'text', nullable: true })
   goals!: string | null;
+
+  // ---- وثيقة المشروع ----
+  @Column({ name: 'duration_type', type: 'varchar', length: 12, default: 'annual' })
+  durationType!: DurationType;
+
+  /** السنة المالية للمشروع السنوي */
+  @Column({ name: 'fiscal_year', type: 'int', nullable: true })
+  fiscalYear!: number | null;
+
+  /** فكرة المشروع ومبرراته */
+  @Column({ type: 'text', nullable: true })
+  idea!: string | null;
+
+  /** الفئات المستهدفة */
+  @Column({ name: 'target_groups', type: 'text', nullable: true })
+  targetGroups!: string | null;
+
+  /** نطاق التنفيذ الجغرافي */
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  location!: string | null;
+
+  /** المخرجات والأثر المتوقع */
+  @Column({ type: 'text', nullable: true })
+  outcomes!: string | null;
+
+  /** المخاطر وطرق معالجتها */
+  @Column({ type: 'text', nullable: true })
+  risks!: string | null;
+
+  /** مراحل التنفيذ */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  phases!: ProjectPhase[];
+
+  /** مؤشرات الأداء */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  kpis!: ProjectKpi[];
+
+  /** بنود الموازنة (مجموعها = الميزانية) */
+  @Column({ name: 'budget_lines', type: 'jsonb', default: () => "'[]'" })
+  budgetLines!: BudgetLine[];
 
   /** مرحلة الاعتماد الحالية (عندما تكون الحالة pending) */
   @Column({ name: 'current_stage_id', type: 'uuid', nullable: true })

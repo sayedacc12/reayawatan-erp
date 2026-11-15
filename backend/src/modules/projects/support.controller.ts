@@ -5,7 +5,7 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { ProjectSettings } from './entities';
 import { REPORTS, InsightsService } from './insights.service';
 import { PROJECT_PERMISSIONS as P } from './projects.manifest';
-import { AccountingDto, AllocateDto, AmendmentDto, DirectPaymentDto, ExecutePaymentDto, GeneralDisbursementDto, PaymentRequestDto, ReasonDto, TransferDto } from './support.dto';
+import { AccountingDto, AllocateDto, AllocateSplitDto, AmendmentDto, DirectPaymentDto, ExecutePaymentDto, GeneralDisbursementDto, PaymentRequestDto, ReasonDto, TransferDto } from './support.dto';
 import { SupportService } from './support.service';
 import { TransfersService } from './transfers.service';
 
@@ -51,6 +51,12 @@ export class SupportController {
   @RequirePermissions(P.support)
   allocate(@CurrentOrgUser() actor: OrgUser, @Body() dto: AllocateDto) {
     return this.support.allocate(actor, dto);
+  }
+
+  @Post('support/allocate-split')
+  @RequirePermissions(P.support)
+  allocateSplit(@CurrentOrgUser() actor: OrgUser, @Body() dto: AllocateSplitDto) {
+    return this.support.allocateSplit(actor, dto);
   }
 
   @Post('support/general')
