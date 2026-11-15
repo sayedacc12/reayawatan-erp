@@ -27,13 +27,16 @@ export interface AppEntry {
   icon?: string;
   menu: { label: string; path: string }[];
 }
+/** الشاشات المسموحة والمحجوبة عن الجمعية (فارغة = كل الشاشات مسموحة) */
+interface ScreenAccess { allowed: string[]; hidden: string[] }
 interface SessionPayload {
   user: SessionUser;
   apps: AppEntry[];
+  screens?: ScreenAccess;
 }
 
 export const useSession = defineStore('session', {
-  state: () => ({ user: null as SessionUser | null, apps: [] as AppEntry[], loaded: false }),
+  state: () => ({ user: null as SessionUser | null, apps: [] as AppEntry[], screens: { allowed: [], hidden: [] } as ScreenAccess, loaded: false }),
   getters: {
     isLoggedIn: (s) => !!s.user,
   },
@@ -41,6 +44,14 @@ export const useSession = defineStore('session', {
     can(permission?: string) {
       if (!permission) return true;
       return !!this.user && this.user.permissions.includes(permission);
+    },
+    /** هل المسار تابع لشاشة محجوبة؟ (أطول مسار شاشة يطابق بداية المسار هو المرجع) */
+    screenHidden(path: string) {
+      const { allowed, hidden } = this.screens;
+      if (!hidden.length) return false;
+      const match = (p: string) => path === p || path.startsWith(`${p}/`);
+      const best = [...allowed, ...hidden].filter(match).sort((a, b) => b.length - a.length)[0];
+      return !!best && hidden.includes(best);
     },
     /** login: البريد الإلكتروني أو اسم المستخدم. organization: slug صفحة دخول الجمعية */
     async login(login: string, password: string, organization?: string) {
@@ -69,11 +80,13 @@ export const useSession = defineStore('session', {
     apply(p: SessionPayload) {
       this.user = p.user;
       this.apps = p.apps;
+      this.screens = p.screens ?? { allowed: [], hidden: [] };
     },
     logout() {
       token.clear();
       this.user = null;
       this.apps = [];
+      this.screens = { allowed: [], hidden: [] };
     },
   },
 });

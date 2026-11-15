@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import { passwordProblem } from '../../../validation';
+import { useRouter } from 'vue-router';
+import { CONTRACT_STATUS, cycleLabel, fmtDate, money, ORG_STATE } from '../labels';
+import '../platform.css';
 
 const toast = useToast();
 
@@ -14,6 +16,14 @@ interface Org {
   createdAt: string;
   userCount: number;
   modules: string[];
+  state: string;
+  subscriptionPrice: number | null;
+  billingCycle: string | null;
+  trialEndsOn: string | null;
+  subscriptionEndsOn: string | null;
+  allowedScreens: string[] | null;
+  hasProfile: boolean;
+  contractStatus: string | null;
 }
 interface OptionalModule { code: string; name: string; description?: string }
 
@@ -33,37 +43,7 @@ async function load() {
 }
 onMounted(load);
 
-// ---- جمعية جديدة ----
-const createOpen = ref(false);
-const createError = ref('');
-const saving = ref(false);
-const form = reactive({ name: '', slug: '', adminFullName: '', adminEmail: '', adminPassword: '' });
-
-function openCreate() {
-  Object.assign(form, { name: '', slug: '', adminFullName: '', adminEmail: '', adminPassword: '' });
-  createError.value = '';
-  createOpen.value = true;
-}
-const pwProblem = computed(() => passwordProblem(form.adminPassword));
-
-async function create() {
-  createError.value = '';
-  if (pwProblem.value) {
-    createError.value = pwProblem.value;
-    return;
-  }
-  saving.value = true;
-  try {
-    await api('/platform/organizations', { method: 'POST', json: { ...form, slug: form.slug.trim().toLowerCase() } });
-    createOpen.value = false;
-    toast.success(`تم إنشاء جمعية "${form.name}"`);
-    await load();
-  } catch (e) {
-    createError.value = (e as Error).message;
-  } finally {
-    saving.value = false;
-  }
-}
+const router = useRouter();
 
 async function toggleActive(o: Org) {
   const verb = o.isActive ? 'إيقاف' : 'تفعيل';
@@ -77,24 +57,6 @@ async function toggleActive(o: Org) {
   }
 }
 
-// ---- الوحدات الاختيارية ----
-const modulesFor = ref<Org | null>(null);
-const selectedModules = ref<string[]>([]);
-function openModules(o: Org) {
-  modulesFor.value = o;
-  selectedModules.value = [...o.modules];
-}
-async function saveModules() {
-  if (!modulesFor.value) return;
-  try {
-    await api(`/platform/organizations/${modulesFor.value.id}/modules`, { method: 'PUT', json: { modules: selectedModules.value } });
-    toast.success(`تم حفظ خدمات "${modulesFor.value.name}"`);
-    modulesFor.value = null;
-    await load();
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
 // ---- جمعية تجريبية للشرح ----
 interface DemoResult {
   organization: { name: string; slug: string };
@@ -119,85 +81,61 @@ async function createDemo() {
 const origin = location.origin;
 
 const moduleName = (code: string) => optional.value.find((m) => m.code === code)?.name ?? code;
+const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionEndsOn);
 </script>
 
 <template>
   <div>
-    <div class="page-head">
+    <section class="p-hero">
       <div>
+        <p class="p-kicker">إدارة المنصة</p>
         <h1>الجمعيات</h1>
-        <p class="muted">كل جمعية حساب مستقل ببياناتها ومستخدميها ومدير نظام خاص بها.</p>
+        <p class="p-sub">كل جمعية حساب مستقل ببياناتها ومستخدميها. افتح ملف الجمعية لإدارة بياناتها الرئيسية والشاشات المسموحة والاشتراك والعقود.</p>
       </div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap">
-        <button v-if="!orgs.some((o) => o.slug === 'demo')" class="btn" :disabled="demoBusy" @click="createDemo">{{ demoBusy ? 'جارٍ التجهيز...' : '✨ جمعية تجريبية للشرح' }}</button>
-        <button class="btn btn-primary" @click="openCreate">+ جمعية جديدة</button>
+        <button v-if="!orgs.some((o) => o.slug === 'demo')" class="btn btn-ghost-light" :disabled="demoBusy" @click="createDemo">{{ demoBusy ? 'جارٍ التجهيز...' : '✨ جمعية تجريبية للشرح' }}</button>
+        <RouterLink to="/platform/applications?new=1" class="btn btn-gold">+ تسجيل جمعية جديدة</RouterLink>
       </div>
-    </div>
+    </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
 
     <div class="card table-wrap">
       <table class="table">
         <thead>
-          <tr><th>الجمعية</th><th>المعرف</th><th>المستخدمون</th><th>الخدمات الإضافية</th><th>الحالة</th><th></th></tr>
+          <tr><th>الجمعية</th><th>حالة الاشتراك</th><th>القيمة</th><th>العقد</th><th>الشاشات</th><th>المستخدمون</th><th></th></tr>
         </thead>
         <tbody>
-          <tr v-for="o in orgs" :key="o.id">
-            <td>{{ o.name }}</td>
-            <td dir="ltr" style="text-align: right"><code>{{ o.slug }}</code> <a :href="`/o/${o.slug}`" target="_blank" class="portal-link">دخول الموظفين ↗</a> <a :href="`/portal/${o.slug}`" target="_blank" class="portal-link">بوابة المستفيدين ↗</a></td>
-            <td>{{ o.userCount }}</td>
+          <tr v-for="o in orgs" :key="o.id" class="click" @click="router.push(`/platform/organizations/${o.id}`)">
             <td>
-              <span v-for="m in o.modules" :key="m" class="badge badge-primary">{{ moduleName(m) }}</span>
-              <span v-if="!o.modules.length" class="muted">الأساسية فقط</span>
+              <b>{{ o.name }}</b>
+              <div class="links" @click.stop>
+                <code dir="ltr">{{ o.slug }}</code>
+                <a :href="`/o/${o.slug}`" target="_blank" class="portal-link">دخول الموظفين ↗</a>
+                <a :href="`/portal/${o.slug}`" target="_blank" class="portal-link">بوابة المستفيدين ↗</a>
+              </div>
+              <span v-if="!o.hasProfile" class="tone tone-warn" style="margin-top: 4px">البيانات الرئيسية غير مكتملة</span>
             </td>
-            <td><span :class="['badge', o.isActive ? 'badge-success' : 'badge-muted']">{{ o.isActive ? 'نشطة' : 'موقوفة' }}</span></td>
-            <td style="display: flex; gap: 6px">
-              <button class="btn btn-sm" @click="openModules(o)">الخدمات</button>
+            <td>
+              <span :class="['tone', `tone-${ORG_STATE[o.state]?.tone ?? 'muted'}`]">{{ ORG_STATE[o.state]?.label ?? o.state }}</span>
+              <div v-if="until(o)" class="muted small">حتى {{ fmtDate(until(o)) }}</div>
+            </td>
+            <td>{{ o.subscriptionPrice !== null ? money(o.subscriptionPrice) : '—' }}<div v-if="o.billingCycle" class="muted small">{{ cycleLabel(o.billingCycle) }}</div></td>
+            <td><span v-if="o.contractStatus" :class="['tone', `tone-${CONTRACT_STATUS[o.contractStatus].tone}`]">{{ CONTRACT_STATUS[o.contractStatus].label }}</span><span v-else class="muted">لا يوجد</span></td>
+            <td>
+              {{ o.allowedScreens ? `${o.allowedScreens.length} شاشة` : 'كل الشاشات' }}
+              <div v-if="o.modules.length" class="muted small">+ {{ o.modules.map(moduleName).join('، ') }}</div>
+            </td>
+            <td>{{ o.userCount }}</td>
+            <td @click.stop style="display: flex; gap: 6px">
+              <RouterLink :to="`/platform/organizations/${o.id}`" class="btn btn-sm">إدارة</RouterLink>
               <button :class="['btn', 'btn-sm', o.isActive && 'btn-danger']" @click="toggleActive(o)">{{ o.isActive ? 'إيقاف' : 'تفعيل' }}</button>
             </td>
           </tr>
-          <tr v-if="!orgs.length"><td colspan="6" class="muted" style="text-align: center">لا توجد جمعيات بعد. ابدأ بإضافة أول جمعية.</td></tr>
+          <tr v-if="!orgs.length"><td colspan="7" class="muted" style="text-align: center">لا توجد جمعيات بعد. شارك رابط التسجيل أو سجّل أول جمعية.</td></tr>
         </tbody>
       </table>
     </div>
 
-    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false" @keydown.esc="createOpen = false">
-      <form class="card modal" @submit.prevent="create">
-        <h2 style="margin-bottom: 16px">جمعية جديدة</h2>
-        <div v-if="createError" class="alert alert-error">{{ createError }}</div>
-        <div class="field"><label>اسم الجمعية</label><input v-model="form.name" class="input" required /></div>
-        <div class="field">
-          <label>المعرف (بالإنجليزية، مثل al-bir)</label>
-          <input v-model="form.slug" class="input" dir="ltr" pattern="[a-z0-9\-]+" required />
-        </div>
-        <h2 style="margin: 18px 0 12px; font-size: 1rem">مدير نظام الجمعية</h2>
-        <div class="field"><label>الاسم</label><input v-model="form.adminFullName" class="input" required /></div>
-        <div class="field"><label>البريد الإلكتروني</label><input v-model="form.adminEmail" class="input" type="email" dir="ltr" required /></div>
-        <div class="field"><label>كلمة المرور المبدئية (8 أحرف على الأقل)</label><input v-model="form.adminPassword" :class="['input', { invalid: pwProblem }]" type="password" dir="ltr" minlength="8" required autocomplete="new-password" />
-          <small v-if="pwProblem" class="field-error">{{ pwProblem }}</small></div>
-        <div class="modal-actions">
-          <button class="btn btn-primary" :disabled="saving">إنشاء الجمعية</button>
-          <button type="button" class="btn" @click="createOpen = false">إلغاء</button>
-        </div>
-      </form>
-    </div>
-
-    <div v-if="modulesFor" class="modal-backdrop" @click.self="modulesFor = null" @keydown.esc="modulesFor = null">
-      <div class="card modal">
-        <h2 style="margin-bottom: 6px">خدمات {{ modulesFor.name }}</h2>
-        <p class="muted" style="margin-top: 0">الوحدات الأساسية مفعلة دائمًا. فعّل الخدمات الإضافية التي اشتركت فيها الجمعية.</p>
-        <div v-if="optional.length" style="display: flex; flex-direction: column; gap: 10px; margin: 12px 0">
-          <label v-for="m in optional" :key="m.code" class="check">
-            <input v-model="selectedModules" type="checkbox" :value="m.code" />
-            <span><strong>{{ m.name }}</strong><br /><span class="muted">{{ m.description }}</span></span>
-          </label>
-        </div>
-        <p v-else class="alert" style="background: var(--surface-2)">لا توجد خدمات إضافية مثبتة بعد. أول خدمة مخطط لها: الموقع الإلكتروني ومنصة التبرعات.</p>
-        <div class="modal-actions">
-          <button class="btn btn-primary" :disabled="!optional.length" @click="saveModules">حفظ</button>
-          <button class="btn" @click="modulesFor = null">إغلاق</button>
-        </div>
-      </div>
-    </div>
     <div v-if="demo" class="modal-backdrop" @click.self="demo = null">
       <div class="card modal modal-wide demo">
         <h2>✨ تم تجهيز {{ demo.organization.name }}</h2>
@@ -220,6 +158,9 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
 
 <style scoped>
 .portal-link { font-size: .78rem; margin-inline-start: 8px; }
+.links { font-size: .8rem; margin-top: 2px; }
+.small { font-size: .8rem; }
+.click { cursor: pointer; }
 .demo h3 { font-size: .95rem; margin: 16px 0 6px; color: var(--primary); }
 .demo code { font-size: .9rem; }
 </style>

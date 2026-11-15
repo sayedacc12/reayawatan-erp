@@ -177,6 +177,7 @@ async function submit() {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /></svg>
             اتصال آمن ومشفّر
           </p>
+          <p v-if="!slug" class="register">جمعيتك غير مسجلة بعد؟ <RouterLink to="/register">قدّم طلب اشتراك ←</RouterLink></p>
         </div>
       </form>
     </div>
@@ -184,6 +185,8 @@ async function submit() {
 </template>
 
 <style scoped>
+.register { text-align: center; margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); }
+.register a { color: var(--gold); font-weight: 600; }
 .login {
   --ink: #e7fffb;
   --ink-2: rgba(231, 255, 251, 0.68);

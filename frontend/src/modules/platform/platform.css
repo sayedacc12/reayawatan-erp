@@ -1,0 +1,55 @@
+/* أنماط مشتركة لشاشات إدارة المنصة (الاشتراكات والعقود والتقارير) */
+.p-hero { position: relative; overflow: hidden; border-radius: 20px; padding: 24px 28px; margin-bottom: 20px; color: #fff; background: var(--grad-dark);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; box-shadow: 0 16px 40px rgba(6,20,26,.18); }
+.p-hero::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(420px 200px at 85% 0%, rgba(232,176,75,.38), transparent 70%), radial-gradient(520px 260px at 10% 120%, rgba(45,212,191,.42), transparent 70%);
+  animation: p-breathe 9s ease-in-out infinite; }
+@keyframes p-breathe { 50% { opacity: .6; transform: scale(1.04); } }
+.p-hero > * { position: relative; }
+.p-hero h1 { font-size: 1.45rem; }
+.p-kicker { margin: 0 0 4px; color: #5eead4; font-weight: 600; font-size: .86rem; }
+.p-sub { margin: 6px 0 0; color: rgba(255,255,255,.75); max-width: 620px; }
+.p-hero .btn { border-color: rgba(255,255,255,.25); }
+.btn-gold { background: linear-gradient(135deg, #f5c66b, #e8b04b); color: #3b2a06; border: 0; font-weight: 700; }
+.btn-gold:hover { background: linear-gradient(135deg, #f8d48a, #eab558); }
+.btn-ghost-light { background: rgba(255,255,255,.08); color: #fff; }
+.btn-ghost-light:hover { background: rgba(255,255,255,.16); }
+
+.tone { display: inline-flex; align-items: center; gap: 6px; padding: 2px 11px; border-radius: 999px; font-size: .8rem; font-weight: 500; white-space: nowrap; }
+.tone::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.tone-ok { background: var(--success-soft); color: var(--success); }
+.tone-warn { background: #fff4e0; color: #9a5b00; }
+.tone-info { background: #e8f0ff; color: #2952cc; }
+.tone-bad { background: var(--danger-soft); color: var(--danger); }
+.tone-muted { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.tone-warn::before { animation: p-blink 1.6s infinite; }
+@keyframes p-blink { 50% { opacity: .25; } }
+
+.p-panel { padding: 18px 20px; margin-bottom: 16px; animation: p-rise .45s var(--ease) both; }
+.p-panel > h2 { font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+@keyframes p-rise { from { opacity: 0; transform: translateY(10px); } }
+.p-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.p-dl { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; }
+.p-dl dt { color: var(--muted); font-size: .88rem; }
+.p-dl dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+.p-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+.p-tab { border: 0; background: none; font: inherit; padding: 10px 14px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.p-tab.on { color: var(--primary); border-color: var(--primary); font-weight: 600; }
+
+.p-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.p-chip { border: 1px solid var(--border); background: var(--surface); padding: 5px 14px; border-radius: 999px; cursor: pointer; font: inherit; font-size: .88rem; }
+.p-chip.on { background: var(--primary); color: #fff; border-color: transparent; }
+.p-chip b { margin-inline-start: 6px; opacity: .75; }
+
+.p-timeline { list-style: none; padding: 0; margin: 0; position: relative; }
+.p-timeline li { position: relative; padding: 0 22px 14px 0; }
+.p-timeline li::before { content: ''; position: absolute; right: 4px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+.p-timeline li::after { content: ''; position: absolute; right: 8px; top: 20px; bottom: 0; width: 2px; background: var(--border); }
+.p-timeline li:last-child::after { display: none; }
+.p-timeline small { color: var(--muted); display: block; }
+
+.p-link-box { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px dashed var(--border); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; }
+.p-link-box code { flex: 1; direction: ltr; text-align: left; overflow-wrap: anywhere; font-size: .88rem; }
+.p-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+@media (max-width: 640px) { .p-row-2 { grid-template-columns: 1fr; } .p-hero { padding: 20px; } }
