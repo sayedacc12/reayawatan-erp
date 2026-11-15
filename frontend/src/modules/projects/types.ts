@@ -1,4 +1,8 @@
-export type FundingType = 'restricted' | 'unrestricted' | 'operational';
+export type FundingType = 'restricted' | 'unrestricted' | 'operational' | 'endowment';
+export type DurationType = 'annual' | 'continuous';
+export interface Phase { name: string; startDate?: string | null; endDate?: string | null; deliverables?: string | null }
+export interface Kpi { name: string; baseline?: number | null; target?: number | null; unit?: string | null }
+export interface BudgetLine { item: string; quantity?: number | null; unitCost?: number | null; amount: number; notes?: string | null }
 export type ApprovalStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected';
 export type SpendingMode = 'beneficiaries' | 'general';
 
@@ -28,6 +32,18 @@ export interface TreeNode {
   budget?: number | null;
   targetBeneficiaries?: number | null;
   goals?: string | null;
+  durationType?: DurationType;
+  fiscalYear?: number | null;
+  idea?: string | null;
+  targetGroups?: string | null;
+  location?: string | null;
+  outcomes?: string | null;
+  risks?: string | null;
+  phases?: Phase[];
+  kpis?: Kpi[];
+  budgetLines?: BudgetLine[];
+  submittedAt?: string | null;
+  approvedAt?: string | null;
 }
 
 export interface Stage { id?: string; name: string; instructions?: string | null; roleId?: string | null; roleName?: string | null; pendingCount?: number }

@@ -51,33 +51,50 @@ watch(projectId, (id) => {
   if (tab.value === 'general' && id) loadGeneral();
 });
 
-// ---- تحميل طلب على دفعة ----
+// ---- تحميل طلب على داعم أو أكثر ----
 const opts = ref<Options | null>(null);
-const pick = ref<{ batchId: string; amount: number | null; notes: string }>({ batchId: '', amount: null, notes: '' });
+const parts = ref<Record<string, number | ''>>({});
+const notes = ref('');
+const required = computed(() => opts.value?.request.outstanding ?? null);
+const eligible = computed(() => (opts.value?.batches ?? []).filter((b) => !b.violations?.length && b.net > 0));
+const blocked = computed(() => (opts.value?.batches ?? []).filter((b) => b.violations?.length));
+const picked = computed(() => Object.entries(parts.value).filter(([, v]) => v !== '' && Number(v) > 0));
+const assigned = computed(() => Math.round(picked.value.reduce((t, [, v]) => t + Number(v), 0) * 100) / 100);
+const diff = computed(() => (required.value === null ? null : Math.round((required.value - assigned.value) * 100) / 100));
+const overNet = computed(() => picked.value.some(([id, v]) => Number(v) > (eligible.value.find((b) => b.id === id)?.net ?? 0)));
+const canSave = computed(() => diff.value === 0 && picked.value.length > 0 && !overNet.value);
+
 async function openAllocate(q: QueueItem) {
   try {
     opts.value = await api<Options>(`/projects-ops/support/requests/${q.id}/options`);
-    const firstOk = opts.value.batches.find((b) => !b.violations?.length);
-    pick.value = { batchId: firstOk?.id ?? '', amount: q.outstanding ?? null, notes: '' };
-    if (firstOk && pick.value.amount) pick.value.amount = Math.min(pick.value.amount, firstOk.net);
+    notes.value = '';
+    parts.value = {};
+    const first = eligible.value[0];
+    if (first && required.value) parts.value[first.id] = Math.min(required.value, first.net);
   } catch (e) {
     toast.error((e as Error).message);
   }
 }
-const pickedBatch = computed(() => opts.value?.batches.find((b) => b.id === pick.value.batchId));
-async function recheck() {
-  if (!opts.value || !pick.value.amount) return;
-  try {
-    const fresh = await api<Options>(`/projects-ops/support/requests/${opts.value.request.id}/options?amount=${pick.value.amount}`);
-    opts.value.batches = fresh.batches;
-  } catch { /* تجاهل */ }
+function toggle(b: Batch) {
+  if (b.id in parts.value) {
+    const next = { ...parts.value };
+    delete next[b.id];
+    parts.value = next;
+  } else {
+    // الافتراضي: كامل المبلغ المتبقي غير الموزع، بحد صافي رصيد الدفعة
+    const rest = Math.max(0, (required.value ?? 0) - assigned.value);
+    parts.value = { ...parts.value, [b.id]: Math.min(rest || (required.value ?? 0), b.net) };
+  }
 }
 async function allocate() {
-  if (!opts.value) return;
+  if (!opts.value || !canSave.value) return;
   busy.value = true;
   try {
-    await api('/projects-ops/support/allocate', { method: 'POST', json: { requestId: opts.value.request.id, batchId: pick.value.batchId, amount: Number(pick.value.amount), notes: pick.value.notes || null } });
-    toast.success('حُمّل الطلب على الدفعة وأصبح المبلغ محجوزًا');
+    await api('/projects-ops/support/allocate-split', {
+      method: 'POST',
+      json: { requestId: opts.value.request.id, parts: picked.value.map(([batchId, amount]) => ({ batchId, amount: Number(amount) })), notes: notes.value || null },
+    });
+    toast.success(picked.value.length > 1 ? `حُمّل الطلب على ${picked.value.length} داعمين وأصبح المبلغ محجوزًا` : 'حُمّل الطلب على الداعم وأصبح المبلغ محجوزًا');
     opts.value = null;
     await load();
   } catch (e) {
@@ -247,28 +264,38 @@ const totals = computed(() => shownAlloc.value.reduce((t, a) => ({ reserved: t.r
       </div>
     </div>
 
-    <!-- نافذة التحميل على دفعة -->
+    <!-- نافذة التحميل على داعم أو أكثر -->
     <div v-if="opts" class="modal-backdrop" @click.self="opts = null">
       <form class="card modal modal-wide" @submit.prevent="allocate">
-        <h2>تحميل الطلب #{{ opts.request.requestNo }} على دفعة</h2>
-        <p class="pm-muted" style="margin: 4px 0 12px">{{ opts.beneficiary.fullName }} · {{ opts.project.name }} · المتبقي من الاحتياج: <b>{{ opts.request.outstanding === null ? 'غير محدد' : sar(opts.request.outstanding) }}</b></p>
-        <div class="batches">
-          <label v-for="b in opts.batches" :key="b.id" class="batch" :class="{ off: b.violations?.length, on: pick.batchId === b.id }">
-            <input v-model="pick.batchId" type="radio" :value="b.id" :disabled="!!b.violations?.length" />
-            <div>
-              <strong>دفعة {{ b.batchNo }} · {{ b.donorName }}</strong>
-              <span class="pm-muted">صافي الرصيد {{ sar(b.net) }} · {{ b.activityId === opts.project.id ? 'على المشروع' : 'على البرنامج' }}<template v-if="b.isZakat"> · زكاة</template><template v-if="b.beneficiaryRequestId"> · مخصصة لهذه الحالة</template></span>
-              <span v-if="!b.violations?.length" class="pm-ok">✓ مطابقة لاشتراطات الداعم</span>
-              <ul v-else class="pm-viol"><li v-for="v in b.violations" :key="v">{{ v }}</li></ul>
-            </div>
-          </label>
-          <p v-if="!opts.batches.length" class="pm-empty">لا توجد دفعات على هذا المشروع أو برنامجه</p>
-        </div>
-        <div class="pm-grid2" style="margin-top: 12px">
-          <div class="field"><label>المبلغ المحجوز *</label><input v-model.number="pick.amount" class="input" type="number" min="0.01" step="0.01" required @change="recheck" /><small v-if="pickedBatch" class="pm-muted">الحد الأعلى: {{ sar(Math.min(pickedBatch.net, opts.request.outstanding ?? pickedBatch.net)) }}</small></div>
-          <div class="field"><label>ملاحظات</label><input v-model="pick.notes" class="input" /></div>
-        </div>
-        <div class="modal-actions"><button class="btn btn-primary" :disabled="busy || !pick.batchId">حجز المبلغ</button><button type="button" class="btn" @click="opts = null">إلغاء</button></div>
+        <h2>تحميل الطلب #{{ opts.request.requestNo }} على الداعمين</h2>
+        <p class="pm-muted" style="margin: 4px 0 12px">{{ opts.beneficiary.fullName }} · {{ opts.project.name }}</p>
+        <p v-if="required === null" class="alert alert-error">لم تُحدَّد التكلفة التقديرية لهذا الطلب، لذا لا يُعرف مبلغ الدعم المطلوب. حدّدها في الطلب أولًا.</p>
+        <template v-else>
+          <div class="need"><span>مبلغ دعم المستفيد المطلوب</span><strong>{{ sar(required) }}</strong></div>
+          <p class="pm-muted" style="margin: 8px 0">الداعمون المتاحون لهذا الطلب حسب اشتراطاتهم. اختر داعمًا أو أكثر، ويمكنك تعديل مبلغ كل داعم.</p>
+          <div class="batches">
+            <label v-for="b in eligible" :key="b.id" class="batch" :class="{ on: b.id in parts }">
+              <input type="checkbox" :checked="b.id in parts" @change="toggle(b)" />
+              <div class="grow">
+                <strong>{{ b.donorName }} · دفعة {{ b.batchNo }}</strong>
+                <span class="pm-muted">صافي الرصيد {{ sar(b.net) }} · {{ b.activityId === opts.project.id ? 'على المشروع' : 'على البرنامج' }}<template v-if="b.isZakat"> · زكاة</template><template v-if="b.beneficiaryRequestId"> · مخصصة لهذه الحالة</template></span>
+              </div>
+              <input v-if="b.id in parts" v-model.number="parts[b.id]" class="input amt" type="number" min="0.01" step="0.01" :max="b.net" @click.prevent.stop />
+            </label>
+            <p v-if="!eligible.length" class="pm-empty">لا يوجد داعم متاح تنطبق اشتراطاته على هذا الطلب</p>
+          </div>
+          <details v-if="blocked.length" class="pm-muted" style="margin-top: 8px"><summary>{{ blocked.length }} دفعة لا تنطبق اشتراطاتها</summary>
+            <ul class="pm-viol"><li v-for="b in blocked" :key="b.id">{{ b.donorName }} · دفعة {{ b.batchNo }}: {{ b.violations?.join('، ') }}</li></ul>
+          </details>
+          <div class="sum" :class="{ ok: canSave, bad: !canSave && picked.length }">
+            <span>المحمّل: <b>{{ sar(assigned) }}</b></span>
+            <span v-if="diff !== 0 && diff !== null">{{ diff > 0 ? `متبقٍ ${sar(diff)}` : `زيادة ${sar(-diff)}` }}</span>
+            <span v-else-if="overNet">مبلغ أحد الداعمين أكبر من صافي رصيد دفعته</span>
+            <span v-else>✓ يساوي مبلغ المستفيد بالضبط</span>
+          </div>
+          <div class="field" style="margin-top: 10px"><label>ملاحظات</label><input v-model="notes" class="input" /></div>
+        </template>
+        <div class="modal-actions"><button class="btn btn-primary" :disabled="busy || !canSave">حجز المبالغ</button><button type="button" class="btn" @click="opts = null">إلغاء</button></div>
       </form>
     </div>
 
@@ -296,5 +323,12 @@ const totals = computed(() => shownAlloc.value.reduce((t, a) => ({ reserved: t.r
 .batch div { display: flex; flex-direction: column; gap: 2px; }
 .batch.on { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .batch.off { opacity: .75; cursor: not-allowed; background: var(--surface-2); }
-.batch input { margin-top: 4px; }
+.batch input[type=checkbox] { margin-top: 4px; }
+.batch .grow { flex: 1; }
+.batch .amt { width: 150px; align-self: center; }
+.need { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); }
+.need strong { font-size: 1.25rem; }
+.sum { display: flex; gap: 14px; flex-wrap: wrap; justify-content: space-between; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); font-weight: 600; }
+.sum.ok { background: #ecfdf5; color: #047857; }
+.sum.bad { background: #fef2f2; color: var(--danger); }
 </style>

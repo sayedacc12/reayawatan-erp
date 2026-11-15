@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
@@ -9,6 +10,7 @@ import type { Stage, TreeNode } from '../types';
 import '../projects.css';
 
 const toast = useToast();
+const router = useRouter();
 type Tab = 'tree' | 'stages' | 'accounting' | 'permissions';
 const tabs = [
   { key: 'tree', label: 'المحاور والمشاريع', hint: 'محور ← برنامج ← مشروع ← خدمة' },
@@ -33,8 +35,11 @@ const children = (id: string | null) => rows.value.filter((r) => r.parentId === 
 const axes = computed(() => rows.value.filter((r) => r.level === 'axis'));
 const match = (p: TreeNode) => !search.value || p.name.includes(search.value) || (p.code ?? '').includes(search.value.toUpperCase());
 const editing = ref<{ node: TreeNode | null; level: TreeNode['level']; parentId: string | null } | null>(null);
-async function saved() {
+async function saved(n: TreeNode) {
+  const isNew = !editing.value?.node;
   editing.value = null;
+  // مشروع جديد: يُفتح محرر وثيقة المشروع لاستكمالها ثم إرسالها للاعتماد
+  if (isNew && n.level === 'project') return router.push(links.document(n.id));
   await load();
 }
 async function remove(n: TreeNode) {

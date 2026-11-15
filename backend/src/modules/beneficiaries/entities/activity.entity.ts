@@ -18,7 +18,7 @@ export interface ProjectService {
 }
 
 /** نوع المشروع حسب طبيعة تمويله: مقيد، غير مقيد، تشغيلي (يحدده نظام إدارة المشاريع) */
-export type FundingType = 'restricted' | 'unrestricted' | 'operational';
+export type FundingType = 'restricted' | 'unrestricted' | 'operational' | 'endowment';
 
 /** حالة اعتماد المشروع في مراحل اعتماد المشاريع */
 export type ApprovalStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected';

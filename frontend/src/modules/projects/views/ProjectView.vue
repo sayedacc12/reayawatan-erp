@@ -100,6 +100,7 @@ const cond = (b: Batch) => {
         </template>
         <button v-if="editable && session.can('projects.projects.manage')" class="btn btn-glow" @click="act('submit', {}, 'أُرسل المشروع للاعتماد')">إرسال للاعتماد</button>
         <RouterLink v-if="p.approvalStatus === 'approved' && session.can('projects.support.manage')" :to="{ path: '/projects/support', query: { project: p.id } }" class="btn btn-ghost">إدارة الدعم</RouterLink>
+        <RouterLink :to="links.document(p.id)" class="btn btn-ghost">وثيقة المشروع</RouterLink>
         <button v-if="session.can('projects.projects.manage')" class="btn btn-ghost" @click="editing = true">تعديل البيانات</button>
         <button v-if="p.approvalStatus === 'approved' && session.can('projects.projects.manage')" class="btn btn-ghost" @click="reopen">إعادة فتح للتعديل</button>
       </div>
