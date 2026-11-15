@@ -75,6 +75,27 @@ export const ACTION_LABELS: Opt[] = [
   { value: 'return', label: 'إرجاع', color: '#f59e0b' },
   { value: 'resubmitted', label: 'إعادة تقديم', color: '#6366f1' },
   { value: 'cancelled', label: 'إلغاء', color: '#94a3b8' },
+  { value: 'skipped', label: 'تخطي تلقائي', color: '#94a3b8' },
+  { value: 'contribution_sent', label: 'رفع إثبات المساهمة', color: '#8b5cf6' },
+];
+export const OUTCOMES: Opt[] = [
+  { value: 'approve', label: 'قبول', color: '#10b981' },
+  { value: 'contribution', label: 'قبول بمساهمة من المستفيد', color: '#f59e0b' },
+  { value: 'reject', label: 'رفض', color: '#ef4444' },
+];
+export const RECURRENCES: Opt[] = [
+  { value: 'once', label: 'مرة واحدة' },
+  { value: 'weekly', label: 'أسبوعي' },
+  { value: 'monthly', label: 'شهري' },
+  { value: 'quarterly', label: 'كل 3 شهور' },
+  { value: 'semiannual', label: 'كل 6 شهور' },
+  { value: 'yearly', label: 'سنوي' },
+];
+export const CONTRIBUTION_STATUSES: Opt[] = [
+  { value: 'none', label: 'لا يوجد' },
+  { value: 'awaiting', label: 'في انتظار رفع المستفيد', color: '#f59e0b' },
+  { value: 'submitted', label: 'مرفوع ومحتاج تحقق', color: '#0ea5e9' },
+  { value: 'verified', label: 'تم التحقق', color: '#10b981' },
 ];
 export const TICKET_TYPES: Opt[] = [
   { value: 'complaint', label: 'شكوى', color: '#ef4444' },
@@ -99,7 +120,7 @@ const maps = {
   status: toMap(STATUSES), category: toMap(CATEGORIES), aid: toMap(AID_TYPES), decision: toMap(DECISIONS),
   gender: toMap(GENDERS), marital: toMap(MARITAL), housing: toMap(HOUSING), doc: toMap(DOC_TYPES),
   request: toMap(REQUEST_STATUSES), action: toMap(ACTION_LABELS), ticket: toMap(TICKET_TYPES), ticketStatus: toMap(TICKET_STATUSES),
-  field: toMap(FIELD_TYPES),
+  field: toMap(FIELD_TYPES), outcome: toMap(OUTCOMES), recurrence: toMap(RECURRENCES), contribution: toMap(CONTRIBUTION_STATUSES),
 };
 export type LabelKind = keyof typeof maps;
 export const label = (kind: LabelKind, v?: string | null) => (v ? maps[kind][v]?.label ?? v : '—');
@@ -133,3 +154,21 @@ export const answer = (type: string, v: unknown) => {
   if (type === 'number') return Number(v).toLocaleString('ar-EG');
   return String(v);
 };
+
+/** نفس حساب السيرفر: مجموع (أهمية البند × درجة الإجابة) ثم القاعدة اللي النتيجة واقعة فيها */
+export function scoreOf(form: { fields: { key: string; type: string; weight?: number; options?: string[]; optionScores?: number[] }[]; rules?: { min: number; max: number; outcome: string; contributionPercent?: number }[] }, data: Record<string, unknown>) {
+  let score = 0;
+  for (const f of form.fields) {
+    if (!f.weight) continue;
+    let s = 0;
+    if (f.type === 'checkbox') s = data[f.key] === true ? 100 : 0;
+    else if (f.type === 'select') {
+      const i = f.options?.indexOf(String(data[f.key] ?? '')) ?? -1;
+      s = i >= 0 ? f.optionScores?.[i] ?? 0 : 0;
+    }
+    score += (f.weight * s) / 100;
+  }
+  score = Math.round(score * 100) / 100;
+  const rule = (form.rules ?? []).find((r) => score >= r.min && score <= r.max) ?? null;
+  return { score, rule };
+}

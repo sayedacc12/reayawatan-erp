@@ -49,8 +49,12 @@ export async function portalApi<T = unknown>(path: string, init: RequestInit & {
 export interface PortalProject {
   id: string; name: string; description: string | null; program: string; axis: string;
   applicationForm: { name: string; fields: import('../modules/beneficiaries/types').FormField[] } | null;
+  services: import('../modules/beneficiaries/types').ProjectService[]; multiServices: boolean; allowConcurrent: boolean;
+  recurrence: import('../modules/beneficiaries/types').Recurrence; recurrenceLabel: string;
+  eligibility: { canApply: boolean; reason: string | null; nextDate: string | null } | null;
 }
 export interface PortalRequestRow {
   id: string; requestNo: number; status: string; createdAt: string; updatedAt: string;
   project: string; stage: string | null; stageIndex: number | null; stageCount: number;
+  contributionStatus?: 'none' | 'awaiting' | 'submitted' | 'verified';
 }

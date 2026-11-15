@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { api } from '../../../api';
+import { api, openProtectedFile } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import AnswersList from '../components/AnswersList.vue';
 import DynamicFields from '../components/DynamicFields.vue';
 import StageStepper from '../components/StageStepper.vue';
 import StatusBadge from '../components/StatusBadge.vue';
-import { color, fmtDateTime, label } from '../labels';
+import { color, fmtDate, fmtDateTime, label, money, scoreOf } from '../labels';
 import type { RequestDetail } from '../types';
 
 const route = useRoute();
@@ -35,7 +35,25 @@ const isLast = computed(() => {
 });
 const isFirst = computed(() => r.value?.workflow?.stages[0]?.id === stage.value?.id);
 
-const decision = reactive({ decision: '' as '' | 'approve' | 'reject' | 'return', notes: '', formData: {} as Record<string, unknown> });
+const decision = reactive({
+  decision: '' as '' | 'approve' | 'reject' | 'return', notes: '', formData: {} as Record<string, unknown>,
+  estimatedCost: '' as number | '', contributionAmount: '' as number | '',
+});
+const isContribution = computed(() => stage.value?.kind === 'contribution');
+/** معاينة نتيجة التقييم الآلي وهو بيعبّي النموذج */
+const liveScore = computed(() => (stage.value?.form?.scored ? scoreOf(stage.value.form, decision.formData) : null));
+const liveRequired = computed(() => {
+  const cost = decision.estimatedCost === '' ? r.value?.estimatedCost : decision.estimatedCost;
+  const pct = liveScore.value?.rule?.contributionPercent;
+  return cost && pct ? Math.round(cost * pct) / 100 : null;
+});
+async function openProof() {
+  try {
+    await openProtectedFile(`/beneficiaries/${r.value!.beneficiary!.id}/documents/${r.value!.contribution.documentId}/file`);
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
 const busy = ref(false);
 const decisionError = ref('');
 
@@ -46,11 +64,15 @@ async function decide() {
   try {
     r.value = await api<RequestDetail>(`/beneficiaries/requests/${id}/decision`, {
       method: 'POST',
-      json: { decision: decision.decision, notes: decision.notes, formData: decision.decision === 'approve' ? decision.formData : undefined },
+      json: {
+        decision: decision.decision, notes: decision.notes, formData: decision.decision === 'approve' ? decision.formData : undefined,
+        estimatedCost: decision.estimatedCost === '' ? undefined : decision.estimatedCost,
+        contributionAmount: decision.decision === 'approve' && isContribution.value && decision.contributionAmount !== '' ? decision.contributionAmount : undefined,
+      },
     });
     const msg = { approve: isLastBefore.value ? 'تم الاعتماد النهائي للطلب 🎉' : 'تم القبول وانتقل الطلب للمرحلة التالية', reject: 'تم رفض الطلب', return: 'تم إرجاع الطلب' }[decision.decision];
     toast.success(msg);
-    Object.assign(decision, { decision: '', notes: '', formData: {} });
+    Object.assign(decision, { decision: '', notes: '', formData: {}, estimatedCost: '', contributionAmount: '' });
   } catch (e) {
     decisionError.value = (e as Error).message;
   } finally {
@@ -110,11 +132,20 @@ async function resubmit() {
                 <p v-if="stage.roleName" class="muted small">المسؤول: {{ stage.roleName }}</p>
               </div>
             </div>
+            <div v-if="isContribution" :class="['contrib', r.contribution.status]">
+              <div class="c-grid">
+                <div><small>نسبة مساهمة المستفيد</small><b>{{ r.contribution.percent ?? 0 }}%</b></div>
+                <div><small>المبلغ المطلوب</small><b>{{ r.contribution.requiredAmount !== null ? `${money(r.contribution.requiredAmount)} ج` : 'حدد التكلفة' }}</b></div>
+                <div><small>اللي رفعه المستفيد</small><b>{{ r.contribution.amount !== null ? `${money(r.contribution.amount)} ج` : '—' }}</b></div>
+              </div>
+              <p class="c-status"><span class="dot" />{{ label('contribution', r.contribution.status) }}<template v-if="r.contribution.submittedAt"> · {{ fmtDateTime(r.contribution.submittedAt) }}</template></p>
+              <button v-if="r.contribution.documentId" type="button" class="btn btn-sm" @click="openProof">📎 عرض إثبات المساهمة</button>
+            </div>
             <form v-if="r.canDecide" @submit.prevent="decide">
               <div v-if="decisionError" class="alert alert-error">{{ decisionError }}</div>
               <div class="choices">
-                <button type="button" :class="['choice approve', { on: decision.decision === 'approve' }]" @click="choose('approve')">✓ {{ isLast ? 'اعتماد نهائي' : 'قبول وتحويل للمرحلة التالية' }}</button>
-                <button v-if="stage.canReturn" type="button" :class="['choice ret', { on: decision.decision === 'return' }]" @click="choose('return')">↩ {{ isFirst ? 'إرجاع لمقدم الطلب' : 'إرجاع للمرحلة السابقة' }}</button>
+                <button type="button" :class="['choice approve', { on: decision.decision === 'approve' }]" @click="choose('approve')">✓ {{ isContribution ? 'تأكيد المساهمة' : isLast ? 'اعتماد نهائي' : 'قبول وتحويل للمرحلة التالية' }}</button>
+                <button v-if="stage.canReturn" type="button" :class="['choice ret', { on: decision.decision === 'return' }]" @click="choose('return')">↩ {{ isContribution ? 'إرجاع للمستفيد يرفع من جديد' : isFirst ? 'إرجاع لمقدم الطلب' : 'إرجاع للمرحلة السابقة' }}</button>
                 <button v-if="stage.canReject" type="button" :class="['choice reject', { on: decision.decision === 'reject' }]" @click="choose('reject')">✕ رفض</button>
               </div>
               <Transition name="page">
@@ -122,6 +153,25 @@ async function resubmit() {
                   <div v-if="decision.decision === 'approve' && stage.form" class="stage-form">
                     <p class="form-title">{{ stage.form.name }}</p>
                     <DynamicFields v-model="decision.formData" :fields="stage.form.fields" />
+                    <div v-if="liveScore" class="live" :style="{ '--c': color('outcome', liveScore.rule?.outcome) }">
+                      <div class="ring" :style="{ '--p': liveScore.score }"><b>{{ liveScore.score }}%</b></div>
+                      <div>
+                        <small class="muted">نتيجة التقييم الآلي والقرار المقترح</small>
+                        <p class="lv">{{ liveScore.rule ? label('outcome', liveScore.rule.outcome) : 'مفيش قاعدة للنتيجة دي' }}</p>
+                        <p v-if="liveScore.rule?.contributionPercent" class="muted small">يتحمل المستفيد {{ liveScore.rule.contributionPercent }}%<template v-if="liveRequired"> = {{ money(liveRequired) }} جنيه</template></p>
+                        <p v-if="liveScore.rule?.outcome === 'reject'" class="muted small">القواعد بتقول رفض، فالقبول مش هيتقبل. اختار "رفض" واكتب السبب.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="decision.decision === 'approve' && (stage.form?.scored || r.estimatedCost === null)" class="field">
+                    <label>التكلفة التقديرية للحالة (جنيه)</label>
+                    <input v-model.number="decision.estimatedCost" type="number" min="0" class="input" :placeholder="r.estimatedCost !== null ? String(r.estimatedCost) : 'مثال: 25000'" />
+                    <small class="muted">بتتحسب منها قيمة مساهمة المستفيد</small>
+                  </div>
+                  <div v-if="decision.decision === 'approve' && isContribution" class="field">
+                    <label>المبلغ المحصّل {{ r.contribution.status === 'submitted' ? '(سيبه فاضي لو المبلغ اللي رفعه المستفيد صح)' : '(لو المستفيد دفع في مقر الجمعية)' }}</label>
+                    <input v-model.number="decision.contributionAmount" type="number" min="0" step="0.01" class="input" :placeholder="r.contribution.amount !== null ? String(r.contribution.amount) : ''" />
+                    <small class="muted">التأكيد بيجهّز القيد المحاسبي حسب التوجيه في الإعدادات</small>
                   </div>
                   <div class="field">
                     <label>{{ decision.decision === 'approve' ? 'ملاحظات (اختياري)' : decision.decision === 'reject' ? 'سبب الرفض *' : 'سبب الإرجاع *' }}</label>
@@ -149,6 +199,27 @@ async function resubmit() {
             </div>
           </section>
 
+          <!-- نتيجة البحث والمساهمة -->
+          <section v-if="r.research?.score !== null && r.research?.score !== undefined || r.services.length || r.estimatedCost !== null" class="card block facts">
+            <div v-if="r.research?.score !== null && r.research?.score !== undefined" class="fact score" :style="{ '--c': color('outcome', r.research.outcome) }">
+              <div class="ring" :style="{ '--p': r.research.score }"><b>{{ r.research.score }}%</b></div>
+              <div><small class="muted">نتيجة البحث الاجتماعي</small><p class="lv">{{ label('outcome', r.research.outcome) }}</p>
+                <p v-if="r.research.contributionPercent" class="muted small">مساهمة المستفيد {{ r.research.contributionPercent }}%</p></div>
+            </div>
+            <div v-if="r.services.length" class="fact"><small class="muted">الخدمات المطلوبة</small><p class="chips"><span v-for="s in r.services" :key="s" class="chip">{{ s }}</span></p></div>
+            <div v-if="r.estimatedCost !== null" class="fact"><small class="muted">التكلفة التقديرية</small><p class="lv">{{ money(r.estimatedCost) }} ج</p></div>
+          </section>
+
+          <section v-if="r.contribution.journal" class="card block journal">
+            <h2>قيد مساهمة المستفيد <span class="muted small">{{ fmtDate(r.contribution.journal.date) }}</span></h2>
+            <table>
+              <tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr>
+              <tr><td>{{ r.contribution.journal.debit.code }} {{ r.contribution.journal.debit.name ?? 'لم يحدد' }}</td><td>{{ money(r.contribution.journal.amount) }}</td><td /></tr>
+              <tr><td>{{ r.contribution.journal.credit.code }} {{ r.contribution.journal.credit.name ?? 'لم يحدد' }}</td><td /><td>{{ money(r.contribution.journal.amount) }}</td></tr>
+            </table>
+            <p class="muted small">{{ r.contribution.journal.description }}</p>
+          </section>
+
           <!-- بيانات الطلب -->
           <section class="card block">
             <h2>بيانات الطلب</h2>
@@ -166,6 +237,7 @@ async function resubmit() {
               <div class="t-head">
                 <b>{{ label('action', a.decision) }}</b>
                 <span v-if="a.stageName" class="muted"> · {{ a.stageName }}</span>
+                <span v-if="a.score !== null && a.score !== undefined" class="sc">{{ a.score }}%</span>
               </div>
               <p class="muted small">{{ a.actorName }} · {{ fmtDateTime(a.createdAt) }}</p>
               <p v-if="a.notes" class="note">{{ a.notes }}</p>
@@ -228,6 +300,28 @@ async function resubmit() {
 .note { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font-size: .88rem; white-space: pre-wrap; }
 .form-answers { margin-top: 6px; font-size: .86rem; }
 .form-answers summary { cursor: pointer; color: var(--primary); font-weight: 600; margin-bottom: 8px; }
+.live { margin-top: 14px; display: flex; gap: 14px; align-items: center; padding: 12px; border-radius: 12px; border: 1px solid var(--c); background: var(--surface); }
+.ring { --p: 0; width: 74px; height: 74px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+  background: conic-gradient(var(--c) calc(var(--p) * 1%), var(--surface-2) 0); position: relative; box-shadow: 0 0 18px color-mix(in srgb, var(--c) 40%, transparent); transition: all .4s; }
+.ring::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--surface); }
+.ring b { position: relative; font-size: .95rem; color: var(--c); }
+.lv { margin: 2px 0 0; font-weight: 700; font-size: 1.05rem; color: var(--c, var(--text)); }
+.facts { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; }
+.fact { display: flex; flex-direction: column; gap: 2px; }
+.fact.score { flex-direction: row; gap: 12px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 0; }
+.chip { font-size: .8rem; padding: 2px 10px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); }
+.contrib { padding: 14px; border-radius: 12px; margin-bottom: 14px; border: 1px dashed #f59e0b; background: linear-gradient(135deg, rgba(245,158,11,.08), transparent); }
+.contrib.submitted { border-color: #0ea5e9; background: linear-gradient(135deg, rgba(14,165,233,.08), transparent); }
+.c-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.c-grid small { display: block; color: var(--muted); font-size: .78rem; }
+.c-grid b { font-size: 1.1rem; }
+.c-status { display: flex; align-items: center; gap: 6px; margin: 10px 0; font-size: .88rem; font-weight: 600; }
+.c-status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.8s infinite; }
+.journal table { width: 100%; border-collapse: collapse; font-size: .9rem; margin-bottom: 8px; }
+.journal th, .journal td { border: 1px solid var(--border); padding: 7px 10px; text-align: right; }
+.journal th { background: var(--surface-2); }
+.sc { margin-inline-start: 6px; font-size: .74rem; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 @media (max-width: 1000px) { .cols { grid-template-columns: 1fr; } .history { position: static; max-height: none; } }
 </style>

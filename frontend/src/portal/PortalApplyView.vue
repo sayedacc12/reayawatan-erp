@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import DynamicFields from '../modules/beneficiaries/components/DynamicFields.vue';
+import { money } from '../modules/beneficiaries/labels';
 import { portalApi, type PortalProject } from './portal';
 
 const route = useRoute();
@@ -9,7 +10,7 @@ const router = useRouter();
 const slug = route.params.slug as string;
 const projects = ref<PortalProject[]>([]);
 const chosen = ref<PortalProject | null>(null);
-const form = reactive({ description: '', applicationData: {} as Record<string, unknown> });
+const form = reactive({ description: '', applicationData: {} as Record<string, unknown>, services: [] as string[] });
 const error = ref('');
 const busy = ref(false);
 
@@ -21,6 +22,16 @@ onMounted(async () => {
   }
 });
 
+function pickService(name: string) {
+  if (!chosen.value?.multiServices) { form.services = [name]; return; }
+  const i = form.services.indexOf(name);
+  if (i >= 0) form.services.splice(i, 1);
+  else form.services.push(name);
+}
+const servicesTotal = computed(() => {
+  const list = chosen.value?.services.filter((x) => form.services.includes(x.name)) ?? [];
+  return list.length && list.every((x) => typeof x.cost === 'number') ? list.reduce((a, x) => a + (x.cost ?? 0), 0) : null;
+});
 const grouped = computed(() => {
   const m = new Map<string, Map<string, PortalProject[]>>();
   for (const p of projects.value) {
@@ -32,7 +43,9 @@ const grouped = computed(() => {
 });
 
 function choose(p: PortalProject) {
+  if (p.eligibility && !p.eligibility.canApply) return;
   chosen.value = p;
+  form.services = p.services.length === 1 ? [p.services[0].name] : [];
   form.applicationData = {};
   form.description = '';
   error.value = '';
@@ -41,10 +54,11 @@ function choose(p: PortalProject) {
 
 async function submit() {
   if (!chosen.value) return;
+  if (chosen.value.services.length && !form.services.length) { error.value = 'اختار الخدمة اللي محتاجها'; return; }
   busy.value = true;
   error.value = '';
   try {
-    const r = await portalApi<{ id: string }>('/requests', { method: 'POST', json: { projectId: chosen.value.id, ...form } });
+    const r = await portalApi<{ id: string }>('/requests', { method: 'POST', json: { projectId: chosen.value.id, ...form, services: chosen.value.services.length ? form.services : undefined } });
     router.push({ path: `/portal/${slug}/requests/${r.id}`, query: { new: '1' } });
   } catch (e) {
     error.value = (e as Error).message;
@@ -72,10 +86,15 @@ async function submit() {
           <div v-for="[program, list] in g.programs" :key="program">
             <p class="program">{{ program }}</p>
             <div class="grid">
-              <button v-for="(p, i) in list" :key="p.id" class="card proj" :style="{ '--i': i }" @click="choose(p)">
+              <button v-for="(p, i) in list" :key="p.id" :class="['card proj', { blocked: p.eligibility && !p.eligibility.canApply }]" :style="{ '--i': i }" @click="choose(p)">
                 <b>{{ p.name }}</b>
                 <span v-if="p.description" class="muted">{{ p.description }}</span>
-                <span class="go">قدّم على المشروع ←</span>
+                <span class="ptags">
+                  <span class="ptag">🔁 الدعم {{ p.recurrenceLabel }}</span>
+                  <span v-if="p.services.length" class="ptag">🧾 {{ p.services.length }} خدمة</span>
+                </span>
+                <span v-if="p.eligibility && !p.eligibility.canApply" class="why">🔒 {{ p.eligibility.reason }}</span>
+                <span v-else class="go">قدّم على المشروع ←</span>
               </button>
             </div>
           </div>
@@ -84,8 +103,20 @@ async function submit() {
 
       <form v-else key="form" class="card apply" @submit.prevent="submit">
         <div class="chosen">
-          <div><small>{{ chosen.axis }} ‹ {{ chosen.program }}</small><h2>{{ chosen.name }}</h2></div>
+          <div><small>{{ chosen.axis }} ‹ {{ chosen.program }}</small><h2>{{ chosen.name }}</h2><small class="rec">🔁 الدعم في المشروع ده {{ chosen.recurrenceLabel }}</small></div>
           <button type="button" class="btn btn-sm" @click="chosen = null">تغيير المشروع</button>
+        </div>
+        <div v-if="chosen.services.length" class="svc-box">
+          <p class="form-name">{{ chosen.multiServices ? 'اختار الخدمات اللي محتاجها (تقدر تختار أكتر من خدمة)' : 'اختار الخدمة اللي محتاجها' }}</p>
+          <div class="svcs">
+            <label v-for="x in chosen.services" :key="x.name" :class="['svc', { on: form.services.includes(x.name) }]">
+              <input :type="chosen.multiServices ? 'checkbox' : 'radio'" :checked="form.services.includes(x.name)" name="svc" @change="pickService(x.name)" />
+              <span class="mark" />
+              <span class="sn">{{ x.name }}</span>
+              <small v-if="typeof x.cost === 'number'" class="muted">{{ money(x.cost) }} ج</small>
+            </label>
+          </div>
+          <p v-if="servicesTotal !== null && form.services.length" class="muted small">التكلفة التقديرية: {{ money(servicesTotal) }} جنيه</p>
         </div>
         <template v-if="chosen.applicationForm">
           <p class="form-name">{{ chosen.applicationForm.name }}</p>
@@ -121,6 +152,21 @@ async function submit() {
 .chosen small { color: var(--muted); }
 .form-name { font-weight: 700; color: var(--primary); margin: 0 0 12px; }
 textarea.input { resize: vertical; }
+.ptags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ptag { font-size: .74rem; padding: 2px 8px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+.proj.blocked { opacity: .75; cursor: not-allowed; border-top-color: var(--border); }
+.proj.blocked:hover { transform: none; box-shadow: none; }
+.why { margin-top: auto; padding: 8px 10px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: .82rem; }
+.rec { display: block; color: var(--primary) !important; margin-top: 2px; }
+.svc-box { margin-bottom: 16px; }
+.svcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.svc { position: relative; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); cursor: pointer; transition: all .2s; }
+.svc input { position: absolute; opacity: 0; pointer-events: none; }
+.svc .mark { width: 18px; height: 18px; border-radius: 6px; border: 2px solid var(--border); flex-shrink: 0; transition: all .2s; }
+.svc.on { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 6px 18px rgba(20,184,166,.15); }
+.svc.on .mark { background: var(--primary); border-color: var(--primary); box-shadow: inset 0 0 0 3px #fff; }
+.sn { flex: 1; font-weight: 600; }
+.small { font-size: .84rem; margin: 8px 0 0; }
 .send { width: 100%; min-height: 48px; font-size: 1.05rem; }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 </style>
