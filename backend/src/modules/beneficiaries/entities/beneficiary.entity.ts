@@ -83,6 +83,17 @@ export class Beneficiary {
   @Column({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy!: string | null;
 
+  /** staff: سجله موظف · portal: سجل بنفسه من بوابة المستفيدين */
+  @Column({ type: 'varchar', length: 10, default: 'staff' })
+  source!: 'staff' | 'portal';
+
+  /** كلمة مرور بوابة المستفيد (الدخول برقم الهوية). فاضية = البوابة غير مفعلة له */
+  @Column({ name: 'portal_password_hash', type: 'varchar', length: 100, nullable: true, select: false })
+  portalPasswordHash!: string | null;
+
+  @Column({ name: 'portal_last_login_at', type: 'timestamptz', nullable: true })
+  portalLastLoginAt!: Date | null;
+
   @OneToMany(() => FamilyMember, (m) => m.beneficiary)
   family?: FamilyMember[];
 

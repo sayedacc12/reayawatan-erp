@@ -8,7 +8,8 @@ import {
   UpdateBeneficiaryDto, UpdateFamilyMemberDto, UploadDocumentDto,
 } from './beneficiaries.dto';
 import { DocumentStorage } from './document-storage.service';
-import { AidDisbursement, Beneficiary, BeneficiaryDocument, CaseResearch, FamilyMember } from './entities';
+import * as bcrypt from 'bcryptjs';
+import { AidDisbursement, Beneficiary, BeneficiaryDocument, BeneficiaryRequest, CaseResearch, FamilyMember } from './entities';
 
 /** حالات لا يُصرف لها مساعدات */
 const NO_AID_STATUSES = new Set(['ineligible', 'suspended']);
@@ -112,12 +113,16 @@ export class BeneficiariesService {
       },
     });
     if (!b) throw new NotFoundException('ملف المستفيد غير موجود');
+    const [{ portal }] = await this.db.query(
+      'SELECT portal_password_hash IS NOT NULL AS portal FROM beneficiaries WHERE id = $1', [b.id],
+    );
     const family = b.family ?? [];
     const aids = b.aids ?? [];
     const familySize = family.length + 1;
     const householdIncome = b.monthlyIncome + family.reduce((s, m) => s + m.monthlyIncome, 0);
     return {
       ...b,
+      hasPortalAccess: portal as boolean,
       summary: {
         familySize,
         householdIncome,
@@ -148,6 +153,13 @@ export class BeneficiariesService {
     });
     await this.beneficiaries.delete({ id: b.id });
     await this.storage.remove(docs.map((d) => d.storageKey));
+  }
+
+  /** الموظف يفعّل دخول المستفيد للبوابة بكلمة مرور (الدخول برقم الهوية) */
+  async setPortalAccess(actor: OrgUser, id: string, password: string | null) {
+    const b = await this.find(actor, id);
+    if (password && !b.nationalId) throw new BadRequestException('سجّل رقم الهوية أولًا، المستفيد بيدخل البوابة بيه');
+    await this.beneficiaries.update(b.id, { portalPasswordHash: password ? await bcrypt.hash(password, 12) : null });
   }
 
   // ---------------- الأسرة ----------------
@@ -201,6 +213,13 @@ export class BeneficiariesService {
     const b = await this.find(actor, id);
     if (NO_AID_STATUSES.has(b.status)) {
       throw new BadRequestException('لا يمكن صرف مساعدة لحالة غير مستحقة أو موقوفة. غيّر حالة الملف أولًا');
+    }
+    if (dto.requestId) {
+      const req = await this.db.getRepository(BeneficiaryRequest).findOne({
+        where: { id: dto.requestId, beneficiaryId: b.id, organizationId: actor.organizationId },
+      });
+      if (!req) throw new BadRequestException('الطلب غير موجود');
+      if (req.status !== 'approved') throw new BadRequestException('الصرف يكون على طلب معتمد نهائيًا فقط');
     }
     return this.aids.save(this.aids.create({
       ...this.withoutUndefined(dto),

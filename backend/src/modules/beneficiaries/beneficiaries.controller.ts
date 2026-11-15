@@ -13,6 +13,7 @@ import {
 import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
 import { BeneficiariesService } from './beneficiaries.service';
 import { MAX_DOCUMENT_BYTES } from './constants';
+import { PortalAccessDto } from './portal.dto';
 
 const uuid = new ParseUUIDPipe();
 
@@ -62,6 +63,20 @@ export class BeneficiariesController {
   @RequirePermissions(P.delete)
   remove(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
     return this.service.remove(actor, id);
+  }
+
+  @Post(':id/portal-access')
+  @HttpCode(204)
+  @RequirePermissions(P.manage)
+  portalAccess(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string, @Body() dto: PortalAccessDto) {
+    return this.service.setPortalAccess(actor, id, dto.password);
+  }
+
+  @Delete(':id/portal-access')
+  @HttpCode(204)
+  @RequirePermissions(P.manage)
+  revokePortal(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.service.setPortalAccess(actor, id, null);
   }
 
   // ---- الأسرة ----

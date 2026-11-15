@@ -1,7 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { Transform, Type } from 'class-transformer';
 import {
-  IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
+  IsDateString, IsIn, IsInt, IsUUID, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 import {
   AID_TYPES, CASE_STATUSES, CATEGORIES, DOCUMENT_TYPES, GENDERS, HOUSING_TYPES, MARITAL_STATUSES, RESEARCH_DECISIONS,
@@ -157,6 +157,10 @@ export class AidDto {
 
   @IsOptional() @clean() @IsString() @MaxLength(50)
   referenceNo?: string | null;
+
+  /** الطلب المعتمد الذي تُصرف عليه المساعدة */
+  @IsOptional() @IsUUID()
+  requestId?: string | null;
 }
 
 export class AidLogQuery {
