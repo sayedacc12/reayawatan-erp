@@ -7,16 +7,18 @@ import { useToast } from '../../../stores/toast';
 import AccountingPane from '../components/settings/AccountingPane.vue';
 import ActivitiesPane from '../components/settings/ActivitiesPane.vue';
 import FormsPane from '../components/settings/FormsPane.vue';
+import NationalitiesEditor from '../../../components/NationalitiesEditor.vue';
 import WorkflowsPane from '../components/settings/WorkflowsPane.vue';
 
 const session = useSession();
 const toast = useToast();
 const route = useRoute();
-type Tab = 'activities' | 'workflows' | 'forms' | 'accounting' | 'permissions' | 'portal';
+type Tab = 'activities' | 'workflows' | 'forms' | 'nationalities' | 'accounting' | 'permissions' | 'portal';
 const tabs = [
   { key: 'activities', label: 'الأنشطة', hint: 'محور ← برنامج ← مشروع' },
   { key: 'workflows', label: 'سير العمل', hint: 'المراحل والقرارات' },
   { key: 'forms', label: 'النماذج', hint: 'حقول البحث والتقييم الآلي' },
+  { key: 'nationalities', label: 'الجنسيات', hint: 'قائمة مشتركة لنموذج التقديم' },
   { key: 'accounting', label: 'التوجيه المحاسبي', hint: 'قيد مساهمة المستفيد' },
   { key: 'permissions', label: 'الصلاحيات', hint: 'تحديد مهام كل دور في المستفيدين' },
   { key: 'portal', label: 'الروابط', hint: 'دخول الموظفين والمستفيدين' },
@@ -50,6 +52,7 @@ async function copy(url: string) {
       <ActivitiesPane v-if="tab === 'activities'" key="a" />
       <WorkflowsPane v-else-if="tab === 'workflows'" key="w" />
       <FormsPane v-else-if="tab === 'forms'" key="f" />
+      <NationalitiesEditor v-else-if="tab === 'nationalities'" key="n" />
       <AccountingPane v-else-if="tab === 'accounting'" key="c" />
       <ModulePermissionsPane v-else-if="tab === 'permissions'" key="r" module="beneficiaries" />
       <div v-else key="p" class="links">
@@ -74,7 +77,7 @@ async function copy(url: string) {
 <style scoped>
 .sub { margin: 2px 0 0; font-size: .88rem; }
 .links { display: flex; flex-direction: column; gap: 14px; }
-.stabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
+.stabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 16px; }
 .stab { display: flex; align-items: center; gap: 10px; padding: 12px 14px; text-align: right; font: inherit; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
   transition: all .2s; animation: rise .4s calc(var(--i) * 60ms) var(--ease) both; }
 .stab small { display: block; color: var(--muted); font-size: .76rem; }

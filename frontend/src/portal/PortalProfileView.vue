@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import NationalitySelect from '../components/NationalitySelect.vue';
 import StatusBadge from '../modules/beneficiaries/components/StatusBadge.vue';
 import { useToast } from '../stores/toast';
 import { portalApi } from './portal';
 
-interface Me { organization: { name: string }; profile: { fullName: string; fileNo: number; nationalId: string; phone: string | null; altPhone: string | null; city: string | null; address: string | null; status: string } }
+interface Me { organization: { name: string }; nationalities: string[]; profile: { nationality: string | null; fullName: string; fileNo: number; nationalId: string; phone: string | null; altPhone: string | null; city: string | null; address: string | null; status: string } }
 const toast = useToast();
 const me = ref<Me | null>(null);
-const form = reactive({ phone: '', altPhone: '', city: '', address: '' });
+const form = reactive({ phone: '', altPhone: '', city: '', nationality: '', address: '' });
 const error = ref('');
 
 onMounted(async () => {
   me.value = await portalApi<Me>('/me');
   const p = me.value.profile;
-  Object.assign(form, { phone: p.phone ?? '', altPhone: p.altPhone ?? '', city: p.city ?? '', address: p.address ?? '' });
+  Object.assign(form, { phone: p.phone ?? '', altPhone: p.altPhone ?? '', city: p.city ?? '', nationality: p.nationality ?? '', address: p.address ?? '' });
 });
 
 async function save() {
@@ -37,13 +38,14 @@ async function save() {
       <StatusBadge :value="me.profile.status" />
     </section>
     <form class="card edit" @submit.prevent="save">
-      <h2>بيانات التواصل</h2>
+      <h2>البيانات الأساسية والتواصل</h2>
       <p class="muted small">يُعدَّل الاسم ورقم الهوية من قِبل الجمعية فقط.</p>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
       <div class="two">
         <div class="field"><label>الجوال</label><input v-model="form.phone" class="input" dir="ltr" required /></div>
         <div class="field"><label>رقم إضافي</label><input v-model="form.altPhone" class="input" dir="ltr" /></div>
         <div class="field"><label>المدينة</label><input v-model="form.city" class="input" /></div>
+        <div class="field"><label>الجنسية *</label><NationalitySelect v-model="form.nationality" :options="me.nationalities" required /></div>
         <div class="field"><label>العنوان</label><input v-model="form.address" class="input" /></div>
       </div>
       <button class="btn btn-primary">حفظ</button>
