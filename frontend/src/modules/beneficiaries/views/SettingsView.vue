@@ -18,7 +18,7 @@ const tabs = [
   { key: 'workflows', label: 'سير العمل', hint: 'المراحل والقرارات' },
   { key: 'forms', label: 'النماذج', hint: 'حقول البحث والتقييم الآلي' },
   { key: 'accounting', label: 'التوجيه المحاسبي', hint: 'قيد مساهمة المستفيد' },
-  { key: 'permissions', label: 'الصلاحيات', hint: 'مين يعمل إيه في المستفيدين' },
+  { key: 'permissions', label: 'الصلاحيات', hint: 'تحديد مهام كل دور في المستفيدين' },
   { key: 'portal', label: 'الروابط', hint: 'دخول الموظفين والمستفيدين' },
 ] as const;
 const tab = ref<Tab>('activities');
@@ -40,7 +40,7 @@ async function copy(url: string) {
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات المستفيدين</h1><p class="muted sub">جهّز الأنشطة وسير العمل والنماذج مرة واحدة، والطلبات تمشي عليها تلقائيًا</p></div></div>
+    <div class="page-head"><div><h1>إعدادات المستفيدين</h1><p class="muted sub">جهّز الأنشطة وسير العمل والنماذج مرة واحدة، وستسير الطلبات عليها تلقائيًا</p></div></div>
     <nav class="stabs">
       <button v-for="(t, i) in tabs" :key="t.key" :class="['stab', { on: tab === t.key }]" :style="{ '--i': i }" @click="tab = t.key">
         <span class="n">{{ i + 1 }}</span><span><b>{{ t.label }}</b><small>{{ t.hint }}</small></span>
@@ -56,15 +56,15 @@ async function copy(url: string) {
         <section class="card portal">
           <div class="glow" />
           <h2>صفحة دخول موظفي جمعيتك</h2>
-          <p class="muted">صفحة دخول خاصة بجمعيتك. ابعتها لكل الموظفين، ومحدش من جمعية تانية يقدر يدخل منها.</p>
+          <p class="muted">صفحة دخول خاصة بجمعيتك. أرسلها إلى جميع الموظفين، ولا يمكن لأي مستخدم من جمعية أخرى الدخول منها.</p>
           <div class="url"><code dir="ltr">{{ staffUrl }}</code><button class="btn btn-primary btn-sm" @click="copy(staffUrl)">نسخ</button><a :href="staffUrl" target="_blank" class="btn btn-sm">فتح</a></div>
         </section>
         <section class="card portal">
           <div class="glow" />
           <h2>رابط بوابة المستفيدين لجمعيتك</h2>
-          <p class="muted">حط الرابط ده في موقع الجمعية. المستفيد بيسجل برقم هويته، ويقدم على المشاريع المتاحة، ويتابع مراحل طلباته، ويبعت شكاوى ومقترحات واستفسارات.</p>
+          <p class="muted">ضع هذا الرابط في موقع الجمعية. يسجّل المستفيد برقم هويته، ويتقدم على المشاريع المتاحة، ويتابع مراحل طلباته، ويرسل الشكاوى والمقترحات والاستفسارات.</p>
           <div class="url"><code dir="ltr">{{ portalUrl }}</code><button class="btn btn-primary btn-sm" @click="copy(portalUrl)">نسخ</button><a :href="portalUrl" target="_blank" class="btn btn-sm">فتح</a></div>
-          <p class="muted small">المشاريع اللي بتظهر في البوابة هي المشاريع النشطة اللي عليها علامة "يظهر في البوابة" في تبويب الأنشطة.</p>
+          <p class="muted small">المشاريع التي تظهر في البوابة هي المشاريع النشطة المحدد عليها "يظهر في البوابة" في تبويب الأنشطة.</p>
         </section>
       </div>
     </Transition>

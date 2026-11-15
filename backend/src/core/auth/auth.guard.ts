@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { IS_PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
+import { ANY_PERMISSION_KEY, IS_PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
 import { PermissionResolver } from './permission-resolver.service';
 
 /**
@@ -43,6 +43,10 @@ export class AuthGuard implements CanActivate {
 
     const required = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, targets) ?? [];
     if (!required.every((p) => user.permissions.includes(p))) {
+      throw new ForbiddenException('ليس لديك صلاحية لهذا الإجراء');
+    }
+    const anyOf = this.reflector.getAllAndOverride<string[]>(ANY_PERMISSION_KEY, targets);
+    if (anyOf?.length && !anyOf.some((p) => user.permissions.includes(p))) {
       throw new ForbiddenException('ليس لديك صلاحية لهذا الإجراء');
     }
     return true;

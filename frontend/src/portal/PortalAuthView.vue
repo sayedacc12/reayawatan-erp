@@ -39,7 +39,7 @@ async function submit() {
     if (pwProblem.value) { error.value = pwProblem.value; return; }
     if (reg.password !== reg.confirm) { error.value = 'كلمتا المرور غير متطابقتين'; return; }
   } else if (hasArabic(loginForm.password)) {
-    error.value = 'كلمة المرور بالإنجليزي، غيّر لغة الكيبورد';
+    error.value = 'اكتب كلمة المرور بالأحرف الإنجليزية، وغيّر لغة لوحة المفاتيح';
     return;
   }
   busy.value = true;
@@ -66,10 +66,10 @@ async function submit() {
       <div class="hero-in">
         <p class="kicker">بوابة المستفيدين</p>
         <h1>{{ info?.name ?? '...' }}</h1>
-        <p class="sub">قدّم طلبك أونلاين، وتابع كل مرحلة بيمر بيها لحد الاعتماد، وتواصل مع الجمعية من مكان واحد.</p>
+        <p class="sub">قدّم طلبك إلكترونيًا، وتابع كل مرحلة يمر بها حتى الاعتماد، وتواصل مع الجمعية من مكان واحد.</p>
         <ul class="steps">
           <li><span>1</span>سجّل برقم هويتك</li>
-          <li><span>2</span>اختار المشروع وقدّم طلبك</li>
+          <li><span>2</span>اختر المشروع وقدّم طلبك</li>
           <li><span>3</span>تابع المراحل لحظة بلحظة</li>
         </ul>
       </div>
@@ -85,13 +85,13 @@ async function submit() {
       <form @submit.prevent="submit">
         <Transition name="page" mode="out-in">
           <div v-if="mode === 'login'" key="l">
-            <div class="field"><label>رقم الهوية / الرقم القومي</label><input v-model="loginForm.nationalId" class="input" inputmode="numeric" dir="ltr" required autocomplete="username" /></div>
+            <div class="field"><label>رقم الهوية / الإقامة</label><input v-model="loginForm.nationalId" class="input" inputmode="numeric" dir="ltr" required autocomplete="username" /></div>
             <div class="field"><label>كلمة المرور</label><input v-model="loginForm.password" class="input" type="password" dir="ltr" required autocomplete="current-password" /></div>
           </div>
           <div v-else key="r" class="two">
             <div class="field wide"><label>الاسم رباعي *</label><input v-model="reg.fullName" class="input" required minlength="3" /></div>
             <div class="field"><label>رقم الهوية *</label><input v-model="reg.nationalId" class="input" inputmode="numeric" dir="ltr" required /></div>
-            <div class="field"><label>الموبايل *</label><input v-model="reg.phone" class="input" inputmode="tel" dir="ltr" required /></div>
+            <div class="field"><label>الجوال *</label><input v-model="reg.phone" class="input" inputmode="tel" dir="ltr" required /></div>
             <div class="field"><label>النوع</label><select v-model="reg.gender" class="input"><option value="female">أنثى</option><option value="male">ذكر</option></select></div>
             <div class="field"><label>تاريخ الميلاد</label><input v-model="reg.birthDate" class="input" type="date" /></div>
             <div class="field wide"><label>المدينة / المنطقة</label><input v-model="reg.city" class="input" /></div>

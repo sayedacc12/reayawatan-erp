@@ -96,7 +96,7 @@ function opened(b: Beneficiary) {
 
       <div class="grid">
         <section class="card panel chart-panel">
-          <h2>المساعدات المصروفة آخر 6 شهور</h2>
+          <h2>المساعدات المصروفة آخر 6 أشهر</h2>
           <div class="bars">
             <div v-for="(b, i) in bars" :key="b.month" class="bar-col" :title="`${money(b.amount)} · ${b.count} عملية`">
               <span class="bar-val">{{ b.amount ? money(b.amount) : '' }}</span>

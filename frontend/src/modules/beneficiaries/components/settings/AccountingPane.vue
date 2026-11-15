@@ -38,7 +38,7 @@ async function save() {
 
 <template>
   <section class="acc">
-    <p class="muted">لما المستفيد يساهم بمبلغ في تكلفة حالته وتتأكد المساهمة، النظام بيجهّز قيد محاسبي بالتوجيه ده. لما يتفعّل النظام المالي القيد هيتسجل فيه تلقائي.</p>
+    <p class="muted">عندما يساهم المستفيد بمبلغ في تكلفة حالته وتُؤكَّد المساهمة، يُجهّز النظام قيدًا محاسبيًا وفق هذا التوجيه. وعند تفعيل النظام المالي سيُسجَّل القيد فيه تلقائيًا.</p>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <form class="card box" @submit.prevent="save">
       <div class="side debit">

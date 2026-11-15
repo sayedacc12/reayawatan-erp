@@ -110,7 +110,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
         name: m.name,
         description: m.description,
         icon: m.icon,
-        menu: m.menu.filter((i) => has.has(i.permission)).map(({ label, path }) => ({ label, path })),
+        menu: m.menu.filter((i) => [i.permission, ...(i.anyOf ?? [])].some((p) => has.has(p))).map(({ label, path }) => ({ label, path })),
       }))
       .filter((m) => m.menu.length > 0);
   }

@@ -158,7 +158,7 @@ export class BeneficiariesService {
   /** الموظف يفعّل دخول المستفيد للبوابة بكلمة مرور (الدخول برقم الهوية) */
   async setPortalAccess(actor: OrgUser, id: string, password: string | null) {
     const b = await this.find(actor, id);
-    if (password && !b.nationalId) throw new BadRequestException('سجّل رقم الهوية أولًا، المستفيد بيدخل البوابة بيه');
+    if (password && !b.nationalId) throw new BadRequestException('سجّل رقم الهوية أولًا، فالمستفيد يدخل البوابة به');
     await this.beneficiaries.update(b.id, { portalPasswordHash: password ? await bcrypt.hash(password, 12) : null });
   }
 

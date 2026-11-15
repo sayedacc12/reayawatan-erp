@@ -9,6 +9,10 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 /** يتطلب أن يملك المستخدم كل الصلاحيات المذكورة */
 export const RequirePermissions = (...codes: string[]) => SetMetadata(PERMISSIONS_KEY, codes);
 
+export const ANY_PERMISSION_KEY = 'erp:anyPermission';
+/** يكفي أن يملك المستخدم واحدة من الصلاحيات المذكورة */
+export const RequireAnyPermission = (...codes: string[]) => SetMetadata(ANY_PERMISSION_KEY, codes);
+
 export interface AuthUser {
   id: string;
   /** null لمدير المنصة فقط */

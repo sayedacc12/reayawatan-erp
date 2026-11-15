@@ -147,7 +147,7 @@ function pickFile(e: Event) {
 }
 
 async function remove(path: string, what: string) {
-  if (!confirm(`متأكد من حذف ${what}؟`)) return;
+  if (!confirm(`هل تريد حذف ${what}؟`)) return;
   try {
     await api(`/beneficiaries/${id}${path}`, { method: 'DELETE' });
     toast.success('تم الحذف');
@@ -158,7 +158,7 @@ async function remove(path: string, what: string) {
 }
 
 async function removeFile() {
-  if (!b.value || !confirm(`متأكد من حذف ملف ${b.value.fullName} بالكامل؟ هيتحذف معاه الأسرة والأبحاث والمساعدات والمستندات.`)) return;
+  if (!b.value || !confirm(`هل تريد حذف ملف ${b.value.fullName} بالكامل؟ ستُحذف معه بيانات الأسرة والأبحاث والمساعدات والمستندات.`)) return;
   try {
     await api(`/beneficiaries/${id}`, { method: 'DELETE' });
     toast.success('تم حذف الملف');
@@ -241,7 +241,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
             <div><dt>النوع</dt><dd>{{ label('gender', b.gender) }}</dd></div>
             <div><dt>تاريخ الميلاد</dt><dd>{{ fmtDate(b.birthDate) }}</dd></div>
             <div><dt>الحالة الاجتماعية</dt><dd>{{ label('marital', b.maritalStatus) }}</dd></div>
-            <div><dt>الموبايل</dt><dd dir="ltr">{{ b.phone || '—' }}</dd></div>
+            <div><dt>الجوال</dt><dd dir="ltr">{{ b.phone || '—' }}</dd></div>
             <div><dt>رقم إضافي</dt><dd dir="ltr">{{ b.altPhone || '—' }}</dd></div>
             <div><dt>المدينة</dt><dd>{{ b.city || '—' }}</dd></div>
             <div><dt>العنوان</dt><dd>{{ b.address || '—' }}</dd></div>
@@ -299,7 +299,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
         <!-- البحث الاجتماعي -->
         <section v-else-if="tab === 'research'" key="research" class="pane">
           <div class="pane-head"><h2>سجل البحث الاجتماعي</h2><button v-if="can.research.value" class="btn btn-primary btn-sm" @click="openDialog('research')">+ تسجيل بحث</button></div>
-          <p v-if="!b.researches.length" class="card empty">لم يُسجل بحث اجتماعي بعد. تسجيل البحث بيحدد هل الحالة مستحقة.</p>
+          <p v-if="!b.researches.length" class="card empty">لم يُسجل بحث اجتماعي بعد. يحدد تسجيلُ البحث استحقاق الحالة.</p>
           <ol class="timeline">
             <li v-for="r in b.researches" :key="r.id" :style="{ '--c': color('decision', r.decision) }">
               <div class="card t-card">
@@ -345,7 +345,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
         <!-- المستندات -->
         <section v-else key="docs" class="pane">
           <div class="pane-head"><h2>المستندات</h2><button v-if="can.docs.value" class="btn btn-primary btn-sm" @click="openDialog('doc')">+ رفع مستند</button></div>
-          <p v-if="!b.documents.length" class="card empty">لا توجد مستندات. ارفع صورة البطاقة والأوراق الداعمة للحالة.</p>
+          <p v-if="!b.documents.length" class="card empty">لا توجد مستندات. ارفع صورة الهوية والمستندات الداعمة للحالة.</p>
           <div class="docs">
             <article v-for="(d, i) in b.documents" :key="d.id" class="card doc" :style="{ '--i': i }">
               <button class="doc-open" @click="viewDoc(d.id)">
@@ -399,7 +399,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
           <div class="field"><label>المساعدة المقترحة</label><input v-model="researchForm.recommendedAid" class="input" placeholder="كفالة شهرية، علاج..." /></div>
           <div class="field"><label>موعد المراجعة القادمة</label><input v-model="researchForm.nextReviewDate" class="input" type="date" /></div>
         </div>
-        <p class="muted small">حالة الملف هتتغير تلقائيًا حسب القرار.</p>
+        <p class="muted small">ستتغير حالة الملف تلقائيًا حسب القرار.</p>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy">حفظ البحث</button><button type="button" class="btn" @click="dialog = null">إلغاء</button></div>
       </form>
 
@@ -416,7 +416,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
         <div class="two">
           <div class="field"><label>{{ aidForm.aidType === 'cash' ? 'المبلغ *' : 'القيمة التقديرية *' }}</label><input v-model="aidForm.amount" class="input" type="number" min="0" step="0.01" required /></div>
           <div class="field"><label>تاريخ الصرف *</label><input v-model="aidForm.disbursedOn" class="input" type="date" required /></div>
-          <div class="field"><label>البيان</label><input v-model="aidForm.description" class="input" placeholder="كرتونة رمضان، مصاريف مدرسة..." /></div>
+          <div class="field"><label>البيان</label><input v-model="aidForm.description" class="input" placeholder="كرتونة رمضان، مصاريف دراسية..." /></div>
           <div class="field"><label>رقم الإيصال</label><input v-model="aidForm.referenceNo" class="input" /></div>
         </div>
         <div v-if="approvedRequests.length" class="field"><label>على الطلب المعتمد</label>
@@ -428,8 +428,8 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
       <form v-else-if="dialog === 'portal'" class="card modal" @submit.prevent="savePortal">
         <h2 class="mtitle">تفعيل بوابة المستفيد</h2>
         <div v-if="dialogError" class="alert alert-error">{{ dialogError }}</div>
-        <p class="muted small">المستفيد هيدخل البوابة برقم الهوية <b dir="ltr">{{ b?.nationalId || '(سجّل رقم الهوية أولًا)' }}</b> وكلمة المرور دي. ابعتهاله وهو يقدر يتابع طلباته.</p>
-        <div class="field"><label>كلمة المرور (8 أحرف إنجليزي على الأقل)</label><input v-model="portalForm.password" class="input" dir="ltr" required minlength="8" autocomplete="new-password" /></div>
+        <p class="muted small">سيدخل المستفيد البوابة برقم الهوية <b dir="ltr">{{ b?.nationalId || '(سجّل رقم الهوية أولًا)' }}</b> وكلمة المرور هذه. أرسلها إليه ليتمكن من متابعة طلباته.</p>
+        <div class="field"><label>كلمة المرور (8 أحرف إنجليزية على الأقل)</label><input v-model="portalForm.password" class="input" dir="ltr" required minlength="8" autocomplete="new-password" /></div>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy">تفعيل</button><button type="button" class="btn" @click="dialog = null">إلغاء</button></div>
       </form>
 
@@ -440,7 +440,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
           <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" @change="pickFile" />
           <span class="drop-icon">⬆</span>
           <span v-if="docForm.file"><b>{{ docForm.file.name }}</b> · {{ fileSize(docForm.file.size) }}</span>
-          <span v-else>اضغط لاختيار صورة أو ملف PDF (حتى 10 ميجا)</span>
+          <span v-else>اضغط لاختيار صورة أو ملف PDF (حتى 10 ميجابايت)</span>
         </label>
         <div class="two">
           <div class="field"><label>اسم المستند *</label><input v-model="docForm.title" class="input" required /></div>

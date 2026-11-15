@@ -25,7 +25,7 @@ export class DocumentStorage {
 
   async save(organizationId: string, file: Express.Multer.File) {
     if (!file?.buffer?.length) throw new BadRequestException('اختر ملفًا لرفعه');
-    if (file.size > MAX_DOCUMENT_BYTES) throw new BadRequestException('حجم الملف أكبر من 10 ميجا');
+    if (file.size > MAX_DOCUMENT_BYTES) throw new BadRequestException('حجم الملف أكبر من 10 ميجابايت');
     const mime = this.detectMime(file.buffer);
     if (!mime || !ALLOWED_MIME.includes(mime)) {
       throw new BadRequestException('نوع الملف غير مسموح. المسموح: صور (JPG أو PNG) أو PDF');

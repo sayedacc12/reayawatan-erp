@@ -20,11 +20,11 @@ const tried = ref(false);
 const nextProblem = computed(() => {
   const p = passwordProblem(next.value);
   if (p) return p;
-  if (next.value && next.value === current.value) return 'كلمة المرور الجديدة لازم تختلف عن الحالية';
+  if (next.value && next.value === current.value) return 'يجب أن تختلف كلمة المرور الجديدة عن الحالية';
   return '';
 });
 const confirmProblem = computed(() =>
-  confirm.value && confirm.value !== next.value ? 'التأكيد مش مطابق لكلمة المرور الجديدة' : '',
+  confirm.value && confirm.value !== next.value ? 'التأكيد غير مطابق لكلمة المرور الجديدة' : '',
 );
 const canSubmit = computed(() => current.value && next.value && confirm.value && !nextProblem.value && !confirmProblem.value);
 
@@ -75,13 +75,13 @@ async function submit() {
           <input v-model="next" :class="['input', { invalid: nextProblem || (tried && !next) }]" type="password" dir="ltr" autocomplete="new-password" />
           <small v-if="nextProblem" class="field-error">{{ nextProblem }}</small>
           <small v-else-if="tried && !next" class="field-error">اكتب كلمة المرور الجديدة</small>
-          <small v-else class="muted">8 أحرف على الأقل، بالإنجليزي والأرقام والرموز</small>
+          <small v-else class="muted">8 أحرف على الأقل، بالأحرف الإنجليزية والأرقام والرموز</small>
         </div>
         <div class="field">
           <label>تأكيد كلمة المرور الجديدة</label>
           <input v-model="confirm" :class="['input', { invalid: confirmProblem || (tried && !confirm) }]" type="password" dir="ltr" autocomplete="new-password" />
           <small v-if="confirmProblem" class="field-error">{{ confirmProblem }}</small>
-          <small v-else-if="tried && !confirm" class="field-error">اكتب كلمة المرور الجديدة مرة تانية</small>
+          <small v-else-if="tried && !confirm" class="field-error">أعد كتابة كلمة المرور الجديدة</small>
         </div>
         <div class="modal-actions">
           <button class="btn btn-primary" :disabled="busy">{{ busy ? 'جارٍ الحفظ…' : 'حفظ' }}</button>

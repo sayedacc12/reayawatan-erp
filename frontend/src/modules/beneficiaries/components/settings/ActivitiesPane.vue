@@ -86,7 +86,7 @@ async function remove(a: ActivityRow) {
 <template>
   <section>
     <div class="pane-head">
-      <p class="muted">الطلبات بتتقدم على المشاريع. كل مشروع تابع لبرنامج، وكل برنامج تابع لمحور.</p>
+      <p class="muted">تُقدَّم الطلبات على المشاريع. كل مشروع تابع لبرنامج، وكل برنامج تابع لمحور.</p>
       <button class="btn btn-primary btn-sm" @click="add('axis', null)">+ محور جديد</button>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
@@ -120,8 +120,8 @@ async function remove(a: ActivityRow) {
               <small class="muted">{{ project.workflowName ?? 'سير العمل الافتراضي' }} · {{ project.requestCount }} طلب</small>
               <span class="rtags">
                 <span class="rtag rec">🔁 {{ label('recurrence', project.recurrence) }}</span>
-                <span v-if="project.services.length" class="rtag">🧾 {{ project.services.length }} خدمة<template v-if="project.multiServices"> (أكتر من خدمة في الطلب)</template></span>
-                <span v-if="project.allowConcurrent" class="rtag">📑 أكتر من طلب مفتوح</span>
+                <span v-if="project.services.length" class="rtag">🧾 {{ project.services.length }} خدمة<template v-if="project.multiServices"> (أكثر من خدمة في الطلب)</template></span>
+                <span v-if="project.allowConcurrent" class="rtag">📑 أكثر من طلب مفتوح</span>
               </span>
             </span>
             <span v-if="project.portalVisible && project.isActive" class="portal-tag">يظهر في البوابة</span>
@@ -150,12 +150,12 @@ async function remove(a: ActivityRow) {
           <p class="sec">قواعد الدعم</p>
           <div class="field"><label>تكرار الدعم للمستفيد</label>
             <select v-model="form.recurrence" class="input"><option v-for="r in RECURRENCES" :key="r.value" :value="r.value">{{ r.label }}</option></select>
-            <small class="muted">بعد اعتماد طلب، المستفيد مايقدرش يقدم تاني على نفس المشروع غير بعد الفترة دي{{ form.recurrence === 'once' ? '، و"مرة واحدة" يعني مايقدرش يقدم تاني خالص' : '' }}</small>
+            <small class="muted">بعد اعتماد الطلب، لا يستطيع المستفيد التقديم مرة أخرى على المشروع نفسه إلا بعد هذه المدة{{ form.recurrence === 'once' ? '، و"مرة واحدة" تعني أنه لا يستطيع التقديم مرة أخرى إطلاقًا' : '' }}</small>
           </div>
-          <label class="check"><input v-model="form.allowConcurrent" type="checkbox" /> يسمح بأكتر من طلب مفتوح في نفس الوقت للمستفيد</label>
+          <label class="check"><input v-model="form.allowConcurrent" type="checkbox" /> يسمح للمستفيد بأكثر من طلب مفتوح في الوقت نفسه</label>
 
           <p class="sec">خدمات المشروع</p>
-          <p class="muted small">لو ضفت خدمات، المستفيد بيختار منها وهو بيقدم، وتكلفتها بتتحسب كتكلفة تقديرية للطلب.</p>
+          <p class="muted small">عند إضافة خدمات، يختار المستفيد منها أثناء التقديم، وتُحتسب تكلفتها تكلفةً تقديرية للطلب.</p>
           <div class="svcs">
             <div v-for="(x, i) in form.services" :key="i" class="svc">
               <input v-model="x.name" class="input" placeholder="اسم الخدمة" />
@@ -164,8 +164,8 @@ async function remove(a: ActivityRow) {
             </div>
           </div>
           <button type="button" class="btn btn-sm" @click="form.services.push({ name: '', cost: null })">+ إضافة خدمة</button>
-          <label v-if="form.services.length > 1" class="check" style="margin-top: 8px"><input v-model="form.multiServices" type="checkbox" /> يسمح باختيار أكتر من خدمة في نفس الطلب</label>
-          <p v-if="cleanServices().some((x) => x.cost)" class="muted small">إجمالي الخدمات: {{ money(cleanServices().reduce((a, x) => a + (x.cost ?? 0), 0)) }} جنيه</p>
+          <label v-if="form.services.length > 1" class="check" style="margin-top: 8px"><input v-model="form.multiServices" type="checkbox" /> يسمح باختيار أكثر من خدمة في الطلب نفسه</label>
+          <p v-if="cleanServices().some((x) => x.cost)" class="muted small">إجمالي الخدمات: {{ money(cleanServices().reduce((a, x) => a + (x.cost ?? 0), 0)) }} ريال</p>
         </template>
         <label class="check" style="margin-top: 10px"><input v-model="form.isActive" type="checkbox" /> نشط</label>
         <div class="modal-actions" style="margin-top: 16px"><button class="btn btn-primary">حفظ</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>

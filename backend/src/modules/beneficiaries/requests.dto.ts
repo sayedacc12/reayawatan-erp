@@ -32,11 +32,11 @@ export class DecisionDto {
   formData?: Record<string, unknown>;
 
   /** تحديد/تعديل التكلفة التقديرية للحالة */
-  @IsOptional() @Type(() => Number) @IsNumber({}, { message: 'التكلفة لازم تكون رقم' }) @Min(0)
+  @IsOptional() @Type(() => Number) @IsNumber({}, { message: 'يجب أن تكون التكلفة رقمًا' }) @Min(0)
   estimatedCost?: number;
 
   /** في مرحلة تأكيد المساهمة: المبلغ المحصّل فعلًا (لو المستفيد دفع في الجمعية) */
-  @IsOptional() @Type(() => Number) @IsNumber({}, { message: 'المبلغ لازم يكون رقم' }) @Min(0)
+  @IsOptional() @Type(() => Number) @IsNumber({}, { message: 'يجب أن يكون المبلغ رقمًا' }) @Min(0)
   contributionAmount?: number;
 }
 

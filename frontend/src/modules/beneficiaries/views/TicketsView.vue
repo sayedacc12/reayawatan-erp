@@ -34,7 +34,7 @@ async function send(t: TicketRow, close: boolean) {
   busy.value = true;
   try {
     await api(`/beneficiaries/tickets/${t.id}/reply`, { method: 'POST', json: { reply: reply.value, close } });
-    toast.success('تم إرسال الرد، وهيظهر للمستفيد في البوابة');
+    toast.success('تم إرسال الرد، وسيظهر للمستفيد في البوابة');
     replying.value = null;
     reply.value = '';
     await load();

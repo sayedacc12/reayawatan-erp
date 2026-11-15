@@ -10,7 +10,7 @@ export class ServiceDto {
   @trim() @IsString() @MinLength(2, { message: 'اسم الخدمة قصير جدًا' }) @MaxLength(200)
   name!: string;
 
-  @IsOptional() @ValidateIf((_, v) => v !== null) @IsNumber({}, { message: 'تكلفة الخدمة لازم تكون رقم' }) @Min(0)
+  @IsOptional() @ValidateIf((_, v) => v !== null) @IsNumber({}, { message: 'يجب أن تكون تكلفة الخدمة رقمًا' }) @Min(0)
   cost?: number | null;
 }
 
@@ -93,7 +93,7 @@ export class FormDto {
 
   /** كود الوثيقة في نظام الجودة ISO 9001 */
   @trim() @IsString({ message: 'اكتب كود الجودة للنموذج' })
-  @Matches(/^[A-Za-z0-9][A-Za-z0-9._/-]{1,49}$/, { message: 'كود الجودة لازم يكون حروف إنجليزي وأرقام وشرطة، مثال QF-BEN-01' })
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9._/-]{1,49}$/, { message: 'يتكون كود الجودة من حروف إنجليزية وأرقام وشَرطة، مثل QF-BEN-01' })
   qualityCode!: string;
 
   /** يُتحقق منها بالتفصيل في normalizeFields */

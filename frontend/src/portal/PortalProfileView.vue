@@ -38,10 +38,10 @@ async function save() {
     </section>
     <form class="card edit" @submit.prevent="save">
       <h2>بيانات التواصل</h2>
-      <p class="muted small">الاسم ورقم الهوية بيتعدلوا من الجمعية فقط.</p>
+      <p class="muted small">يُعدَّل الاسم ورقم الهوية من قِبل الجمعية فقط.</p>
       <div v-if="error" class="alert alert-error">{{ error }}</div>
       <div class="two">
-        <div class="field"><label>الموبايل</label><input v-model="form.phone" class="input" dir="ltr" required /></div>
+        <div class="field"><label>الجوال</label><input v-model="form.phone" class="input" dir="ltr" required /></div>
         <div class="field"><label>رقم إضافي</label><input v-model="form.altPhone" class="input" dir="ltr" /></div>
         <div class="field"><label>المدينة</label><input v-model="form.city" class="input" /></div>
         <div class="field"><label>العنوان</label><input v-model="form.address" class="input" /></div>

@@ -87,14 +87,14 @@ export const RECURRENCES: Opt[] = [
   { value: 'once', label: 'مرة واحدة' },
   { value: 'weekly', label: 'أسبوعي' },
   { value: 'monthly', label: 'شهري' },
-  { value: 'quarterly', label: 'كل 3 شهور' },
-  { value: 'semiannual', label: 'كل 6 شهور' },
+  { value: 'quarterly', label: 'كل 3 أشهر' },
+  { value: 'semiannual', label: 'كل 6 أشهر' },
   { value: 'yearly', label: 'سنوي' },
 ];
 export const CONTRIBUTION_STATUSES: Opt[] = [
   { value: 'none', label: 'لا يوجد' },
   { value: 'awaiting', label: 'في انتظار رفع المستفيد', color: '#f59e0b' },
-  { value: 'submitted', label: 'مرفوع ومحتاج تحقق', color: '#0ea5e9' },
+  { value: 'submitted', label: 'مرفوع ويحتاج إلى تحقق', color: '#0ea5e9' },
   { value: 'verified', label: 'تم التحقق', color: '#10b981' },
 ];
 export const TICKET_TYPES: Opt[] = [
