@@ -173,7 +173,7 @@ export class RequestsService {
         stages: (workflow.stages ?? []).map((s) => ({
           id: s.id, name: s.name, instructions: s.instructions, sortOrder: s.sortOrder, canReject: s.canReject,
           canReturn: s.canReturn, roleId: s.roleId, roleName: s.role?.name ?? null, kind: s.kind,
-          form: s.form ? { id: s.form.id, name: s.form.name, fields: s.form.fields, scored: s.form.scored, rules: s.form.rules, status: s.form.status } : null,
+          form: s.form ? { id: s.form.id, name: s.form.name, fields: s.form.fields, scored: s.form.scored, rules: s.form.rules, status: s.form.status, qualityCode: s.form.qualityCode, revision: s.form.revision } : null,
         })),
       },
       actions: (r.actions ?? []).map((a) => ({

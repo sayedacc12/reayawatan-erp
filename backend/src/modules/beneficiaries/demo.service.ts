@@ -20,6 +20,20 @@ const daysAgo = (n: number) => {
  * ينشئ جمعية تجريبية كاملة للشرح: أنشطة، نماذج، سير عمل، موظفين بأدوار،
  * مستفيدين مسجلين من البوابة، وطلبات في مراحل مختلفة.
  */
+/** نموذج تجريبي عدّى على مسار الاعتماد كله (إنشاء ← مراجعة الجودة ← اعتماد مدير الشاشة) */
+function approvedDemo(qualityCode: string) {
+  const by = 'مدير الجمعية التجريبية';
+  const at = new Date().toISOString();
+  return {
+    qualityCode, revision: 0, status: 'approved' as const, createdByName: by,
+    reviewedByName: by, reviewedAt: new Date(), approvedByName: by, approvedAt: new Date(),
+    history: [
+      { step: 'created' as const, by, at }, { step: 'submitted' as const, by, at },
+      { step: 'reviewed' as const, by, at }, { step: 'approved' as const, by, at, revision: 0 },
+    ],
+  };
+}
+
 @Injectable()
 export class DemoService {
   private readonly logger = new Logger('Demo');
@@ -64,7 +78,7 @@ export class DemoService {
     }));
     const managerRole = await em.save(em.create(Role, {
       organizationId: orgId, name: 'مدير الحالات', description: 'يراجع الطلبات ويعتمدها نهائيًا ويصرف المساعدات',
-      permissions: await perms([P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove]),
+      permissions: await perms([P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsReview, P.formsApprove]),
     }));
     const user = (fullName: string, email: string, extra: Partial<User>) => em.save(em.create(User, {
       organizationId: orgId, fullName, email, passwordHash: hash, ...extra,
@@ -74,7 +88,7 @@ export class DemoService {
     await user('خالد إبراهيم', 'demo-manager@sanabelerp.com', { roles: [managerRole] });
 
     const appForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, status: 'approved', approvedByName: 'مدير الجمعية التجريبية', approvedAt: new Date(), name: 'نموذج بيانات الطلب', description: 'يعبّيه المستفيد عند التقديم',
+      organizationId: orgId, ...approvedDemo('QF-BEN-01'), name: 'نموذج بيانات الطلب', description: 'يعبّيه المستفيد عند التقديم',
       fields: normalizeFields([
         { key: 'reason', label: 'سبب الطلب', type: 'textarea', required: true, placeholder: 'اشرح ظروفك باختصار' },
         { key: 'members', label: 'عدد أفراد الأسرة', type: 'number', required: true },
@@ -83,7 +97,7 @@ export class DemoService {
       ]),
     }));
     const researchForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, status: 'approved', approvedByName: 'مدير الجمعية التجريبية', approvedAt: new Date(), name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية، والنظام بيحسب نتيجة التقييم',
+      organizationId: orgId, ...approvedDemo('QF-BEN-02'), name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية، والنظام بيحسب نتيجة التقييم',
       scored: true,
       fields: normalizeFields([
         { key: 'visit_date', label: 'تاريخ الزيارة', type: 'date', required: true },

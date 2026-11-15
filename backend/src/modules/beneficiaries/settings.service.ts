@@ -1,11 +1,14 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { Role } from '../../core/entities';
 import { normalizeFields, normalizeRules } from './dynamic-forms';
-import { Activity, BeneficiaryRequest, BeneficiarySettings, DynamicForm, Workflow, WorkflowStage } from './entities';
-import { AccountingDto, ActivityDto, CreateFormDto, FormDto, ServiceDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
+import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
+import { Activity, BeneficiaryRequest, BeneficiarySettings, DynamicForm, FormHistoryEntry, FormStatus, FormStep, Workflow, WorkflowStage } from './entities';
+import { AccountingDto, ActivityDto, CreateFormDto, FormDto, ReturnFormDto, ServiceDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
+
+const FORM_STATUS_AR: Record<FormStatus, string> = { draft: 'مسودة', review: 'عند مراجع الجودة', reviewed: 'مستني اعتماد مدير الشاشة', approved: 'معتمد' };
 
 const PARENT_LEVEL = { axis: null, program: 'axis', project: 'program' } as const;
 
@@ -138,9 +141,10 @@ export class SettingsService {
         if (!stage) throw new BadRequestException('المرحلة غير موجودة في سير العمل ده');
         if (stage.formId) throw new ConflictException(`مرحلة "${stage.name}" عليها نموذج بالفعل`);
       } else if (w.applicationFormId) throw new ConflictException('تقديم الطلب في سير العمل ده عليه نموذج بالفعل');
+      const qualityCode = await this.uniqueCode(em, actor.organizationId, dto.qualityCode);
       const f = await em.save(em.create(DynamicForm, {
         organizationId: actor.organizationId, name: dto.name, description: dto.description ?? null, ...this.formBody(dto),
-        status: 'draft', createdByName: actor.fullName,
+        qualityCode, status: 'draft', createdByName: actor.fullName, history: [this.step(actor, 'created')],
       }));
       if (stage) await em.update(WorkflowStage, { id: stage.id }, { formId: f.id });
       else await em.update(Workflow, { id: w.id }, { applicationFormId: f.id });
@@ -149,22 +153,69 @@ export class SettingsService {
     return (await this.listForms(actor)).find((x) => x.id === id);
   }
 
-  /** تعديل نموذج معتمد بيرجّعه مسودة لحد ما يتعتمد تاني */
+  /** أي تعديل بيرجّع النموذج مسودة، ولازم يعدّي على مسار الاعتماد من الأول */
   async updateForm(actor: OrgUser, id: string, dto: FormDto) {
     const f = await this.findForm(actor, id);
+    const qualityCode = await this.uniqueCode(this.forms.manager, actor.organizationId, dto.qualityCode, f.id);
+    const history = f.status === 'draft' ? f.history : [...f.history, this.step(actor, 'edited', `كان ${FORM_STATUS_AR[f.status]}`)];
     Object.assign(f, {
-      name: dto.name, description: dto.description ?? null, ...this.formBody(dto), status: 'draft', approvedByName: null, approvedAt: null,
+      name: dto.name, description: dto.description ?? null, ...this.formBody(dto), qualityCode, history,
+      status: 'draft', reviewedByName: null, reviewedAt: null, approvedByName: null, approvedAt: null,
     });
     await this.forms.save(f);
     return (await this.listForms(actor)).find((x) => x.id === id);
   }
 
-  /** اعتماد النموذج من مدير الشاشة */
+  /** مسار الاعتماد: إنشاء (مسودة) ← إرسال للمراجعة ← مراجعة الجودة ← اعتماد مدير الشاشة */
+  async submitForm(actor: OrgUser, id: string) {
+    return this.moveForm(actor, id, 'draft', 'review', 'submitted');
+  }
+
+  async reviewForm(actor: OrgUser, id: string) {
+    return this.moveForm(actor, id, 'review', 'reviewed', 'reviewed', { reviewedByName: actor.fullName, reviewedAt: new Date() });
+  }
+
   async approveForm(actor: OrgUser, id: string) {
+    return this.moveForm(actor, id, 'reviewed', 'approved', 'approved', { approvedByName: actor.fullName, approvedAt: new Date() });
+  }
+
+  /** مراجع الجودة (وهو عنده) أو مدير الشاشة (وهو عنده) يرجّع النموذج مسودة مع السبب */
+  async returnForm(actor: OrgUser, id: string, dto: ReturnFormDto) {
     const f = await this.findForm(actor, id);
-    Object.assign(f, { status: 'approved', approvedByName: actor.fullName, approvedAt: new Date() });
+    const needed = f.status === 'review' ? P.formsReview : f.status === 'reviewed' ? P.formsApprove : null;
+    if (!needed) throw new ConflictException('النموذج مش في مرحلة مراجعة أو اعتماد علشان يترجّع');
+    if (!actor.permissions.includes(needed)) throw new ForbiddenException('مالكش صلاحية ترجّع النموذج في المرحلة دي');
+    Object.assign(f, {
+      status: 'draft', reviewedByName: null, reviewedAt: null,
+      history: [...f.history, this.step(actor, 'returned', dto.note)],
+    });
     await this.forms.save(f);
     return (await this.listForms(actor)).find((x) => x.id === id);
+  }
+
+  private async moveForm(actor: OrgUser, id: string, from: FormStatus, to: FormStatus, step: FormStep, extra: Partial<DynamicForm> = {}) {
+    const f = await this.findForm(actor, id);
+    if (f.status !== from) {
+      throw new ConflictException(`النموذج دلوقتي ${FORM_STATUS_AR[f.status]}، والخطوة دي محتاجة يكون ${FORM_STATUS_AR[from]}`);
+    }
+    if (!f.qualityCode) throw new BadRequestException('اكتب كود الجودة للنموذج الأول (عدّل النموذج)');
+    if (to === 'approved' && f.history.some((h) => h.step === 'approved')) f.revision += 1;
+    Object.assign(f, extra, { status: to });
+    f.history = [...f.history, { ...this.step(actor, step), ...(to === 'approved' ? { revision: f.revision } : {}) }];
+    await this.forms.save(f);
+    return (await this.listForms(actor)).find((x) => x.id === id);
+  }
+
+  private step(actor: OrgUser, step: FormStep, note?: string): FormHistoryEntry {
+    return { step, by: actor.fullName, at: new Date().toISOString(), ...(note ? { note } : {}) };
+  }
+
+  /** كود الجودة فريد في الجمعية */
+  private async uniqueCode(em: EntityManager, org: string, code: string, exceptId?: string) {
+    const qualityCode = code.toUpperCase();
+    const other = await em.findOne(DynamicForm, { where: { organizationId: org, qualityCode }, select: { id: true, name: true } });
+    if (other && other.id !== exceptId) throw new ConflictException(`كود الجودة ${qualityCode} مستخدم في نموذج "${other.name}"`);
+    return qualityCode;
   }
 
   /** النموذج العادي أو نموذج التقييم (أوزان إجماليها 100% + قواعد النتيجة) */
@@ -175,7 +226,9 @@ export class SettingsService {
 
   async removeForm(actor: OrgUser, id: string) {
     const f = await this.findForm(actor, id);
-    if (f.status === 'approved') throw new ConflictException('النموذج معتمد ومستخدم في مرحلة، مايتحذفش');
+    if (f.history.some((h) => h.step === 'approved') || f.status === 'approved') {
+      throw new ConflictException('النموذج اتعتمد قبل كده ومسجل في نظام الجودة، مايتحذفش');
+    }
     // المسودة بتتشال من مرحلتها وتتحذف
     await this.stages.update({ formId: f.id }, { formId: null });
     await this.workflows.update({ applicationFormId: f.id }, { applicationFormId: null });
@@ -250,7 +303,7 @@ export class SettingsService {
       throw new ConflictException('سير العمل عليه طلبات مسجلة، لا يمكن حذفه');
     }
     const stageForms = (await this.stages.find({ where: { workflowId: w.id } })).map((s) => s.formId);
-    if (await this.forms.exists({ where: { id: In([w.applicationFormId, ...stageForms].filter(Boolean) as string[]), status: 'approved' } })) {
+    if ((await this.approvedForms(this.forms.manager, [w.applicationFormId, ...stageForms])).size) {
       throw new ConflictException('سير العمل فيه مراحل عليها نماذج معتمدة، مايتحذفش');
     }
     await this.workflows.delete({ id: w.id });
@@ -366,12 +419,16 @@ export class SettingsService {
   private async approvedForms(em: EntityManager, ids: (string | null)[]) {
     const list = ids.filter(Boolean) as string[];
     if (!list.length) return new Set<string>();
-    const rows = await em.find(DynamicForm, { where: { id: In(list), status: 'approved' }, select: { id: true } });
+    // النموذج اللي اتعتمد مرة بيفضل قافل مرحلته حتى لو رجع مسودة للتعديل
+    const rows = await em.createQueryBuilder(DynamicForm, 'f').select('f.id', 'id')
+      .where('f.id IN (:...list)', { list })
+      .andWhere(`(f.status = 'approved' OR f.history @> '[{"step":"approved"}]'::jsonb)`)
+      .getRawMany<{ id: string }>();
     return new Set(rows.map((r) => r.id));
   }
 
   private async assertNotApproved(em: EntityManager, formId: string | null, message: string) {
-    if (formId && (await em.exists(DynamicForm, { where: { id: formId, status: 'approved' } }))) throw new ConflictException(message);
+    if ((await this.approvedForms(em, [formId])).size) throw new ConflictException(message);
   }
 
   private async findForm(actor: OrgUser, id: string) {

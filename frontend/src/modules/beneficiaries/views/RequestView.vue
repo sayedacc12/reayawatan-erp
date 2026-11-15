@@ -40,7 +40,7 @@ const decision = reactive({
   estimatedCost: '' as number | '', contributionAmount: '' as number | '',
 });
 const isContribution = computed(() => stage.value?.kind === 'contribution');
-const formDraft = computed(() => stage.value?.form?.status === 'draft');
+const formDraft = computed(() => !!stage.value?.form && stage.value.form.status !== 'approved');
 /** معاينة نتيجة التقييم الآلي وهو بيعبّي النموذج */
 const liveScore = computed(() => (stage.value?.form?.scored ? scoreOf(stage.value.form, decision.formData) : null));
 /** قرار الباحث من حقل تقييم الباحث (لو موجود) */
@@ -163,7 +163,7 @@ async function resubmit() {
             </div>
             <form v-if="r.canDecide" @submit.prevent="decide">
               <div v-if="decisionError" class="alert alert-error">{{ decisionError }}</div>
-              <div v-if="formDraft" class="alert draft-alert">⏳ نموذج "{{ stage.form?.name }}" في المرحلة دي لسه مسودة ومستني اعتماد مدير الشاشة. القبول والرفض هيتفتحوا بعد الاعتماد، والإرجاع متاح.</div>
+              <div v-if="formDraft" class="alert draft-alert">⏳ نموذج "{{ stage.form?.name }}" في المرحلة دي لسه ماتعتمدش (بيعدّي على مراجعة الجودة واعتماد مدير الشاشة). القبول والرفض هيتفتحوا بعد الاعتماد، والإرجاع متاح.</div>
               <div class="choices">
                 <button type="button" :disabled="formDraft" :class="['choice approve', { on: decision.decision === 'approve' }]" @click="choose('approve')">✓ {{ isContribution ? 'تأكيد المساهمة' : isLast ? 'اعتماد نهائي' : 'قبول وتحويل للمرحلة التالية' }}</button>
                 <button v-if="stage.canReturn" type="button" :class="['choice ret', { on: decision.decision === 'return' }]" @click="choose('return')">↩ {{ isContribution ? 'إرجاع للمستفيد يرفع من جديد' : isFirst ? 'إرجاع لمقدم الطلب' : 'إرجاع للمرحلة السابقة' }}</button>
@@ -172,7 +172,7 @@ async function resubmit() {
               <Transition name="page">
                 <div v-if="decision.decision" class="d-body">
                   <div v-if="showForm && stage.form" class="stage-form">
-                    <p class="form-title">{{ stage.form.name }}</p>
+                    <p class="form-title">{{ stage.form.name }}<span v-if="stage.form.qualityCode" class="qcode">{{ stage.form.qualityCode }} · Rev.{{ String(stage.form.revision ?? 0).padStart(2, '0') }}</span></p>
                     <DynamicFields v-model="decision.formData" :fields="stage.form.fields" />
                     <div v-if="liveScore" class="live" :style="{ '--c': color('outcome', liveScore.rule?.outcome) }">
                       <div class="ring" :style="{ '--p': liveScore.score }"><b>{{ liveScore.score }}%</b></div>
@@ -328,6 +328,7 @@ async function resubmit() {
 .choice:disabled { opacity: .4; cursor: not-allowed; }
 .stage-form { padding: 14px; border-radius: 12px; background: var(--surface-2); margin-bottom: 14px; border: 1px solid var(--border); }
 .form-title { margin: 0 0 10px; font-weight: 700; color: var(--primary); }
+.qcode { float: inline-end; font-size: .72rem; font-weight: 600; color: var(--muted); direction: ltr; border: 1px solid var(--border); padding: 1px 8px; border-radius: 6px; }
 .done-card { padding: 18px; display: flex; gap: 14px; align-items: center; background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #fcd34d; }
 .trophy { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; font-size: 1.5rem; color: #fff; background: linear-gradient(135deg, #f5c66b, #d99a2b); box-shadow: 0 0 24px rgba(232,176,75,.7); flex-shrink: 0; }
 

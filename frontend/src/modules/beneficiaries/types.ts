@@ -124,11 +124,14 @@ export interface FormField {
 }
 export type ScoreOutcome = 'reject' | 'approve' | 'contribution';
 export interface ScoreRule { min: number; max: number; outcome: ScoreOutcome; contributionPercent?: number }
-export type FormStatus = 'draft' | 'approved';
+export type FormStatus = 'draft' | 'review' | 'reviewed' | 'approved';
+export type FormStep = 'created' | 'edited' | 'submitted' | 'reviewed' | 'approved' | 'returned';
+export interface FormHistoryEntry { step: FormStep; by: string; at: string; note?: string; revision?: number }
 export interface FormPlacement { workflowId: string; workflowName: string; stageId: string | null; stageName: string }
 export interface DynamicForm {
   id: string; name: string; description: string | null; fields: FormField[]; scored?: boolean; rules?: ScoreRule[];
   status?: FormStatus; createdByName?: string | null; approvedByName?: string | null; approvedAt?: string | null; placements?: FormPlacement[];
+  qualityCode?: string | null; revision?: number; history?: FormHistoryEntry[]; reviewedByName?: string | null; reviewedAt?: string | null;
 }
 
 export type Recurrence = 'once' | 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
@@ -188,7 +191,7 @@ export interface RequestDetail {
   workflow: {
     id: string; name: string;
     applicationForm: { id: string; name: string; fields: FormField[] } | null;
-    stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; kind?: 'standard' | 'contribution'; form?: { id: string; name: string; fields: FormField[]; scored?: boolean; rules?: ScoreRule[]; status?: FormStatus } | null }[];
+    stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; kind?: 'standard' | 'contribution'; form?: { id: string; name: string; fields: FormField[]; scored?: boolean; rules?: ScoreRule[]; status?: FormStatus; qualityCode?: string | null; revision?: number } | null }[];
   } | null;
   actions: RequestAction[];
 }

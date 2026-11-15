@@ -21,12 +21,21 @@ describe('Scored research, contribution and support rules', () => {
   const login = async (login: string, password: string, organization?: string) =>
     (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
   const ids: Record<string, string> = {};
+  let codeNo = 0;
+  const code = () => `QF-T-${++codeNo}`;
+  const forms = '/api/beneficiaries/settings/forms';
+  /** مسار الاعتماد كامل: إرسال للمراجعة ← مراجعة الجودة ← اعتماد مدير الشاشة */
+  const approveFlow = async (id: string) => {
+    await http.post(`${forms}/${id}/submit`).set(as(admin)).expect(200);
+    await http.post(`${forms}/${id}/review`).set(as(admin)).expect(200);
+    return http.post(`${forms}/${id}/approve`).set(as(admin)).expect(200);
+  };
   /** سير عمل بمراحل، والنموذج بيتعمل على أول مرحلة ويتعتمد */
   const workflowWithForm = async (name: string, form: Record<string, unknown>, stages: Record<string, unknown>[]) => {
     const wf = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({ name, stages }).expect(201);
     const f = await http.post('/api/beneficiaries/settings/forms').set(as(admin))
-      .send({ ...form, workflowId: wf.body.id, stageId: wf.body.stages[0].id }).expect(201);
-    await http.post(`/api/beneficiaries/settings/forms/${f.body.id}/approve`).set(as(admin)).expect(200);
+      .send({ qualityCode: code(), ...form, workflowId: wf.body.id, stageId: wf.body.stages[0].id }).expect(201);
+    await approveFlow(f.body.id);
     const all = await http.get('/api/beneficiaries/settings/workflows').set(as(admin)).expect(200);
     return { wf: all.body.find((w: { id: string }) => w.id === wf.body.id), form: f.body };
   };
@@ -74,7 +83,7 @@ describe('Scored research, contribution and support rules', () => {
   it('accepts a scored research form only when the weights total 100%', async () => {
     const url = '/api/beneficiaries/settings/forms';
     const scratch = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({ name: 'تجربة', stages: [{ name: 'مرحلة' }] }).expect(201);
-    const on = { workflowId: scratch.body.id, stageId: scratch.body.stages[0].id };
+    const on = { qualityCode: 'QF-X', workflowId: scratch.body.id, stageId: scratch.body.stages[0].id };
     const bad = await http.post(url).set(as(admin)).send({
       ...on, name: 'بحث', scored: true, fields: [{ ...housing, weight: 60, optionScores: [0, 50, 100] }, { ...noIncome, weight: 30 }], rules,
     }).expect(400);
@@ -261,7 +270,7 @@ describe('Scored research, contribution and support rules', () => {
       name: 'بحث بقرار الباحث', fields: [{ key: 'assessment', label: 'تقييم الباحث', type: 'support', required: true }],
     }, [{ name: 'البحث' }, { name: 'المساهمة', kind: 'contribution' }, { name: 'الاعتماد' }]);
     await http.post('/api/beneficiaries/settings/forms').set(as(admin)).send({
-      workflowId: wf.id, name: 'غلط', fields: [{ label: 'أ', type: 'support' }, { label: 'ب', type: 'support' }],
+      qualityCode: code(), workflowId: wf.id, name: 'غلط', fields: [{ label: 'أ', type: 'support' }, { label: 'ب', type: 'support' }],
     }).expect(400);
     const project = await http.post('/api/beneficiaries/settings/activities').set(as(admin)).send({
       level: 'project', name: 'دعم جزئي', parentId: ids.program, workflowId: wf.id, allowConcurrent: true, recurrence: 'monthly',
@@ -330,10 +339,10 @@ describe('Scored research, contribution and support rules', () => {
   it('blocks decisions on a stage until its form is approved, and re-approval after editing', async () => {
     const wf = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({ name: 'مسودة', stages: [{ name: 'البحث' }, { name: 'الاعتماد' }] }).expect(201);
     const f = await http.post('/api/beneficiaries/settings/forms').set(as(admin))
-      .send({ name: 'نموذج مسودة', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ key: 'note', label: 'ملاحظة', type: 'text' }] }).expect(201);
+      .send({ qualityCode: code(), name: 'نموذج مسودة', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ key: 'note', label: 'ملاحظة', type: 'text' }] }).expect(201);
     expect(f.body.status).toBe('draft');
     await http.post('/api/beneficiaries/settings/forms').set(as(admin))
-      .send({ name: 'تاني', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ label: 'أ', type: 'text' }] }).expect(409);
+      .send({ qualityCode: code(), name: 'تاني', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ label: 'أ', type: 'text' }] }).expect(409);
     const project = await http.post('/api/beneficiaries/settings/activities').set(as(admin)).send({
       level: 'project', name: 'مسودة', parentId: ids.program, workflowId: wf.body.id, allowConcurrent: true, recurrence: 'monthly',
     }).expect(201);
@@ -344,15 +353,49 @@ describe('Scored research, contribution and support rules', () => {
     // المسودة تتحذف وتتشال من المرحلة
     await http.delete(`/api/beneficiaries/settings/forms/${f.body.id}`).set(as(admin)).expect(204);
     const f2 = await http.post('/api/beneficiaries/settings/forms').set(as(admin))
-      .send({ name: 'نموذج', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ key: 'note', label: 'ملاحظة', type: 'text' }] }).expect(201);
-    await http.post(`/api/beneficiaries/settings/forms/${f2.body.id}/approve`).set(as(admin)).expect(200);
+      .send({ qualityCode: 'QF-DRAFT-2', name: 'نموذج', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ key: 'note', label: 'ملاحظة', type: 'text' }] }).expect(201);
+    await approveFlow(f2.body.id);
     // تعديل المعتمد بيرجّعه مسودة
     const edited = await http.put(`/api/beneficiaries/settings/forms/${f2.body.id}`).set(as(admin))
-      .send({ name: 'نموذج معدل', fields: [{ key: 'note', label: 'ملاحظة', type: 'text' }] }).expect(200);
+      .send({ qualityCode: 'QF-DRAFT-2', name: 'نموذج معدل', fields: [{ key: 'note', label: 'ملاحظة', type: 'text' }] }).expect(200);
     expect(edited.body).toMatchObject({ status: 'draft', approvedByName: null });
     await http.post(`/api/beneficiaries/requests/${r.body.id}/decision`).set(as(admin)).send({ decision: 'approve', formData: {} }).expect(400);
-    await http.post(`/api/beneficiaries/settings/forms/${f2.body.id}/approve`).set(as(admin)).expect(200);
+    const reapproved = await approveFlow(f2.body.id);
+    expect(reapproved.body.revision).toBe(1);
     await http.post(`/api/beneficiaries/requests/${r.body.id}/decision`).set(as(admin)).send({ decision: 'approve', formData: { note: 'تم' } }).expect(201);
     await http.delete(`/api/beneficiaries/settings/workflows/${wf.body.id}`).set(as(admin)).expect(409);
+  });
+  it('runs the ISO 9001 approval path: quality code, review, return with a reason, revisions and history', async () => {
+    const wf = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({ name: 'جودة', stages: [{ name: 'البحث' }, { name: 'الاعتماد' }] }).expect(201);
+    const body = { name: 'نموذج جودة', workflowId: wf.body.id, stageId: wf.body.stages[0].id, fields: [{ key: 'n', label: 'ملاحظة', type: 'text' }] };
+    await http.post(forms).set(as(admin)).send(body).expect(400); // كود الجودة مطلوب
+    await http.post(forms).set(as(admin)).send({ ...body, qualityCode: 'كود عربي' }).expect(400);
+    const f = await http.post(forms).set(as(admin)).send({ ...body, qualityCode: 'qf-q-01' }).expect(201);
+    expect(f.body).toMatchObject({ qualityCode: 'QF-Q-01', status: 'draft', history: [{ step: 'created', by: 'مدير' }] });
+    // الكود فريد في الجمعية
+    await http.post(forms).set(as(admin)).send({ ...body, stageId: wf.body.stages[1].id, qualityCode: 'QF-Q-01' }).expect(409);
+    const id = f.body.id;
+    // مينفعش القفز على المراحل
+    await http.post(`${forms}/${id}/approve`).set(as(admin)).expect(409);
+    await http.post(`${forms}/${id}/review`).set(as(admin)).expect(409);
+    await http.post(`${forms}/${id}/submit`).set(as(admin)).expect(200);
+    await http.post(`${forms}/${id}/approve`).set(as(admin)).expect(409);
+    // الإرجاع لازم سبب، وبيرجّع مسودة
+    await http.post(`${forms}/${id}/return`).set(as(admin)).send({}).expect(400);
+    const back = await http.post(`${forms}/${id}/return`).set(as(admin)).send({ note: 'الكود مش مطابق لدليل الجودة' }).expect(200);
+    expect(back.body.status).toBe('draft');
+    await http.post(`${forms}/${id}/return`).set(as(admin)).send({ note: 'تاني مرة' }).expect(409);
+    const ok = await approveFlow(id);
+    expect(ok.body).toMatchObject({ status: 'approved', revision: 0, reviewedByName: 'مدير', approvedByName: 'مدير' });
+    expect(ok.body.history.map((h: { step: string }) => h.step)).toEqual(['created', 'submitted', 'returned', 'submitted', 'reviewed', 'approved']);
+    // تعديل بعد الاعتماد = إصدار جديد بعد ما يعدّي المسار تاني، والنموذج مايتحذفش
+    await http.put(`${forms}/${id}`).set(as(admin)).send({ qualityCode: 'QF-Q-01', name: 'نموذج جودة 2', fields: body.fields }).expect(200);
+    await http.delete(`${forms}/${id}`).set(as(admin)).expect(409);
+    // المرحلة فاضلة مقفولة حتى والنموذج مسودة
+    await http.put(`/api/beneficiaries/settings/workflows/${wf.body.id}`).set(as(admin))
+      .send({ name: 'جودة', stages: [{ id: wf.body.stages[1].id, name: 'الاعتماد' }] }).expect(409);
+    const v1 = await approveFlow(id);
+    expect(v1.body.revision).toBe(1);
+    expect(v1.body.history.at(-1)).toMatchObject({ step: 'approved', revision: 1 });
   });
 });

@@ -27,7 +27,7 @@ const formError = ref('');
 const saving = ref(false);
 const blankStage = (): StageRow => ({ name: '', instructions: '', formId: null, roleId: null, canReject: true, canReturn: true, kind: 'standard' });
 const form = reactive({ name: '', description: '', isDefault: false, stages: [] as StageRow[] });
-const STATUS_LABEL = { draft: 'مسودة', approved: 'معتمد' } as const;
+const STATUS_LABEL = { draft: 'مسودة', review: 'عند مراجع الجودة', reviewed: 'مستني اعتماد المدير', approved: 'معتمد' } as const;
 const locked = (s: StageRow) => s.formStatus === 'approved';
 
 function openForm(w?: WorkflowRow) {
@@ -180,7 +180,7 @@ async function remove(w: WorkflowRow) {
 .chip.form { background: #eef2ff; color: #4338ca; } .chip.role { background: #ecfeff; color: #0e7490; } .chip.count { background: #fef3c7; color: #92400e; }
 .chip.contrib { background: #fdf2f8; color: #be185d; }
 .st { font-size: .68rem; font-weight: 700; padding: 0 6px; border-radius: 99px; margin-inline-start: 6px; }
-.st.draft { background: #fef3c7; color: #92400e; } .st.approved { background: #dcfce7; color: #166534; }
+.st.draft, .st.review, .st.reviewed { background: #fef3c7; color: #92400e; } .st.approved { background: #dcfce7; color: #166534; }
 .ro { display: flex; align-items: center; gap: 4px; padding: 8px 12px; border: 1px dashed var(--border); border-radius: 10px; background: var(--surface-2); font-size: .9rem; min-height: 40px; }
 .lock { margin-inline-start: auto; }
 .hint { margin: 6px 0; }
