@@ -35,6 +35,6 @@ import { TicketsService } from './tickets.service';
   controllers: [SettingsController, RequestsController, TicketsController, BeneficiariesController, PortalController, DemoController],
   providers: [BeneficiariesService, DocumentStorage, SettingsService, RequestsService, TicketsService, PortalService, PortalGuard, DemoService],
   // للوحدات القادمة (مثل المالية) لربط الصرف بالقيود والمشاريع
-  exports: [BeneficiariesService, RequestsService, SettingsService],
+  exports: [BeneficiariesService, RequestsService, SettingsService, DocumentStorage],
 })
 export class BeneficiariesModule {}
