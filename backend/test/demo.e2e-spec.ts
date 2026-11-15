@@ -134,16 +134,19 @@ describe('Demo association across all modules', () => {
     expect(profile.aids[0]).toMatchObject({ amount: 1000, referenceNo: 'PV-1001' });
   });
 
-  it('pledge batches pay out only what the donor has collected', async () => {
+  it('pledge batches are deferred donations: spent before collection, still owed by the donor', async () => {
+    const admin = await staff('admin');
     const fin = await staff('finance');
     const pm = await staff('projects');
     const allocations = (await http.get('/api/projects-ops/support/allocations').set(as(pm)).expect(200)).body as { id: string; kind: string; activityName?: string; amount: number }[];
     const ops = allocations.find((a) => a.kind === 'general' && a.amount === 30000)!;
-    // سدد الداعم 10,000 وصُرف منها 8,000، فلا يُصرف 5,000 أخرى
-    const res = await http.post('/api/projects-ops/payments/direct').set(as(fin)).send({
+    // سدد الداعم 10,000 وصُرف منها 8,000، ويُصرف 5,000 أخرى قبل سدادها
+    await http.post('/api/projects-ops/payments/direct').set(as(fin)).send({
       allocationId: ops.id, amount: 5000, method: 'voucher', payeeKind: 'other', payeeName: 'شركة الكهرباء', referenceNo: 'PV-9999',
-    }).expect(400);
-    expect(res.body.message).toContain('ما سدده الداعم');
+    }).expect(201);
+    const donors = (await http.get('/api/fundraising/donors').query({ search: 'مؤسسة البر' }).set(as(admin)).expect(200)).body.items as { id: string }[];
+    const donor = (await http.get(`/api/fundraising/donors/${donors[0].id}`).set(as(admin)).expect(200)).body;
+    expect(donor.receivable).toBe(20000); // يبقى المتبقي من الوعد مستحقًا على الداعم
   });
 
   it('platform: signed contract, active subscription and pending applications', async () => {

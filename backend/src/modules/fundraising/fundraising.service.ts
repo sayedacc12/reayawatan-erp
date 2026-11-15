@@ -4,7 +4,7 @@ import { OrgUser } from '../../core/auth/decorators';
 import { DocumentStorage } from '../beneficiaries/document-storage.service';
 import {
   ApprovalStage, BankAccount, Batch, BatchTarget, Donor, DonorConditions, LedgerEntry, Opportunity, OpportunityAction, OpportunityActionType,
-  OpportunityDocument, PledgeCollection, SupportManager, WaqfProject,
+  OpportunityDocument, PledgeCollection, SupportManager,
 } from './entities';
 import { FUNDRAISING_PERMISSIONS as P } from './fundraising.manifest';
 import { LedgerService } from './ledger.service';
@@ -21,7 +21,7 @@ const net = (b: Pick<Batch, 'amount' | 'reservedAmount' | 'spentAmount' | 'trans
 /** صف من شجرة الأنشطة مع خصائص التمويل (الأعمدة يملكها نظام إدارة المشاريع) */
 interface FundableActivity {
   id: string; level: 'axis' | 'program' | 'project'; parentId: string | null; name: string; isActive: boolean;
-  fundingType: 'restricted' | 'unrestricted' | 'operational'; zakatEligible: boolean; approvalStatus: string;
+  fundingType: 'restricted' | 'unrestricted' | 'operational' | 'endowment'; zakatEligible: boolean; approvalStatus: string;
 }
 
 /** صف دفعة كما تعيده listBatches (المبالغ أرقام) */
@@ -81,9 +81,8 @@ export class FundraisingService {
   /** الجهات المتاحة لتوزيع التبرع: البرامج والمشاريع المعتمدة، التشغيلية، الأوقاف، وطلبات المستفيدين */
   async targets(actor: OrgUser) {
     const org = actor.organizationId;
-    const [acts, waqf, cases] = await Promise.all([
+    const [acts, cases] = await Promise.all([
       this.activities(this.db, org),
-      this.db.getRepository(WaqfProject).find({ where: { organizationId: org, isActive: true }, order: { createdAt: 'ASC' } }),
       this.db.query(
         `SELECT r.id, r.request_no AS "requestNo", r.status, r.services, r.estimated_cost::float AS "estimatedCost",
                 b.full_name AS "beneficiaryName", b.file_no AS "fileNo", a.id AS "projectId", a.name AS "projectName",
@@ -102,7 +101,8 @@ export class FundraisingService {
     return {
       programs: usable.filter((a) => a.fundingType === 'restricted').map(row),
       operational: usable.filter((a) => a.fundingType === 'operational').map(row),
-      waqf: waqf.map((w) => ({ id: w.id, name: w.name, description: w.description, targetAmount: w.targetAmount })),
+      // مشاريع الأوقاف تُنشأ وتُعتمد في إدارة المشاريع (funding_type = 'endowment')
+      waqf: usable.filter((a) => a.fundingType === 'endowment').map((a) => ({ ...row(a), zakatEligible: false })),
       cases,
     };
   }
@@ -153,9 +153,12 @@ export class FundraisingService {
         }
         case 'waqf': {
           if (zakat) throw new BadRequestException('تبرع الزكاة لا يُوجَّه إلى مشاريع الأوقاف');
-          const w = line.waqfProjectId ? await em.findOne(WaqfProject, { where: { id: line.waqfProjectId, organizationId: orgId } }) : null;
-          if (!w || !w.isActive) throw new BadRequestException(`البند رقم ${n}: اختر مشروع الوقف`);
-          out.push({ ...base, waqfProjectId: w.id, targetName: `وقف: ${w.name}` });
+          const a = act(line.activityId);
+          if (!a) throw new BadRequestException(`البند رقم ${n}: اختر مشروع الوقف`);
+          if (!a.isActive || a.approvalStatus !== 'approved' || a.level === 'axis' || a.fundingType !== 'endowment') {
+            throw new BadRequestException(`البند رقم ${n}: "${a.name}" ليس مشروع وقف معتمدًا في إدارة المشاريع`);
+          }
+          out.push({ ...base, activityId: a.id, targetName: `وقف: ${this.pathOf(acts, a)}` });
           break;
         }
         case 'case': {
@@ -204,6 +207,8 @@ export class FundraisingService {
     const donor = await em.findOne(Donor, { where: { id: dto.donorId, organizationId: orgId } });
     if (!donor) throw new BadRequestException('الداعم غير موجود');
     if (!donor.isActive) throw new BadRequestException('الداعم موقوف، فعّله أولًا من سجل الداعمين');
+    if (dto.supportManager) dto.supportManagerId = await this.settings.resolveManager(orgId, dto.supportManager, em);
+    delete dto.supportManager;
     if (dto.supportManagerId && !(await em.exists(SupportManager, { where: { id: dto.supportManagerId, organizationId: orgId } }))) {
       throw new BadRequestException('مدير الدعم غير موجود');
     }
@@ -387,7 +392,9 @@ export class FundraisingService {
       source: { module: 'fundraising', type: `opportunity_${o.kind}`, id: o.id },
       opportunityId: o.id, createdByName: actor.name,
       lines: [
-        { accountCode: debit.code, accountName: debit.name, debit: o.totalAmount, credit: 0, memo: `فرصة رقم ${o.opportunityNo}` },
+        o.kind === 'pledge'
+          ? { accountCode: debit.code, accountName: debit.name, debit: o.totalAmount, credit: 0, memo: `مستحق على الداعم ${donor.name} - فرصة رقم ${o.opportunityNo}`, donorId: donor.id }
+          : { accountCode: debit.code, accountName: debit.name, debit: o.totalAmount, credit: 0, memo: `فرصة رقم ${o.opportunityNo}` },
         ...batches.map((b) => ({
           accountCode: creditOf(b).code, accountName: creditOf(b).name, debit: 0, credit: b.amount,
           memo: `دفعة رقم ${b.batchNo} - ${b.targetName}`, batchId: b.id, activityId: b.activityId,
@@ -420,8 +427,8 @@ export class FundraisingService {
         description: `${routing.pledgeCollection.description ?? 'تحصيل وعد بالدفع'} - فرصة رقم ${o.opportunityNo} - ${donor.name} - سند قبض ${receiptNo}`,
         source: { module: 'fundraising', type: 'pledge_collection', id: o.id }, opportunityId: o.id, createdByName: actor.name,
         lines: [
-          { accountCode: bank.glCode, accountName: bank.glName ?? `البنك - ${bank.bankName} (${bank.accountNumber})`, debit: amount, credit: 0 },
-          { accountCode: routing.pledge.debit.code, accountName: routing.pledge.debit.name ?? 'ذمم الداعمين - وعود بالدفع', debit: 0, credit: amount },
+          { accountCode: bank.glCode, accountName: bank.glName ?? `البنك - ${bank.bankName} (${bank.accountNumber})`, debit: amount, credit: 0, memo: `سند قبض رقم ${receiptNo}` },
+          { accountCode: routing.pledge.debit.code, accountName: routing.pledge.debit.name ?? 'ذمم الداعمين - وعود بالدفع', debit: 0, credit: amount, memo: `سداد مستحق على الداعم ${donor.name}`, donorId: donor.id },
         ],
       }, em);
       await em.save(em.create(PledgeCollection, {
@@ -509,6 +516,7 @@ export class FundraisingService {
       donor: donor ? { id: donor.id, donorNo: donor.donorNo, name: donor.name, phone: donor.phone, email: donor.email, identifier: donor.identifier, levelName: donor.level?.name ?? null, levelColor: donor.level?.color ?? null } : null,
       bankAccount: bankAccount ? { id: bankAccount.id, bankName: bankAccount.bankName, accountNumber: bankAccount.accountNumber, iban: bankAccount.iban } : null,
       supportManagerName: supportManager?.name ?? null,
+      supportManager: supportManager ? { id: supportManager.id, kind: supportManager.kind, userId: supportManager.userId, name: supportManager.name } : null,
       stageName: currentStage?.name ?? null,
       batches: batches.map((b) => ({ ...b, net: net(b) })),
       actions, documents, stages,
@@ -674,14 +682,7 @@ export class FundraisingService {
       const b = await this.lockBatch(em, orgId, batchId);
       const a = this.positive(amount);
       if (a > b.reservedAmount) throw new BadRequestException(`الصرف يكون من المحجوز، والمحجوز في الدفعة رقم ${b.batchNo} أقل من المبلغ`);
-      if (b.isPromised) {
-        // الوعد بالدفع يُحجز عليه، لكن لا يُصرف منه إلا بقدر ما سدده الداعم فعلًا (بنسبة الدفعة من إجمالي الوعد)
-        const o = await em.findOneOrFail(Opportunity, { where: { id: b.opportunityId } });
-        const collected = o.totalAmount > 0 ? r2((b.amount * o.collectedAmount) / o.totalAmount) : 0;
-        if (r2(b.spentAmount + a) > collected) {
-          throw new BadRequestException(`الدفعة رقم ${b.batchNo} من وعد بالدفع، ولا يُصرف منها إلا بقدر ما سدده الداعم. المتاح للصرف الآن ${Math.max(0, r2(collected - b.spentAmount)).toLocaleString('en-US')} ريال`);
-        }
-      }
+      // دفعات الوعد بالدفع تبرعات آجلة: تُصرف كاملة قبل السداد، ويبقى المبلغ مستحقًا على حساب الداعم المدين حتى يسدده
       b.reservedAmount = r2(b.reservedAmount - a);
       b.spentAmount = r2(b.spentAmount + a);
       if (net(b) === 0 && b.reservedAmount === 0) b.status = 'closed';
@@ -709,12 +710,13 @@ export class FundraisingService {
         if (t.fundingType !== 'operational') throw new BadRequestException('الدفعة تشغيلية، لذا تُناقل إلى مشروع تشغيلي فقط');
         kind = 'operational';
       } else if (src.targetKind === 'waqf') {
-        throw new BadRequestException('دفعات الأوقاف لا تُناقل إلى مشاريع الأنشطة');
+        if (t.fundingType !== 'endowment') throw new BadRequestException('دفعة الوقف تُناقل إلى مشروع وقف فقط');
+        kind = 'waqf';
       } else {
         if (t.fundingType !== 'restricted') throw new BadRequestException('الدفعة مقيدة، لذا تُناقل إلى مشروع مقيد فقط');
         kind = 'program';
       }
-      if (src.isZakat && !(t.level === 'project' && t.zakatEligible)) throw new BadRequestException('الدفعة زكاة، والمشروع الجديد ليس ضمن مصارف الزكاة');
+      if (src.isZakat && !(t.level === 'project' && t.zakatEligible && t.fundingType === 'restricted')) throw new BadRequestException('الدفعة زكاة، والمشروع الجديد ليس ضمن مصارف الزكاة');
       src.transferredAmount = r2(src.transferredAmount + a);
       if (net(src) === 0 && src.reservedAmount === 0) src.status = 'closed';
       await em.save(src);

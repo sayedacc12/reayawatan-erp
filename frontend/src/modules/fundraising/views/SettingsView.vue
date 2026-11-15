@@ -261,7 +261,8 @@ const editingTitle = computed(() => (editing.value ? titles[editing.value.list] 
 
         <!-- الأوقاف -->
         <section v-else-if="tab === 'waqf'" key="waqf" class="fr-panel">
-          <h2>مشاريع الأوقاف <button class="btn btn-primary btn-sm push" @click="openItem('waqf')">+ مشروع وقف</button></h2>
+          <h2>مشاريع الأوقاف (سجلات سابقة)</h2>
+          <p class="alert alert-info">مشاريع الأوقاف تُنشأ وتُعتمد الآن من قائمة المشاريع في إدارة المشاريع، وتظهر تلقائيًا في فرص التبرع. هذه القائمة للسجلات السابقة فقط.</p>
           <div class="table-wrap">
             <table class="table">
               <thead><tr><th>المشروع</th><th>الوصف</th><th>المبلغ المستهدف</th><th>الحالة</th><th /></tr></thead>
@@ -269,7 +270,7 @@ const editingTitle = computed(() => (editing.value ? titles[editing.value.list] 
                 <tr v-for="w in s.waqf" :key="w.id">
                   <td><b>{{ w.name }}</b></td><td class="muted wrap">{{ w.description ?? '—' }}</td><td>{{ w.targetAmount ? sar(w.targetAmount) : '—' }}</td>
                   <td><span class="fr-badge" :style="{ '--c': w.isActive ? '#10b981' : '#94a3b8' }">{{ w.isActive ? 'نشط' : 'موقوف' }}</span></td>
-                  <td class="row-actions"><button class="btn btn-sm" @click="openItem('waqf', w as never)">تعديل</button><button class="btn btn-sm btn-danger" @click="removeItem('waqf', w.id)">حذف</button></td>
+                  <td class="row-actions"><button class="btn btn-sm btn-danger" @click="removeItem('waqf', w.id)">حذف</button></td>
                 </tr>
               </tbody>
             </table>

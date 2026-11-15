@@ -5,6 +5,18 @@ import {
 
 export const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
 
+/** مدير الدعم عند تسجيل داعم أو فرصة: موظف من مستخدمي النظام، أو اسم جهة خارجية يُكتب نصًا */
+export class SupportManagerRefDto {
+  @IsIn(['employee', 'external'], { message: 'اختر هل مدير الدعم من موظفي الجمعية أم من خارجها' })
+  kind!: 'employee' | 'external';
+
+  @ValidateIf((o) => o.kind === 'employee') @IsUUID('all', { message: 'اختر الموظف من القائمة' })
+  userId?: string;
+
+  @ValidateIf((o) => o.kind === 'external') @trim() @IsString({ message: 'اكتب اسم مدير الدعم' }) @MinLength(2, { message: 'اسم مدير الدعم قصير جدًا' }) @MaxLength(200)
+  name?: string;
+}
+
 export class GeneralSettingsDto {
   @IsOptional() @IsArray() @ArrayMaxSize(60)
   donorFields?: unknown[];

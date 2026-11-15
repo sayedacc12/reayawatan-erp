@@ -3,7 +3,7 @@ import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength,
   ValidateIf, ValidateNested,
 } from 'class-validator';
-import { trim } from './settings.dto';
+import { SupportManagerRefDto, trim } from './settings.dto';
 
 export class ConditionsDto {
   @IsOptional() @IsBoolean()
@@ -54,6 +54,10 @@ export class OpportunityDto {
 
   @IsOptional() @ValidateIf((_, v) => v !== null) @IsUUID()
   supportManagerId?: string | null;
+
+  /** بديل supportManagerId: يُنشأ مدير الدعم تلقائيًا أو يُستخدم الموجود */
+  @IsOptional() @ValidateIf((_, v) => v !== null) @ValidateNested() @Type(() => SupportManagerRefDto)
+  supportManager?: SupportManagerRefDto | null;
 
   @IsDateString({}, { message: 'تاريخ الفرصة غير صحيح' })
   date!: string;

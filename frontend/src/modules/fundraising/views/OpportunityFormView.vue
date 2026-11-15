@@ -5,6 +5,8 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { CATEGORIES, color, hijri, label, sar, today } from '../labels';
 import type { DonorRow, Opportunity, Settings, Targets } from '../types';
+import SearchSelect, { type SelectOption } from '../components/SearchSelect.vue';
+import SupportManagerPicker, { type ManagerRef } from '../components/SupportManagerPicker.vue';
 import '../fr.css';
 
 type Kind = 'cash' | 'in_kind' | 'pledge';
@@ -27,8 +29,9 @@ const form = reactive({
   lines: [] as Line[],
 });
 const donorName = ref('');
-const donorSearch = ref('');
-const donorResults = ref<DonorRow[]>([]);
+const manager = ref<ManagerRef | null>(null);
+type DonorDetail = { id: string; name: string; managerKind: 'employee' | 'external' | null; managerUserId: string | null; managerName: string | null };
+const managerOf = (d: DonorDetail): ManagerRef | null => (d.managerKind ? { kind: d.managerKind, userId: d.managerUserId, name: d.managerName ?? '' } : null);
 const natInput = ref('');
 const casePicker = ref<number | null>(null);
 const caseSearch = ref('');
@@ -48,13 +51,14 @@ onMounted(async () => {
         })),
       });
       donorName.value = o.donor?.name ?? '';
+      manager.value = o.supportManager ? { kind: o.supportManager.kind, userId: o.supportManager.userId, name: o.supportManager.name } : null;
     } else {
       const donorId = route.query.donor as string | undefined;
       if (donorId) {
-        const d = await api<{ id: string; name: string; supportManagerId: string | null }>(`/fundraising/donors/${donorId}`);
+        const d = await api<DonorDetail>(`/fundraising/donors/${donorId}`);
         form.donorId = d.id;
         donorName.value = d.name;
-        form.supportManagerId = d.supportManagerId;
+        manager.value = managerOf(d);
       }
       const firstBank = settings.value.banks.find((b) => b.isActive);
       if (firstBank) form.bankAccountId = firstBank.id;
@@ -64,23 +68,22 @@ onMounted(async () => {
   }
 });
 
-let t: ReturnType<typeof setTimeout> | undefined;
-watch(donorSearch, (v) => {
-  clearTimeout(t);
-  if (!v.trim()) { donorResults.value = []; return; }
-  t = setTimeout(async () => {
-    const r = await api<{ items: DonorRow[] }>(`/fundraising/donors?active=true&pageSize=8&search=${encodeURIComponent(v)}`).catch(() => ({ items: [] }));
-    donorResults.value = r.items;
-  }, 250);
-});
-async function pickDonor(d: DonorRow) {
-  form.donorId = d.id;
-  donorName.value = d.name;
-  donorSearch.value = '';
-  donorResults.value = [];
-  const full = await api<{ supportManagerId: string | null }>(`/fundraising/donors/${d.id}`).catch(() => null);
-  if (full?.supportManagerId && !form.supportManagerId) form.supportManagerId = full.supportManagerId;
+// قائمة الداعمين: تُفتح بأحدث الداعمين وتتصفّى مع الكتابة بالاسم أو الجوال أو الرقم
+async function findDonors(q: string): Promise<SelectOption[]> {
+  const r = await api<{ items: DonorRow[] }>(`/fundraising/donors?active=true&pageSize=12&search=${encodeURIComponent(q)}`);
+  return r.items.map((d) => ({
+    id: d.id, label: d.name,
+    sub: [`رقم ${d.donorNo}`, d.type === 'individual' ? 'فرد' : 'جهة', d.levelName, d.phone].filter(Boolean).join(' · '),
+  }));
 }
+async function pickDonor(o: SelectOption | null) {
+  donorName.value = o?.label ?? '';
+  if (!o) return;
+  const full = await api<DonorDetail>(`/fundraising/donors/${o.id}`).catch(() => null);
+  if (full && !manager.value) manager.value = managerOf(full);
+}
+const externalNames = computed(() => (settings.value?.managers ?? []).filter((m) => m.kind === 'external' && m.isActive).map((m) => m.name));
+watch(() => form.kind, (k) => { if (k !== 'cash') form.bankAccountId = null; });
 
 const total = computed(() => Number(form.totalAmount) || 0);
 const lineAmount = (l: Line) => (l.mode === 'percent' ? Math.round(total.value * (Number(l.percent) || 0)) / 100 : Number(l.amount) || 0);
@@ -129,7 +132,8 @@ async function save() {
   saving.value = true;
   try {
     const body = {
-      ...form, totalAmount: total.value, transferReference: form.transferReference || null, conditionsText: form.conditionsText || null,
+      ...form, totalAmount: total.value, supportManagerId: null,
+      supportManager: manager.value ? { kind: manager.value.kind, userId: manager.value.userId, name: manager.value.name.trim() } : null, transferReference: form.transferReference || null, conditionsText: form.conditionsText || null,
       inKindDescription: form.kind === 'in_kind' ? form.inKindDescription || null : null, bankAccountId: form.bankAccountId || null,
       conditions: { ...form.conditions, endDate: form.conditions.endDate || null, maxSpend: form.conditions.maxSpend || null },
       lines: form.lines.map((l) => ({ ...l, percent: l.mode === 'percent' ? Number(l.percent) : null, amount: l.mode === 'amount' ? Number(l.amount) : null })),
@@ -182,24 +186,24 @@ const addButtons = computed(() => ([
           <h2><span class="step">2</span> الداعم وبيانات التبرع</h2>
           <div class="grid2">
             <div class="field span2"><label>الداعم *</label>
-              <div v-if="form.donorId" class="picked"><b>{{ donorName }}</b><button type="button" class="btn btn-sm" @click="form.donorId = ''">تغيير</button></div>
-              <div v-else class="search-box">
-                <input v-model="donorSearch" class="input" placeholder="ابحث باسم الداعم أو جواله أو رقمه" />
-                <ul v-if="donorResults.length" class="results">
-                  <li v-for="d in donorResults" :key="d.id" @click="pickDonor(d)"><b>{{ d.name }}</b><small class="muted"> · رقم {{ d.donorNo }}{{ d.levelName ? ` · ${d.levelName}` : '' }}</small></li>
-                </ul>
-                <small class="muted">الداعم غير مسجل؟ <RouterLink to="/fundraising/donors">أضفه من سجل الداعمين</RouterLink></small>
-              </div>
+              <SearchSelect
+                v-model="form.donorId" :fetcher="findDonors" :selected-label="donorName" required
+                placeholder="اختر الداعم أو ابحث باسمه أو جواله أو رقمه" empty-text="لا يوجد داعم مطابق" @select="pickDonor"
+              />
+              <small class="muted">الداعم غير مسجل؟ <RouterLink to="/fundraising/donors">أضفه من سجل الداعمين</RouterLink></small>
             </div>
             <div class="field"><label>إجمالي التبرع (ر.س) *</label><input v-model.number="form.totalAmount" type="number" min="1" step="0.01" class="input big" required /></div>
             <div class="field"><label>تاريخ الفرصة *</label><input v-model="form.date" type="date" class="input" required /><small class="muted">{{ hijri(form.date) }}</small></div>
-            <div v-if="form.kind !== 'in_kind'" class="field"><label>الحساب البنكي {{ form.kind === 'cash' ? '*' : '(اختياري للوعد)' }}</label>
-              <select v-model="form.bankAccountId" class="input" :required="form.kind === 'cash'"><option :value="null">—</option>
+            <div v-if="form.kind === 'pledge'" class="field span2 pledge-note">
+              <b>🤝 يُسجَّل الوعد مستحقًا على حساب الداعم المدين</b>
+              <span>لا يرتبط بأي حساب بنكي عند إنشاء الفرصة. وعند سداد الداعم تُضاف دفعة السداد من داخل الفرصة بالمبلغ والحساب البنكي الذي ورد عليه، فيصدر سند قبض وقيد يسدد المستحق.</span>
+            </div>
+            <div v-if="form.kind === 'cash'" class="field"><label>الحساب البنكي *</label>
+              <select v-model="form.bankAccountId" class="input" required><option :value="null">—</option>
                 <option v-for="b in settings.banks.filter((x) => x.isActive)" :key="b.id" :value="b.id">{{ b.bankName }} · {{ b.iban || b.accountNumber }}</option></select>
               <small v-if="!settings.banks.length" class="muted">أضف حسابات الجمعية من الإعدادات أولًا</small></div>
             <div v-if="form.kind === 'cash'" class="field"><label>رقم الحوالة أو المرجع</label><input v-model="form.transferReference" class="input" dir="ltr" /></div>
-            <div class="field"><label>مدير الدعم</label>
-              <select v-model="form.supportManagerId" class="input"><option :value="null">—</option><option v-for="m in settings.managers.filter((x) => x.isActive)" :key="m.id" :value="m.id">{{ m.name }}</option></select></div>
+            <div class="field span2"><label>مدير الدعم</label><SupportManagerPicker v-model="manager" :external-names="externalNames" /></div>
             <div v-if="form.kind === 'in_kind'" class="field span2"><label>وصف التبرع العيني (الأصناف والكميات) *</label><textarea v-model="form.inKindDescription" class="input" rows="3" /></div>
           </div>
         </section>
@@ -229,9 +233,9 @@ const addButtons = computed(() => ([
                   <option :value="null">التبرعات التشغيلية العامة</option>
                   <option v-for="p in targets.operational" :key="p.id" :value="p.id">{{ p.path }}</option>
                 </select>
-                <select v-else-if="l.targetKind === 'waqf'" v-model="l.waqfProjectId" class="input target" required>
-                  <option :value="null" disabled>اختر مشروع الوقف</option>
-                  <option v-for="w in targets.waqf" :key="w.id" :value="w.id">{{ w.name }}</option>
+                <select v-else-if="l.targetKind === 'waqf'" v-model="l.activityId" class="input target" required>
+                  <option :value="null" disabled>{{ targets.waqf.length ? 'اختر مشروع الوقف' : 'لا توجد مشاريع أوقاف معتمدة في إدارة المشاريع' }}</option>
+                  <option v-for="w in targets.waqf" :key="w.id" :value="w.id">{{ w.path }}</option>
                 </select>
                 <button v-else type="button" class="input target case-btn" @click="casePicker = i">
                   <template v-if="caseOf(l.beneficiaryRequestId)">{{ caseOf(l.beneficiaryRequestId)!.beneficiaryName }} · طلب {{ caseOf(l.beneficiaryRequestId)!.requestNo }} · {{ caseOf(l.beneficiaryRequestId)!.projectName }}</template>
@@ -338,12 +342,9 @@ const addButtons = computed(() => ([
 .kind:hover { transform: translateY(-2px); border-color: var(--c); }
 .kind.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 8%, var(--surface)); box-shadow: 0 12px 28px color-mix(in srgb, var(--c) 25%, transparent); }
 .kind.on::after { content: '✓'; position: absolute; top: 10px; inset-inline-end: 12px; width: 22px; height: 22px; border-radius: 50%; background: var(--c); color: #fff; display: grid; place-items: center; font-size: .75rem; }
-.picked { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; background: var(--primary-soft); }
-.picked b { flex: 1; }
-.search-box { position: relative; }
-.results { position: absolute; z-index: 5; inset-inline: 0; top: 44px; list-style: none; margin: 0; padding: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 14px 30px rgba(0,0,0,.12); }
-.results li { padding: 8px 10px; border-radius: 8px; cursor: pointer; }
-.results li:hover { background: var(--surface-2); }
+.pledge-note { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: linear-gradient(160deg, #f5f3ff, var(--surface)); border: 1px dashed #a78bfa; }
+.pledge-note b { color: #6d28d9; }
+.pledge-note span { color: var(--muted); font-size: .86rem; line-height: 1.7; }
 .big { font-size: 1.2rem; font-weight: 700; }
 .zakat-toggle { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1px dashed #e8b04b; background: #fffbeb; cursor: pointer; margin-bottom: 14px; transition: all .25s; }
 .zakat-toggle input { display: none; }

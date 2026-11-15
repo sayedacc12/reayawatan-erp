@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import type { Donor, Settings } from '../types';
+import SupportManagerPicker, { type ManagerRef } from './SupportManagerPicker.vue';
 
 /** نموذج إضافة وتعديل داعم: الحقول الأساسية + الحقول المرنة من الإعدادات */
 const props = defineProps<{ settings: Settings; donor?: Donor | null }>();
@@ -14,6 +15,9 @@ const form = reactive({
   city: d?.city ?? '', levelId: d?.levelId ?? null, supportManagerId: d?.supportManagerId ?? null, notes: d?.notes ?? '', isActive: d?.isActive ?? true,
   customData: { ...(d?.customData ?? {}) } as Record<string, any>,
 });
+const cur = props.settings.managers.find((m) => m.id === d?.supportManagerId);
+const manager = ref<ManagerRef | null>(cur ? { kind: cur.kind, userId: cur.userId ?? null, name: cur.name } : null);
+const externalNames = props.settings.managers.filter((m) => m.kind === 'external' && m.isActive).map((m) => m.name);
 const fields = props.settings.donorFields.filter((f) => f.isActive);
 const saving = ref(false);
 const error = ref('');
@@ -24,7 +28,8 @@ async function save() {
   const nul = (v: string) => v.trim() || null;
   try {
     const body = {
-      ...form, identifier: nul(form.identifier), phone: nul(form.phone), email: nul(form.email), city: nul(form.city), notes: nul(form.notes),
+      ...form, identifier: form.type === 'individual' ? null : nul(form.identifier), supportManagerId: null,
+      supportManager: manager.value ? { kind: manager.value.kind, userId: manager.value.userId, name: manager.value.name.trim() } : null, phone: nul(form.phone), email: nul(form.email), city: nul(form.city), notes: nul(form.notes),
     };
     const saved = await api<Donor>(d ? `/fundraising/donors/${d.id}` : '/fundraising/donors', { method: d ? 'PUT' : 'POST', json: body });
     toast.success(d ? 'تم حفظ بيانات الداعم' : `تم تسجيل الداعم برقم ${saved.donorNo}`);
@@ -49,15 +54,13 @@ async function save() {
             <button type="button" :class="['fr-pill', { on: form.type === 'individual' }]" @click="form.type = 'individual'">فرد</button>
             <button type="button" :class="['fr-pill', { on: form.type === 'entity' }]" @click="form.type = 'entity'">جهة (شركة، مؤسسة، جهة حكومية)</button>
           </div></div>
-        <div class="field"><label>{{ form.type === 'entity' ? 'رقم السجل التجاري' : 'رقم الهوية' }}</label><input v-model="form.identifier" class="input" dir="ltr" /></div>
+        <div v-if="form.type === 'entity'" class="field"><label>رقم السجل التجاري أو الرقم الموحد</label><input v-model="form.identifier" class="input" dir="ltr" /></div>
         <div class="field"><label>الجوال</label><input v-model="form.phone" class="input" dir="ltr" placeholder="05xxxxxxxx" /></div>
         <div class="field"><label>البريد الإلكتروني</label><input v-model="form.email" class="input" dir="ltr" /></div>
         <div class="field"><label>المدينة</label><input v-model="form.city" class="input" /></div>
         <div class="field"><label>المستوى</label>
           <select v-model="form.levelId" class="input"><option :value="null">—</option><option v-for="l in settings.levels" :key="l.id" :value="l.id">{{ l.name }}</option></select></div>
-        <div class="field"><label>مدير الدعم</label>
-          <select v-model="form.supportManagerId" class="input"><option :value="null">—</option>
-            <option v-for="m in settings.managers.filter((x) => x.isActive || x.id === form.supportManagerId)" :key="m.id" :value="m.id">{{ m.name }}{{ m.kind === 'external' ? ' (جهة خارجية)' : '' }}</option></select></div>
+        <div class="field span2"><label>مدير الدعم</label><SupportManagerPicker v-model="manager" :external-names="externalNames" /></div>
         <template v-for="f in fields" :key="f.key">
           <div :class="['field', { span2: f.type === 'textarea' }]">
             <label>{{ f.label }}{{ f.required ? ' *' : '' }}</label>

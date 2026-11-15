@@ -180,15 +180,15 @@ const cats = (c: string[]) => (c.length ? c.map((x) => label('category', x)).joi
                   <RouterLink v-if="b.beneficiaryRequestId" :to="`/beneficiaries/requests/${b.beneficiaryRequestId}`" class="small-link" @click.stop>عرض الطلب ←</RouterLink></td>
                 <td>{{ b.allocationMode === 'percent' ? `${b.percent}%` : 'مبلغ' }}</td>
                 <td class="fr-amount">{{ sar(b.amount) }}</td><td>{{ sar(b.reservedAmount) }}</td><td>{{ sar(b.spentAmount) }}</td><td><b>{{ sar(b.net) }}</b></td>
-                <td><span class="fr-badge" :style="{ '--c': color('batch', b.status) }">{{ label('batch', b.status) }}</span><span v-if="b.isPromised" class="muted"> · موعود</span></td>
+                <td><span class="fr-badge" :style="{ '--c': color('batch', b.status) }">{{ label('batch', b.status) }}</span><span v-if="b.isPromised" class="muted" title="وعد بالدفع: يُصرف قبل السداد ويبقى مستحقًا على الداعم"> · تبرع آجل</span></td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <section v-if="o.kind === 'pledge' && o.status === 'approved'" class="fr-panel collect">
-          <h2>سداد الوعد <span class="muted">· المتبقي {{ sar(outstanding) }}</span>
-            <button v-if="outstanding > 0 && session.can('fundraising.pledges.collect')" class="btn btn-primary btn-sm push" @click="collect.open = !collect.open; collect.amount = outstanding">+ تسجيل سداد</button></h2>
+          <h2>دفعات سداد الوعد <span class="muted">· المستحق على الداعم {{ sar(outstanding) }}</span>
+            <button v-if="outstanding > 0 && session.can('fundraising.pledges.collect')" class="btn btn-primary btn-sm push" @click="collect.open = !collect.open; collect.amount = outstanding">+ إضافة دفعة سداد</button></h2>
           <div v-if="collect.open" class="collect-form">
             <input v-model="collect.date" type="date" class="input" />
             <input v-model.number="collect.amount" type="number" min="0.01" step="0.01" class="input" placeholder="المبلغ" />

@@ -37,7 +37,7 @@ export class FinanceSeed {
         { key: 'birth_date', label: 'تاريخ الميلاد', type: 'date' },
       ],
     });
-    const item = <T extends { id: string }>(list: 'levels' | 'managers' | 'banks' | 'waqf', dto: object) =>
+    const item = <T extends { id: string }>(list: 'levels' | 'managers' | 'banks', dto: object) =>
       this.settings.createItem(admin, list, dto as never) as unknown as Promise<T>;
     const platinum = await item('levels', { name: 'بلاتيني', color: '#6b7280', minAmount: 100000, sortOrder: 1 });
     const gold = await item('levels', { name: 'ذهبي', color: '#d4a017', minAmount: 50000, sortOrder: 2 });
@@ -50,7 +50,6 @@ export class FinanceSeed {
     const ahli = await item('banks', {
       bankName: 'البنك الأهلي السعودي', accountName: 'جمعية سنابل الخير', accountNumber: '01400000123456', iban: 'SA4410000001400000123456', glCode: '1112', glName: 'البنك - البنك الأهلي السعودي',
     });
-    const waqf = await item('waqf', { name: 'وقف سنابل التعليمي', description: 'وقف يُصرف ريعه على تعليم أبناء الأسر المستفيدة', targetAmount: 500000 });
     await this.settings.saveStages(admin, {
       stages: [
         { name: 'التدقيق المالي', instructions: 'طابق الحوالة مع كشف الحساب وتأكد من توزيع البنود', roleId: team.roles.finance, canReject: true, canReturn: true },
@@ -128,7 +127,7 @@ export class FinanceSeed {
     const o5 = await create({
       kind: 'cash', donorId: noura.id, supportManagerId: sara.id, date: daysAgo(12), totalAmount: 25000, bankAccountId: rajhi.id,
       transferReference: 'RJH-2026-01033',
-      lines: [{ targetKind: 'waqf', waqfProjectId: waqf.id, mode: 'amount', amount: 25000 }],
+      lines: [{ targetKind: 'waqf', activityId: extra.endowment, mode: 'amount', amount: 25000 }],
     });
     await approveAll(o5);
 

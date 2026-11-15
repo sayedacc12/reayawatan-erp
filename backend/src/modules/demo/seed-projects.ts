@@ -9,6 +9,7 @@ import { DemoTeam, DemoTree, daysAgo, daysAhead } from './demo-context';
 export interface DemoExtraProjects {
   operations: string;
   awareness: string;
+  endowment: string;
 }
 
 /**
@@ -90,7 +91,16 @@ export class ProjectsSeed {
       fundingType: 'restricted', zakatEligible: true, managerName: 'خالد إبراهيم', budget: 25000,
     });
 
-    return { operations: operations!.id, awareness: awareness!.id };
+    // مشروع وقف: يُنشأ ويُعتمد هنا في إدارة المشاريع، ثم يُسوَّق في فرص التبرع
+    const waqfAxis = await this.projects.createNode(pm, { level: 'axis', name: 'الأوقاف' });
+    const waqfProgram = await this.projects.createNode(pm, { level: 'program', name: 'أوقاف التعليم', parentId: waqfAxis!.id });
+    const endowment = await this.projects.createNode(pm, {
+      level: 'project', parentId: waqfProgram!.id, name: 'وقف سنابل التعليمي', description: 'وقف يُصرف ريعه على تعليم أبناء الأسر المستفيدة',
+      fundingType: 'endowment' as never, spendingMode: 'general', managerName: 'عبدالله الشهري', budget: 500000, goals: 'جمع 500 ألف ريال لأصل الوقف', ...year,
+    });
+    await this.approve(team, endowment!.id);
+
+    return { operations: operations!.id, awareness: awareness!.id, endowment: endowment!.id };
   }
 
   /** إرسال المشروع للاعتماد ثم موافقة المرحلتين */
