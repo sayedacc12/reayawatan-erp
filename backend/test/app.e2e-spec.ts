@@ -85,8 +85,8 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     const res = await login('PLATFORM@test.org', 'Platform123').expect(200);
     platformToken = res.body.accessToken;
     expect(res.body.user.isPlatformAdmin).toBe(true);
-    expect(res.body.user.permissions).toEqual(['platform.organizations.manage', 'platform.reports.read', 'platform.subscriptions.manage', 'platform.support.manage']);
-    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['platform']);
+    expect(res.body.user.permissions).toEqual(['platform.organizations.manage', 'platform.reports.read', 'platform.subscriptions.manage', 'support.manage', 'support.reports', 'support.work']);
+    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['platform', 'support']);
 
     await http.post('/api/platform/organizations').set(as(platformToken)).send({
       name: 'جمعية البر', slug: 'al-bir', adminFullName: 'مدير البر', adminEmail: 'admin@test.org', adminPassword: 'Admin12345',

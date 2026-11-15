@@ -47,6 +47,10 @@ export class User {
   @Column({ name: 'is_platform_admin', default: false })
   isPlatformAdmin!: boolean;
 
+  /** دور عضو فريق المنصة: فارغ = مالك المنصة (كل الصلاحيات)، أو مدير دعم، أو موظف دعم */
+  @Column({ name: 'platform_role', type: 'varchar', length: 24, nullable: true })
+  platformRole!: 'support_manager' | 'support_agent' | null;
+
   @ManyToMany(() => Role)
   @JoinTable({
     name: 'user_roles',

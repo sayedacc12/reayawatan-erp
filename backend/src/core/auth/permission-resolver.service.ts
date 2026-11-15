@@ -1,3 +1,4 @@
+import { PLATFORM_ROLE_PERMISSIONS } from '../support/support.manifest';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -31,7 +32,9 @@ export class PermissionResolver {
 
     let codes: string[];
     if (user.isPlatformAdmin) {
-      codes = this.catalog.permissionCodes('platform');
+      const all = this.catalog.permissionCodes('platform');
+      // فريق الدعم يرى تطبيق الدعم الفني فقط حسب دوره
+      codes = user.platformRole ? all.filter((c) => PLATFORM_ROLE_PERMISSIONS[user.platformRole!]?.includes(c)) : all;
     } else {
       // صلاحيات الوحدات غير المفعلة للجمعية لا تُحسب حتى لو موجودة في الأدوار
       const enabled = await this.catalog.enabledModuleCodes(user.organizationId!);

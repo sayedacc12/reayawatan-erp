@@ -38,7 +38,7 @@ export interface TicketSla {
 }
 export interface TicketSummary {
   id: string; number: string; subject: string; category: string; priority: string; requestedPriority: string; status: string;
-  screen: string | null; createdByName: string; contactPhone: string | null; assigneeName: string | null;
+  screen: string | null; createdByName: string; contactPhone: string | null; assigneeId?: string | null; assigneeName: string | null;
   createdAt: string; updatedAt: string; firstResponseAt: string | null; resolvedAt: string | null; closedAt: string | null;
   escalatedAt: string | null; rating: number | null; organization?: { id: string; name: string; slug: string }; sla: TicketSla;
 }
@@ -47,6 +47,7 @@ export interface TicketDetail extends TicketSummary {
   history: { step: string; by: string; at: string; note?: string }[];
   messages: { id: string; side: 'org' | 'platform'; authorName: string; body: string; isInternal: boolean; createdAt: string; file: { name: string; mime: string } | null }[];
   canReopen: boolean;
+  tasks?: { id: string; number: string; title: string; status: string; assigneeName: string; dueAt: string; spentHours: number }[];
 }
 
 /** المدة بالساعات بصيغة مقروءة */
@@ -83,3 +84,34 @@ export function historyLabel(h: { step: string; note?: string }) {
 }
 /** ملاحظة الحدث تُعرض فقط إن لم تكن جزءًا من الوصف */
 export const historyNote = (h: { step: string; note?: string }) => (h.step === 'status' || h.step === 'assigned' ? '' : h.note ?? '');
+
+export const TASK_STATUS: Record<string, { label: string; tone: string }> = {
+  todo: { label: 'لم تبدأ', tone: 'muted' },
+  in_progress: { label: 'قيد التنفيذ', tone: 'info' },
+  done: { label: 'منجزة', tone: 'ok' },
+  cancelled: { label: 'ملغاة', tone: 'bad' },
+};
+
+export const ROLE: Record<string, string> = {
+  owner: 'مالك المنصة',
+  support_manager: 'مدير الدعم',
+  support_agent: 'موظف الدعم',
+};
+
+export interface SupportTask {
+  id: string; number: string; title: string; description: string; priority: string; status: string;
+  assigneeId: string; assigneeName: string; createdByName: string; dueAt: string; estimatedHours: number | null; spentHours: number;
+  startedAt: string | null; completedAt: string | null; createdAt: string; overdue: boolean; onTime: boolean | null;
+  history: { step: string; by: string; at: string; note?: string; hours?: number }[];
+  ticket: { id: string; number: string; subject: string } | null;
+}
+
+export interface MemberScore {
+  id: string; fullName: string; role: string; responses: number; responseCompliance: number | null; avgResponseHours: number | null;
+  resolved: number; resolutionCompliance: number | null; avgResolutionHours: number | null;
+  tasksDone: number; tasksOnTime: number; tasksOverdue: number; taskCompliance: number | null; hoursLogged: number;
+  avgRating: number | null; ratings: number; score: number | null; grade: string;
+}
+
+export const SUPPORT_MANAGE = 'support.manage';
+export const scoreTone = (n: number | null) => (n === null ? 'muted' : n >= 90 ? 'ok' : n >= 70 ? 'info' : n >= 60 ? 'warn' : 'bad');

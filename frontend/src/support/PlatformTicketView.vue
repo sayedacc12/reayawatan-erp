@@ -2,15 +2,21 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { api } from '../api';
+import { useSession } from '../stores/session';
 import { useToast } from '../stores/toast';
+import TaskForm from './TaskForm.vue';
 import '../modules/platform/platform.css';
 import SlaBadge from './SlaBadge.vue';
 import TicketThread from './TicketThread.vue';
-import { CATEGORY, PRIORITY, STATUS, fmtDT, historyLabel, historyNote, hoursLabel, type TicketDetail } from './support';
+import { CATEGORY, PRIORITY, STATUS, SUPPORT_MANAGE, TASK_STATUS, fmtDT, historyLabel, historyNote, hoursLabel, type TicketDetail } from './support';
 
 /** معالجة طلب صيانة لدى مدير المنصة */
 const route = useRoute();
 const toast = useToast();
+const session = useSession();
+const manager = session.can(SUPPORT_MANAGE);
+const myId = session.user?.id;
+const taskOpen = ref(false);
 const id = route.params.id as string;
 const t = ref<TicketDetail | null>(null);
 const team = ref<{ id: string; fullName: string }[]>([]);
@@ -25,8 +31,8 @@ let timer: ReturnType<typeof setInterval>;
 async function load() {
   try {
     [t.value, team.value] = await Promise.all([
-      api<TicketDetail>(`/platform/support/tickets/${id}`),
-      api<{ id: string; fullName: string }[]>('/platform/support/team'),
+      api<TicketDetail>(`/support-desk/tickets/${id}`),
+      api<{ id: string; fullName: string }[]>('/support-desk/assignees'),
     ]);
     newPriority.value = t.value.priority;
   } catch (e) {
@@ -50,14 +56,14 @@ async function run(fn: () => Promise<TicketDetail>, msg: string) {
     busy.value = false;
   }
 }
-const patch = (json: Record<string, unknown>, msg: string) => run(() => api<TicketDetail>(`/platform/support/tickets/${id}`, { method: 'PATCH', json }), msg);
+const patch = (json: Record<string, unknown>, msg: string) => run(() => api<TicketDetail>(`/support-desk/tickets/${id}`, { method: 'PATCH', json }), msg);
 const assign = (assigneeId: string) => assigneeId && patch({ assigneeId }, 'تم إسناد الطلب');
 const setStatus = (status: string) => patch({ status }, 'تم تحديث الحالة');
 async function changePriority() {
   if (await patch({ priority: newPriority.value, priorityReason: priorityReason.value }, 'تم تعديل مستوى الخدمة وإبلاغ الجمعية')) priorityReason.value = '';
 }
 async function escalate() {
-  if (await run(() => api<TicketDetail>(`/platform/support/tickets/${id}/escalate`, { method: 'POST', json: { note: escNote.value } }), 'تم تصعيد الطلب')) escNote.value = '';
+  if (await run(() => api<TicketDetail>(`/support-desk/tickets/${id}/escalate`, { method: 'POST', json: { note: escNote.value } }), 'تم تصعيد الطلب')) escNote.value = '';
 }
 const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status);
 </script>
@@ -66,10 +72,11 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
   <div v-if="t">
     <section class="p-hero">
       <div>
-        <p class="p-kicker"><RouterLink to="/platform/support" class="back">طلبات الصيانة</RouterLink> / <span dir="ltr">{{ t.number }}</span></p>
+        <p class="p-kicker"><RouterLink to="/support-desk/tickets" class="back">طلبات الصيانة</RouterLink> / <span dir="ltr">{{ t.number }}</span></p>
         <h1>{{ t.subject }}</h1>
         <p class="p-sub">
-          <RouterLink v-if="t.organization" :to="`/platform/organizations/${t.organization.id}`" class="back">{{ t.organization.name }}</RouterLink>
+          <RouterLink v-if="t.organization && session.can('platform.organizations.manage')" :to="`/platform/organizations/${t.organization.id}`" class="back">{{ t.organization.name }}</RouterLink>
+          <template v-else-if="t.organization">{{ t.organization.name }}</template>
           · {{ CATEGORY[t.category] }}<template v-if="t.screen"> · الشاشة: {{ t.screen }}</template>
           · {{ t.createdByName }}<template v-if="t.contactPhone"> · <span dir="ltr">{{ t.contactPhone }}</span></template>
         </p>
@@ -87,7 +94,18 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
 
     <div class="layout">
       <div>
-        <TicketThread :ticket="t" base="/platform/support" platform @updated="t = $event" />
+        <TicketThread :ticket="t" base="/support-desk" platform @updated="t = $event" />
+        <section class="card p-panel">
+          <h2>🧩 مهام العمل على هذا الطلب <button v-if="t.status !== 'closed' && t.status !== 'resolved'" class="btn btn-sm add" @click="taskOpen = true">+ مهمة</button></h2>
+          <RouterLink v-for="k in t.tasks" :key="k.id" :to="`/support-desk/tasks/${k.id}`" class="task-row">
+            <b dir="ltr">{{ k.number }}</b>
+            <span class="grow">{{ k.title }}<small class="muted"> · {{ k.assigneeName }} · التسليم {{ fmtDT(k.dueAt) }}</small></span>
+            <small class="muted">{{ k.spentHours }} س</small>
+            <span :class="['tone', `tone-${TASK_STATUS[k.status].tone}`]">{{ TASK_STATUS[k.status].label }}</span>
+          </RouterLink>
+          <p v-if="!t.tasks?.length" class="muted">لا توجد مهام. قسّم العمل على الفريق بإضافة مهام بمواعيد تسليم.</p>
+        </section>
+        <TaskForm v-if="taskOpen" :ticket="{ id: t.id, number: t.number, priority: t.priority }" :team="team" @close="taskOpen = false" @saved="taskOpen = false; load()" />
       </div>
       <aside>
         <section class="card p-panel">
@@ -104,7 +122,12 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
 
         <section v-if="t.status !== 'closed'" class="card p-panel">
           <h2>⚙️ الإجراءات</h2>
-          <div class="field">
+          <div v-if="!manager" class="field">
+            <label>المسؤول عن الطلب</label>
+            <p v-if="t.assigneeName" class="assignee">{{ t.assigneeName }}</p>
+            <button v-else class="btn btn-primary btn-sm" :disabled="busy" @click="assign(myId!)">استلام الطلب</button>
+          </div>
+          <div v-else class="field">
             <label>المسؤول عن الطلب</label>
             <select class="input" :value="team.find((u) => u.fullName === t!.assigneeName)?.id ?? ''" :disabled="busy" @change="assign(($event.target as HTMLSelectElement).value)">
               <option value="" disabled>اختر من فريق المنصة</option>
@@ -117,7 +140,7 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
               <button v-for="s in ['in_progress', 'waiting_customer', 'resolved']" :key="s" :class="['btn btn-sm', { 'btn-primary': t.status === s }]" :disabled="busy || t.status === s" @click="setStatus(s)">{{ STATUS[s].label }}</button>
             </div>
           </div>
-          <form class="field" @submit.prevent="changePriority">
+          <form v-if="manager" class="field" @submit.prevent="changePriority">
             <label>تعديل مستوى الخدمة</label>
             <select v-model="newPriority" class="input"><option v-for="(p, k) in PRIORITY" :key="k" :value="k">{{ p.icon }} {{ p.label }}</option></select>
             <template v-if="newPriority !== t.priority">
@@ -163,5 +186,10 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
 .mt { margin-top: 8px; }
 .gold { color: #e8b04b; }
 .small { font-size: .85rem; }
+.assignee { margin: 0; font-weight: 600; }
+.add { margin-inline-start: auto; }
+.task-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 8px; color: var(--text); border-bottom: 1px solid var(--border); }
+.task-row:hover { background: var(--surface-2); }
+.grow { flex: 1; }
 .steps { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; }
 </style>

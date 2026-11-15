@@ -19,7 +19,7 @@ function fill(ls: SlaLevel[]) {
   levels.value = ls.map((l) => ({ ...l, examplesText: l.examples.join('\n'), handlingText: l.handling.join('\n') }));
 }
 onMounted(async () => {
-  try { fill(await api<SlaLevel[]>('/platform/support/sla')); } catch (e) { error.value = (e as Error).message; }
+  try { fill(await api<SlaLevel[]>('/support-desk/sla')); } catch (e) { error.value = (e as Error).message; }
 });
 const lines = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean);
 
@@ -27,7 +27,7 @@ async function save() {
   busy.value = true;
   try {
     const payload = levels.value.map(({ examplesText, handlingText, ...l }) => ({ ...l, examples: lines(examplesText), handling: lines(handlingText) }));
-    fill(await api<SlaLevel[]>('/platform/support/sla', { method: 'PUT', json: { levels: payload } }));
+    fill(await api<SlaLevel[]>('/support-desk/sla', { method: 'PUT', json: { levels: payload } }));
     editing.value = false;
     toast.success('تم حفظ مستويات الخدمة، وتسري على الطلبات الجديدة');
   } catch (e) {
@@ -42,7 +42,7 @@ async function save() {
   <div>
     <section class="p-hero">
       <div>
-        <p class="p-kicker">خدمة العملاء</p>
+        <p class="p-kicker">الدعم الفني</p>
         <h1>مستويات الخدمة وآلية التعامل</h1>
         <p class="p-sub">خمسة مستويات تحدد مهلة أول رد ومهلة الحل وخطوات المعالجة والتصعيد. تظهر هذه الآلية للجمعيات عند تقديم الطلب، وتُحسب المهل تلقائيًا وتتوقف أثناء انتظار رد الجمعية.</p>
       </div>

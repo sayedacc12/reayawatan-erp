@@ -3,10 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { APPLICATION_STATUS, CONTRACT_STATUS, fmtDate, money, ORG_STATE } from '../labels';
 import '../platform.css';
-import SupportReport from '../../../support/SupportReport.vue';
-import { useSession } from '../../../stores/session';
 
-const session = useSession();
 
 interface Item { id: string; name: string; slug: string; date: string | null; state?: string }
 interface Report {
@@ -144,7 +141,6 @@ const daysLeft = (d: string | null) => (d ? Math.ceil((new Date(`${d}T23:59:59`)
         </div>
       </section>
     </template>
-    <SupportReport v-if="session.can('platform.support.manage')" />
   </div>
 </template>
 
