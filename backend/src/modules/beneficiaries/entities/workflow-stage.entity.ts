@@ -53,4 +53,12 @@ export class WorkflowStage {
 
   @Column({ name: 'can_return', default: true })
   canReturn!: boolean;
+
+  /**
+   * standard: قرار عادي
+   * contribution: تأكيد مساهمة المستفيد؛ المستفيد يرفق إثبات المساهمة من البوابة والجمعية تتحقق.
+   * لو مفيش مساهمة مطلوبة على الطلب، المرحلة بتتعدى تلقائيًا.
+   */
+  @Column({ type: 'varchar', length: 20, default: 'standard' })
+  kind!: 'standard' | 'contribution';
 }

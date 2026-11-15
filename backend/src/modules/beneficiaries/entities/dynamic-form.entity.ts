@@ -12,6 +12,21 @@ export interface FormField {
   /** خيارات حقل القائمة */
   options?: string[];
   placeholder?: string;
+  /** في نموذج التقييم: الأهمية النسبية للبند (% من 100) */
+  weight?: number;
+  /** درجة كل خيار من 100 (بنفس ترتيب options) */
+  optionScores?: number[];
+}
+
+export type ScoreOutcome = 'reject' | 'approve' | 'contribution';
+
+/** قاعدة على نتيجة البحث: من درجة إلى درجة ← رفض / قبول / قبول بمساهمة من المستفيد */
+export interface ScoreRule {
+  min: number;
+  max: number;
+  outcome: ScoreOutcome;
+  /** نسبة تحمّل المستفيد من التكلفة (لـ contribution) */
+  contributionPercent?: number;
 }
 
 /** نموذج يعرّفه مدير النظام من الإعدادات (مثل نموذج البحث الاجتماعي) */
@@ -35,6 +50,14 @@ export class DynamicForm {
 
   @Column({ type: 'jsonb', default: () => `'[]'` })
   fields!: FormField[];
+
+  /** نموذج تقييم: لكل بند أهمية نسبية ولكل اختيار درجة، والنظام يحسب نتيجة من 100 */
+  @Column({ default: false })
+  scored!: boolean;
+
+  /** قواعد التعامل مع نتيجة التقييم */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  rules!: ScoreRule[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

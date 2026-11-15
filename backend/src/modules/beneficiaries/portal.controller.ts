@@ -1,7 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { MAX_DOCUMENT_BYTES } from './constants';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../core/auth/decorators';
-import { PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
+import { ContributionDto, PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
 import { CurrentPortalUser, PortalGuard, PortalUser } from './portal.guard';
 import { PortalService } from './portal.service';
 import { ResubmitDto } from './requests.dto';
@@ -51,7 +54,7 @@ export class PortalController {
   @UseGuards(PortalGuard)
   @Get('projects')
   projects(@CurrentPortalUser() p: PortalUser) {
-    return this.portal.projects(p.organizationId);
+    return this.portal.projects(p.organizationId, p.beneficiaryId);
   }
 
   @UseGuards(PortalGuard)
@@ -77,6 +80,18 @@ export class PortalController {
   @HttpCode(200)
   resubmit(@CurrentPortalUser() p: PortalUser, @Param('id', uuid) id: string, @Body() dto: ResubmitDto) {
     return this.portal.resubmit(p, id, dto);
+  }
+
+  /** رفع إثبات مساهمة المستفيد */
+  @UseGuards(PortalGuard)
+  @Post('requests/:id/contribution')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_DOCUMENT_BYTES, files: 1 } }))
+  contribution(
+    @CurrentPortalUser() p: PortalUser, @Param('id', uuid) id: string, @Body() dto: ContributionDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.portal.submitContribution(p, id, dto.amount, file);
   }
 
   @UseGuards(PortalGuard)

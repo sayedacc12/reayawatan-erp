@@ -6,8 +6,8 @@ import { OrgUser } from '../../core/auth/decorators';
 import { Organization, Permission, Role, User } from '../../core/entities';
 import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
 import { BeneficiariesService } from './beneficiaries.service';
-import { normalizeFields } from './dynamic-forms';
-import { Activity, Beneficiary, DynamicForm, FamilyMember, Ticket, Workflow, WorkflowStage } from './entities';
+import { normalizeFields, normalizeRules } from './dynamic-forms';
+import { Activity, Beneficiary, BeneficiarySettings, DynamicForm, FamilyMember, Ticket, Workflow, WorkflowStage } from './entities';
 import { RequestsService } from './requests.service';
 
 const DEMO_SLUG = 'demo';
@@ -83,14 +83,21 @@ export class DemoService {
       ]),
     }));
     const researchForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية',
+      organizationId: orgId, name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية، والنظام بيحسب نتيجة التقييم',
+      scored: true,
       fields: normalizeFields([
         { key: 'visit_date', label: 'تاريخ الزيارة', type: 'date', required: true },
-        { key: 'housing', label: 'حالة السكن', type: 'select', required: true, options: ['جيدة', 'متوسطة', 'سيئة'] },
+        { key: 'housing', label: 'حالة السكن', type: 'select', required: true, options: ['جيدة', 'متوسطة', 'سيئة'], weight: 30, optionScores: [0, 50, 100] },
         { key: 'rooms', label: 'عدد الغرف', type: 'number' },
+        { key: 'no_income', label: 'لا يوجد دخل ثابت للأسرة', type: 'checkbox', weight: 20 },
         { key: 'income_verified', label: 'تم التحقق من الدخل', type: 'checkbox' },
-        { key: 'assessment', label: 'تقييم الباحث', type: 'select', required: true, options: ['مستحق جدًا', 'مستحق', 'غير مستحق'] },
+        { key: 'assessment', label: 'تقييم الباحث', type: 'select', required: true, options: ['مستحق جدًا', 'مستحق', 'غير مستحق'], weight: 50, optionScores: [100, 60, 0] },
         { key: 'recommendation', label: 'توصية الباحث', type: 'textarea', required: true },
+      ], true),
+      rules: normalizeRules([
+        { min: 0, max: 39.99, outcome: 'reject' },
+        { min: 40, max: 69.99, outcome: 'contribution', contributionPercent: 30 },
+        { min: 70, max: 100, outcome: 'approve' },
       ]),
     }));
     const workflow = await em.save(em.create(Workflow, {
@@ -101,6 +108,7 @@ export class DemoService {
       { name: 'مراجعة الطلب', instructions: 'تأكد من اكتمال البيانات والمستندات', roleId: managerRole.id, canReject: true },
       { name: 'البحث الاجتماعي', instructions: 'زيارة ميدانية وتعبئة نموذج البحث', formId: researchForm.id, roleId: researcherRole.id, canReject: false },
       { name: 'لجنة الحالات', instructions: 'مناقشة الحالة وتحديد نوع المساعدة' },
+      { name: 'تأكيد مساهمة المستفيد', kind: 'contribution' as const, instructions: 'راجع إثبات المساهمة اللي رفعه المستفيد من البوابة', roleId: managerRole.id },
       { name: 'الاعتماد النهائي', instructions: 'اعتماد الطلب من مدير الحالات', roleId: managerRole.id },
     ];
     for (const [i, s] of stages.entries()) {
@@ -108,20 +116,33 @@ export class DemoService {
     }
 
     let order = 0;
-    const act = (level: Activity['level'], name: string, parentId: string | null, description?: string) =>
-      em.save(em.create(Activity, { organizationId: orgId, level, name, parentId, description: description ?? null, sortOrder: ++order }));
+    const act = (level: Activity['level'], name: string, parentId: string | null, description?: string, rules: Partial<Activity> = {}) =>
+      em.save(em.create(Activity, { organizationId: orgId, level, name, parentId, description: description ?? null, sortOrder: ++order, ...rules }));
     const social = await act('axis', 'الرعاية الاجتماعية', null);
     const sponsorship = await act('program', 'كفالة الأسر', social.id);
-    const orphans = await act('project', 'كفالة الأيتام', sponsorship.id, 'كفالة شهرية للأيتام وأسرهم');
-    const widows = await act('project', 'كفالة الأرامل', sponsorship.id, 'دعم شهري للأرامل المعيلات');
+    const orphans = await act('project', 'كفالة الأيتام', sponsorship.id, 'كفالة شهرية للأيتام وأسرهم', { recurrence: 'monthly' });
+    const widows = await act('project', 'كفالة الأرامل', sponsorship.id, 'دعم شهري للأرامل المعيلات', { recurrence: 'monthly' });
     const food = await act('program', 'الأمن الغذائي', social.id);
-    const ramadan = await act('project', 'سلة رمضان', food.id, 'سلة غذائية شهرية خلال رمضان');
+    const ramadan = await act('project', 'سلة رمضان', food.id, 'سلة غذائية شهرية خلال رمضان', { recurrence: 'yearly' });
     const health = await act('axis', 'الرعاية الصحية', null);
     const treatment = await act('program', 'العلاج', health.id);
-    const surgery = await act('project', 'دعم العمليات الجراحية', treatment.id, 'المساهمة في تكاليف العمليات');
+    const surgery = await act('project', 'دعم العمليات الجراحية', treatment.id, 'المساهمة في تكاليف العمليات', {
+      recurrence: 'once', multiServices: true,
+      services: [{ name: 'عملية جراحية', cost: 25000 }, { name: 'أشعة وتحاليل', cost: 2000 }, { name: 'أدوية بعد العملية', cost: 1500 }],
+    });
     const education = await act('axis', 'التعليم', null);
     const students = await act('program', 'دعم الطلاب', education.id);
-    const school = await act('project', 'الحقيبة المدرسية', students.id, 'أدوات ومصروفات مدرسية');
+    const school = await act('project', 'الحقيبة المدرسية', students.id, 'أدوات ومصروفات مدرسية', {
+      recurrence: 'yearly', multiServices: true,
+      services: [{ name: 'حقيبة مدرسية', cost: 400 }, { name: 'مصروفات دراسية', cost: 1100 }, { name: 'زي مدرسي', cost: 300 }],
+    });
+
+    await em.save(em.create(BeneficiarySettings, {
+      organizationId: orgId,
+      contributionDebitCode: '1101', contributionDebitName: 'الصندوق',
+      contributionCreditCode: '4103', contributionCreditName: 'إيرادات مساهمات المستفيدين',
+      contributionDescription: 'مساهمة مستفيد في تكلفة الحالة',
+    }));
 
     const actor: OrgUser = {
       id: admin.id, organizationId: orgId, organizationName: null, organizationSlug: DEMO_SLUG, email: admin.email, username: null,
@@ -172,15 +193,15 @@ export class DemoService {
     }
 
     const actorOf = (name: string, i: number) => ({ organizationId: orgId, userId: null, name: people[i].portal ? people[i].fullName : name });
-    const submit = (i: number, projectId: string, reason: string, members: number, amount?: number) =>
+    const submit = (i: number, projectId: string, reason: string, members: number, amount?: number, services?: string[]) =>
       this.requests.create(actorOf(setup.actor.fullName, i), {
-        beneficiaryId: ids[i], projectId,
+        beneficiaryId: ids[i], projectId, services,
         applicationData: { reason, members, amount, has_income: false },
       }, people[i].portal ? 'portal' : 'staff');
     const decide = (id: string, decision: 'approve' | 'reject' | 'return', notes?: string, formData?: Record<string, unknown>) =>
       this.requests.decide(setup.actor, id, { decision, notes, formData });
-    const research = (assessment: string, recommendation: string) => ({
-      visit_date: daysAgo(5), housing: 'سيئة', rooms: 2, income_verified: true, assessment, recommendation,
+    const research = (assessment: string, recommendation: string, housing = 'سيئة', noIncome = true) => ({
+      visit_date: daysAgo(5), housing, rooms: 2, no_income: noIncome, income_verified: true, assessment, recommendation,
     });
 
     // 1) معتمد نهائيًا ومصروف عليه
@@ -191,13 +212,11 @@ export class DemoService {
     await decide(r1, 'approve', 'اعتماد نهائي');
     await this.beneficiaries.addAid(setup.actor, ids[0], { aidType: 'cash', amount: 1000, disbursedOn: daysAgo(2), description: 'كفالة شهر', referenceNo: 'R-1001', requestId: r1 });
 
-    // 2) معتمد (علاج)
-    const r2 = await submit(1, setup.projects.surgery, 'محتاج عملية قلب مفتوح والتأمين لا يغطي', 2, 25000);
+    // 2) علاج: التقييم 45% فالقواعد بتطلب مساهمة 30% من المستفيد، ومستني يرفع إثبات المساهمة من البوابة
+    const r2 = await submit(1, setup.projects.surgery, 'محتاج عملية قلب مفتوح والتأمين لا يغطي', 2, 25000, ['عملية جراحية']);
     await decide(r2, 'approve');
-    await decide(r2, 'approve', undefined, research('مستحق', 'المساهمة بنصف تكلفة العملية'));
-    await decide(r2, 'approve', 'المساهمة بـ 12000');
-    await decide(r2, 'approve', 'اعتماد نهائي');
-    await this.beneficiaries.addAid(setup.actor, ids[1], { aidType: 'medical', amount: 12000, disbursedOn: daysAgo(1), description: 'مساهمة في عملية قلب', requestId: r2 });
+    await decide(r2, 'approve', undefined, research('مستحق', 'الأسرة تقدر تساهم بجزء من التكلفة', 'متوسطة', false));
+    await decide(r2, 'approve', 'الجمعية تتحمل 70% والمستفيد 30%');
 
     // 3) في مرحلة البحث الاجتماعي
     const r3 = await submit(2, setup.projects.orphans, 'يتيمة الأب والأم وأعيش مع إخوتي عند خالتي', 3);
@@ -208,12 +227,12 @@ export class DemoService {
     await decide(r4, 'return', 'برجاء رفع صورة البطاقة وإيصال المعاش');
 
     // 5) في لجنة الحالات
-    const r5 = await submit(4, setup.projects.school, 'ثلاثة أطفال في المدارس ومحتاجة أدوات', 4, 1500);
+    const r5 = await submit(4, setup.projects.school, 'ثلاثة أطفال في المدارس ومحتاجة أدوات', 4, 1500, ['حقيبة مدرسية', 'مصروفات دراسية']);
     await decide(r5, 'approve');
     await decide(r5, 'approve', undefined, research('مستحق', 'حقيبة مدرسية لكل طفل'));
 
     // 6) مرفوض
-    const r6 = await submit(5, setup.projects.school, 'طالب جامعي ومحتاج مصاريف', 1, 3000);
+    const r6 = await submit(5, setup.projects.school, 'طالب جامعي ومحتاج مصاريف', 1, 3000, ['مصروفات دراسية']);
     await decide(r6, 'reject', 'المشروع مخصص لطلاب المدارس فقط، يمكن التقديم على منحة الجامعة لاحقًا');
 
     // 7) طلب جديد في أول مرحلة
