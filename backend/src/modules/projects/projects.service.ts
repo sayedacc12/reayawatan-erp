@@ -68,7 +68,8 @@ export class ProjectsService {
     if (dto.level === 'project') this.checkFunding(dto.fundingType ?? 'restricted', dto.zakatEligible ?? false);
     const created = await this.settings.createActivity(actor, {
       level: dto.level, parentId: dto.parentId, name: dto.name, description: dto.description,
-      portalVisible: dto.portalVisible, isActive: dto.isActive,
+      // المشروع ذو الصرف العام لا يستقبل طلبات مستفيدين، فلا يظهر في البوابة
+      portalVisible: dto.level === 'project' && dto.spendingMode === 'general' ? false : dto.portalVisible, isActive: dto.isActive,
       ...(dto.level === 'project' ? { services: dto.services, multiServices: dto.multiServices } : {}),
     });
     if (dto.level === 'project') {
@@ -97,8 +98,10 @@ export class ProjectsService {
       }
       this.checkFunding(dto.fundingType ?? a.fundingType, dto.zakatEligible ?? a.zakatEligible);
     }
+    let portalVisible = dto.portalVisible;
+    if (a.level === 'project' && (dto.spendingMode ?? (await this.profile(a)).spendingMode) === 'general') portalVisible = false;
     await this.settings.updateActivity(actor, id, {
-      name: dto.name, description: dto.description, portalVisible: dto.portalVisible, isActive: dto.isActive,
+      name: dto.name, description: dto.description, portalVisible, isActive: dto.isActive,
       ...(a.level === 'project' ? { services: dto.services, multiServices: dto.multiServices } : {}),
     });
     if (a.level === 'project') {

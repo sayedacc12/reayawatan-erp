@@ -21,6 +21,6 @@ import { TransfersService } from './transfers.service';
   imports: [TypeOrmModule.forFeature([...PROJECT_ENTITIES, ...BENEFICIARY_ENTITIES]), BeneficiariesModule, FundraisingModule],
   controllers: [SupportController, ProjectsController],
   providers: [ProjectsService, SupportService, TransfersService, InsightsService, FundingGateway],
-  exports: [ProjectsService, SupportService],
+  exports: [ProjectsService, SupportService, TransfersService],
 })
 export class ProjectsModule {}

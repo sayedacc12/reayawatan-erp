@@ -67,9 +67,11 @@ interface DemoResult {
 }
 const demo = ref<DemoResult | null>(null);
 const demoBusy = ref(false);
-async function createDemo() {
+async function createDemo(recreate = false) {
+  if (recreate && !confirm('ستُحذف الجمعية التجريبية الحالية بكل بياناتها وتُنشأ من جديد بأحدث البيانات التجريبية. هل تريد المتابعة؟')) return;
   demoBusy.value = true;
   try {
+    if (recreate) await api('/platform/demo-organization', { method: 'DELETE' });
     demo.value = await api<DemoResult>('/platform/demo-organization', { method: 'POST' });
     await load();
   } catch (e) {
@@ -93,7 +95,8 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
         <p class="p-sub">كل جمعية حساب مستقل ببياناتها ومستخدميها. افتح ملف الجمعية لإدارة بياناتها الرئيسية والشاشات المسموحة والاشتراك والعقود.</p>
       </div>
       <div style="display: flex; gap: 8px; flex-wrap: wrap">
-        <button v-if="!orgs.some((o) => o.slug === 'demo')" class="btn btn-ghost-light" :disabled="demoBusy" @click="createDemo">{{ demoBusy ? 'جارٍ التجهيز...' : '✨ جمعية تجريبية للشرح' }}</button>
+        <button v-if="!orgs.some((o) => o.slug === 'demo')" class="btn btn-ghost-light" :disabled="demoBusy" @click="createDemo()">{{ demoBusy ? 'جارٍ التجهيز...' : '✨ جمعية تجريبية للشرح' }}</button>
+        <button v-else class="btn btn-ghost-light" :disabled="demoBusy" @click="createDemo(true)">{{ demoBusy ? 'جارٍ التجهيز...' : '↻ إعادة إنشاء الجمعية التجريبية' }}</button>
         <RouterLink to="/platform/applications?new=1" class="btn btn-gold">+ تسجيل جمعية جديدة</RouterLink>
       </div>
     </section>
@@ -140,6 +143,13 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
       <div class="card modal modal-wide demo">
         <h2>✨ تم تجهيز {{ demo.organization.name }}</h2>
         <p class="muted">احفظ هذه البيانات، فلن تظهر كلمات المرور مرة أخرى.</p>
+        <ul class="demo-scope">
+          <li><b>المستفيدون:</b> 6 ملفات و8 طلبات في مراحل مختلفة (جديد، بحث اجتماعي، مساهمة مستفيد، معاد، مرفوض، معتمد)، منها طلب معتمد ينتظر التحميل على دفعة داعم لتجربته بنفسك.</li>
+          <li><b>إدارة المشاريع:</b> 7 مشاريع معتمدة عبر مراحل الاعتماد، ومشروع قيد الاعتماد، ومعاد للتعديل، ومسودة.</li>
+          <li><b>الموارد المالية:</b> 6 داعمين و7 فرص تبرع (نقدي وزكاة وعيني ووعد بالدفع ووقف) بدفعاتها وقيودها.</li>
+          <li><b>الدعم والصرف:</b> تحميل طلبين على دفعات الداعمين، وصرف عام، وسندات صرف وفواتير، ومناقلة، وتعديل فرصة بقيد عكسي، وطلب صرف بانتظار المالية.</li>
+          <li><b>المنصة:</b> عقد إلكتروني موقّع واشتراك سنوي فعّال، وطلبا اشتراك لجمعيتين (قيد المراجعة، ومعاد للاستكمال).</li>
+        </ul>
         <h3>دخول الموظفين <a :href="`/o/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/o/{{ demo.organization.slug }}</a></h3>
         <table class="table">
           <tr v-for="s in demo.staff" :key="s.email"><td>{{ s.role }}</td><td dir="ltr"><code>{{ s.email }}</code></td></tr>
@@ -163,4 +173,5 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
 .click { cursor: pointer; }
 .demo h3 { font-size: .95rem; margin: 16px 0 6px; color: var(--primary); }
 .demo code { font-size: .9rem; }
+.demo-scope { margin: 10px 0 4px; padding-inline-start: 20px; font-size: .88rem; line-height: 1.9; }
 </style>

@@ -674,6 +674,14 @@ export class FundraisingService {
       const b = await this.lockBatch(em, orgId, batchId);
       const a = this.positive(amount);
       if (a > b.reservedAmount) throw new BadRequestException(`الصرف يكون من المحجوز، والمحجوز في الدفعة رقم ${b.batchNo} أقل من المبلغ`);
+      if (b.isPromised) {
+        // الوعد بالدفع يُحجز عليه، لكن لا يُصرف منه إلا بقدر ما سدده الداعم فعلًا (بنسبة الدفعة من إجمالي الوعد)
+        const o = await em.findOneOrFail(Opportunity, { where: { id: b.opportunityId } });
+        const collected = o.totalAmount > 0 ? r2((b.amount * o.collectedAmount) / o.totalAmount) : 0;
+        if (r2(b.spentAmount + a) > collected) {
+          throw new BadRequestException(`الدفعة رقم ${b.batchNo} من وعد بالدفع، ولا يُصرف منها إلا بقدر ما سدده الداعم. المتاح للصرف الآن ${Math.max(0, r2(collected - b.spentAmount)).toLocaleString('en-US')} ريال`);
+        }
+      }
       b.reservedAmount = r2(b.reservedAmount - a);
       b.spentAmount = r2(b.spentAmount + a);
       if (net(b) === 0 && b.reservedAmount === 0) b.status = 'closed';

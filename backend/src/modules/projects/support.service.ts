@@ -11,7 +11,17 @@ type Row = Record<string, any>;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 export const fmt = (n: number) => r2(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
-const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
+/**
+ * توحيد كتابة الجنسية للمقارنة: "السعودية" و"سعودية" و"سعودي" جنسية واحدة،
+ * وكذلك اختلاف الهمزات والتاء المربوطة والألف المقصورة.
+ */
+export const norm = (s: string | null | undefined) => {
+  let v = (s ?? '').trim().toLowerCase().replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/\s+/g, ' ');
+  if (v.startsWith('ال') && v.length > 4) v = v.slice(2);
+  if (v.endsWith('ية')) v = v.slice(0, -1);
+  else if (v.endsWith('ة') || v.endsWith('ه')) v = v.slice(0, -1);
+  return v;
+};
 const RESIDENCY_AR: Record<string, string> = { citizen: 'مواطن', resident: 'مقيم', visitor: 'زائر' };
 
 /** المتبقي محجوزًا على التحميل */

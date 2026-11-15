@@ -8,6 +8,7 @@ import { CoreModule } from './core/core.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -21,6 +22,7 @@ import { HealthController } from './health.controller';
     BeneficiariesModule,
     FundraisingModule,
     ProjectsModule,
+    DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],
   controllers: [HealthController],
