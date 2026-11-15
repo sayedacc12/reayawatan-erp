@@ -24,6 +24,14 @@ interface FundableActivity {
   fundingType: 'restricted' | 'unrestricted' | 'operational'; zakatEligible: boolean; approvalStatus: string;
 }
 
+/** صف دفعة كما تعيده listBatches (المبالغ أرقام) */
+export interface BatchRow {
+  id: string; batchNo: number; opportunityId: string; opportunityNo: number; opportunityKind: string; donorId: string; donorName: string;
+  targetKind: BatchTarget; targetName: string; activityId: string | null; waqfProjectId: string | null; beneficiaryRequestId: string | null;
+  allocationMode: 'amount' | 'percent'; percent: number | null; amount: number; isZakat: boolean; isPromised: boolean; conditions: DonorConditions;
+  status: string; reservedAmount: number; spentAmount: number; transferredAmount: number; net: number; parentBatchId: string | null; createdAt: Date;
+}
+
 interface ResolvedLine { line: LineDto; amount: number; percent: number | null; activityId: string | null; waqfProjectId: string | null; requestId: string | null; targetName: string }
 
 export interface AmendInput {
@@ -564,7 +572,7 @@ export class FundraisingService {
 
   // ================= الدفعات (مصدّرة لنظام إدارة المشاريع) =================
 
-  async listBatches(orgId: string, f: ListBatchesQuery & { activityIds?: string[] } = {}) {
+  async listBatches(orgId: string, f: ListBatchesQuery & { activityIds?: string[] } = {}): Promise<BatchRow[]> {
     const conds = ['b.organization_id = $1'];
     const params: unknown[] = [orgId];
     const add = (sql: string, v: unknown) => {
@@ -584,7 +592,7 @@ export class FundraisingService {
       if (/^\d{1,9}$/.test(term)) add('(b.batch_no = ? OR o.opportunity_no = ?)', Number(term));
       else add('(d.name ILIKE ? OR b.target_name ILIKE ?)', `%${term}%`);
     }
-    const rows: Record<string, unknown>[] = await this.db.query(
+    const rows: Omit<BatchRow, 'net'>[] = await this.db.query(
       `SELECT b.id, b.batch_no AS "batchNo", b.opportunity_id AS "opportunityId", o.opportunity_no AS "opportunityNo", o.kind AS "opportunityKind",
               b.donor_id AS "donorId", d.name AS "donorName", b.target_kind AS "targetKind", b.target_name AS "targetName",
               b.activity_id AS "activityId", b.waqf_project_id AS "waqfProjectId", b.beneficiary_request_id AS "beneficiaryRequestId",
@@ -599,7 +607,7 @@ export class FundraisingService {
         ORDER BY b.batch_no DESC LIMIT 1000`,
       params,
     );
-    return rows.map((b) => ({ ...b, net: net(b as unknown as Batch) }));
+    return rows.map((b) => ({ ...b, net: net(b) }));
   }
 
   async getBatch(orgId: string, id: string, m?: EntityManager) {

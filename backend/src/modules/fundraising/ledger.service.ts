@@ -91,7 +91,7 @@ export class LedgerService {
     const qb = this.db.getRepository(LedgerEntry).createQueryBuilder('e')
       .leftJoinAndSelect('e.lines', 'l')
       .where('e.organization_id = :org', { org: orgId })
-      .orderBy('e.entry_no', 'DESC').addOrderBy('l.line_no', 'ASC');
+      .orderBy('e.entryNo', 'DESC').addOrderBy('l.lineNo', 'ASC');
     // المشروع أو الدفعة على مستوى القيد أو على مستوى أي سطر فيه
     if (f.activityId) qb.andWhere('(e.activity_id = :a OR EXISTS (SELECT 1 FROM ledger_lines x WHERE x.entry_id = e.id AND x.activity_id = :a))', { a: f.activityId });
     if (f.batchId) qb.andWhere('(e.batch_id = :b OR EXISTS (SELECT 1 FROM ledger_lines x WHERE x.entry_id = e.id AND x.batch_id = :b))', { b: f.batchId });
