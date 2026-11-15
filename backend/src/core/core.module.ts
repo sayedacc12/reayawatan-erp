@@ -10,6 +10,8 @@ import { PermissionResolver } from './auth/permission-resolver.service';
 import { BootstrapService } from './bootstrap.service';
 import { CORE_ENTITIES } from './entities';
 import { FileStore } from './files/file-store.service';
+import { LookupsController } from './lookups/lookups.controller';
+import { LookupsService } from './lookups/lookups.service';
 import { ApplicationsService } from './subscriptions/applications.service';
 import { ContractsService } from './subscriptions/contracts.service';
 import { SUBSCRIPTION_ENTITIES } from './subscriptions/entities';
@@ -46,13 +48,13 @@ import { UsersService } from './users/users.service';
   ],
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
-    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController,
+    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService],
+  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService],
 })
 export class CoreModule {}

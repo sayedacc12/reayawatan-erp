@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { DataSource, Repository } from 'typeorm';
 import { Organization } from '../../core/entities';
+import { LookupsService } from '../../core/lookups/lookups.service';
 import { Activity, Beneficiary, BeneficiaryRequest, DynamicForm, Workflow } from './entities';
 import { PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
 import { PortalUser } from './portal.guard';
@@ -22,6 +23,7 @@ export class PortalService {
     @InjectRepository(Beneficiary) private readonly beneficiaries: Repository<Beneficiary>,
     private readonly requests: RequestsService,
     private readonly tickets: TicketsService,
+    private readonly lookups: LookupsService,
   ) {}
 
   async organization(slug: string) {
@@ -34,7 +36,7 @@ export class PortalService {
 
   async info(slug: string) {
     const org = await this.organization(slug);
-    return { name: org.name, slug: org.slug, projects: await this.projects(org.id) };
+    return { name: org.name, slug: org.slug, projects: await this.projects(org.id), nationalities: await this.lookups.nationalities(org.id) };
   }
 
   /**
@@ -79,6 +81,7 @@ export class PortalService {
     if (existing) {
       throw new ConflictException('رقم الهوية مسجل لدى الجمعية بالفعل. إذا كان لديك حساب فسجّل الدخول به، أو تواصل مع الجمعية لتفعيل حسابك');
     }
+    await this.lookups.assertNationalities(org.id, [dto.nationality]);
     const id = await this.db.transaction(async (em) => {
       await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`beneficiaries:${org.id}`]);
       const [{ next }] = await em.query(
@@ -86,7 +89,7 @@ export class PortalService {
       );
       const b = await em.save(em.create(Beneficiary, {
         organizationId: org.id, fileNo: Number(next), fullName: dto.fullName, nationalId: dto.nationalId, phone: dto.phone,
-        gender: dto.gender, birthDate: dto.birthDate ?? null, city: dto.city ?? null,
+        gender: dto.gender, nationality: dto.nationality, birthDate: dto.birthDate ?? null, city: dto.city ?? null,
         category: (dto.category as Beneficiary['category']) ?? 'other', status: 'new', monthlyIncome: 0, source: 'portal',
         portalPasswordHash: await bcrypt.hash(dto.password, 12),
       }));
@@ -113,9 +116,10 @@ export class PortalService {
     const org = await this.db.getRepository(Organization).findOneOrFail({ where: { id: p.organizationId } });
     return {
       organization: { name: org.name, slug: org.slug },
+      nationalities: await this.lookups.nationalities(org.id),
       profile: {
         fullName: b.fullName, fileNo: b.fileNo, nationalId: b.nationalId, phone: b.phone, altPhone: b.altPhone,
-        city: b.city, address: b.address, gender: b.gender, status: b.status,
+        city: b.city, address: b.address, gender: b.gender, nationality: b.nationality, status: b.status,
       },
     };
   }
@@ -123,6 +127,11 @@ export class PortalService {
   async updateProfile(p: PortalUser, dto: PortalProfileDto) {
     const patch = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
     if (patch.phone === null) throw new BadRequestException('رقم الجوال مطلوب');
+    if (patch.nationality === null) throw new BadRequestException('اختر الجنسية');
+    if (patch.nationality) {
+      const b = await this.beneficiaries.findOneOrFail({ where: { id: p.beneficiaryId }, select: { id: true, nationality: true } });
+      if (patch.nationality !== b.nationality) await this.lookups.assertNationalities(p.organizationId, [patch.nationality as string]);
+    }
     if (Object.keys(patch).length) await this.beneficiaries.update(p.beneficiaryId, patch);
     return this.me(p);
   }

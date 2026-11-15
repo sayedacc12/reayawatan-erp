@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
+import NationalitySelect from '../../../components/NationalitySelect.vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { CATEGORIES, GENDERS, HOUSING, MARITAL, RESIDENCIES, STATUSES } from '../labels';
@@ -74,7 +75,7 @@ async function save() {
           <div class="field"><label>الجوال</label><input v-model="form.phone" class="input" inputmode="tel" dir="ltr" /></div>
           <div class="field"><label>رقم إضافي</label><input v-model="form.altPhone" class="input" inputmode="tel" dir="ltr" /></div>
           <div class="field"><label>المدينة / المنطقة</label><input v-model="form.city" class="input" /></div>
-          <div class="field"><label>الجنسية</label><input v-model="form.nationality" class="input" placeholder="مثل: سعودي" /></div>
+          <div class="field"><label>الجنسية *</label><NationalitySelect v-model="form.nationality" required /></div>
           <div class="field"><label>فئة الإقامة</label>
             <select v-model="form.residency" class="input"><option :value="null">غير محددة</option><option v-for="r in RESIDENCIES" :key="r.value" :value="r.value">{{ r.label }}</option></select>
           </div>

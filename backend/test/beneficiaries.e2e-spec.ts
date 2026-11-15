@@ -57,7 +57,7 @@ describe('Beneficiaries module', () => {
   let id: string;
 
   it('creates a file with sequential numbers and rejects duplicate national IDs', async () => {
-    const res = await http.post('/api/beneficiaries').set(as(admin)).send({
+    const res = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي',
       fullName: '  فاطمة محمد علي ', nationalId: '٢٩٠٠١٠١٠١٢٣٤٥٦', gender: 'female', category: 'widow',
       maritalStatus: 'widowed', monthlyIncome: 1200, housingType: 'rented', monthlyRent: 600, phone: '',
     }).expect(201);
@@ -69,20 +69,29 @@ describe('Beneficiaries module', () => {
     expect(res.body.status).toBe('new');
 
     const second = await http.post('/api/beneficiaries').set(as(admin))
-      .send({ fullName: 'أحمد حسن', gender: 'male', category: 'elderly' }).expect(201);
+      .send({ nationality: 'سعودي', fullName: 'أحمد حسن', gender: 'male', category: 'elderly' }).expect(201);
     expect(second.body.fileNo).toBe(2);
 
     const dup = await http.post('/api/beneficiaries').set(as(admin))
-      .send({ fullName: 'مكرر', nationalId: '29001010123456', gender: 'male', category: 'other' }).expect(409);
+      .send({ nationality: 'سعودي', fullName: 'مكرر', nationalId: '29001010123456', gender: 'male', category: 'other' }).expect(409);
     expect(dup.body.message).toContain('ملف رقم 1');
     await http.patch(`/api/beneficiaries/${second.body.id}`).set(as(admin)).send({ nationalId: '29001010123456' }).expect(409);
 
-    await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'x', gender: 'male', category: 'nope' }).expect(400);
+    await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'x', gender: 'male', category: 'nope' }).expect(400);
 
     // كل جمعية لها ترقيمها الخاص، ونفس رقم الهوية مسموح في جمعية أخرى
     const other = await http.post('/api/beneficiaries').set(as(otherAdmin))
-      .send({ fullName: 'حالة جمعية ب', nationalId: '29001010123456', gender: 'male', category: 'other' }).expect(201);
+      .send({ nationality: 'سعودي', fullName: 'حالة جمعية ب', nationalId: '29001010123456', gender: 'male', category: 'other' }).expect(201);
     expect(other.body.fileNo).toBe(1);
+
+    // الجنسية إلزامية ومن قائمة الجنسيات المعتمدة في الإعدادات
+    const noNat = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'بلا جنسية', gender: 'male', category: 'other' }).expect(400);
+    expect(JSON.stringify(noNat.body.message)).toContain('اختر الجنسية');
+    const bad = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'جنسية حرة', gender: 'male', category: 'other', nationality: 'مريخي' }).expect(400);
+    expect(bad.body.message).toContain('قائمة الجنسيات');
+    await http.patch(`/api/beneficiaries/${second.body.id}`).set(as(admin)).send({ nationality: 'مريخي' }).expect(400);
+    await http.put('/api/lookups/nationalities').set(as(admin)).send({ nationalities: ['سعودي', 'مريخي'] }).expect(200);
+    await http.patch(`/api/beneficiaries/${second.body.id}`).set(as(admin)).send({ nationality: 'مريخي' }).expect(200);
   });
 
   it('manages family members and computes per-capita income', async () => {

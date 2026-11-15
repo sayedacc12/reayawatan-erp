@@ -235,6 +235,11 @@ export class RequestsService {
       const beneficiary = await em.findOne(Beneficiary, { where: { id: input.beneficiaryId, organizationId: org } });
       if (!beneficiary) throw new NotFoundException('المستفيد غير موجود');
       if (beneficiary.status === 'suspended') throw new BadRequestException('ملف المستفيد موقوف، لا يمكن تقديم طلبات');
+      if (!beneficiary.nationality?.trim()) {
+        throw new BadRequestException(source === 'portal'
+          ? 'أكمل بيانات الجنسية في ملفك الشخصي قبل تقديم الطلب'
+          : 'حدد جنسية المستفيد في ملفه قبل تقديم الطلب');
+      }
       const project = await em.findOne(Activity, { where: { id: input.projectId, organizationId: org, level: 'project' } });
       if (!project || !project.isActive || project.approvalStatus !== 'approved' || (source === 'portal' && !project.portalVisible)) {
         throw new BadRequestException('المشروع غير متاح للتقديم');

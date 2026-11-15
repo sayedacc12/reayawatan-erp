@@ -158,7 +158,7 @@ describe('Scored research, contribution and support rules', () => {
   let portal: string;
 
   it('shows the support rules and eligibility on the portal and validates services', async () => {
-    portal = (await http.post('/api/portal/o/alkhair/register').send({
+    portal = (await http.post('/api/portal/o/alkhair/register').send({ nationality: 'سعودي',
       fullName: 'محمد علي', nationalId: '27011051402345', phone: '01011112222', gender: 'male', password: 'Portal123',
     }).expect(201)).body.accessToken;
 
@@ -242,7 +242,7 @@ describe('Scored research, contribution and support rules', () => {
   });
 
   it('skips the contribution stage when the rules approve with no contribution', async () => {
-    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة مستحقة', gender: 'female', category: 'other' }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حالة مستحقة', gender: 'female', category: 'other' }).expect(201);
     const r = await http.post('/api/beneficiaries/requests').set(as(admin))
       .send({ beneficiaryId: b.body.id, projectId: ids.surgery, services: ['متابعة'] }).expect(201);
     expect(r.body.estimatedCost).toBeNull(); // خدمة من غير تكلفة
@@ -255,7 +255,7 @@ describe('Scored research, contribution and support rules', () => {
     expect(d.body.workflow.stages.findIndex((s: { id: string }) => s.id === d.body.currentStageId)).toBe(2);
 
     // الجمعية تقدر تسجل مبلغ مدفوع في المقر بدل رفع البوابة
-    const b2 = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة مساهمة', gender: 'male', category: 'other' }).expect(201);
+    const b2 = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حالة مساهمة', gender: 'male', category: 'other' }).expect(201);
     const r2 = await http.post('/api/beneficiaries/requests').set(as(admin))
       .send({ beneficiaryId: b2.body.id, projectId: ids.surgery, services: ['عملية'] }).expect(201);
     await http.post(`/api/beneficiaries/requests/${r2.body.id}/decision`).set(as(admin))
@@ -276,7 +276,7 @@ describe('Scored research, contribution and support rules', () => {
       level: 'project', name: 'دعم جزئي', parentId: ids.program, workflowId: wf.id, allowConcurrent: true, recurrence: 'monthly',
       services: [{ name: 'علاج', cost: 10000 }],
     }).expect(201);
-    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة بنسبة', gender: 'male', category: 'other' }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حالة بنسبة', gender: 'male', category: 'other' }).expect(201);
     const open = async () => (await http.post('/api/beneficiaries/requests').set(as(admin))
       .send({ beneficiaryId: b.body.id, projectId: project.body.id, services: ['علاج'] }).expect(201)).body.id as string;
     const decide = (id: string, body: Record<string, unknown>) => http.post(`/api/beneficiaries/requests/${id}/decision`).set(as(admin)).send(body);
@@ -307,7 +307,7 @@ describe('Scored research, contribution and support rules', () => {
     const project = await http.post('/api/beneficiaries/settings/activities').set(as(admin)).send({
       level: 'project', name: 'استرشادي', parentId: ids.program, workflowId: wf.id, allowConcurrent: true, recurrence: 'monthly',
     }).expect(201);
-    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة استرشادية', gender: 'male', category: 'other' }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حالة استرشادية', gender: 'male', category: 'other' }).expect(201);
     const open = async () => (await http.post('/api/beneficiaries/requests').set(as(admin))
       .send({ beneficiaryId: b.body.id, projectId: project.body.id }).expect(201)).body.id as string;
     const decide = (id: string, body: Record<string, unknown>) => http.post(`/api/beneficiaries/requests/${id}/decision`).set(as(admin)).send(body);
@@ -346,7 +346,7 @@ describe('Scored research, contribution and support rules', () => {
     const project = await http.post('/api/beneficiaries/settings/activities').set(as(admin)).send({
       level: 'project', name: 'مسودة', parentId: ids.program, workflowId: wf.body.id, allowConcurrent: true, recurrence: 'monthly',
     }).expect(201);
-    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة مسودة', gender: 'male', category: 'other' }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حالة مسودة', gender: 'male', category: 'other' }).expect(201);
     const r = await http.post('/api/beneficiaries/requests').set(as(admin)).send({ beneficiaryId: b.body.id, projectId: project.body.id }).expect(201);
     const blocked = await http.post(`/api/beneficiaries/requests/${r.body.id}/decision`).set(as(admin)).send({ decision: 'approve', formData: {} }).expect(400);
     expect(blocked.body.message).toContain('اعتماد');

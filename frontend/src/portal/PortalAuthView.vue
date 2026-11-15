@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import NationalitySelect from '../components/NationalitySelect.vue';
 import ParticleField from '../components/ParticleField.vue';
 import { hasArabic, passwordProblem } from '../validation';
 import { portalApi, setPortalToken, usePortal, type PortalProject } from './portal';
@@ -9,13 +10,13 @@ const route = useRoute();
 const router = useRouter();
 const slug = route.params.slug as string;
 const portal = usePortal(slug);
-const info = ref<{ name: string; projects: PortalProject[] } | null>(null);
+const info = ref<{ name: string; projects: PortalProject[]; nationalities: string[] } | null>(null);
 const notFound = ref(false);
 const mode = ref<'login' | 'register'>('login');
 const error = ref('');
 const busy = ref(false);
 const loginForm = reactive({ nationalId: '', password: '' });
-const reg = reactive({ fullName: '', nationalId: '', phone: '', gender: 'female', birthDate: '', city: '', password: '', confirm: '' });
+const reg = reactive({ fullName: '', nationalId: '', phone: '', gender: 'female', nationality: '', birthDate: '', city: '', password: '', confirm: '' });
 
 onMounted(async () => {
   if (portal.token) { router.replace(`/portal/${slug}/home`); return; }
@@ -93,6 +94,7 @@ async function submit() {
             <div class="field"><label>رقم الهوية *</label><input v-model="reg.nationalId" class="input" inputmode="numeric" dir="ltr" required /></div>
             <div class="field"><label>الجوال *</label><input v-model="reg.phone" class="input" inputmode="tel" dir="ltr" required /></div>
             <div class="field"><label>النوع</label><select v-model="reg.gender" class="input"><option value="female">أنثى</option><option value="male">ذكر</option></select></div>
+            <div class="field"><label>الجنسية *</label><NationalitySelect v-model="reg.nationality" :options="info?.nationalities ?? []" required /></div>
             <div class="field"><label>تاريخ الميلاد</label><input v-model="reg.birthDate" class="input" type="date" /></div>
             <div class="field wide"><label>المدينة / المنطقة</label><input v-model="reg.city" class="input" /></div>
             <div class="field"><label>كلمة المرور *</label><input v-model="reg.password" :class="['input', { invalid: pwProblem }]" type="password" dir="ltr" required autocomplete="new-password" /></div>

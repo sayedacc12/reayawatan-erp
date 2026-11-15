@@ -141,11 +141,15 @@ describe('Requests workflow + beneficiary portal', () => {
     expect(info.body.projects[0].applicationForm.fields).toHaveLength(2);
     await http.get('/api/portal/o/nope').expect(404);
 
-    const reg = await http.post('/api/portal/o/alkhair/register').send({
+    // نموذج التسجيل يلزم باختيار الجنسية من قائمة الجمعية
+    await http.post('/api/portal/o/alkhair/register').send({
+      fullName: 'سعاد محمود', nationalId: '29001011234567', phone: '01011112222', gender: 'female', password: 'Portal123', nationality: 'غير موجودة',
+    }).expect(400);
+    const reg = await http.post('/api/portal/o/alkhair/register').send({ nationality: 'سعودي',
       fullName: 'سعاد محمود', nationalId: '29001011234567', phone: '01011112222', gender: 'female', password: 'Portal123',
     }).expect(201);
     portal = reg.body.accessToken;
-    await http.post('/api/portal/o/alkhair/register').send({
+    await http.post('/api/portal/o/alkhair/register').send({ nationality: 'سعودي',
       fullName: 'تاني', nationalId: '29001011234567', phone: '01011112222', gender: 'female', password: 'Portal123',
     }).expect(409);
     await http.post('/api/portal/o/alkhair/login').send({ nationalId: '29001011234567', password: 'wrong' }).expect(401);
@@ -242,7 +246,7 @@ describe('Requests workflow + beneficiary portal', () => {
   });
 
   it('blocks deleting a stage that still has requests on it', async () => {
-    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حالة ثانية', gender: 'male', category: 'other' }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حالة ثانية', gender: 'male', category: 'other' }).expect(201);
     const r = await http.post('/api/beneficiaries/requests').set(as(admin)).send({ beneficiaryId: b.body.id, projectId: ids.project, applicationData: { reason: 'سبب' } }).expect(201);
     expect(r.body.source).toBe('staff');
     const [, s2, s3] = ids.stages.split(',');
@@ -269,7 +273,7 @@ describe('Requests workflow + beneficiary portal', () => {
   });
 
   it('staff can enable portal access for an existing beneficiary', async () => {
-    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'حسن علي', nationalId: '28001011234567', gender: 'male', category: 'elderly' }).expect(201);
+    const b = await http.post('/api/beneficiaries').set(as(admin)).send({ nationality: 'سعودي', fullName: 'حسن علي', nationalId: '28001011234567', gender: 'male', category: 'elderly' }).expect(201);
     await http.post('/api/portal/o/alkhair/login').send({ nationalId: '28001011234567', password: 'Hassan123' }).expect(401);
     await http.post(`/api/beneficiaries/${b.body.id}/portal-access`).set(as(admin)).send({ password: 'Hassan123' }).expect(204);
     expect((await http.get(`/api/beneficiaries/${b.body.id}`).set(as(admin))).body.hasPortalAccess).toBe(true);

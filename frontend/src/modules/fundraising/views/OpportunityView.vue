@@ -6,6 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import StageStepper from '../../beneficiaries/components/StageStepper.vue';
 import JournalEntryCard from '../components/JournalEntryCard.vue';
+import OpportunityReviewSheet from '../components/OpportunityReviewSheet.vue';
 import { color, fmtDate, fmtDateTime, fmtNo, hijri, label, sar, today } from '../labels';
 import type { Opportunity, Settings } from '../types';
 import '../fr.css';
@@ -19,6 +20,7 @@ const banks = ref<Settings['banks']>([]);
 const error = ref('');
 const tab = ref<'batches' | 'conditions' | 'documents' | 'log' | 'journal'>('batches');
 const busy = ref(false);
+const review = ref(false);
 
 async function load() {
   try {
@@ -29,6 +31,8 @@ async function load() {
 }
 onMounted(async () => {
   await load();
+  // ?review=1 يفتح الفرصة كاملة مباشرة (من قوائم الاعتماد والتنبيهات)
+  if (route.query.review && o.value) review.value = true;
   const s = await api<Settings>('/fundraising/settings').catch(() => null);
   banks.value = s?.banks.filter((b) => b.isActive) ?? [];
   collect.bankAccountId = banks.value[0]?.id ?? '';
@@ -126,6 +130,7 @@ const cats = (c: string[]) => (c.length ? c.map((x) => label('category', x)).joi
       </div>
       <div class="fr-hero-actions">
         <span class="fr-badge status" :style="{ '--c': color('status', o.status) }">{{ label('status', o.status) }}</span>
+        <button class="btn btn-ghost-light" @click="review = true">📄 عرض الفرصة كاملة</button>
         <RouterLink v-if="editable" :to="`/fundraising/opportunities/${o.id}/edit`" class="btn btn-ghost-light">{{ o.status === 'returned' ? 'تعديل وإعادة التقديم' : 'تعديل' }}</RouterLink>
         <RouterLink v-if="o.receiptNo" :to="`/fundraising/opportunities/${o.id}/receipt`" class="btn btn-gold">سند القبض رقم {{ o.receiptNo }}</RouterLink>
       </div>
@@ -138,7 +143,7 @@ const cats = (c: string[]) => (c.length ? c.map((x) => label('category', x)).joi
 
     <!-- صندوق القرار -->
     <section v-if="o.canDecide" class="fr-panel decide">
-      <h2>قرارك في مرحلة "{{ o.stageName }}"</h2>
+      <h2>قرارك في مرحلة "{{ o.stageName }}" <button class="btn btn-primary btn-sm push" @click="review = true">📄 مراجعة الفرصة كاملة واتخاذ القرار</button></h2>
       <p v-if="currentStage?.instructions" class="muted">{{ currentStage.instructions }}</p>
       <div class="dec-btns">
         <button :class="['dec', 'ok', { on: decision.mode === 'approve' }]" @click="decision.mode = 'approve'">✓ موافقة</button>
@@ -258,6 +263,7 @@ const cats = (c: string[]) => (c.length ? c.map((x) => label('category', x)).joi
         <p v-if="!o.entries.length" class="fr-empty card">يصدر القيد عند الاعتماد النهائي للفرصة</p>
       </section>
     </Transition>
+    <OpportunityReviewSheet v-if="review" :opp="o" @close="review = false" @decided="(r) => { o = r; review = false; }" />
   </div>
   <div v-else-if="error" class="alert alert-error">{{ error }}</div>
   <div v-else class="fr-skeleton" />
