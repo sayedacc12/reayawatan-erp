@@ -196,6 +196,18 @@ export interface RequestDetail {
     stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; kind?: 'standard' | 'contribution'; form?: { id: string; name: string; fields: FormField[]; scored?: boolean; rules?: ScoreRule[]; status?: FormStatus; qualityCode?: string | null; revision?: number } | null }[];
   } | null;
   actions: RequestAction[];
+  caseFile?: CaseFile | null;
+}
+/** ملف المستفيد كاملًا لمتخذ القرار في صفحة الطلب */
+export interface CaseFile {
+  gender: string; birthDate: string | null; nationality: string | null; residency: string | null; maritalStatus: string | null;
+  city: string | null; address: string | null; altPhone: string | null; monthlyIncome: number; incomeSource: string | null;
+  housingType: string | null; monthlyRent: number | null; healthStatus: string | null; notes: string | null; householdIncome: number;
+  family: { id: string; fullName: string; relation: string; gender: string; birthDate: string | null; occupation: string | null; monthlyIncome: number; healthStatus: string | null }[];
+  documents: { id: string; title: string; docType: string; originalName: string; mimeType: string; createdAt: string }[];
+  aids: { id: string; aidType: string; amount: number; disbursedOn: string; description: string | null; referenceNo: string | null }[];
+  aidTotal: number; aidCount: number;
+  otherRequests: { id: string; requestNo: number; status: string; projectName: string; createdAt: string }[];
 }
 export interface TicketRow {
   id: string; ticketNo: number; type: 'complaint' | 'suggestion' | 'inquiry'; subject: string; message: string;

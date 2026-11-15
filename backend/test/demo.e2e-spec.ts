@@ -72,6 +72,11 @@ describe('Demo association across all modules', () => {
     const surgery = (await http.get('/api/portal/requests').set(as(t2))).body.find((r: { contributionStatus: string }) => r.contributionStatus === 'awaiting');
     const detail = (await http.get(`/api/portal/requests/${surgery.id}`).set(as(t2))).body;
     expect(detail.contribution).toMatchObject({ percent: 30, requiredAmount: 7500 });
+    expect(detail.caseFile).toBeUndefined();
+    // الموظف يرى ملف الحالة كاملًا قبل القرار: الأسرة والمستندات والمساعدات والطلبات الأخرى
+    const staffView = (await http.get(`/api/beneficiaries/requests/${surgery.id}`).set(as(admin)).expect(200)).body;
+    expect(staffView.caseFile).toMatchObject({ family: expect.any(Array), documents: expect.any(Array), aids: expect.any(Array), otherRequests: expect.any(Array) });
+    expect(staffView.caseFile.otherRequests.every((o: { id: string }) => o.id !== surgery.id)).toBe(true);
     expect((await http.get('/api/beneficiaries/settings/accounting').set(as(admin)).expect(200)).body.debitAccountCode).toBe('1101');
   });
 

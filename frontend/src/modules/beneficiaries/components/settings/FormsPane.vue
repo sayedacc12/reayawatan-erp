@@ -148,10 +148,17 @@ const ACTIONS = {
   review: { ask: 'تأكيد مراجعة الجودة للنموذج "%s"؟ سيُحال إلى مدير الشاشة لاعتماده.', done: 'تمت مراجعة الجودة' },
   approve: { ask: 'اعتماد النموذج "%s"؟ بعد الاعتماد لن يمكن حذف المرحلة المرتبطة به.', done: 'تم اعتماد النموذج' },
 } as const;
+/** العرض الكامل للنموذج قبل اتخاذ القرار */
+const viewing = ref<DynamicForm | null>(null);
+const viewData = ref<Record<string, unknown>>({});
+const viewScore = computed(() => (viewing.value?.scored ? scoreOf({ fields: viewing.value.fields, rules: viewing.value.rules ?? [] }, viewData.value) : null));
+const awaitsMe = (f: DynamicForm) => (f.status === 'review' && canReview.value) || (f.status === 'reviewed' && canApprove.value);
+function openView(f: DynamicForm) { viewing.value = f; viewData.value = {}; }
 async function act(f: DynamicForm, action: keyof typeof ACTIONS) {
   if (!confirm(ACTIONS[action].ask.replace('%s', f.name))) return;
   try {
     await api(`/beneficiaries/settings/forms/${f.id}/${action}`, { method: 'POST' });
+    viewing.value = null;
     toast.success(ACTIONS[action].done);
     await load();
   } catch (e) {
@@ -163,6 +170,7 @@ async function sendBack(f: DynamicForm) {
   if (!note?.trim()) return;
   try {
     await api(`/beneficiaries/settings/forms/${f.id}/return`, { method: 'POST', json: { note } });
+    viewing.value = null;
     toast.success('أُعيد النموذج إلى المسودة');
     await load();
   } catch (e) {
@@ -209,9 +217,8 @@ async function remove(f: DynamicForm) {
         </div>
         <div class="acts">
           <button v-if="f.status === 'draft' && mode === 'manage'" class="btn btn-sm btn-primary" @click="act(f, 'submit')">إرسال للمراجعة</button>
-          <button v-if="f.status === 'review' && canReview" class="btn btn-sm btn-primary" @click="act(f, 'review')">تمت مراجعة الجودة</button>
-          <button v-if="f.status === 'reviewed' && canApprove" class="btn btn-sm btn-primary" @click="act(f, 'approve')">اعتماد</button>
-          <button v-if="(f.status === 'review' && canReview) || (f.status === 'reviewed' && canApprove)" class="btn btn-sm" @click="sendBack(f)">إرجاع</button>
+          <button v-if="awaitsMe(f)" class="btn btn-sm btn-primary" @click="openView(f)">عرض النموذج كاملًا واتخاذ القرار</button>
+          <button v-else class="btn btn-sm" @click="openView(f)">عرض كامل</button>
           <button v-if="mode === 'manage'" class="btn btn-sm" @click="openForm(f)">تعديل</button>
           <button v-if="mode === 'manage' && f.status !== 'approved' && !f.history?.some((h) => h.step === 'approved')" class="btn btn-sm btn-danger" @click="remove(f)">حذف</button>
           <button v-if="f.history?.length" class="btn btn-sm hbtn" @click="showHistory = showHistory === f.id ? null : f.id">سجل الاعتماد</button>
@@ -326,6 +333,86 @@ async function remove(f: DynamicForm) {
         <div class="modal-actions"><button class="btn btn-primary" form="form-builder">حفظ النموذج</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
       </div>
     </div>
+
+    <div v-if="viewing" class="modal-backdrop" @click.self="viewing = null">
+      <div class="card modal builder fullview">
+        <div class="fv-head">
+          <div>
+            <span v-if="viewing.qualityCode" class="qcode">{{ viewing.qualityCode }} · {{ rev(viewing.revision) }}</span>
+            <h2 class="mt">{{ viewing.name }} <span v-if="viewing.scored" class="sbadge">تقييم آلي</span></h2>
+            <span :class="['st', viewing.status ?? 'approved']">{{ STATUS_TEXT[viewing.status ?? 'approved'] }}</span>
+          </div>
+          <button type="button" class="btn btn-sm" @click="viewing = null">✕</button>
+        </div>
+        <p v-if="viewing.description" class="muted">{{ viewing.description }}</p>
+        <div class="meta">
+          <span v-for="p in viewing.placements" :key="`${p.workflowId}-${p.stageId}`" class="place">📍 {{ p.workflowName }} ← {{ p.stageName }}</span>
+          <span v-if="!viewing.placements?.length" class="muted small">غير مرتبط بأي مرحلة حاليًا</span>
+        </div>
+        <p class="muted small">{{ [viewing.createdByName && `أنشأه: ${viewing.createdByName}`, viewing.reviewedByName && `راجعه: ${viewing.reviewedByName}`, viewing.status === 'approved' && viewing.approvedByName && `اعتمده: ${viewing.approvedByName}`].filter(Boolean).join(' · ') }}</p>
+
+        <div class="cols">
+          <div class="bcol">
+            <p class="sec">بنود النموذج ({{ viewing.fields.length }})</p>
+            <div class="tbl-wrap">
+              <table class="fv-table">
+                <thead><tr><th>#</th><th>البند</th><th>النوع</th><th>إلزامي</th><th>الخيارات</th><th v-if="viewing.scored">الأهمية</th></tr></thead>
+                <tbody>
+                  <tr v-for="(x, k) in viewing.fields" :key="x.key">
+                    <td>{{ k + 1 }}</td>
+                    <td><b>{{ x.label }}</b><div v-if="x.placeholder" class="muted small">{{ x.placeholder }}</div></td>
+                    <td>{{ label('field', x.type) }}</td>
+                    <td>{{ x.required ? 'نعم' : 'لا' }}</td>
+                    <td>
+                      <template v-if="x.options?.length">
+                        <span v-for="(o, j) in x.options" :key="j" class="opt">{{ o }}<template v-if="x.optionScores?.length"> ({{ x.optionScores[j] ?? 0 }})</template></span>
+                      </template>
+                      <span v-else class="muted">—</span>
+                    </td>
+                    <td v-if="viewing.scored">{{ x.weight ? `${x.weight}%` : '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <template v-if="viewing.scored && viewing.rules?.length">
+              <p class="sec">قواعد النتيجة</p>
+              <div class="rchips">
+                <span v-for="(r, j) in viewing.rules" :key="j" class="rchip" :style="{ '--c': color('outcome', r.outcome) }">{{ r.min }}–{{ r.max }}%: {{ label('outcome', r.outcome) }}<template v-if="r.contributionPercent"> {{ r.contributionPercent }}%</template></span>
+              </div>
+            </template>
+            <template v-if="viewing.history?.length">
+              <p class="sec">سجل الاعتماد</p>
+              <ol class="hist">
+                <li v-for="(h, k) in [...viewing.history].reverse()" :key="k" :class="h.step">
+                  <b>{{ STEP_TEXT[h.step] }}<template v-if="h.revision !== undefined"> · {{ rev(h.revision) }}</template></b>
+                  <span class="muted">{{ h.by }} · {{ fmt(h.at) }}</span>
+                  <q v-if="h.note">{{ h.note }}</q>
+                </li>
+              </ol>
+            </template>
+          </div>
+          <div class="preview">
+            <p class="sec">النموذج كما سيظهر لمن يعبّئه (يمكنك تجربته)</p>
+            <DynamicFields v-model="viewData" :fields="viewing.fields" />
+            <div v-if="viewScore" class="pscore" :style="{ '--c': color('outcome', viewScore.rule?.outcome) }">
+              <span>النتيجة التجريبية</span>
+              <b>{{ viewScore.score }}%</b>
+              <span v-if="viewScore.rule">{{ label('outcome', viewScore.rule.outcome) }}<template v-if="viewScore.rule.contributionPercent"> · يتحمل المستفيد {{ viewScore.rule.contributionPercent }}%</template></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <template v-if="awaitsMe(viewing)">
+            <button v-if="viewing.status === 'review'" class="btn btn-primary" @click="act(viewing, 'review')">تمت مراجعة الجودة</button>
+            <button v-if="viewing.status === 'reviewed'" class="btn btn-primary" @click="act(viewing, 'approve')">اعتماد النموذج</button>
+            <button class="btn" @click="sendBack(viewing)">إرجاع إلى المسودة</button>
+          </template>
+          <button v-if="viewing.status === 'draft' && mode === 'manage'" class="btn btn-primary" @click="act(viewing, 'submit')">إرسال للمراجعة</button>
+          <button type="button" class="btn" @click="viewing = null">إغلاق</button>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -409,5 +496,13 @@ textarea.input { resize: vertical; }
 .list-move, .list-enter-active, .list-leave-active { transition: all .3s var(--ease); }
 .list-enter-from, .list-leave-to { opacity: 0; transform: translateX(-16px); }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+.fv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.fv-head .mt { margin: 6px 0; }
+.fullview .meta { margin: 8px 0; }
+.tbl-wrap { overflow-x: auto; }
+.fv-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.fv-table th, .fv-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: start; vertical-align: top; }
+.fv-table th { color: var(--muted); font-weight: 600; background: var(--surface-2); }
+.opt { display: inline-block; margin: 2px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); font-size: .76rem; }
 @media (max-width: 800px) { .cols { grid-template-columns: 1fr; } .r1 { grid-template-columns: 1fr; } }
 </style>
