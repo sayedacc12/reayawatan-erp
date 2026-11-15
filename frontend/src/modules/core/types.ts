@@ -20,4 +20,6 @@ export interface ModuleInfo {
   name: string;
   description?: string;
   permissions: { code: string; name: string }[];
+  /** للوحدات اللي ليها شاشة إعدادات: صلاحياتها بتتدار من جوه الوحدة */
+  settingsPath?: string | null;
 }

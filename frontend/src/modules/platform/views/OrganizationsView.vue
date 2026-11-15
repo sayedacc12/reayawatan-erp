@@ -143,7 +143,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
         <tbody>
           <tr v-for="o in orgs" :key="o.id">
             <td>{{ o.name }}</td>
-            <td dir="ltr" style="text-align: right"><code>{{ o.slug }}</code> <a :href="`/portal/${o.slug}`" target="_blank" class="portal-link">البوابة ↗</a></td>
+            <td dir="ltr" style="text-align: right"><code>{{ o.slug }}</code> <a :href="`/o/${o.slug}`" target="_blank" class="portal-link">دخول الموظفين ↗</a> <a :href="`/portal/${o.slug}`" target="_blank" class="portal-link">بوابة المستفيدين ↗</a></td>
             <td>{{ o.userCount }}</td>
             <td>
               <span v-for="m in o.modules" :key="m" class="badge badge-primary">{{ moduleName(m) }}</span>
@@ -202,7 +202,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
       <div class="card modal modal-wide demo">
         <h2>✨ تم تجهيز {{ demo.organization.name }}</h2>
         <p class="muted">احفظ البيانات دي، كلمات المرور مش هتظهر تاني.</p>
-        <h3>دخول الموظفين (من صفحة الدخول العادية)</h3>
+        <h3>دخول الموظفين <a :href="`/o/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/o/{{ demo.organization.slug }}</a></h3>
         <table class="table">
           <tr v-for="s in demo.staff" :key="s.email"><td>{{ s.role }}</td><td dir="ltr"><code>{{ s.email }}</code></td></tr>
           <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.staffPassword }}</code></td></tr>

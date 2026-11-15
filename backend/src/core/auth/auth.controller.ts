@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto, LoginDto } from './auth.dto';
@@ -14,7 +14,14 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.login ?? dto.email ?? '', dto.password);
+    return this.auth.login(dto.login ?? dto.email ?? '', dto.password, dto.organization);
+  }
+
+  /** بيانات صفحة دخول الجمعية (اسمها فقط) */
+  @Public()
+  @Get('org/:slug')
+  organization(@Param('slug') slug: string) {
+    return this.auth.organizationLogin(slug);
   }
 
   @Get('me')

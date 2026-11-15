@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { CurrentOrgUser, OrgUser, RequirePermissions } from '../auth/decorators';
 import { CORE_PERMISSIONS } from '../core.manifest';
-import { CreateRoleDto, UpdateRoleDto } from './roles.dto';
+import { CreateRoleDto, ModulePermissionsDto, UpdateRoleDto } from './roles.dto';
 import { RolesService } from './roles.service';
 
 @Controller('roles')
@@ -12,6 +12,30 @@ export class RolesController {
   @RequirePermissions(CORE_PERMISSIONS.rolesRead)
   list(@CurrentOrgUser() actor: OrgUser) {
     return this.roles.list(actor);
+  }
+
+  /**
+   * صلاحيات وحدة واحدة على كل الأدوار، لتبويب "الصلاحيات" داخل إعدادات الوحدة.
+   * متاح لمن يملك إعدادات الوحدة أو صلاحيات الأدوار العامة (الفحص داخل الخدمة).
+   */
+  @Get('module/:code')
+  moduleRoles(@CurrentOrgUser() actor: OrgUser, @Param('code') code: string) {
+    return this.roles.moduleRoles(actor, code);
+  }
+
+  @Post('module/:code')
+  createForModule(@CurrentOrgUser() actor: OrgUser, @Param('code') code: string, @Body() dto: CreateRoleDto) {
+    return this.roles.createForModule(actor, code, dto);
+  }
+
+  @Put(':id/module/:code')
+  setModulePermissions(
+    @CurrentOrgUser() actor: OrgUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('code') code: string,
+    @Body() dto: ModulePermissionsDto,
+  ) {
+    return this.roles.setModulePermissions(actor, id, code, dto.permissions);
   }
 
   @Post()

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import ActivitiesPane from '../components/settings/ActivitiesPane.vue';
@@ -8,17 +10,25 @@ import WorkflowsPane from '../components/settings/WorkflowsPane.vue';
 
 const session = useSession();
 const toast = useToast();
-const tab = ref<'activities' | 'workflows' | 'forms' | 'portal'>('activities');
+const route = useRoute();
+type Tab = 'activities' | 'workflows' | 'forms' | 'permissions' | 'portal';
 const tabs = [
   { key: 'activities', label: 'الأنشطة', hint: 'محور ← برنامج ← مشروع' },
   { key: 'workflows', label: 'سير العمل', hint: 'المراحل والقرارات' },
   { key: 'forms', label: 'النماذج', hint: 'حقول البحث وبيانات الطلب' },
-  { key: 'portal', label: 'بوابة المستفيدين', hint: 'رابط التسجيل والتقديم' },
+  { key: 'permissions', label: 'الصلاحيات', hint: 'مين يعمل إيه في المستفيدين' },
+  { key: 'portal', label: 'الروابط', hint: 'دخول الموظفين والمستفيدين' },
 ] as const;
-const portalUrl = computed(() => `${location.origin}/portal/${session.user?.organizationSlug ?? ''}`);
-async function copy() {
+const tab = ref<Tab>('activities');
+watch(() => route.query.tab, (q) => {
+  if (tabs.some((t) => t.key === q)) tab.value = q as Tab;
+}, { immediate: true });
+const slug = computed(() => session.user?.organizationSlug ?? '');
+const portalUrl = computed(() => `${location.origin}/portal/${slug.value}`);
+const staffUrl = computed(() => `${location.origin}/o/${slug.value}`);
+async function copy(url: string) {
   try {
-    await navigator.clipboard.writeText(portalUrl.value);
+    await navigator.clipboard.writeText(url);
     toast.success('تم نسخ الرابط');
   } catch {
     toast.error('انسخ الرابط يدويًا');
@@ -38,20 +48,30 @@ async function copy() {
       <ActivitiesPane v-if="tab === 'activities'" key="a" />
       <WorkflowsPane v-else-if="tab === 'workflows'" key="w" />
       <FormsPane v-else-if="tab === 'forms'" key="f" />
-      <section v-else key="p" class="card portal">
-        <div class="glow" />
-        <h2>رابط بوابة المستفيدين لجمعيتك</h2>
-        <p class="muted">حط الرابط ده في موقع الجمعية. المستفيد بيسجل برقم هويته، ويقدم على المشاريع المتاحة، ويتابع مراحل طلباته، ويبعت شكاوى ومقترحات واستفسارات.</p>
-        <div class="url"><code dir="ltr">{{ portalUrl }}</code><button class="btn btn-primary btn-sm" @click="copy">نسخ</button><a :href="portalUrl" target="_blank" class="btn btn-sm">فتح</a></div>
-        <p class="muted small">المشاريع اللي بتظهر في البوابة هي المشاريع النشطة اللي عليها علامة "يظهر في البوابة" في تبويب الأنشطة.</p>
-      </section>
+      <ModulePermissionsPane v-else-if="tab === 'permissions'" key="r" module="beneficiaries" />
+      <div v-else key="p" class="links">
+        <section class="card portal">
+          <div class="glow" />
+          <h2>صفحة دخول موظفي جمعيتك</h2>
+          <p class="muted">صفحة دخول خاصة بجمعيتك. ابعتها لكل الموظفين، ومحدش من جمعية تانية يقدر يدخل منها.</p>
+          <div class="url"><code dir="ltr">{{ staffUrl }}</code><button class="btn btn-primary btn-sm" @click="copy(staffUrl)">نسخ</button><a :href="staffUrl" target="_blank" class="btn btn-sm">فتح</a></div>
+        </section>
+        <section class="card portal">
+          <div class="glow" />
+          <h2>رابط بوابة المستفيدين لجمعيتك</h2>
+          <p class="muted">حط الرابط ده في موقع الجمعية. المستفيد بيسجل برقم هويته، ويقدم على المشاريع المتاحة، ويتابع مراحل طلباته، ويبعت شكاوى ومقترحات واستفسارات.</p>
+          <div class="url"><code dir="ltr">{{ portalUrl }}</code><button class="btn btn-primary btn-sm" @click="copy(portalUrl)">نسخ</button><a :href="portalUrl" target="_blank" class="btn btn-sm">فتح</a></div>
+          <p class="muted small">المشاريع اللي بتظهر في البوابة هي المشاريع النشطة اللي عليها علامة "يظهر في البوابة" في تبويب الأنشطة.</p>
+        </section>
+      </div>
     </Transition>
   </div>
 </template>
 
 <style scoped>
 .sub { margin: 2px 0 0; font-size: .88rem; }
-.stabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+.links { display: flex; flex-direction: column; gap: 14px; }
+.stabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
 .stab { display: flex; align-items: center; gap: 10px; padding: 12px 14px; text-align: right; font: inherit; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
   transition: all .2s; animation: rise .4s calc(var(--i) * 60ms) var(--ease) both; }
 .stab small { display: block; color: var(--muted); font-size: .76rem; }

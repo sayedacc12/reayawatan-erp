@@ -82,7 +82,16 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
     const enabled = await this.enabledModuleCodes(organizationId);
     return this.manifests
       .filter((m) => enabled.has(m.code))
-      .map(({ code, name, description, icon, permissions }) => ({ code, name, description, icon, permissions }));
+      .map(({ code, name, description, icon, permissions, settingsPermission, menu }) => ({
+        code, name, description, icon, permissions,
+        // الوحدات اللي ليها شاشة إعدادات بتدير صلاحياتها من جوه الوحدة نفسها
+        settingsPath: menu.find((i) => settingsPermission && i.permission === settingsPermission)?.path ?? null,
+      }));
+  }
+
+  /** manifest وحدة جمعية بالكود */
+  manifest(code: string) {
+    return this.manifests.find((m) => m.code === code && scopeOf(m) === 'organization');
   }
 
   /** صلاحيات نطاق معين، ومع تمرير enabled تقتصر على الوحدات المفعلة */

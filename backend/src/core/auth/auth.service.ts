@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
-import { User } from '../entities';
+import { Organization, User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { AuthUser } from './decorators';
 import { PermissionResolver } from './permission-resolver.service';
@@ -15,21 +15,36 @@ const DUMMY_HASH = bcrypt.hashSync('timing-equalizer', 10);
 export class AuthService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(Organization) private readonly orgs: Repository<Organization>,
     private readonly jwt: JwtService,
     private readonly resolver: PermissionResolver,
     private readonly catalog: ModuleCatalogService,
   ) {}
 
-  /** الدخول بالبريد الإلكتروني أو باسم المستخدم */
-  async login(login: string, password: string) {
+  /**
+   * الدخول بالبريد الإلكتروني أو باسم المستخدم.
+   * كل جمعية لها صفحة دخول خاصة (organization = slug)، وموظفوها يدخلون منها فقط.
+   * الدخول بدون جمعية لمدير المنصة فقط.
+   */
+  async login(login: string, password: string, orgSlug?: string) {
+    const fail = () => new UnauthorizedException('بيانات الدخول أو كلمة المرور غير صحيحة');
+    const org = orgSlug ? await this.findOrg(orgSlug) : null;
+    if (orgSlug && !org) throw new UnauthorizedException('رابط الجمعية غير صحيح');
     const id = login.trim().toLowerCase();
     const user = await this.users.findOne({
       where: id.includes('@') ? { email: id } : { username: id },
-      select: { id: true, passwordHash: true },
+      select: { id: true, passwordHash: true, organizationId: true, isPlatformAdmin: true },
     });
     const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
-    if (!user || !ok) {
-      throw new UnauthorizedException('بيانات الدخول أو كلمة المرور غير صحيحة');
+    if (!user || !ok) throw fail();
+    if (org) {
+      if (user.organizationId !== org.id) throw fail();
+    } else if (!user.isPlatformAdmin) {
+      // كلمة المرور صحيحة، فنوجّهه لصفحة جمعيته
+      const own = user.organizationId ? await this.orgs.findOne({ where: { id: user.organizationId } }) : null;
+      throw new UnauthorizedException(
+        own ? `هذا حساب موظف في "${own.name}". ادخل من صفحة جمعيتك: /o/${own.slug}` : 'بيانات الدخول أو كلمة المرور غير صحيحة',
+      );
     }
     // يتحقق من أن الحساب والجمعية نشطان
     if (!(await this.resolver.resolve(user.id))) {
@@ -38,6 +53,16 @@ export class AuthService {
     await this.users.update(user.id, { lastLoginAt: new Date() });
     const accessToken = await this.jwt.signAsync({ sub: user.id });
     return { accessToken, ...(await this.session(user.id)) };
+  }
+
+  async organizationLogin(slug: string) {
+    const org = await this.findOrg(slug);
+    if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    return { name: org.name, slug: org.slug };
+  }
+
+  private findOrg(slug: string) {
+    return this.orgs.findOne({ where: { slug: slug.trim().toLowerCase(), isActive: true } });
   }
 
   /** بيانات الجلسة: المستخدم + صلاحياته + الوحدات المتاحة له وقوائمها */

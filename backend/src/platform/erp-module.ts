@@ -48,4 +48,9 @@ export interface ErpModuleManifest {
   depends?: string[];
   permissions: ErpPermission[];
   menu: ErpMenuItem[];
+  /**
+   * صلاحية إعدادات الوحدة. من يملكها يدير صلاحيات هذه الوحدة في الأدوار
+   * من داخل شاشة إعدادات الوحدة نفسها (بدون الحاجة لصلاحيات الأدوار العامة).
+   */
+  settingsPermission?: string;
 }

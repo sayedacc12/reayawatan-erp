@@ -44,6 +44,13 @@ function startNew() {
   form.permissions = new Set();
 }
 
+// الشاشة دي للصلاحيات العامة؛ صلاحيات كل وحدة ليها إعدادات بتتدار من جوه الوحدة
+const generalModules = computed(() => modules.value.filter((m) => !m.settingsPath));
+const ownModules = computed(() => modules.value.filter((m) => m.settingsPath));
+function countIn(m: ModuleInfo) {
+  return m.permissions.filter((p) => form.permissions.has(p.code)).length;
+}
+
 const showEditor = computed(() => isNew.value || selectedId.value !== null);
 const selectedRole = computed(() => roles.value.find((r) => r.id === selectedId.value));
 
@@ -102,7 +109,7 @@ async function remove() {
     <div class="page-head">
       <div>
         <h1>الأدوار والصلاحيات</h1>
-        <p class="muted">كل دور مجموعة صلاحيات على وحدات النظام. أسند الأدوار للمستخدمين من شاشة المستخدمين.</p>
+        <p class="muted">هنا الأدوار والصلاحيات العامة. صلاحيات كل وحدة (زي المستفيدين) بتتظبط من تبويب "الصلاحيات" في إعدادات الوحدة نفسها.</p>
       </div>
       <button v-if="canManage" class="btn btn-primary" @click="startNew">+ دور جديد</button>
     </div>
@@ -124,8 +131,8 @@ async function remove() {
             <div class="field" style="flex: 2"><label>الوصف</label><input v-model="form.description" class="input" :disabled="!canManage" /></div>
           </div>
 
-          <h2 style="margin: 6px 0 12px">الصلاحيات حسب الوحدة</h2>
-          <div v-for="m in modules" :key="m.code" class="module">
+          <h2 style="margin: 6px 0 12px">الصلاحيات العامة</h2>
+          <div v-for="m in generalModules" :key="m.code" class="module">
             <div class="module-head">
               <label class="check">
                 <input type="checkbox" :checked="moduleState(m) === 'all'" :indeterminate="moduleState(m) === 'some'"
@@ -141,6 +148,17 @@ async function remove() {
               </label>
             </div>
           </div>
+
+          <template v-if="ownModules.length">
+            <h2 style="margin: 18px 0 12px">صلاحيات الوحدات</h2>
+            <div class="own-mods">
+              <RouterLink v-for="m in ownModules" :key="m.code" :to="`${m.settingsPath}?tab=permissions`" class="own-mod">
+                <strong>{{ m.name }}</strong>
+                <span class="muted small">{{ countIn(m) }} من {{ m.permissions.length }} صلاحية في الدور ده</span>
+                <span class="go">تتظبط من إعدادات الوحدة ←</span>
+              </RouterLink>
+            </div>
+          </template>
 
           <div v-if="canManage" class="modal-actions" style="justify-content: space-between">
             <button class="btn btn-primary" :disabled="saving">{{ isNew ? 'إنشاء الدور' : 'حفظ التغييرات' }}</button>
@@ -168,5 +186,9 @@ async function remove() {
 .perm { align-items: flex-start; }
 .perm input { margin-top: 4px; }
 code { font-size: 0.75rem; direction: ltr; }
+.own-mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.own-mod { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 10px; color: var(--text); text-decoration: none; transition: all .2s; }
+.own-mod:hover { border-color: var(--primary); background: var(--primary-soft); }
+.own-mod .go { color: var(--primary); font-size: .85rem; font-weight: 600; }
 @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
 </style>

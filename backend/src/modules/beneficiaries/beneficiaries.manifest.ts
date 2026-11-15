@@ -35,6 +35,7 @@ export const beneficiariesManifest: ErpModuleManifest = {
     { code: BENEFICIARY_PERMISSIONS.tickets, name: 'الرد على الشكاوى والمقترحات والاستفسارات' },
     { code: BENEFICIARY_PERMISSIONS.settings, name: 'إعدادات الأنشطة وسير العمل والنماذج' },
   ],
+  settingsPermission: BENEFICIARY_PERMISSIONS.settings,
   menu: [
     { label: 'لوحة المستفيدين', path: '/beneficiaries', permission: BENEFICIARY_PERMISSIONS.read },
     { label: 'ملفات المستفيدين', path: '/beneficiaries/files', permission: BENEFICIARY_PERMISSIONS.read },
