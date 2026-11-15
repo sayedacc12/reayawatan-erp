@@ -28,12 +28,14 @@ export class AuthGuard implements CanActivate {
     const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('يجب تسجيل الدخول');
 
-    let payload: { sub: string };
+    let payload: { sub: string; typ?: string };
     try {
       payload = await this.jwt.verifyAsync(token);
     } catch {
       throw new UnauthorizedException('انتهت الجلسة، سجّل الدخول مرة أخرى');
     }
+    // رموز بوابة المستفيدين لا تصلح لنظام الموظفين
+    if (payload.typ) throw new UnauthorizedException('يجب تسجيل الدخول');
 
     const user = await this.resolver.resolve(payload.sub);
     if (!user) throw new UnauthorizedException('الحساب غير موجود أو موقوف');

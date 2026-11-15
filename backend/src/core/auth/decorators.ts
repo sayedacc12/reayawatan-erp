@@ -14,6 +14,8 @@ export interface AuthUser {
   /** null لمدير المنصة فقط */
   organizationId: string | null;
   organizationName: string | null;
+  /** معرف الجمعية (يستخدم في رابط بوابة المستفيدين) */
+  organizationSlug: string | null;
   email: string;
   username: string | null;
   fullName: string;

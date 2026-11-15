@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
+import { beneficiariesRoutes } from './beneficiaries/routes';
 import { coreRoutes } from './core/routes';
 import { platformRoutes } from './platform/routes';
 
@@ -6,4 +7,4 @@ import { platformRoutes } from './platform/routes';
  * شاشات كل وحدة تُسجَّل هنا. لإضافة وحدة: أنشئ src/modules/<code>/routes.ts
  * وأضفها للمصفوفة. كل route يحمل meta.permission ومساره يطابق menu في manifest الخلفية.
  */
-export const moduleRoutes: RouteRecordRaw[] = [...platformRoutes, ...coreRoutes];
+export const moduleRoutes: RouteRecordRaw[] = [...platformRoutes, ...beneficiariesRoutes, ...coreRoutes];

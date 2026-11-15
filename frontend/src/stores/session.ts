@@ -8,6 +8,7 @@ export interface SessionUser {
   username: string | null;
   organizationId: string | null;
   organizationName: string | null;
+  organizationSlug: string | null;
   isSuperadmin: boolean;
   isPlatformAdmin: boolean;
   permissions: string[];

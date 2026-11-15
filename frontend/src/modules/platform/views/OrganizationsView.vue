@@ -95,6 +95,29 @@ async function saveModules() {
     error.value = (e as Error).message;
   }
 }
+// ---- جمعية تجريبية للشرح ----
+interface DemoResult {
+  organization: { name: string; slug: string };
+  staffPassword: string;
+  staff: { role: string; email: string }[];
+  portalPassword: string;
+  portalUsers: { fullName: string; nationalId: string }[];
+}
+const demo = ref<DemoResult | null>(null);
+const demoBusy = ref(false);
+async function createDemo() {
+  demoBusy.value = true;
+  try {
+    demo.value = await api<DemoResult>('/platform/demo-organization', { method: 'POST' });
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    demoBusy.value = false;
+  }
+}
+const origin = location.origin;
+
 const moduleName = (code: string) => optional.value.find((m) => m.code === code)?.name ?? code;
 </script>
 
@@ -105,7 +128,10 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
         <h1>الجمعيات</h1>
         <p class="muted">كل جمعية حساب مستقل ببياناتها ومستخدميها ومدير نظام خاص بها.</p>
       </div>
-      <button class="btn btn-primary" @click="openCreate">+ جمعية جديدة</button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap">
+        <button v-if="!orgs.some((o) => o.slug === 'demo')" class="btn" :disabled="demoBusy" @click="createDemo">{{ demoBusy ? 'جارٍ التجهيز...' : '✨ جمعية تجريبية للشرح' }}</button>
+        <button class="btn btn-primary" @click="openCreate">+ جمعية جديدة</button>
+      </div>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
 
@@ -117,7 +143,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
         <tbody>
           <tr v-for="o in orgs" :key="o.id">
             <td>{{ o.name }}</td>
-            <td dir="ltr" style="text-align: right"><code>{{ o.slug }}</code></td>
+            <td dir="ltr" style="text-align: right"><code>{{ o.slug }}</code> <a :href="`/portal/${o.slug}`" target="_blank" class="portal-link">البوابة ↗</a></td>
             <td>{{ o.userCount }}</td>
             <td>
               <span v-for="m in o.modules" :key="m" class="badge badge-primary">{{ moduleName(m) }}</span>
@@ -172,5 +198,28 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
         </div>
       </div>
     </div>
+    <div v-if="demo" class="modal-backdrop" @click.self="demo = null">
+      <div class="card modal modal-wide demo">
+        <h2>✨ تم تجهيز {{ demo.organization.name }}</h2>
+        <p class="muted">احفظ البيانات دي، كلمات المرور مش هتظهر تاني.</p>
+        <h3>دخول الموظفين (من صفحة الدخول العادية)</h3>
+        <table class="table">
+          <tr v-for="s in demo.staff" :key="s.email"><td>{{ s.role }}</td><td dir="ltr"><code>{{ s.email }}</code></td></tr>
+          <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.staffPassword }}</code></td></tr>
+        </table>
+        <h3>بوابة المستفيدين <a :href="`/portal/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/portal/{{ demo.organization.slug }}</a></h3>
+        <table class="table">
+          <tr v-for="p in demo.portalUsers" :key="p.nationalId"><td>{{ p.fullName }}</td><td dir="ltr"><code>{{ p.nationalId }}</code></td></tr>
+          <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.portalPassword }}</code></td></tr>
+        </table>
+        <div class="modal-actions"><button class="btn btn-primary" @click="demo = null">تمام</button></div>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.portal-link { font-size: .78rem; margin-inline-start: 8px; }
+.demo h3 { font-size: .95rem; margin: 16px 0 6px; color: var(--primary); }
+.demo code { font-size: .9rem; }
+</style>

@@ -1,12 +1,13 @@
 import { ErpModuleManifest } from './erp-module';
 import { coreManifest, platformManifest } from '../core/core.manifest';
+import { beneficiariesManifest } from '../modules/beneficiaries/beneficiaries.manifest';
 
 /**
  * سجل الوحدات المثبتة.
  * لإضافة وحدة جديدة: أنشئ مجلدها تحت src/modules ثم أضف الـ manifest هنا
  * وأضف الـ Nest module الخاص بها في app.module.ts.
  */
-export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, coreManifest];
+export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, coreManifest, beneficiariesManifest];
 
 export function validateManifests(manifests: ErpModuleManifest[]): void {
   const codes = new Set<string>();

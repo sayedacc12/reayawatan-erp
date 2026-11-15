@@ -25,7 +25,6 @@ const tint = (i: number) => {
 const upcoming = [
   { name: 'الأعضاء', icon: 'users', desc: 'سجل الأعضاء والاشتراكات' },
   { name: 'التبرعات', icon: 'heart', desc: 'الإيصالات والحملات والمتبرعين' },
-  { name: 'المستفيدون', icon: 'hand', desc: 'ملفات الحالات والمساعدات' },
   { name: 'المحاسبة', icon: 'wallet', desc: 'القيود والحسابات والتقارير' },
   { name: 'الموقع ومنصة التبرعات', icon: 'globe', desc: 'خدمة إضافية لكل جمعية' },
 ];
