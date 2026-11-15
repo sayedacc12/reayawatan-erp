@@ -4,8 +4,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BeneficiariesController } from './beneficiaries.controller';
 import { BeneficiariesService } from './beneficiaries.service';
-import { DemoController } from './demo.controller';
-import { DemoService } from './demo.service';
 import { DocumentStorage } from './document-storage.service';
 import { BENEFICIARY_ENTITIES } from './entities';
 import { PortalController } from './portal.controller';
@@ -32,8 +30,8 @@ import { TicketsService } from './tickets.service';
     }),
   ],
   // المسارات الأكثر تحديدًا أولًا: beneficiaries/settings و beneficiaries/requests قبل beneficiaries/:id
-  controllers: [SettingsController, RequestsController, TicketsController, BeneficiariesController, PortalController, DemoController],
-  providers: [BeneficiariesService, DocumentStorage, SettingsService, RequestsService, TicketsService, PortalService, PortalGuard, DemoService],
+  controllers: [SettingsController, RequestsController, TicketsController, BeneficiariesController, PortalController],
+  providers: [BeneficiariesService, DocumentStorage, SettingsService, RequestsService, TicketsService, PortalService, PortalGuard],
   // للوحدات القادمة (مثل المالية) لربط الصرف بالقيود والمشاريع
   exports: [BeneficiariesService, RequestsService, SettingsService, DocumentStorage],
 })

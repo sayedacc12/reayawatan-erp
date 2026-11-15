@@ -5,7 +5,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 
-/** الأنشطة، سير العمل والنماذج، الطلبات، بوابة المستفيدين، والجمعية التجريبية */
+/** الأنشطة، سير العمل والنماذج، الطلبات، بوابة المستفيدين */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
 describe('Requests workflow + beneficiary portal', () => {
@@ -276,33 +276,4 @@ describe('Requests workflow + beneficiary portal', () => {
     await http.post('/api/portal/o/alkhair/login').send({ nationalId: '28001011234567', password: 'Hassan123' }).expect(200);
   });
 
-  it('platform admin creates a full demo association in one click', async () => {
-    await http.post('/api/platform/demo-organization').set(as(admin)).expect(403);
-    const demo = await http.post('/api/platform/demo-organization').set(as(platform)).expect(201);
-    expect(demo.body.organization.slug).toBe('demo');
-    await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
-
-    const demoAdmin = await login('demo-admin@sanabelerp.com', demo.body.staffPassword, 'demo');
-    const board = await http.get('/api/beneficiaries/requests/board').set(as(demoAdmin)).expect(200);
-    expect(board.body.byStatus).toMatchObject({ approved: 1, rejected: 1, returned: 1, in_progress: 4 });
-    const stats = await http.get('/api/beneficiaries/stats').set(as(demoAdmin)).expect(200);
-    expect(stats.body.beneficiaries).toBe(6);
-
-    const p = demo.body.portalUsers[0];
-    const t = (await http.post('/api/portal/o/demo/login').send({ nationalId: p.nationalId, password: demo.body.portalPassword }).expect(200)).body.accessToken;
-    const mine = await http.get('/api/portal/requests').set(as(t)).expect(200);
-    expect(mine.body[0].status).toBe('approved');
-    const info = await http.get('/api/portal/o/demo').expect(200);
-    expect(info.body.projects).toHaveLength(5);
-
-    // حالة العملية: التقييم بيطلب مساهمة 30% والمستفيد مستني يرفع الإثبات
-    const p2 = demo.body.portalUsers[1];
-    const t2 = (await http.post('/api/portal/o/demo/login').send({ nationalId: p2.nationalId, password: demo.body.portalPassword }).expect(200)).body.accessToken;
-    const surgery = (await http.get('/api/portal/requests').set(as(t2))).body[0];
-    expect(surgery.contributionStatus).toBe('awaiting');
-    const detail = (await http.get(`/api/portal/requests/${surgery.id}`).set(as(t2))).body;
-    expect(detail.contribution).toMatchObject({ percent: 30, requiredAmount: 7500 });
-    const acc = await http.get('/api/beneficiaries/settings/accounting').set(as(demoAdmin)).expect(200);
-    expect(acc.body.debitAccountCode).toBe('1101');
-  });
 });

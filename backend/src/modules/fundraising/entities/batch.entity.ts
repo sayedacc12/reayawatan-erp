@@ -30,13 +30,13 @@ export class Batch {
   @ManyToOne('Opportunity', 'batches', { onDelete: 'CASCADE' }) @JoinColumn({ name: 'opportunity_id' }) opportunity?: Opportunity;
   @Column({ name: 'line_no', type: 'int', default: 1 }) lineNo!: number;
   @Index() @Column({ name: 'donor_id', type: 'uuid' }) donorId!: string;
-  @ManyToOne(() => Donor, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'donor_id' }) donor?: Donor;
+  @ManyToOne(() => Donor, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'donor_id' }) donor?: Donor;
 
   @Column({ name: 'target_kind', type: 'varchar', length: 12 }) targetKind!: BatchTarget;
   /** البرنامج أو المشروع (من شجرة الأنشطة)، أو مشروع الطلب للحالة */
   @Column({ name: 'activity_id', type: 'uuid', nullable: true }) activityId!: string | null;
   @Column({ name: 'waqf_project_id', type: 'uuid', nullable: true }) waqfProjectId!: string | null;
-  @ManyToOne(() => WaqfProject, { onDelete: 'RESTRICT', nullable: true }) @JoinColumn({ name: 'waqf_project_id' }) waqfProject?: WaqfProject | null;
+  @ManyToOne(() => WaqfProject, { onDelete: 'NO ACTION', nullable: true }) @JoinColumn({ name: 'waqf_project_id' }) waqfProject?: WaqfProject | null;
   @Column({ name: 'beneficiary_request_id', type: 'uuid', nullable: true }) beneficiaryRequestId!: string | null;
   /** اسم الجهة المستهدفة وقت الإنشاء (للعرض حتى لو تغيّر الاسم بعدين) */
   @Column({ name: 'target_name', type: 'varchar', length: 300 }) targetName!: string;
@@ -57,7 +57,7 @@ export class Batch {
   @Column(moneyCol('transferred_amount')) transferredAmount!: number;
   /** للدفعات الناتجة عن مناقلة: الدفعة الأصل */
   @Column({ name: 'parent_batch_id', type: 'uuid', nullable: true }) parentBatchId!: string | null;
-  @ManyToOne(() => Batch, { onDelete: 'RESTRICT', nullable: true }) @JoinColumn({ name: 'parent_batch_id' }) parentBatch?: Batch | null;
+  @ManyToOne(() => Batch, { onDelete: 'NO ACTION', nullable: true }) @JoinColumn({ name: 'parent_batch_id' }) parentBatch?: Batch | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt!: Date;

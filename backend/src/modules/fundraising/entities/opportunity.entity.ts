@@ -41,7 +41,7 @@ export class Opportunity {
   @ManyToOne(() => ApprovalStage, { onDelete: 'SET NULL', nullable: true }) @JoinColumn({ name: 'current_stage_id' }) currentStage?: ApprovalStage | null;
 
   @Index() @Column({ name: 'donor_id', type: 'uuid' }) donorId!: string;
-  @ManyToOne(() => Donor, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'donor_id' }) donor?: Donor;
+  @ManyToOne(() => Donor, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'donor_id' }) donor?: Donor;
   @Column({ name: 'support_manager_id', type: 'uuid', nullable: true }) supportManagerId!: string | null;
   @ManyToOne(() => SupportManager, { onDelete: 'SET NULL', nullable: true }) @JoinColumn({ name: 'support_manager_id' }) supportManager?: SupportManager | null;
 
@@ -49,7 +49,7 @@ export class Opportunity {
   @Column(moneyCol('total_amount')) totalAmount!: number;
   /** الحساب البنكي الذي حُوِّل إليه التبرع (إلزامي للنقدية) */
   @Column({ name: 'bank_account_id', type: 'uuid', nullable: true }) bankAccountId!: string | null;
-  @ManyToOne(() => BankAccount, { onDelete: 'RESTRICT', nullable: true }) @JoinColumn({ name: 'bank_account_id' }) bankAccount?: BankAccount | null;
+  @ManyToOne(() => BankAccount, { onDelete: 'NO ACTION', nullable: true }) @JoinColumn({ name: 'bank_account_id' }) bankAccount?: BankAccount | null;
   /** رقم الحوالة أو المرجع البنكي */
   @Column({ name: 'transfer_reference', type: 'varchar', length: 100, nullable: true }) transferReference!: string | null;
 
@@ -121,7 +121,7 @@ export class PledgeCollection {
   @Column({ name: 'collected_on', type: 'date' }) collectedOn!: string;
   @Column(moneyCol('amount')) amount!: number;
   @Column({ name: 'bank_account_id', type: 'uuid' }) bankAccountId!: string;
-  @ManyToOne(() => BankAccount, { onDelete: 'RESTRICT' }) @JoinColumn({ name: 'bank_account_id' }) bankAccount?: BankAccount;
+  @ManyToOne(() => BankAccount, { onDelete: 'NO ACTION' }) @JoinColumn({ name: 'bank_account_id' }) bankAccount?: BankAccount;
   @Column({ name: 'transfer_reference', type: 'varchar', length: 100, nullable: true }) transferReference!: string | null;
   @Column({ name: 'receipt_no', type: 'int' }) receiptNo!: number;
   @Column({ name: 'journal_entry_id', type: 'uuid', nullable: true }) journalEntryId!: string | null;

@@ -17,6 +17,6 @@ import { FundraisingSettingsService } from './settings.service';
   imports: [TypeOrmModule.forFeature(FUNDRAISING_ENTITIES), BeneficiariesModule],
   controllers: [FundraisingSettingsController, DonorsController, OpportunitiesController],
   providers: [FundraisingSettingsService, DonorsService, FundraisingService, LedgerService, FundraisingReportsService],
-  exports: [FundraisingService, LedgerService],
+  exports: [FundraisingService, LedgerService, DonorsService, FundraisingSettingsService],
 })
 export class FundraisingModule {}
