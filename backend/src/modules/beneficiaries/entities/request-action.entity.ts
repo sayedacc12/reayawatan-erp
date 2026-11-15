@@ -1,7 +1,10 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { BeneficiaryRequest } from './beneficiary-request.entity';
+import { money } from './shared';
 
-export type RequestDecision = 'submitted' | 'approve' | 'reject' | 'return' | 'resubmitted' | 'cancelled';
+export type RequestDecision =
+  | 'submitted' | 'approve' | 'reject' | 'return' | 'resubmitted' | 'cancelled'
+  | 'skipped' | 'contribution_sent';
 
 /** سجل كل حركة على الطلب: تقديم، قبول مرحلة، رفض، إرجاع مع السبب... */
 @Entity('beneficiary_request_actions')
@@ -51,6 +54,10 @@ export class RequestAction {
   /** اسم من قام بالحركة (موظف أو المستفيد نفسه) */
   @Column({ name: 'actor_name', length: 200 })
   actorName!: string;
+
+  /** نتيجة التقييم الآلي لو المرحلة فيها نموذج تقييم */
+  @Column({ type: 'numeric', precision: 5, scale: 2, nullable: true, transformer: money })
+  score!: number | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

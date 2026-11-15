@@ -2,9 +2,12 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, EntityManager, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { validateAnswers } from './dynamic-forms';
+import { scoreAnswers, supportDecision, validateAnswers } from './dynamic-forms';
+import { DocumentStorage } from './document-storage.service';
 import {
-  Activity, Beneficiary, BeneficiaryRequest, DynamicForm, FormField, RequestAction, RequestDecision, Workflow, WorkflowStage,
+  Activity, Beneficiary, BeneficiaryDocument, BeneficiaryRequest, BeneficiarySettings, DynamicForm, FormField, Recurrence,
+  RequestAction, RequestDecision, Workflow, WorkflowStage,
+  type ScoreOutcome,
 } from './entities';
 import { DecisionDto, ListRequestsQuery, ResubmitDto } from './requests.dto';
 import { SettingsService } from './settings.service';
@@ -21,9 +24,21 @@ export interface NewRequest {
   projectId: string;
   description?: string | null;
   applicationData?: Record<string, unknown>;
+  services?: string[];
 }
 
 const OPEN = ['in_progress', 'returned'];
+
+export const RECURRENCE_LABEL: Record<Recurrence, string> = {
+  once: 'مرة واحدة', weekly: 'أسبوعي', monthly: 'شهري', quarterly: 'كل 3 شهور', semiannual: 'كل 6 شهور', yearly: 'سنوي',
+};
+
+function addPeriod(from: Date, r: Recurrence) {
+  const d = new Date(from);
+  if (r === 'weekly') d.setDate(d.getDate() + 7);
+  else d.setMonth(d.getMonth() + ({ monthly: 1, quarterly: 3, semiannual: 6, yearly: 12 } as Record<string, number>)[r]);
+  return d;
+}
 
 /**
  * محرك سير العمل للطلبات:
@@ -39,6 +54,7 @@ export class RequestsService {
     @InjectRepository(WorkflowStage) private readonly stages: Repository<WorkflowStage>,
     @InjectRepository(Activity) private readonly activities: Repository<Activity>,
     private readonly settings: SettingsService,
+    private readonly storage: DocumentStorage,
   ) {}
 
   // ---------------- القراءة ----------------
@@ -73,7 +89,7 @@ export class RequestsService {
     }
     const total = await qb.getCount();
     const rows = await qb
-      .select(['r.id', 'r.requestNo', 'r.status', 'r.source', 'r.createdAt', 'r.updatedAt', 'r.closedAt'])
+      .select(['r.id', 'r.requestNo', 'r.status', 'r.source', 'r.createdAt', 'r.updatedAt', 'r.closedAt', 'r.ruleDeviation'])
       .addSelect(['b.id', 'b.fullName', 'b.fileNo', 'p.id', 'p.name', 's.id', 's.name', 's.sortOrder'])
       .orderBy('r.updated_at', 'DESC')
       .offset((page - 1) * pageSize)
@@ -86,6 +102,7 @@ export class RequestsService {
         beneficiary: { id: r.beneficiary!.id, fullName: r.beneficiary!.fullName, fileNo: r.beneficiary!.fileNo },
         project: { id: r.project!.id, name: r.project!.name },
         stage: r.currentStage ? { id: r.currentStage.id, name: r.currentStage.name } : null,
+        ruleDeviation: r.ruleDeviation,
       })),
       total, page, pageSize,
     };
@@ -134,6 +151,17 @@ export class RequestsService {
       id: r.id, requestNo: r.requestNo, status: r.status, source: r.source, description: r.description,
       applicationData: r.applicationData, createdAt: r.createdAt, updatedAt: r.updatedAt, closedAt: r.closedAt,
       currentStageId: r.currentStageId,
+      services: r.services, estimatedCost: r.estimatedCost,
+      research: r.researchOutcome === null ? null : {
+        score: r.researchScore, outcome: r.researchOutcome, contributionPercent: r.contributionPercent ?? 0,
+        supportPercent: r.supportPercent, supportAmount: this.supportAmount(r),
+        suggestion: r.ruleSuggestion, deviation: r.ruleDeviation, deviationReason: r.deviationReason,
+      },
+      contribution: {
+        status: r.contributionStatus, percent: r.contributionPercent ?? 0, amount: r.contributionAmount,
+        requiredAmount: this.requiredAmount(r), documentId: r.contributionDocumentId,
+        submittedAt: r.contributionSubmittedAt, verifiedAt: r.contributionVerifiedAt, journal: r.contributionJournal,
+      },
       beneficiary: {
         id: b.id, fileNo: b.fileNo, fullName: b.fullName, nationalId: b.nationalId, phone: b.phone,
         category: b.category, status: b.status,
@@ -144,13 +172,14 @@ export class RequestsService {
         applicationForm: workflow.applicationForm ? { id: workflow.applicationForm.id, name: workflow.applicationForm.name, fields: workflow.applicationForm.fields } : null,
         stages: (workflow.stages ?? []).map((s) => ({
           id: s.id, name: s.name, instructions: s.instructions, sortOrder: s.sortOrder, canReject: s.canReject,
-          canReturn: s.canReturn, roleId: s.roleId, roleName: s.role?.name ?? null,
-          form: s.form ? { id: s.form.id, name: s.form.name, fields: s.form.fields } : null,
+          canReturn: s.canReturn, roleId: s.roleId, roleName: s.role?.name ?? null, kind: s.kind,
+          form: s.form ? { id: s.form.id, name: s.form.name, fields: s.form.fields, scored: s.form.scored, rules: s.form.rules } : null,
         })),
       },
       actions: (r.actions ?? []).map((a) => ({
         id: a.id, stageId: a.stageId, stageName: a.stageName, decision: a.decision, notes: a.notes,
         formName: a.formName, formData: a.formData, formFields: a.formFields, actorName: a.actorName, createdAt: a.createdAt,
+        score: a.score,
       })),
     };
   }
@@ -177,10 +206,9 @@ export class RequestsService {
       if (!project || !project.isActive || (source === 'portal' && !project.portalVisible)) {
         throw new BadRequestException('المشروع غير متاح للتقديم');
       }
-      const open = await em.findOne(BeneficiaryRequest, {
-        where: { organizationId: org, beneficiaryId: beneficiary.id, projectId: project.id, status: In(OPEN) },
-      });
-      if (open) throw new ConflictException(`يوجد طلب مفتوح على نفس المشروع (طلب رقم ${open.requestNo})`);
+      const eligibility = await this.eligibility(em, org, beneficiary.id, project);
+      if (!eligibility.canApply) throw new ConflictException(eligibility.reason);
+      const { services, estimatedCost } = this.pickServices(project, input.services);
 
       const workflow = await this.settings.workflowForProject(org, project);
       const stages = await em.find(WorkflowStage, { where: { workflowId: workflow.id }, order: { sortOrder: 'ASC' } });
@@ -194,7 +222,7 @@ export class RequestsService {
       const r = await em.save(em.create(BeneficiaryRequest, {
         organizationId: org, requestNo: Number(next), beneficiaryId: beneficiary.id, projectId: project.id,
         workflowId: workflow.id, currentStageId: stages[0].id, status: 'in_progress', source,
-        description: input.description ?? null, applicationData, createdBy: actor.userId,
+        description: input.description ?? null, applicationData, createdBy: actor.userId, services, estimatedCost,
       }));
       await this.log(em, actor, r.id, null, 'submitted', null);
       return r.id;
@@ -246,33 +274,211 @@ export class RequestsService {
       const idx = stages.findIndex((s) => s.id === r.currentStageId);
       const stage = stages[idx];
 
+      if (dto.estimatedCost !== undefined) r.estimatedCost = dto.estimatedCost;
+
       if (dto.decision === 'approve') {
         const form = stage.form ? { form: stage.form, data: validateAnswers(stage.form.fields, dto.formData) } : null;
-        await this.log(em, actor, r.id, stage, 'approve', dto.notes ?? null, form);
-        const next = stages[idx + 1];
-        if (next) {
-          r.currentStageId = next.id;
-        } else {
-          // اعتماد نهائي
-          Object.assign(r, { status: 'approved', currentStageId: null, closedAt: new Date() });
-          await em.update(Beneficiary, { id: r.beneficiaryId, status: In(['new', 'under_review']) }, { status: 'eligible' });
+        let score: number | null = null;
+        const explicit = form ? supportDecision(form.form.fields, form.data) : null;
+        if (explicit?.decision === 'none') throw new BadRequestException('تقييم الباحث "غير مستحق". اختار "رفض" واكتب السبب');
+        const rule = form?.form.scored ? scoreAnswers(form.form, form.data) : null;
+        if (rule || explicit) {
+          // قرار الباحث: مستحق = الجمعية 100%، مستحق بنسبة = نسبة الجمعية والباقي على المستفيد.
+          // من غير حقل تقييم الباحث، القبول = اقتراح القواعد (ولو القواعد قالت رفض = قبول كامل مخالف للقاعدة)
+          const support = explicit
+            ? (explicit.decision === 'full' ? 100 : explicit.percent!)
+            : rule!.outcome === 'contribution' ? 100 - rule!.contributionPercent : 100;
+          const contribution = Math.round((100 - support) * 100) / 100;
+          Object.assign(r, {
+            researchOutcome: support === 100 ? 'approve' : 'contribution', supportPercent: support, contributionPercent: contribution,
+          });
+          if (rule) {
+            score = rule.score;
+            this.applyRule(r, rule, r.researchOutcome!, contribution, dto.notes);
+          }
         }
+        if (stage.kind === 'contribution') await this.verifyContribution(em, r, dto);
+        await this.log(em, actor, r.id, stage, 'approve', dto.notes ?? null, form, score);
+        await this.advance(em, actor, r, stages, idx + 1);
       } else {
         if (!dto.notes) throw new BadRequestException(dto.decision === 'reject' ? 'اكتب سبب الرفض' : 'اكتب سبب الإرجاع');
+        let form: { form: DynamicForm; data: Record<string, unknown> } | null = null;
+        let score: number | null = null;
         if (dto.decision === 'reject') {
           if (!stage.canReject) throw new BadRequestException('هذه المرحلة لا تسمح بالرفض');
+          // الرفض في مرحلة التقييم: نسجل النتيجة ونعلّم الحالة لو القواعد كانت بتقترح قبول
+          if (stage.form?.scored && dto.formData && Object.keys(dto.formData).length) {
+            form = { form: stage.form, data: validateAnswers(stage.form.fields, dto.formData) };
+            const rule = scoreAnswers(stage.form, form.data);
+            score = rule.score;
+            Object.assign(r, { researchOutcome: 'reject', supportPercent: 0, contributionPercent: null });
+            this.applyRule(r, rule, 'reject', 0, dto.notes);
+          }
           Object.assign(r, { status: 'rejected', currentStageId: null, closedAt: new Date() });
         } else {
           if (!stage.canReturn) throw new BadRequestException('هذه المرحلة لا تسمح بالإرجاع');
+          if (stage.kind === 'contribution') {
+            // إرجاع للمستفيد علشان يرفع إثبات المساهمة من جديد
+            r.contributionStatus = 'awaiting';
+          } else if (idx > 0) r.currentStageId = stages[idx - 1].id;
           // الإرجاع من أول مرحلة = لمقدم الطلب
-          if (idx > 0) r.currentStageId = stages[idx - 1].id;
           else r.status = 'returned';
         }
-        await this.log(em, actor, r.id, stage, dto.decision, dto.notes);
+        await this.log(em, actor, r.id, stage, dto.decision, dto.notes, form, score);
       }
       await em.save(r);
     });
     return this.get(user.organizationId, id);
+  }
+
+  // ---------------- مساهمة المستفيد ----------------
+
+  /** المستفيد يرفع إثبات مساهمته من البوابة (في مرحلة تأكيد المساهمة) */
+  async submitContribution(actor: ActorRef, id: string, beneficiaryId: string, amount: number, file: Express.Multer.File) {
+    const { key, mime } = await this.storage.save(actor.organizationId, file);
+    try {
+      await this.db.transaction(async (em) => {
+        const r = await this.lockRequest(em, actor.organizationId, id, beneficiaryId);
+        const stage = r.currentStageId ? await em.findOne(WorkflowStage, { where: { id: r.currentStageId } }) : null;
+        if (r.status !== 'in_progress' || stage?.kind !== 'contribution' || !['awaiting', 'submitted'].includes(r.contributionStatus)) {
+          throw new BadRequestException('الطلب مش في مرحلة تأكيد المساهمة');
+        }
+        const doc = await em.save(em.create(BeneficiaryDocument, {
+          organizationId: actor.organizationId, beneficiaryId, title: `إثبات مساهمة - طلب رقم ${r.requestNo}`,
+          docType: 'contribution_proof', originalName: (file.originalname || 'proof').slice(0, 255), mimeType: mime,
+          size: file.size, storageKey: key, uploadedBy: null,
+        }));
+        Object.assign(r, {
+          contributionStatus: 'submitted', contributionAmount: amount, contributionDocumentId: doc.id, contributionSubmittedAt: new Date(),
+        });
+        await em.save(r);
+        await this.log(em, actor, r.id, stage, 'contribution_sent', `المبلغ: ${amount}`);
+      });
+    } catch (e) {
+      await this.storage.remove([key]);
+      throw e;
+    }
+  }
+
+  /** قبول مرحلة تأكيد المساهمة = التحقق منها وتوجيه القيد المحاسبي */
+  private async verifyContribution(em: EntityManager, r: BeneficiaryRequest, dto: DecisionDto) {
+    if (dto.contributionAmount !== undefined) r.contributionAmount = dto.contributionAmount;
+    else if (r.contributionStatus !== 'submitted') {
+      throw new BadRequestException('المستفيد لسه مارفعش إثبات المساهمة. استنى رفعه، أو سجّل المبلغ اللي دفعه في الجمعية');
+    }
+    const amount = r.contributionAmount ?? 0;
+    const acc = await em.findOne(BeneficiarySettings, { where: { organizationId: r.organizationId } });
+    Object.assign(r, {
+      contributionStatus: 'verified',
+      contributionVerifiedAt: new Date(),
+      contributionJournal: amount > 0 ? {
+        date: new Date().toISOString().slice(0, 10),
+        amount,
+        debit: { code: acc?.contributionDebitCode ?? null, name: acc?.contributionDebitName ?? null },
+        credit: { code: acc?.contributionCreditCode ?? null, name: acc?.contributionCreditName ?? null },
+        description: `${acc?.contributionDescription || 'مساهمة مستفيد'} - طلب رقم ${r.requestNo}`,
+      } : null,
+    });
+  }
+
+  /**
+   * القواعد استرشادية: بنسجل اقتراحها، ولو قرار الباحث اختلف عنها لازم يكتب السبب،
+   * والحالة بتتعلّم علشان تبان للمعتمد النهائي
+   */
+  private applyRule(
+    r: BeneficiaryRequest, rule: { score: number; outcome: ScoreOutcome | null; contributionPercent: number },
+    decided: ScoreOutcome, contribution: number, notes?: string | null,
+  ) {
+    r.researchScore = rule.score;
+    r.ruleSuggestion = rule.outcome ? { score: rule.score, outcome: rule.outcome, contributionPercent: rule.contributionPercent } : null;
+    const differs = !!rule.outcome && (rule.outcome !== decided
+      || (decided === 'contribution' && Math.abs(rule.contributionPercent - contribution) > 0.001));
+    if (differs && !notes) {
+      const suggested = rule.outcome === 'contribution' ? `قبول بمساهمة ${rule.contributionPercent}% من المستفيد` : rule.outcome === 'reject' ? 'رفض' : 'قبول';
+      throw new BadRequestException(`القاعدة بتقترح "${suggested}" (النتيجة ${rule.score}%) وقرارك مختلف. اكتب سبب الاختلاف في الملاحظات`);
+    }
+    r.ruleDeviation = differs;
+    r.deviationReason = differs ? notes ?? null : null;
+  }
+
+  /** المبلغ اللي الجمعية بتتحمله = اللي بيتحسب ضمن بيانات الدعم في المشروع */
+  private supportAmount(r: BeneficiaryRequest) {
+    if (r.supportPercent === null || r.estimatedCost === null) return null;
+    return Math.round(r.estimatedCost * r.supportPercent) / 100;
+  }
+
+  private requiredAmount(r: BeneficiaryRequest) {
+    if (!r.contributionPercent || r.estimatedCost === null) return null;
+    return Math.round(r.estimatedCost * r.contributionPercent) / 100;
+  }
+
+  /**
+   * ينقل الطلب للمرحلة التالية. مرحلة تأكيد المساهمة بتتعدى تلقائيًا لو مفيش مساهمة مطلوبة،
+   * وبعد آخر مرحلة = اعتماد نهائي.
+   */
+  private async advance(em: EntityManager, actor: ActorRef, r: BeneficiaryRequest, stages: WorkflowStage[], from: number) {
+    for (let i = from; i < stages.length; i++) {
+      const next = stages[i];
+      if (next.kind === 'contribution') {
+        if (!(r.contributionPercent && r.contributionPercent > 0)) {
+          await this.log(em, actor, r.id, next, 'skipped', 'مفيش مساهمة مطلوبة من المستفيد');
+          continue;
+        }
+        r.contributionStatus = 'awaiting';
+      }
+      r.currentStageId = next.id;
+      return;
+    }
+    Object.assign(r, { status: 'approved', currentStageId: null, closedAt: new Date() });
+    await em.update(Beneficiary, { id: r.beneficiaryId, status: In(['new', 'under_review']) }, { status: 'eligible' });
+  }
+
+  // ---------------- قواعد الدعم ----------------
+
+  /**
+   * هل المستفيد يقدر يقدم على المشروع دلوقتي؟
+   * - طلب مفتوح على نفس المشروع يمنع طلب جديد إلا لو المشروع بيسمح بأكتر من طلب
+   * - التكرار: مرة واحدة، أو بعد مرور الفترة من آخر طلب اتعتمد
+   */
+  async eligibility(em: EntityManager, org: string, beneficiaryId: string, project: Activity) {
+    if (!project.allowConcurrent) {
+      const open = await em.findOne(BeneficiaryRequest, {
+        where: { organizationId: org, beneficiaryId, projectId: project.id, status: In(OPEN) },
+      });
+      if (open) return { canApply: false, reason: `يوجد طلب مفتوح على نفس المشروع (طلب رقم ${open.requestNo})`, nextDate: null };
+    }
+    const last = await em.findOne(BeneficiaryRequest, {
+      where: { organizationId: org, beneficiaryId, projectId: project.id, status: 'approved' },
+      order: { closedAt: 'DESC' },
+    });
+    if (last?.closedAt) {
+      if (project.recurrence === 'once') {
+        return { canApply: false, reason: 'استفدت من المشروع ده قبل كده، والدعم فيه مرة واحدة بس', nextDate: null };
+      }
+      const next = addPeriod(last.closedAt, project.recurrence);
+      if (next > new Date()) {
+        const d = next.toISOString().slice(0, 10);
+        return { canApply: false, reason: `الدعم في المشروع ده ${RECURRENCE_LABEL[project.recurrence]}، تقدر تقدم تاني من ${d}`, nextDate: d };
+      }
+    }
+    return { canApply: true, reason: null, nextDate: null };
+  }
+
+  /** الخدمات المختارة لازم تكون من خدمات المشروع، وواحدة بس لو المشروع مش بيسمح بأكتر */
+  private pickServices(project: Activity, picked?: string[]) {
+    const available = project.services ?? [];
+    if (!available.length) return { services: [], estimatedCost: null };
+    const chosen = [...new Set((picked ?? []).map((x) => x.trim()).filter(Boolean))];
+    if (!chosen.length) throw new BadRequestException('اختر الخدمة المطلوبة');
+    if (!project.multiServices && chosen.length > 1) throw new BadRequestException('المشروع ده بيسمح بخدمة واحدة في الطلب');
+    const items = chosen.map((name) => {
+      const svc = available.find((x) => x.name === name);
+      if (!svc) throw new BadRequestException(`الخدمة "${name}" مش من خدمات المشروع`);
+      return svc;
+    });
+    const costs = items.map((x) => x.cost);
+    const estimatedCost = costs.every((c) => typeof c === 'number') ? costs.reduce((a, c) => a + (c as number), 0) : null;
+    return { services: chosen, estimatedCost };
   }
 
   // ---------------- مساعدات ----------------
@@ -307,12 +513,13 @@ export class RequestsService {
 
   private async log(
     em: EntityManager, actor: ActorRef, requestId: string, stage: WorkflowStage | null, decision: RequestDecision,
-    notes: string | null, form?: { form: DynamicForm; data: Record<string, unknown> } | null,
+    notes: string | null, form?: { form: DynamicForm; data: Record<string, unknown> } | null, score: number | null = null,
   ) {
     await em.save(em.create(RequestAction, {
       organizationId: actor.organizationId, requestId, stageId: stage?.id ?? null, stageName: stage?.name ?? null,
       decision, notes, actorUserId: actor.userId, actorName: actor.name,
       formName: form?.form.name ?? null, formData: form?.data ?? null, formFields: (form?.form.fields as FormField[]) ?? null,
+      score,
     }));
   }
 }

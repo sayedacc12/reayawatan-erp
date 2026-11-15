@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { Role } from '../../core/entities';
-import { normalizeFields } from './dynamic-forms';
-import { Activity, BeneficiaryRequest, DynamicForm, Workflow, WorkflowStage } from './entities';
-import { ActivityDto, FormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
+import { normalizeFields, normalizeRules } from './dynamic-forms';
+import { Activity, BeneficiaryRequest, BeneficiarySettings, DynamicForm, Workflow, WorkflowStage } from './entities';
+import { AccountingDto, ActivityDto, FormDto, ServiceDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
 
 const PARENT_LEVEL = { axis: null, program: 'axis', project: 'program' } as const;
 
@@ -38,6 +38,7 @@ export class SettingsService {
       id: a.id, level: a.level, parentId: a.parentId, name: a.name, description: a.description,
       workflowId: a.workflowId, workflowName: a.workflow?.name ?? null, portalVisible: a.portalVisible,
       isActive: a.isActive, sortOrder: a.sortOrder, requestCount: byProject.get(a.id) ?? 0,
+      services: a.services, multiServices: a.multiServices, allowConcurrent: a.allowConcurrent, recurrence: a.recurrence,
     }));
   }
 
@@ -59,6 +60,7 @@ export class SettingsService {
       portalVisible: dto.portalVisible ?? true,
       isActive: dto.isActive ?? true,
       sortOrder: dto.sortOrder ?? 0,
+      ...(dto.level === 'project' ? this.supportRules(dto) : {}),
     }));
     return saved;
   }
@@ -72,7 +74,25 @@ export class SettingsService {
     for (const k of ['name', 'description', 'portalVisible', 'isActive', 'sortOrder'] as const) {
       if (dto[k] !== undefined) (a as unknown as Record<string, unknown>)[k] = dto[k];
     }
+    if (a.level === 'project') Object.assign(a, this.supportRules(dto));
     return this.activities.save(a);
+  }
+
+  /** قواعد الدعم للمشروع: الخدمات، تعدد الخدمات والطلبات، والتكرار */
+  private supportRules(dto: UpdateActivityDto) {
+    const out: Partial<Activity> = {};
+    if (dto.services !== undefined) {
+      const names = new Set<string>();
+      out.services = dto.services.map((x: ServiceDto) => {
+        if (names.has(x.name)) throw new BadRequestException(`الخدمة "${x.name}" مكررة`);
+        names.add(x.name);
+        return { name: x.name, cost: x.cost ?? null };
+      });
+    }
+    if (dto.multiServices !== undefined) out.multiServices = dto.multiServices;
+    if (dto.allowConcurrent !== undefined) out.allowConcurrent = dto.allowConcurrent;
+    if (dto.recurrence !== undefined) out.recurrence = dto.recurrence;
+    return out;
   }
 
   async removeActivity(actor: OrgUser, id: string) {
@@ -94,15 +114,20 @@ export class SettingsService {
 
   async createForm(actor: OrgUser, dto: FormDto) {
     return this.forms.save(this.forms.create({
-      organizationId: actor.organizationId, name: dto.name, description: dto.description ?? null,
-      fields: normalizeFields(dto.fields),
+      organizationId: actor.organizationId, name: dto.name, description: dto.description ?? null, ...this.formBody(dto),
     }));
   }
 
   async updateForm(actor: OrgUser, id: string, dto: FormDto) {
     const f = await this.findForm(actor, id);
-    Object.assign(f, { name: dto.name, description: dto.description ?? null, fields: normalizeFields(dto.fields) });
+    Object.assign(f, { name: dto.name, description: dto.description ?? null, ...this.formBody(dto) });
     return this.forms.save(f);
+  }
+
+  /** النموذج العادي أو نموذج التقييم (أوزان إجماليها 100% + قواعد النتيجة) */
+  private formBody(dto: FormDto) {
+    const scored = !!dto.scored;
+    return { scored, fields: normalizeFields(dto.fields, scored), rules: scored ? normalizeRules(dto.rules) : [] };
   }
 
   async removeForm(actor: OrgUser, id: string) {
@@ -134,7 +159,8 @@ export class SettingsService {
       stages: (w.stages ?? []).map((s) => ({
         id: s.id, name: s.name, instructions: s.instructions, sortOrder: s.sortOrder,
         formId: s.formId, formName: s.form?.name ?? null, roleId: s.roleId, roleName: s.role?.name ?? null,
-        canReject: s.canReject, canReturn: s.canReturn, activeRequests: atStage.get(s.id) ?? 0,
+        canReject: s.canReject, canReturn: s.canReturn, kind: s.kind, formScored: !!s.form?.scored,
+        activeRequests: atStage.get(s.id) ?? 0,
       })),
     }));
   }
@@ -182,6 +208,31 @@ export class SettingsService {
     }
   }
 
+  // ---------------- التوجيه المحاسبي ----------------
+
+  async accounting(organizationId: string) {
+    const row = await this.db.getRepository(BeneficiarySettings).findOne({ where: { organizationId } });
+    return {
+      debitAccountCode: row?.contributionDebitCode ?? null,
+      debitAccountName: row?.contributionDebitName ?? null,
+      creditAccountCode: row?.contributionCreditCode ?? null,
+      creditAccountName: row?.contributionCreditName ?? null,
+      description: row?.contributionDescription ?? null,
+    };
+  }
+
+  async saveAccounting(actor: OrgUser, dto: AccountingDto) {
+    await this.db.getRepository(BeneficiarySettings).save({
+      organizationId: actor.organizationId,
+      contributionDebitCode: dto.debitAccountCode ?? null,
+      contributionDebitName: dto.debitAccountName ?? null,
+      contributionCreditCode: dto.creditAccountCode ?? null,
+      contributionCreditName: dto.creditAccountName ?? null,
+      contributionDescription: dto.description ?? null,
+    });
+    return this.accounting(actor.organizationId);
+  }
+
   /** أدوار الجمعية (لاختيار المسؤول عن كل مرحلة) */
   async roles(actor: OrgUser) {
     return this.db.getRepository(Role).find({
@@ -224,6 +275,7 @@ export class SettingsService {
       const values = {
         name: s.name, instructions: s.instructions ?? null, sortOrder: i + 1, formId: s.formId ?? null,
         roleId: s.roleId ?? null, canReject: s.canReject ?? true, canReturn: s.canReturn ?? true,
+        kind: s.kind ?? 'standard',
       };
       if (s.id) await em.update(WorkflowStage, { id: s.id }, values);
       else await em.save(em.create(WorkflowStage, { ...values, organizationId: actor.organizationId, workflowId }));

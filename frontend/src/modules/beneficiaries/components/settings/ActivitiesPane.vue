@@ -2,7 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../../api';
 import { useToast } from '../../../../stores/toast';
-import type { ActivityRow, WorkflowRow } from '../../types';
+import { RECURRENCES, label, money } from '../../labels';
+import type { ActivityRow, ProjectService, Recurrence, WorkflowRow } from '../../types';
 
 const toast = useToast();
 const rows = ref<ActivityRow[]>([]);
@@ -29,23 +30,38 @@ const childLevel = { axis: 'program', program: 'project' } as const;
 const open = ref(false);
 const editing = ref<ActivityRow | null>(null);
 const formError = ref('');
-const form = reactive({ level: 'axis' as ActivityRow['level'], parentId: null as string | null, name: '', description: '', workflowId: null as string | null, portalVisible: true, isActive: true });
+const form = reactive({
+  level: 'axis' as ActivityRow['level'], parentId: null as string | null, name: '', description: '', workflowId: null as string | null, portalVisible: true, isActive: true,
+  services: [] as { name: string; cost: number | null | '' }[], multiServices: false, allowConcurrent: false, recurrence: 'once' as Recurrence,
+});
+const rules = (a?: ActivityRow) => ({
+  services: (a?.services ?? []).map((x) => ({ name: x.name, cost: x.cost ?? null })),
+  multiServices: a?.multiServices ?? false, allowConcurrent: a?.allowConcurrent ?? false, recurrence: a?.recurrence ?? 'once',
+});
+const cleanServices = (): ProjectService[] => form.services
+  .filter((x) => x.name.trim())
+  .map((x) => ({ name: x.name.trim(), cost: x.cost === '' || x.cost === null ? null : Number(x.cost) }));
 
 function add(level: ActivityRow['level'], parentId: string | null) {
   editing.value = null;
-  Object.assign(form, { level, parentId, name: '', description: '', workflowId: null, portalVisible: true, isActive: true });
+  Object.assign(form, { level, parentId, name: '', description: '', workflowId: null, portalVisible: true, isActive: true, ...rules() });
   formError.value = '';
   open.value = true;
 }
 function edit(a: ActivityRow) {
   editing.value = a;
-  Object.assign(form, { level: a.level, parentId: a.parentId, name: a.name, description: a.description ?? '', workflowId: a.workflowId, portalVisible: a.portalVisible, isActive: a.isActive });
+  Object.assign(form, { level: a.level, parentId: a.parentId, name: a.name, description: a.description ?? '', workflowId: a.workflowId, portalVisible: a.portalVisible, isActive: a.isActive, ...rules(a) });
   formError.value = '';
   open.value = true;
 }
 async function save() {
   try {
-    const body = { name: form.name, description: form.description, workflowId: form.workflowId, portalVisible: form.portalVisible, isActive: form.isActive };
+    const body = {
+      name: form.name, description: form.description, workflowId: form.workflowId, portalVisible: form.portalVisible, isActive: form.isActive,
+      ...(form.level === 'project'
+        ? { services: cleanServices(), multiServices: form.multiServices, allowConcurrent: form.allowConcurrent, recurrence: form.recurrence }
+        : {}),
+    };
     if (editing.value) await api(`/beneficiaries/settings/activities/${editing.value.id}`, { method: 'PATCH', json: body });
     else await api('/beneficiaries/settings/activities', { method: 'POST', json: { ...body, level: form.level, parentId: form.parentId } });
     open.value = false;
@@ -102,6 +118,11 @@ async function remove(a: ActivityRow) {
             <span class="grow">
               <b>{{ project.name }}</b>
               <small class="muted">{{ project.workflowName ?? 'سير العمل الافتراضي' }} · {{ project.requestCount }} طلب</small>
+              <span class="rtags">
+                <span class="rtag rec">🔁 {{ label('recurrence', project.recurrence) }}</span>
+                <span v-if="project.services.length" class="rtag">🧾 {{ project.services.length }} خدمة<template v-if="project.multiServices"> (أكتر من خدمة في الطلب)</template></span>
+                <span v-if="project.allowConcurrent" class="rtag">📑 أكتر من طلب مفتوح</span>
+              </span>
             </span>
             <span v-if="project.portalVisible && project.isActive" class="portal-tag">يظهر في البوابة</span>
             <span v-if="!project.isActive" class="off">موقوف</span>
@@ -125,6 +146,26 @@ async function remove(a: ActivityRow) {
             <select v-model="form.workflowId" class="input"><option :value="null">الافتراضي ({{ workflows.find((w) => w.isDefault)?.name ?? 'غير محدد' }})</option><option v-for="w in workflows" :key="w.id" :value="w.id">{{ w.name }}</option></select>
           </div>
           <label class="check"><input v-model="form.portalVisible" type="checkbox" /> يظهر في بوابة المستفيدين ويمكن التقديم عليه</label>
+
+          <p class="sec">قواعد الدعم</p>
+          <div class="field"><label>تكرار الدعم للمستفيد</label>
+            <select v-model="form.recurrence" class="input"><option v-for="r in RECURRENCES" :key="r.value" :value="r.value">{{ r.label }}</option></select>
+            <small class="muted">بعد اعتماد طلب، المستفيد مايقدرش يقدم تاني على نفس المشروع غير بعد الفترة دي{{ form.recurrence === 'once' ? '، و"مرة واحدة" يعني مايقدرش يقدم تاني خالص' : '' }}</small>
+          </div>
+          <label class="check"><input v-model="form.allowConcurrent" type="checkbox" /> يسمح بأكتر من طلب مفتوح في نفس الوقت للمستفيد</label>
+
+          <p class="sec">خدمات المشروع</p>
+          <p class="muted small">لو ضفت خدمات، المستفيد بيختار منها وهو بيقدم، وتكلفتها بتتحسب كتكلفة تقديرية للطلب.</p>
+          <div class="svcs">
+            <div v-for="(x, i) in form.services" :key="i" class="svc">
+              <input v-model="x.name" class="input" placeholder="اسم الخدمة" />
+              <input v-model="x.cost" type="number" min="0" class="input cost" placeholder="التكلفة (اختياري)" />
+              <button type="button" class="icon danger" @click="form.services.splice(i, 1)">✕</button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm" @click="form.services.push({ name: '', cost: null })">+ إضافة خدمة</button>
+          <label v-if="form.services.length > 1" class="check" style="margin-top: 8px"><input v-model="form.multiServices" type="checkbox" /> يسمح باختيار أكتر من خدمة في نفس الطلب</label>
+          <p v-if="cleanServices().some((x) => x.cost)" class="muted small">إجمالي الخدمات: {{ money(cleanServices().reduce((a, x) => a + (x.cost ?? 0), 0)) }} جنيه</p>
         </template>
         <label class="check" style="margin-top: 10px"><input v-model="form.isActive" type="checkbox" /> نشط</label>
         <div class="modal-actions" style="margin-top: 16px"><button class="btn btn-primary">حفظ</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
@@ -159,6 +200,14 @@ async function remove(a: ActivityRow) {
 .off { font-size: .72rem; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
 .mt { margin-bottom: 14px; }
 textarea.input { resize: vertical; }
+.sec { font-weight: 700; color: var(--primary); margin: 14px 0 6px; }
+.small { font-size: .8rem; margin: 0 0 8px; }
+.field small { display: block; margin-top: 4px; font-size: .78rem; }
+.svcs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.svc { display: grid; grid-template-columns: 1fr 140px 32px; gap: 6px; align-items: center; }
+.rtags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.rtag { font-size: .7rem; padding: 1px 7px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+.rtag.rec { background: #ecfeff; color: #0e7490; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } }
 @media (max-width: 600px) { .portal-tag { display: none; } .branch, .lvl-project { margin-inline-start: 10px; } }
 </style>

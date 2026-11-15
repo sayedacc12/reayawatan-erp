@@ -113,18 +113,32 @@ export interface Stats {
 }
 
 // ---------- الطلبات وسير العمل ----------
-export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
-export interface FormField { key: string; label: string; type: FieldType; required?: boolean; options?: string[]; placeholder?: string }
-export interface DynamicForm { id: string; name: string; description: string | null; fields: FormField[] }
+export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'support';
+export interface SupportAnswer { decision: 'full' | 'partial' | 'none'; percent?: number }
+export interface FormField {
+  key: string; label: string; type: FieldType; required?: boolean; options?: string[]; placeholder?: string;
+  /** الأهمية النسبية للبند في نموذج التقييم (من 100) */
+  weight?: number;
+  /** درجة كل اختيار في القائمة (من 100) */
+  optionScores?: number[];
+}
+export type ScoreOutcome = 'reject' | 'approve' | 'contribution';
+export interface ScoreRule { min: number; max: number; outcome: ScoreOutcome; contributionPercent?: number }
+export interface DynamicForm { id: string; name: string; description: string | null; fields: FormField[]; scored?: boolean; rules?: ScoreRule[] }
+
+export type Recurrence = 'once' | 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
+export interface ProjectService { name: string; cost?: number | null }
 
 export interface ActivityRow {
   id: string; level: 'axis' | 'program' | 'project'; parentId: string | null; name: string; description: string | null;
   workflowId: string | null; workflowName: string | null; portalVisible: boolean; isActive: boolean; sortOrder: number; requestCount: number;
+  services: ProjectService[]; multiServices: boolean; allowConcurrent: boolean; recurrence: Recurrence;
 }
 
 export interface StageRow {
   id?: string; name: string; instructions: string | null; formId: string | null; formName?: string | null;
   roleId: string | null; roleName?: string | null; canReject: boolean; canReturn: boolean; activeRequests?: number;
+  kind: 'standard' | 'contribution'; formScored?: boolean;
 }
 export interface WorkflowRow {
   id: string; name: string; description: string | null; isDefault: boolean; applicationFormId: string | null;
@@ -136,22 +150,40 @@ export interface RequestRow {
   id: string; requestNo: number; closedAt?: string | null; status: RequestStatus; source: 'portal' | 'staff'; createdAt: string; updatedAt: string;
   beneficiary: { id: string; fullName: string; fileNo: number }; project: { id: string; name: string };
   stage: { id: string; name: string } | null;
+  ruleDeviation?: boolean;
 }
 export interface RequestAction {
-  id: string; stageId: string | null; stageName: string | null; decision: 'submitted' | 'approve' | 'reject' | 'return' | 'resubmitted' | 'cancelled';
+  id: string; stageId: string | null; stageName: string | null; decision: 'submitted' | 'approve' | 'reject' | 'return' | 'resubmitted' | 'cancelled' | 'skipped' | 'contribution_sent';
   notes: string | null; formName: string | null; formData: Record<string, unknown> | null; formFields: FormField[] | null;
-  actorName: string; createdAt: string;
+  actorName: string; createdAt: string; score?: number | null;
+}
+export type ContributionStatus = 'none' | 'awaiting' | 'submitted' | 'verified';
+export interface JournalEntry {
+  date: string; amount: number; description: string;
+  debit: { code: string | null; name: string | null }; credit: { code: string | null; name: string | null };
+}
+export interface Contribution {
+  status: ContributionStatus; percent: number | null; amount: number | null; requiredAmount: number | null;
+  documentId: string | null; submittedAt: string | null; verifiedAt: string | null; journal?: JournalEntry | null;
 }
 export interface RequestDetail {
   id: string; requestNo: number; status: RequestStatus; source: 'portal' | 'staff'; description: string | null;
   applicationData: Record<string, unknown>; createdAt: string; closedAt: string | null; currentStageId: string | null;
   canDecide?: boolean;
+  services: string[]; estimatedCost: number | null;
+  research?: {
+    score: number | null; outcome: ScoreOutcome | null; contributionPercent: number | null;
+    supportPercent: number | null; supportAmount: number | null;
+    suggestion: { score: number; outcome: ScoreOutcome; contributionPercent: number } | null;
+    deviation: boolean; deviationReason: string | null;
+  } | null;
+  contribution: Contribution;
   beneficiary?: { id: string; fileNo: number; fullName: string; nationalId: string | null; phone: string | null; category: string; status: CaseStatus };
   project: { id: string; name: string; path: string[] };
   workflow: {
     id: string; name: string;
     applicationForm: { id: string; name: string; fields: FormField[] } | null;
-    stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; form?: { id: string; name: string; fields: FormField[] } | null }[];
+    stages: { id: string; name: string; sortOrder: number; instructions?: string | null; canReject?: boolean; canReturn?: boolean; roleName?: string | null; kind?: 'standard' | 'contribution'; form?: { id: string; name: string; fields: FormField[]; scored?: boolean; rules?: ScoreRule[] } | null }[];
   } | null;
   actions: RequestAction[];
 }

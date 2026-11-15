@@ -181,7 +181,7 @@ async function create() {
         <tbody>
           <tr v-for="r in data?.items ?? []" :key="r.id" class="clickable" tabindex="0" @click="router.push(`/beneficiaries/requests/${r.id}`)" @keydown.enter="router.push(`/beneficiaries/requests/${r.id}`)">
             <td><span class="no">#{{ r.requestNo }}</span></td>
-            <td><b>{{ r.beneficiary.fullName }}</b> <small class="muted">ملف {{ r.beneficiary.fileNo }}</small></td>
+            <td><b>{{ r.beneficiary.fullName }}</b> <small class="muted">ملف {{ r.beneficiary.fileNo }}</small> <span v-if="r.ruleDeviation" class="dev" title="قرار الباحث مختلف عن قاعدة التقييم">⚑ مخالف للقاعدة</span></td>
             <td>{{ r.project.name }}</td>
             <td><span v-if="r.stage" class="stage-pill">{{ r.stage.name }}</span><span v-else class="muted">—</span></td>
             <td><StatusBadge :value="r.status" kind="request" /></td>
@@ -256,6 +256,7 @@ async function create() {
 .clickable { cursor: pointer; }
 .no { font-weight: 700; color: var(--primary); }
 .stage-pill { font-size: .8rem; padding: 2px 10px; border-radius: 999px; background: #eef2ff; color: #4338ca; }
+.dev { font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; white-space: nowrap; }
 .src { font-size: .78rem; padding: 1px 8px; border-radius: 6px; background: var(--surface-2); }
 .src.portal { background: #fdf4ff; color: #a21caf; }
 .dim { opacity: .55; transition: opacity .2s; }

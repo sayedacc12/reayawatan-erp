@@ -1,5 +1,7 @@
-import { Transform } from 'class-transformer';
-import { IsDateString, IsIn, IsObject, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize, IsArray, IsDateString, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, MaxLength, Min, MinLength,
+} from 'class-validator';
 import { IsValidPassword } from '../../core/validation';
 import { CATEGORIES, GENDERS } from './constants';
 
@@ -67,6 +69,15 @@ export class PortalRequestDto {
 
   @IsOptional() @IsObject()
   applicationData?: Record<string, unknown>;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true })
+  services?: string[];
+}
+
+/** إثبات المساهمة: المبلغ المدفوع (الملف في multipart) */
+export class ContributionDto {
+  @Type(() => Number) @IsNumber({}, { message: 'اكتب المبلغ اللي دفعته' }) @Min(0.01, { message: 'اكتب المبلغ اللي دفعته' })
+  amount!: number;
 }
 
 export class TicketDto {

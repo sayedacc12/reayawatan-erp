@@ -7,7 +7,7 @@ import { Organization } from '../../core/entities';
 import { Activity, Beneficiary, BeneficiaryRequest, DynamicForm, Workflow } from './entities';
 import { PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
 import { PortalUser } from './portal.guard';
-import { RequestsService } from './requests.service';
+import { RECURRENCE_LABEL, RequestsService } from './requests.service';
 import { TicketsService } from './tickets.service';
 
 const DUMMY_HASH = bcrypt.hashSync('portal-timing-equalizer', 10);
@@ -34,14 +34,17 @@ export class PortalService {
     return { name: org.name, slug: org.slug, projects: await this.projects(org.id) };
   }
 
-  /** المشاريع المتاحة للتقديم مع محورها وبرنامجها ونموذج بيانات الطلب */
-  async projects(organizationId: string) {
+  /**
+   * المشاريع المتاحة للتقديم مع محورها وبرنامجها ونموذج بيانات الطلب وقواعد الدعم.
+   * مع beneficiaryId: بيوضح لكل مشروع المستفيد يقدر يقدم دلوقتي ولا لأ وليه.
+   */
+  async projects(organizationId: string, beneficiaryId?: string) {
     const all = await this.db.getRepository(Activity).find({ where: { organizationId, isActive: true }, order: { sortOrder: 'ASC', createdAt: 'ASC' } });
     const byId = new Map(all.map((a) => [a.id, a]));
     const workflows = await this.db.getRepository(Workflow).find({ where: { organizationId } });
     const forms = await this.db.getRepository(DynamicForm).find({ where: { organizationId } });
     const def = workflows.find((w) => w.isDefault);
-    return all
+    const list = all
       .filter((p) => p.level === 'project' && p.portalVisible)
       // لازم البرنامج والمحور نشطين كمان
       .filter((p) => byId.has(p.parentId!) && byId.has(byId.get(p.parentId!)!.parentId!))
@@ -53,8 +56,16 @@ export class PortalService {
         return {
           id: p.id, name: p.name, description: p.description, program: program.name, axis: axis.name,
           applicationForm: form ? { name: form.name, fields: form.fields } : null,
+          services: p.services, multiServices: p.multiServices, allowConcurrent: p.allowConcurrent,
+          recurrence: p.recurrence, recurrenceLabel: RECURRENCE_LABEL[p.recurrence],
+          eligibility: null as null | { canApply: boolean; reason: string | null; nextDate: string | null },
+          project: p,
         };
       });
+    for (const item of list) {
+      if (beneficiaryId) item.eligibility = await this.requests.eligibility(this.db.manager, organizationId, beneficiaryId, item.project);
+    }
+    return list.map(({ project: _p, ...rest }) => rest);
   }
 
   async register(slug: string, dto: PortalRegisterDto) {
@@ -128,6 +139,7 @@ export class PortalService {
       stage: r.currentStage?.name ?? null,
       stageIndex: r.currentStage?.sortOrder ?? null,
       stageCount: stageCount.get(r.workflowId) ?? 0,
+      contributionStatus: r.contributionStatus,
     }));
   }
 
@@ -137,12 +149,18 @@ export class PortalService {
     return {
       ...r,
       beneficiary: undefined,
-      workflow: r.workflow && { ...r.workflow, stages: r.workflow.stages.map((s) => ({ id: s.id, name: s.name, sortOrder: s.sortOrder })) },
+      // نتيجة البحث الداخلية مش بتظهر للمستفيد، بيظهر له المطلوب منه بس
+      research: undefined,
+      contribution: { ...r.contribution, journal: undefined },
+      workflow: r.workflow && {
+        ...r.workflow,
+        stages: r.workflow.stages.map((s) => ({ id: s.id, name: s.name, sortOrder: s.sortOrder, kind: s.kind })),
+      },
       actions: r.actions.map((a) => ({
         id: a.id, stageName: a.stageName, decision: a.decision, createdAt: a.createdAt,
         // المستفيد يشوف أسباب الرفض والإرجاع، أما ملاحظات القبول الداخلية فلا
-        notes: ['reject', 'return', 'resubmitted'].includes(a.decision) ? a.notes : null,
-        actorName: ['submitted', 'resubmitted', 'cancelled'].includes(a.decision) ? a.actorName : 'الجمعية',
+        notes: ['reject', 'return', 'resubmitted', 'contribution_sent'].includes(a.decision) ? a.notes : null,
+        actorName: ['submitted', 'resubmitted', 'cancelled', 'contribution_sent'].includes(a.decision) ? a.actorName : 'الجمعية',
       })),
     };
   }
@@ -154,6 +172,11 @@ export class PortalService {
 
   async resubmit(p: PortalUser, id: string, dto: { description?: string | null; applicationData?: Record<string, unknown>; notes?: string | null }) {
     await this.requests.resubmit(this.actor(p), id, dto, p.beneficiaryId);
+    return this.request(p, id);
+  }
+
+  async submitContribution(p: PortalUser, id: string, amount: number, file: Express.Multer.File) {
+    await this.requests.submitContribution(this.actor(p), id, p.beneficiaryId, amount, file);
     return this.request(p, id);
   }
 

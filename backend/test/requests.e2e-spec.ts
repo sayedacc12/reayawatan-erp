@@ -248,7 +248,7 @@ describe('Requests workflow + beneficiary portal', () => {
 
     const demoAdmin = await login('demo-admin@sanabelerp.com', demo.body.staffPassword, 'demo');
     const board = await http.get('/api/beneficiaries/requests/board').set(as(demoAdmin)).expect(200);
-    expect(board.body.byStatus).toMatchObject({ approved: 2, rejected: 1, returned: 1, in_progress: 3 });
+    expect(board.body.byStatus).toMatchObject({ approved: 1, rejected: 1, returned: 1, in_progress: 4 });
     const stats = await http.get('/api/beneficiaries/stats').set(as(demoAdmin)).expect(200);
     expect(stats.body.beneficiaries).toBe(6);
 
@@ -258,5 +258,15 @@ describe('Requests workflow + beneficiary portal', () => {
     expect(mine.body[0].status).toBe('approved');
     const info = await http.get('/api/portal/o/demo').expect(200);
     expect(info.body.projects).toHaveLength(5);
+
+    // حالة العملية: التقييم بيطلب مساهمة 30% والمستفيد مستني يرفع الإثبات
+    const p2 = demo.body.portalUsers[1];
+    const t2 = (await http.post('/api/portal/o/demo/login').send({ nationalId: p2.nationalId, password: demo.body.portalPassword }).expect(200)).body.accessToken;
+    const surgery = (await http.get('/api/portal/requests').set(as(t2))).body[0];
+    expect(surgery.contributionStatus).toBe('awaiting');
+    const detail = (await http.get(`/api/portal/requests/${surgery.id}`).set(as(t2))).body;
+    expect(detail.contribution).toMatchObject({ percent: 30, requiredAmount: 7500 });
+    const acc = await http.get('/api/beneficiaries/settings/accounting').set(as(demoAdmin)).expect(200);
+    expect(acc.body.debitAccountCode).toBe('1101');
   });
 });

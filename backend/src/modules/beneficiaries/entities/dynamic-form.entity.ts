@@ -1,7 +1,10 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Organization } from '../../../core/entities';
 
-export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
+/** support = تقييم الباحث: مستحق / مستحق بنسبة (مع نسبة دعم الجمعية) / غير مستحق */
+export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'support';
+export type SupportDecision = 'full' | 'partial' | 'none';
+export interface SupportAnswer { decision: SupportDecision; percent?: number }
 
 export interface FormField {
   /** مفتاح ثابت بالإنجليزي يُحفظ به الجواب */
@@ -12,6 +15,21 @@ export interface FormField {
   /** خيارات حقل القائمة */
   options?: string[];
   placeholder?: string;
+  /** في نموذج التقييم: الأهمية النسبية للبند (% من 100) */
+  weight?: number;
+  /** درجة كل خيار من 100 (بنفس ترتيب options) */
+  optionScores?: number[];
+}
+
+export type ScoreOutcome = 'reject' | 'approve' | 'contribution';
+
+/** قاعدة على نتيجة البحث: من درجة إلى درجة ← رفض / قبول / قبول بمساهمة من المستفيد */
+export interface ScoreRule {
+  min: number;
+  max: number;
+  outcome: ScoreOutcome;
+  /** نسبة تحمّل المستفيد من التكلفة (لـ contribution) */
+  contributionPercent?: number;
 }
 
 /** نموذج يعرّفه مدير النظام من الإعدادات (مثل نموذج البحث الاجتماعي) */
@@ -35,6 +53,14 @@ export class DynamicForm {
 
   @Column({ type: 'jsonb', default: () => `'[]'` })
   fields!: FormField[];
+
+  /** نموذج تقييم: لكل بند أهمية نسبية ولكل اختيار درجة، والنظام يحسب نتيجة من 100 */
+  @Column({ default: false })
+  scored!: boolean;
+
+  /** قواعد التعامل مع نتيجة التقييم */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  rules!: ScoreRule[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

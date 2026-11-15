@@ -9,7 +9,7 @@ export const CATEGORIES = [
 ] as const;
 export const RESEARCH_DECISIONS = ['eligible', 'ineligible', 'needs_followup'] as const;
 export const AID_TYPES = ['cash', 'in_kind', 'medical', 'education', 'housing', 'seasonal', 'other'] as const;
-export const DOCUMENT_TYPES = ['national_id', 'death_certificate', 'medical_report', 'income_proof', 'lease', 'photo', 'other'] as const;
+export const DOCUMENT_TYPES = ['national_id', 'death_certificate', 'medical_report', 'income_proof', 'lease', 'photo', 'contribution_proof', 'other'] as const;
 
 export type Gender = (typeof GENDERS)[number];
 export type MaritalStatus = (typeof MARITAL_STATUSES)[number];

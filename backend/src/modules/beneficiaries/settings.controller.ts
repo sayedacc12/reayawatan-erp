@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { CurrentOrgUser, OrgUser, RequirePermissions } from '../../core/auth/decorators';
 import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
-import { ActivityDto, FormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
+import { AccountingDto, ActivityDto, FormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
 import { SettingsService } from './settings.service';
 
 const uuid = new ParseUUIDPipe();
@@ -90,5 +90,17 @@ export class SettingsController {
   @RequirePermissions(P.settings)
   roles(@CurrentOrgUser() actor: OrgUser) {
     return this.settings.roles(actor);
+  }
+
+  @Get('accounting')
+  @RequirePermissions(P.settings)
+  accounting(@CurrentOrgUser() actor: OrgUser) {
+    return this.settings.accounting(actor.organizationId);
+  }
+
+  @Put('accounting')
+  @RequirePermissions(P.settings)
+  saveAccounting(@CurrentOrgUser() actor: OrgUser, @Body() dto: AccountingDto) {
+    return this.settings.saveAccounting(actor, dto);
   }
 }

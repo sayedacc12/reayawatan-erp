@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
 
@@ -15,6 +15,10 @@ export class CreateRequestDto {
 
   @IsOptional() @IsObject()
   applicationData?: Record<string, unknown>;
+
+  /** الخدمات المختارة من خدمات المشروع */
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true })
+  services?: string[];
 }
 
 export class DecisionDto {
@@ -26,6 +30,14 @@ export class DecisionDto {
 
   @IsOptional() @IsObject()
   formData?: Record<string, unknown>;
+
+  /** تحديد/تعديل التكلفة التقديرية للحالة */
+  @IsOptional() @Type(() => Number) @IsNumber({}, { message: 'التكلفة لازم تكون رقم' }) @Min(0)
+  estimatedCost?: number;
+
+  /** في مرحلة تأكيد المساهمة: المبلغ المحصّل فعلًا (لو المستفيد دفع في الجمعية) */
+  @IsOptional() @Type(() => Number) @IsNumber({}, { message: 'المبلغ لازم يكون رقم' }) @Min(0)
+  contributionAmount?: number;
 }
 
 export class ResubmitDto {

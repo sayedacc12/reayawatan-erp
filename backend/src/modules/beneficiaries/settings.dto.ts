@@ -1,9 +1,18 @@
 import { Transform, Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
 } from 'class-validator';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
+
+/** خدمة في المشروع وتكلفتها التقديرية */
+export class ServiceDto {
+  @trim() @IsString() @MinLength(2, { message: 'اسم الخدمة قصير جدًا' }) @MaxLength(200)
+  name!: string;
+
+  @IsOptional() @ValidateIf((_, v) => v !== null) @IsNumber({}, { message: 'تكلفة الخدمة لازم تكون رقم' }) @Min(0)
+  cost?: number | null;
+}
 
 export class ActivityDto {
   @IsIn(['axis', 'program', 'project'], { message: 'اختر المستوى' })
@@ -29,6 +38,18 @@ export class ActivityDto {
 
   @IsOptional() @IsInt() @Min(0)
   sortOrder?: number;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => ServiceDto)
+  services?: ServiceDto[];
+
+  @IsOptional() @IsBoolean()
+  multiServices?: boolean;
+
+  @IsOptional() @IsBoolean()
+  allowConcurrent?: boolean;
+
+  @IsOptional() @IsIn(['once', 'weekly', 'monthly', 'quarterly', 'semiannual', 'yearly'])
+  recurrence?: 'once' | 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 }
 
 export class UpdateActivityDto {
@@ -49,6 +70,18 @@ export class UpdateActivityDto {
 
   @IsOptional() @IsInt() @Min(0)
   sortOrder?: number;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => ServiceDto)
+  services?: ServiceDto[];
+
+  @IsOptional() @IsBoolean()
+  multiServices?: boolean;
+
+  @IsOptional() @IsBoolean()
+  allowConcurrent?: boolean;
+
+  @IsOptional() @IsIn(['once', 'weekly', 'monthly', 'quarterly', 'semiannual', 'yearly'])
+  recurrence?: 'once' | 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 }
 
 export class FormDto {
@@ -61,6 +94,14 @@ export class FormDto {
   /** يُتحقق منها بالتفصيل في normalizeFields */
   @IsArray()
   fields!: unknown[];
+
+  /** نموذج تقييم (أوزان ودرجات) */
+  @IsOptional() @IsBoolean()
+  scored?: boolean;
+
+  /** قواعد نتيجة التقييم، يُتحقق منها في normalizeRules */
+  @IsOptional() @IsArray()
+  rules?: unknown[];
 }
 
 export class StageDto {
@@ -85,6 +126,28 @@ export class StageDto {
 
   @IsOptional() @IsBoolean()
   canReturn?: boolean;
+
+  /** standard: قرار عادي · contribution: تأكيد مساهمة المستفيد */
+  @IsOptional() @IsIn(['standard', 'contribution'])
+  kind?: 'standard' | 'contribution';
+}
+
+/** توجيه القيد المحاسبي لمساهمات المستفيدين */
+export class AccountingDto {
+  @IsOptional() @trim() @IsString() @MaxLength(50)
+  debitAccountCode?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(200)
+  debitAccountName?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(50)
+  creditAccountCode?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(200)
+  creditAccountName?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(300)
+  description?: string | null;
 }
 
 export class WorkflowDto {

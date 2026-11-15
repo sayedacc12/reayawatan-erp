@@ -5,7 +5,7 @@ import AnswersList from '../modules/beneficiaries/components/AnswersList.vue';
 import DynamicFields from '../modules/beneficiaries/components/DynamicFields.vue';
 import StageStepper from '../modules/beneficiaries/components/StageStepper.vue';
 import StatusBadge from '../modules/beneficiaries/components/StatusBadge.vue';
-import { color, fmtDateTime, label } from '../modules/beneficiaries/labels';
+import { color, fmtDateTime, label, money } from '../modules/beneficiaries/labels';
 import type { RequestDetail } from '../modules/beneficiaries/types';
 import { useToast } from '../stores/toast';
 import { portalApi } from './portal';
@@ -29,6 +29,27 @@ async function load() {
 }
 onMounted(load);
 
+const isContribution = computed(() => r.value?.workflow?.stages.find((s) => s.id === r.value?.currentStageId)?.kind === 'contribution');
+const proof = reactive({ amount: '' as number | '', file: null as File | null, busy: false });
+function onFile(e: Event) {
+  proof.file = (e.target as HTMLInputElement).files?.[0] ?? null;
+}
+async function sendContribution() {
+  if (!proof.amount || !proof.file) { toast.error('اكتب المبلغ وارفع صورة الإيصال'); return; }
+  proof.busy = true;
+  try {
+    const body = new FormData();
+    body.append('amount', String(proof.amount));
+    body.append('file', proof.file);
+    r.value = await portalApi<RequestDetail>(`/requests/${id}/contribution`, { method: 'POST', body });
+    Object.assign(proof, { amount: '', file: null });
+    toast.success('تم رفع إثبات المساهمة، والجمعية هتراجعه');
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    proof.busy = false;
+  }
+}
 const returnReason = computed(() => [...(r.value?.actions ?? [])].reverse().find((a) => a.decision === 'return')?.notes);
 const rejectReason = computed(() => r.value?.actions.find((a) => a.decision === 'reject')?.notes);
 
@@ -80,6 +101,25 @@ async function cancel() {
         <StageStepper v-if="r.workflow" :stages="r.workflow.stages" :current-id="r.currentStageId" :status="r.status" />
       </section>
 
+      <section v-if="r.status === 'in_progress' && isContribution" :class="['card notice contrib', r.contribution.status]">
+        <h2>💰 {{ r.contribution.status === 'submitted' ? 'إثبات مساهمتك وصل للجمعية' : 'مطلوب منك تأكيد مساهمتك' }}</h2>
+        <div class="c-grid">
+          <div><small>الجمعية بتتحمل</small><b>{{ Math.round((100 - (r.contribution.percent ?? 0)) * 100) / 100 }}%</b></div>
+          <div><small>نسبة مساهمتك</small><b>{{ r.contribution.percent }}%</b></div>
+          <div v-if="r.contribution.requiredAmount !== null"><small>المبلغ المطلوب</small><b>{{ money(r.contribution.requiredAmount) }} جنيه</b></div>
+          <div v-if="r.contribution.amount !== null"><small>اللي رفعته</small><b>{{ money(r.contribution.amount) }} جنيه</b></div>
+        </div>
+        <p v-if="r.contribution.status === 'submitted'" class="muted">الجمعية بتراجع الإيصال دلوقتي، وهيتحول طلبك للمرحلة اللي بعدها بعد التأكيد.</p>
+        <template v-else>
+          <p v-if="returnReason && r.actions.at(-1)?.decision === 'return'"><b>ملاحظة الجمعية:</b> {{ returnReason }}</p>
+          <p class="muted">ادفع مساهمتك وارفع صورة الإيصال أو التحويل هنا.</p>
+          <form class="up" @submit.prevent="sendContribution">
+            <div class="field"><label>المبلغ اللي دفعته (جنيه)</label><input v-model.number="proof.amount" type="number" min="1" step="0.01" class="input" :placeholder="r.contribution.requiredAmount ? String(r.contribution.requiredAmount) : ''" required /></div>
+            <label class="drop"><input type="file" accept="image/png,image/jpeg,application/pdf" @change="onFile" /><span>📎 {{ proof.file?.name ?? 'اختار صورة الإيصال (صورة أو PDF)' }}</span></label>
+            <button class="btn btn-primary" :disabled="proof.busy">{{ proof.busy ? 'جارٍ الرفع...' : 'رفع إثبات المساهمة' }}</button>
+          </form>
+        </template>
+      </section>
       <section v-if="r.status === 'returned'" class="card notice warn">
         <h2>⚠ طلبك محتاج استكمال</h2>
         <p v-if="returnReason"><b>ملاحظة الجمعية:</b> {{ returnReason }}</p>
@@ -151,5 +191,14 @@ async function cancel() {
 .tl li::before { content: ''; position: absolute; right: -16px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 22%, transparent); }
 .note { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); white-space: pre-wrap; }
 textarea.input { resize: vertical; }
+.notice.contrib { border: 1.5px dashed #f59e0b; background: linear-gradient(135deg, #fffbeb, #fff); }
+.notice.contrib.submitted { border-color: #0ea5e9; background: linear-gradient(135deg, #f0f9ff, #fff); }
+.c-grid { display: flex; flex-wrap: wrap; gap: 20px; margin: 10px 0; }
+.c-grid small { display: block; color: var(--muted); font-size: .8rem; }
+.c-grid b { font-size: 1.2rem; }
+.up { display: grid; gap: 10px; max-width: 460px; }
+.drop { display: block; padding: 16px; border: 2px dashed var(--border); border-radius: 12px; text-align: center; cursor: pointer; color: var(--primary); font-weight: 600; transition: all .2s; }
+.drop:hover { border-color: var(--primary); background: var(--primary-soft); }
+.drop input { display: none; }
 @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
 </style>
