@@ -203,12 +203,12 @@ export class RequestsService {
       if (!beneficiary) throw new NotFoundException('المستفيد غير موجود');
       if (beneficiary.status === 'suspended') throw new BadRequestException('ملف المستفيد موقوف، لا يمكن تقديم طلبات');
       const project = await em.findOne(Activity, { where: { id: input.projectId, organizationId: org, level: 'project' } });
-      if (!project || !project.isActive || (source === 'portal' && !project.portalVisible)) {
+      if (!project || !project.isActive || project.approvalStatus !== 'approved' || (source === 'portal' && !project.portalVisible)) {
         throw new BadRequestException('المشروع غير متاح للتقديم');
       }
       const eligibility = await this.eligibility(em, org, beneficiary.id, project);
       if (!eligibility.canApply) throw new ConflictException(eligibility.reason);
-      const { services, estimatedCost } = this.pickServices(project, input.services);
+      const { services, estimatedCost } = this.pickServices(project, input.services, source);
 
       const workflow = await this.settings.workflowForProject(org, project);
       const stages = await em.find(WorkflowStage, { where: { workflowId: workflow.id }, order: { sortOrder: 'ASC' } });
@@ -468,8 +468,9 @@ export class RequestsService {
   }
 
   /** الخدمات المختارة لازم تكون من خدمات المشروع، وواحدة بس لو المشروع مش بيسمح بأكتر */
-  private pickServices(project: Activity, picked?: string[]) {
-    const available = project.services ?? [];
+  private pickServices(project: Activity, picked: string[] | undefined, source: 'portal' | 'staff') {
+    // خدمات المشروع المخفية عن البوابة يسجلها الموظف فقط
+    const available = (project.services ?? []).filter((x) => source === 'staff' || x.portalVisible !== false);
     if (!available.length) return { services: [], estimatedCost: null };
     const chosen = [...new Set((picked ?? []).map((x) => x.trim()).filter(Boolean))];
     if (!chosen.length) throw new BadRequestException('اختر الخدمة المطلوبة');

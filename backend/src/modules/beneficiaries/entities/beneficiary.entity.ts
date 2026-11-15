@@ -2,7 +2,7 @@ import {
   Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn,
 } from 'typeorm';
 import { Organization } from '../../../core/entities';
-import type { CaseStatus, Category, Gender, HousingType, MaritalStatus } from '../constants';
+import type { CaseStatus, Category, Gender, HousingType, MaritalStatus, Residency } from '../constants';
 import { AidDisbursement } from './aid-disbursement.entity';
 import { BeneficiaryDocument } from './beneficiary-document.entity';
 import { CaseResearch } from './case-research.entity';
@@ -48,6 +48,14 @@ export class Beneficiary {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   city!: string | null;
+
+  /** الجنسية (لمطابقة اشتراطات الداعمين) */
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  nationality!: string | null;
+
+  /** citizen: مواطن · resident: مقيم · visitor: زائر */
+  @Column({ type: 'varchar', length: 12, nullable: true })
+  residency!: Residency | null;
 
   @Column({ type: 'varchar', length: 300, nullable: true })
   address!: string | null;

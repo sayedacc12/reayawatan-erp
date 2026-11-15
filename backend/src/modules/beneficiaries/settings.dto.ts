@@ -12,6 +12,12 @@ export class ServiceDto {
 
   @IsOptional() @ValidateIf((_, v) => v !== null) @IsNumber({}, { message: 'يجب أن تكون تكلفة الخدمة رقمًا' }) @Min(0)
   cost?: number | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(500)
+  description?: string | null;
+
+  @IsOptional() @IsBoolean()
+  portalVisible?: boolean;
 }
 
 export class ActivityDto {
