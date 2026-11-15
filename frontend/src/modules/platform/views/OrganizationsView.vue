@@ -64,6 +64,7 @@ interface DemoResult {
   staff: { role: string; email: string }[];
   portalPassword: string;
   portalUsers: { fullName: string; nationalId: string }[];
+  supportTeam?: { role: string; email: string }[];
 }
 const demo = ref<DemoResult | null>(null);
 const demoBusy = ref(false);
@@ -96,6 +97,8 @@ function exportDemoWord() {
 <table><tr><th>الدور</th><th>البريد الإلكتروني</th></tr>${rows([...d.staff.map((s) => [s.role, s.email] as [string, string]), ['كلمة المرور للكل', d.staffPassword]])}</table>
 <h2>بوابة المستفيدين: ${esc(origin)}/portal/${esc(d.organization.slug)}</h2>
 <table><tr><th>المستفيد</th><th>رقم الهوية</th></tr>${rows([...d.portalUsers.map((p) => [p.fullName, p.nationalId] as [string, string]), ['كلمة المرور للكل', d.portalPassword]])}</table>
+${d.supportTeam?.length ? `<h2>فريق الدعم الفني: ${esc(origin)}/login</h2>
+<table><tr><th>الدور</th><th>البريد الإلكتروني</th></tr>${rows([...d.supportTeam.map((s) => [s.role, s.email] as [string, string]), ['كلمة المرور', d.staffPassword]])}</table>` : ''}
 </body></html>`;
   const url = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
   const a = document.createElement('a');
@@ -171,6 +174,8 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
           <li><b>إدارة المشاريع:</b> 7 مشاريع معتمدة عبر مراحل الاعتماد، ومشروع قيد الاعتماد، ومعاد للتعديل، ومسودة.</li>
           <li><b>الموارد المالية:</b> 6 داعمين و7 فرص تبرع (نقدي وزكاة وعيني ووعد بالدفع ووقف) بدفعاتها وقيودها.</li>
           <li><b>الدعم والصرف:</b> تحميل طلبين على دفعات الداعمين، وصرف عام، وسندات صرف وفواتير، ومناقلة، وتعديل فرصة بقيد عكسي، وطلب صرف بانتظار المالية.</li>
+          <li><b>النظام المالي:</b> الدليل الموحد للجمعيات، وثلاثة بنوك وصناديق، وعملاء وموردون، وسندات قبض وصرف بمراحل اعتماد (معتمدة ومعلقة وملغاة باعتماد ثنائي)، وقيد افتتاحي وقيود يومية وتسوية، وشهور مغلقة بالتسلسل.</li>
+          <li><b>الدعم الفني:</b> فريق دعم (مدير وموظف)، وطلبات صيانة بكل الحالات، ومهام منجزة وجارية ومتأخرة بساعات عمل مسجلة.</li>
           <li><b>المنصة:</b> عقد إلكتروني موقّع واشتراك سنوي فعّال، وطلبا اشتراك لجمعيتين (قيد المراجعة، ومعاد للاستكمال).</li>
         </ul>
         <h3>دخول الموظفين <a :href="`/o/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/o/{{ demo.organization.slug }}</a></h3>
@@ -183,6 +188,13 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
           <tr v-for="p in demo.portalUsers" :key="p.nationalId"><td>{{ p.fullName }}</td><td dir="ltr"><code>{{ p.nationalId }}</code></td></tr>
           <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.portalPassword }}</code></td></tr>
         </table>
+        <template v-if="demo.supportTeam?.length">
+          <h3>فريق الدعم الفني <a href="/login" target="_blank" dir="ltr">{{ origin }}/login</a></h3>
+          <table class="table">
+            <tr v-for="s in demo.supportTeam" :key="s.email"><td>{{ s.role }}</td><td dir="ltr"><code>{{ s.email }}</code></td></tr>
+            <tr><td>كلمة المرور</td><td dir="ltr"><code>{{ demo.staffPassword }}</code></td></tr>
+          </table>
+        </template>
         <div class="modal-actions"><button class="btn btn-ghost" @click="exportDemoWord">⬇ تصدير Word</button><button class="btn btn-primary" @click="demo = null">حسنًا</button></div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In, MoreThan } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { Organization } from '../../core/entities';
 import {
@@ -167,21 +167,92 @@ export class SetupService {
       if (y.status === 'closed') throw new ConflictException('السنة المالية مغلقة');
       if (!monthsBetween(y.startDate, y.endDate).includes(month)) throw new BadRequestException('الشهر خارج السنة المالية');
       if (await this.core.isMonthLocked(org, month, em)) throw new ConflictException('الشهر مغلق بالفعل');
+      // الإغلاق بالتسلسل: لا يُغلق شهر وما قبله من شهور السنة مفتوح
+      const before = monthsBetween(y.startDate, y.endDate).filter((m) => m < month);
+      if (before.length) {
+        const locked = await em.getRepository(PeriodLock).count({ where: { organizationId: org, fiscalYearId: y.id, month: In(before) } });
+        if (locked < before.length) throw new ConflictException('أغلق الشهور السابقة أولًا: لا يُغلق شهر وما قبله مفتوح');
+      }
       const from = `${month}-01` < y.startDate ? y.startDate : `${month}-01`;
       const to = addDays(addMonths(`${month}-01`, 1), -1);
       const drafts = await this.entries.draftCount(em, org, from, to);
-      if (drafts) throw new ConflictException(`في شهر ${month} ${drafts} قيد غير مرحّل. رحّلها أو ألغها قبل إغلاق الشهر`);
+      if (drafts) throw new ConflictException(`لا يُغلق الشهر قبل ترحيل كل مستنداته: فيه ${drafts} قيد غير مرحّل. رحّلها أو ألغها أولًا`);
       const open = await this.entries.openVoucherCount(em, org, from, to);
-      if (open) throw new ConflictException(`في شهر ${month} ${open} سند قبض أو صرف لم يكتمل اعتماده أو عليه طلب معلق`);
+      if (open) throw new ConflictException(`لا يُغلق الشهر قبل ترحيل كل مستنداته: فيه ${open} سند قبض أو صرف لم يكتمل اعتماده أو عليه طلب معلق`);
       await em.getRepository(PeriodLock).save(em.create(PeriodLock, { organizationId: org, fiscalYearId: y.id, month, closedByName: actor.fullName }));
     });
     return this.overview(actor);
+  }
+
+  /** شاشة إغلاق الفترات: شهور السنة مع حالة كل شهر وما يمنع إغلاقه */
+  async periods(actor: OrgUser, yearId: string) {
+    const org = actor.organizationId;
+    const y = await this.core.year(org, yearId);
+    const locks = await this.db.getRepository(PeriodLock).find({ where: { organizationId: org, fiscalYearId: y.id } });
+    const drafts: { m: string; n: number }[] = await this.db.query(
+      `SELECT to_char(document_date, 'YYYY-MM') AS m, COUNT(*)::int AS n FROM acc_entries
+        WHERE organization_id = $1 AND status = 'draft' AND document_date BETWEEN $2 AND $3 GROUP BY 1`, [org, y.startDate, y.endDate]);
+    const open: { m: string; n: number }[] = await this.db.query(
+      `SELECT to_char(voucher_date, 'YYYY-MM') AS m, COUNT(*)::int AS n FROM acc_vouchers
+        WHERE organization_id = $1 AND voucher_date BETWEEN $2 AND $3 AND (status IN ('draft', 'pending', 'returned') OR request_kind IS NOT NULL) GROUP BY 1`,
+      [org, y.startDate, y.endDate]);
+    const posted: { m: string; n: number }[] = await this.db.query(
+      `SELECT to_char(document_date, 'YYYY-MM') AS m, COUNT(*)::int AS n FROM acc_entries
+        WHERE organization_id = $1 AND status = 'posted' AND document_date BETWEEN $2 AND $3 GROUP BY 1`, [org, y.startDate, y.endDate]);
+    const n = (rows: { m: string; n: number }[], m: string) => rows.find((r) => r.m === m)?.n ?? 0;
+    const now = today().slice(0, 7);
+    return {
+      year: {
+        id: y.id, name: y.name, status: y.status, startDate: y.startDate, endDate: y.endDate, closedAt: y.closedAt, closedByName: y.closedByName,
+        reopenedAt: y.reopenedAt, reopenedByName: y.reopenedByName,
+        inventory: (await this.db.getRepository(VoucherInventory).findOne({ where: { fiscalYearId: y.id } }))?.status ?? null,
+      },
+      months: monthsBetween(y.startDate, y.endDate).map((m) => {
+        const lock = locks.find((l) => l.month === m);
+        return {
+          month: m, closed: !!lock, closedAt: lock?.closedAt ?? null, closedByName: lock?.closedByName ?? null, future: m > now,
+          draftEntries: n(drafts, m), openVouchers: n(open, m), postedEntries: n(posted, m),
+        };
+      }),
+    };
+  }
+
+  /** إغلاق عدة شهور دفعة واحدة: يُغلق كل شهر جاهز، ويُرجع سبب تعذر إغلاق الباقي */
+  async closeMonths(actor: OrgUser, yearId: string, months: string[]) {
+    const done: string[] = [];
+    const failed: { month: string; reason: string }[] = [];
+    for (const m of [...new Set(months)].sort()) {
+      try {
+        await this.closeMonth(actor, yearId, m);
+        done.push(m);
+      } catch (e) {
+        failed.push({ month: m, reason: (e as Error).message });
+      }
+    }
+    return { done, failed, ...(await this.periods(actor, yearId)) };
+  }
+
+  async reopenMonths(actor: OrgUser, yearId: string, months: string[]) {
+    const done: string[] = [];
+    const failed: { month: string; reason: string }[] = [];
+    for (const m of [...new Set(months)].sort().reverse()) {
+      try {
+        await this.reopenMonth(actor, yearId, m);
+        done.push(m);
+      } catch (e) {
+        failed.push({ month: m, reason: (e as Error).message });
+      }
+    }
+    return { done, failed, ...(await this.periods(actor, yearId)) };
   }
 
   async reopenMonth(actor: OrgUser, yearId: string, month: string) {
     const org = actor.organizationId;
     const y = await this.core.year(org, yearId);
     if (y.status === 'closed') throw new ConflictException('السنة المالية مغلقة. افتح السنة أولًا ثم فك إغلاق الشهر');
+    // الفتح بعكس التسلسل: لا يُفتح شهر وما بعده مغلق
+    const later = await this.db.getRepository(PeriodLock).count({ where: { organizationId: org, fiscalYearId: y.id, month: MoreThan(month) } });
+    if (later) throw new ConflictException('افتح الشهور اللاحقة أولًا: لا يُفتح شهر وما بعده مغلق');
     const r = await this.db.getRepository(PeriodLock).delete({ organizationId: org, fiscalYearId: y.id, month });
     if (!r.affected) throw new ConflictException('الشهر غير مغلق');
     return this.overview(actor);

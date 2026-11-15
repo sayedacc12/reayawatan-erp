@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
@@ -21,6 +21,7 @@ const props = defineProps<{ id?: string }>();
 const session = useSession();
 const toast = useToast();
 const router = useRouter();
+const route = useRoute();
 const { accounts, load: loadAccounts } = useAccounts();
 const analytic = ref<Analytic[]>([]);
 const partners = ref<Partner[]>([]);
@@ -29,7 +30,8 @@ const error = ref('');
 const busy = ref(false);
 
 const blank = (): Line => ({ accountId: null, debit: null, credit: null, label: '', partnerId: null, analytic: [] });
-const form = reactive({ voucherType: 'journal', documentDate: todayStr(), description: '', counterparty: '', lines: [blank(), blank()] as Line[] });
+const presetType = ['journal', 'adjustment', 'opening'].includes(String(route.query.type)) ? String(route.query.type) : 'journal';
+const form = reactive({ voucherType: presetType, documentDate: todayStr(), description: '', counterparty: '', lines: [blank(), blank()] as Line[] });
 
 async function load() {
   try {
@@ -55,7 +57,10 @@ function fill(e: Entry) {
 onMounted(load);
 watch(() => props.id, () => { entry.value = null; load(); });
 
-const editable = computed(() => !entry.value || (entry.value.status === 'draft' && entry.value.source === 'manual' && !entry.value.periodLocked));
+/** القيد الافتتاحي لا يخضع للترحيل: يسري بمجرد حفظه ويبقى قابلًا للتعديل ما دام شهره مفتوحًا */
+const isOpening = computed(() => form.voucherType === 'opening');
+const editable = computed(() => !entry.value || ((entry.value.status === 'draft' || (isOpening.value && entry.value.status === 'posted'))
+  && entry.value.source === 'manual' && !entry.value.periodLocked));
 const canEdit = computed(() => editable.value && session.can(P.entries));
 const acc = (id: string | null) => accounts.value.find((a) => a.id === id);
 const cents = (v: number | null) => Math.round(Number(v || 0) * 100);
@@ -99,7 +104,7 @@ async function save(post = false) {
     } else {
       saved = await api<Entry>('/accounting/entries', { method: 'POST', json: { ...body, voucherType: form.voucherType, post } });
     }
-    toast.success(post ? `تم حفظ القيد رقم ${saved.entryNo} وترحيله` : `تم حفظ القيد رقم ${saved.entryNo}`);
+    toast.success(post && !isOpening.value ? `تم حفظ القيد رقم ${saved.entryNo} وترحيله` : `تم حفظ القيد رقم ${saved.entryNo}`);
     if (!entry.value) router.replace(`/accounting/entries/${saved.id}`);
     entry.value = saved;
     fill(saved);
@@ -138,8 +143,8 @@ const types = computed(() => VOUCHER_TYPES.filter((t) => t.value !== 'receipt' &
       </div>
       <div class="pm-actions">
         <template v-if="entry">
-          <button v-if="entry.status === 'draft' && session.can(P.post) && !entry.periodLocked" class="btn ac-glow" :disabled="busy" @click="action('post', 'تم ترحيل القيد')">ترحيل</button>
-          <button v-if="entry.status === 'posted' && entry.source === 'manual' && session.can(P.unpost)" class="btn ac-ghost" :disabled="busy || entry.periodLocked" @click="action('unpost', 'تم فك الترحيل')">فك الترحيل</button>
+          <button v-if="entry.status === 'draft' && !isOpening && session.can(P.post) && !entry.periodLocked" class="btn ac-glow" :disabled="busy" @click="action('post', 'تم ترحيل القيد')">ترحيل</button>
+          <button v-if="entry.status === 'posted' && !isOpening && entry.source === 'manual' && session.can(P.unpost)" class="btn ac-ghost" :disabled="busy || entry.periodLocked" @click="action('unpost', 'تم فك الترحيل')">فك الترحيل</button>
           <button v-if="entry.status !== 'cancelled' && entry.source === 'manual' && session.can(P.cancel)" class="btn ac-ghost" :disabled="busy || entry.periodLocked" @click="cancelEntry">إلغاء القيد</button>
           <RouterLink v-if="entry.voucherId" :to="`/accounting/vouchers/${entry.voucherId}`" class="btn ac-ghost">السند</RouterLink>
           <button class="btn ac-ghost" onclick="window.print()">طباعة</button>
@@ -153,7 +158,7 @@ const types = computed(() => VOUCHER_TYPES.filter((t) => t.value !== 'receipt' &
       <div v-if="entry?.status === 'cancelled'" class="stamp">ملغي</div>
       <div class="head">
         <div v-if="entry" class="meta">
-          <span class="pm-pill" :style="{ '--c': ENTRY_STATUS[entry.status].color }">{{ ENTRY_STATUS[entry.status].label }}</span>
+          <span class="pm-pill" :style="{ '--c': ENTRY_STATUS[entry.status].color }">{{ isOpening && entry.status === 'posted' ? 'ساري' : ENTRY_STATUS[entry.status].label }}</span>
           <span>رقم القيد <b class="ac-code">{{ entry.entryNo }}</b></span>
           <span>رقم المستند <b class="ac-code">{{ entry.voucherNo }}</b></span>
           <span v-if="entry.source === 'voucher'" class="pm-tag">ناتج عن سند</span>
@@ -212,13 +217,15 @@ const types = computed(() => VOUCHER_TYPES.filter((t) => t.value !== 'receipt' &
       </div>
 
       <div v-if="canEdit" class="modal-actions no-print">
-        <button class="btn btn-primary" :disabled="busy || !balanced" @click="save(false)">حفظ (غير مرحّل)</button>
-        <button v-if="session.can(P.post)" class="btn ac-glow" :disabled="busy || !balanced" @click="save(true)">حفظ وترحيل</button>
+        <button v-if="isOpening" class="btn btn-primary" :disabled="busy || !balanced" @click="save(false)">حفظ القيد الافتتاحي</button>
+        <span v-if="isOpening" class="pm-muted">القيد الافتتاحي لا يخضع للترحيل، ويسري أثره بمجرد حفظه.</span>
+        <button v-if="!isOpening" class="btn btn-primary" :disabled="busy || !balanced" @click="save(false)">حفظ (غير مرحّل)</button>
+        <button v-if="!isOpening && session.can(P.post)" class="btn ac-glow" :disabled="busy || !balanced" @click="save(true)">حفظ وترحيل</button>
       </div>
 
       <div v-if="entry" class="audit">
         <span>أنشأه {{ entry.createdByName }} · {{ dt(entry.createdAt) }}</span>
-        <span v-if="entry.postedAt">رحّله {{ entry.postedByName }} · {{ dt(entry.postedAt) }}</span>
+        <span v-if="entry.postedAt && !isOpening">رحّله {{ entry.postedByName }} · {{ dt(entry.postedAt) }}</span>
         <span v-if="entry.cancelledAt" class="void">ألغاه {{ entry.cancelledByName }} · {{ dt(entry.cancelledAt) }} · {{ entry.cancelReason }}</span>
       </div>
     </section>

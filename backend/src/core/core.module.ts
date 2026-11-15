@@ -55,6 +55,6 @@ import { UsersService } from './users/users.service';
     FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService],
+  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService],
 })
 export class CoreModule {}

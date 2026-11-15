@@ -13,7 +13,7 @@ describe('Demo association across all modules', () => {
   let app: NestExpressApplication;
   let http: ReturnType<typeof request>;
   let platform: string;
-  let demo: { staffPassword: string; portalPassword: string; portalUsers: { nationalId: string }[]; staff: { email: string }[] };
+  let demo: { staffPassword: string; portalPassword: string; portalUsers: { nationalId: string }[]; staff: { email: string }[]; supportTeam: { email: string }[] };
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
   const login = async (login: string, password: string, organization?: string) =>
     (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
@@ -71,6 +71,24 @@ describe('Demo association across all modules', () => {
     const tb = await http.get('/api/accounting/reports/trial-balance?level=1').set(as(finance)).expect(200);
     expect(tb.body.totals.debit).toBe(tb.body.totals.credit);
     expect(tb.body.totals.debit).toBeGreaterThan(0);
+    // الشهور المغلقة متتالية من بداية السنة، وفي العمليات قيد تسوية
+    const setup = await http.get('/api/accounting/setup').set(as(finance)).expect(200);
+    const periods = (await http.get(`/api/accounting/periods/${setup.body.years[0].id}`).set(as(finance)).expect(200)).body.months as { closed: boolean }[];
+    const closed = periods.map((m) => m.closed);
+    expect(closed.indexOf(false) === -1 || closed.slice(closed.indexOf(false)).every((c) => !c)).toBe(true);
+    if (new Date().getMonth() > 0) {
+      expect((await http.get('/api/accounting/entries?type=adjustment').set(as(finance)).expect(200)).body).toHaveLength(1);
+    }
+  });
+
+  it('support desk: a support team with tickets in every state and tasks', async () => {
+    expect(demo.supportTeam).toHaveLength(2);
+    const mgr = (await http.post('/api/auth/login').send({ login: demo.supportTeam[0].email, password: demo.staffPassword }).expect(200)).body.accessToken;
+    const tickets = (await http.get('/api/support-desk/tickets').set(as(mgr)).expect(200)).body as { status: string }[];
+    expect(new Set(tickets.map((t) => t.status))).toEqual(new Set(['new', 'in_progress', 'waiting_customer', 'closed']));
+    const tasks = (await http.get('/api/support-desk/tasks').set(as(mgr)).expect(200)).body as { status: string; overdue: boolean }[];
+    expect(tasks.some((t) => t.status === 'done')).toBe(true);
+    expect(tasks.some((t) => t.overdue)).toBe(true);
   });
 
   it('beneficiaries: cases in every stage, portal and accounting', async () => {

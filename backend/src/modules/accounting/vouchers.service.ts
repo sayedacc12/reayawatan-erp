@@ -7,6 +7,7 @@ import { LineDto, RequestDecisionDto, VoucherDecisionDto, VoucherDto, VoucherReq
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import {
   CashAccount, JournalEntry, Voucher, VoucherAction, VoucherKind, VoucherStage, VoucherStatus,
+  Partner,
 } from './entities/accounting.entity';
 import { EntriesService } from './entries.service';
 import { tafqeetSar } from './tafqeet';
@@ -224,11 +225,19 @@ export class VouchersService {
     }));
   }
 
-  private fields(dto: VoucherDto) {
+  /** الشريك المسجل يحدد الحساب المقابل من ملفه تلقائيًا (حساب العميل أو المورد في الدليل) */
+  private async fields(em: EntityManager, org: string, dto: VoucherDto) {
+    let counterAccountId = dto.counterAccountId ?? null;
+    if (dto.partnerId) {
+      const p = await em.getRepository(Partner).findOne({ where: { id: dto.partnerId, organizationId: org } });
+      if (!p) throw new BadRequestException('الشريك غير موجود');
+      if (p.accountId) counterAccountId = p.accountId;
+    }
+    if (!counterAccountId) throw new BadRequestException('اختر الحساب المقابل، أو اربط الشريك بحساب في ملفه');
     return {
       voucherDate: dto.voucherDate, partyName: dto.partyName, partnerId: dto.partnerId ?? null, amount: fromCents(cents(dto.amount)),
       purpose: dto.purpose, sourceType: dto.sourceType ?? 'manual', sourceRef: dto.sourceRef ?? null, projectName: dto.projectName ?? null,
-      method: dto.method, methodRef: dto.methodRef ?? null, cashAccountId: dto.cashAccountId, counterAccountId: dto.counterAccountId,
+      method: dto.method, methodRef: dto.methodRef ?? null, cashAccountId: dto.cashAccountId, counterAccountId,
       analytic: (dto.analytic ?? []).map((a) => ({ analyticId: a.analyticId, percent: a.percent })),
     };
   }
@@ -239,7 +248,7 @@ export class VouchersService {
     const id = await this.db.transaction(async (em) => {
       const year = await this.core.assertWritable(org, dto.voucherDate, em);
       await this.entries.assertNoApprovedInventory(em, year);
-      const f = this.fields(dto);
+      const f = await this.fields(em, org, dto);
       await this.buildLines(em, org, kind, f);
       // الرقم يُحجز عند الإنشاء ولا يُعاد استخدامه أبدًا (يبقى ولو أُلغي السند)
       const serial = await this.entries.reserveSerial(em, year, kind);
@@ -260,7 +269,7 @@ export class VouchersService {
       if (v.status !== 'draft' && v.status !== 'returned') throw new ConflictException('لا يُعدَّل السند إلا وهو مسودة أو معاد للتعديل');
       const year = await this.core.assertWritable(org, dto.voucherDate, em);
       if (year.id !== v.fiscalYearId) throw new BadRequestException('لا يمكن نقل السند إلى سنة مالية أخرى، لأن رقمه محجوز في سنته');
-      const f = this.fields(dto);
+      const f = await this.fields(em, org, dto);
       await this.buildLines(em, org, v.kind, f);
       await em.getRepository(Voucher).update({ id }, f);
       await this.log(em, actor, v, 'update');

@@ -84,7 +84,7 @@ export class FinanceSeed {
     const o1 = await create({
       kind: 'cash', donorId: khair.id, supportManagerId: sara.id, date: daysAgo(40), totalAmount: 120000, bankAccountId: rajhi.id,
       transferReference: 'RJH-2026-00871', isZakat: true,
-      conditions: { acceptsPatientContribution: false, categories: ['citizen', 'resident'], endDate: daysAhead(300) },
+      conditions: { acceptsPatientContribution: false, categories: ['citizen', 'resident'], nationalities: ['سعودي', 'مصري'], endDate: daysAhead(300) },
       conditionsText: 'تُصرف الزكاة على المستحقين داخل المملكة خلال سنة من تاريخ التبرع',
       lines: [
         { targetKind: 'program', activityId: p.orphans, mode: 'percent', percent: 50 },

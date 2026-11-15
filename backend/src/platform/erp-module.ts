@@ -22,6 +22,8 @@ export interface ErpMenuItem {
   permission: string;
   /** صلاحيات بديلة: يكفي أي واحدة منها مع permission */
   anyOf?: string[];
+  /** مجموعة رئيسية في القائمة الجانبية تنفتح بسهم وتضم الشاشات الفرعية (اختياري) */
+  group?: string;
 }
 
 export interface ErpModuleManifest {
