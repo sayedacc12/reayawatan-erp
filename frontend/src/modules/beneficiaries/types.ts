@@ -113,7 +113,8 @@ export interface Stats {
 }
 
 // ---------- الطلبات وسير العمل ----------
-export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox';
+export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'support';
+export interface SupportAnswer { decision: 'full' | 'partial' | 'none'; percent?: number }
 export interface FormField {
   key: string; label: string; type: FieldType; required?: boolean; options?: string[]; placeholder?: string;
   /** الأهمية النسبية للبند في نموذج التقييم (من 100) */
@@ -149,6 +150,7 @@ export interface RequestRow {
   id: string; requestNo: number; closedAt?: string | null; status: RequestStatus; source: 'portal' | 'staff'; createdAt: string; updatedAt: string;
   beneficiary: { id: string; fullName: string; fileNo: number }; project: { id: string; name: string };
   stage: { id: string; name: string } | null;
+  ruleDeviation?: boolean;
 }
 export interface RequestAction {
   id: string; stageId: string | null; stageName: string | null; decision: 'submitted' | 'approve' | 'reject' | 'return' | 'resubmitted' | 'cancelled' | 'skipped' | 'contribution_sent';
@@ -169,7 +171,12 @@ export interface RequestDetail {
   applicationData: Record<string, unknown>; createdAt: string; closedAt: string | null; currentStageId: string | null;
   canDecide?: boolean;
   services: string[]; estimatedCost: number | null;
-  research?: { score: number | null; outcome: ScoreOutcome | null; contributionPercent: number | null };
+  research?: {
+    score: number | null; outcome: ScoreOutcome | null; contributionPercent: number | null;
+    supportPercent: number | null; supportAmount: number | null;
+    suggestion: { score: number; outcome: ScoreOutcome; contributionPercent: number } | null;
+    deviation: boolean; deviationReason: string | null;
+  } | null;
   contribution: Contribution;
   beneficiary?: { id: string; fileNo: number; fullName: string; nationalId: string | null; phone: string | null; category: string; status: CaseStatus };
   project: { id: string; name: string; path: string[] };

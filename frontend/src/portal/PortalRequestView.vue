@@ -104,6 +104,7 @@ async function cancel() {
       <section v-if="r.status === 'in_progress' && isContribution" :class="['card notice contrib', r.contribution.status]">
         <h2>💰 {{ r.contribution.status === 'submitted' ? 'إثبات مساهمتك وصل للجمعية' : 'مطلوب منك تأكيد مساهمتك' }}</h2>
         <div class="c-grid">
+          <div><small>الجمعية بتتحمل</small><b>{{ Math.round((100 - (r.contribution.percent ?? 0)) * 100) / 100 }}%</b></div>
           <div><small>نسبة مساهمتك</small><b>{{ r.contribution.percent }}%</b></div>
           <div v-if="r.contribution.requiredAmount !== null"><small>المبلغ المطلوب</small><b>{{ money(r.contribution.requiredAmount) }} جنيه</b></div>
           <div v-if="r.contribution.amount !== null"><small>اللي رفعته</small><b>{{ money(r.contribution.amount) }} جنيه</b></div>

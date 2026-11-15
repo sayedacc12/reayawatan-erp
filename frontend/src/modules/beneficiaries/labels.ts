@@ -114,6 +114,12 @@ export const FIELD_TYPES: Opt[] = [
   { value: 'date', label: 'تاريخ' },
   { value: 'select', label: 'قائمة اختيارات' },
   { value: 'checkbox', label: 'مربع تأكيد (نعم/لا)' },
+  { value: 'support', label: 'تقييم الباحث (مستحق / بنسبة / غير مستحق)' },
+];
+export const SUPPORT_DECISIONS: Opt[] = [
+  { value: 'full', label: 'مستحق', color: '#10b981' },
+  { value: 'partial', label: 'مستحق بنسبة', color: '#f59e0b' },
+  { value: 'none', label: 'غير مستحق', color: '#ef4444' },
 ];
 
 const maps = {
@@ -150,6 +156,11 @@ export const fmtDateTime = (d: string | null | undefined) =>
 export const answer = (type: string, v: unknown) => {
   if (v === undefined || v === null || v === '') return '—';
   if (type === 'checkbox') return v ? 'نعم ✓' : 'لا';
+  if (type === 'support') {
+    const a = v as { decision?: string; percent?: number };
+    if (a.decision === 'partial') return `مستحق بنسبة (الجمعية ${a.percent}% والمستفيد ${Math.round((100 - (a.percent ?? 0)) * 100) / 100}%)`;
+    return a.decision === 'full' ? 'مستحق (الجمعية 100%)' : a.decision === 'none' ? 'غير مستحق' : '—';
+  }
   if (type === 'date') return fmtDate(String(v));
   if (type === 'number') return Number(v).toLocaleString('ar-EG');
   return String(v);
