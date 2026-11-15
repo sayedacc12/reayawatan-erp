@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { Repository } from 'typeorm';
 import { Organization, User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
+import { accessProblem } from '../organizations/org-access';
 import { AuthUser } from './decorators';
 import { PermissionResolver } from './permission-resolver.service';
 
@@ -46,6 +47,9 @@ export class AuthService {
         own ? `هذا حساب موظف في "${own.name}". ادخل من صفحة جمعيتك: /o/${own.slug}` : 'بيانات الدخول أو كلمة المرور غير صحيحة',
       );
     }
+    // الجمعية الموقوفة أو المنتهي اشتراكها: رسالة توضح السبب
+    const problem = org ? accessProblem(org) : null;
+    if (problem) throw new UnauthorizedException(problem);
     // يتحقق من أن الحساب والجمعية نشطان
     if (!(await this.resolver.resolve(user.id))) {
       throw new UnauthorizedException('الحساب أو الجمعية موقوف، تواصل مع الإدارة');
@@ -62,13 +66,18 @@ export class AuthService {
   }
 
   private findOrg(slug: string) {
-    return this.orgs.findOne({ where: { slug: slug.trim().toLowerCase(), isActive: true } });
+    return this.orgs.findOne({ where: { slug: slug.trim().toLowerCase() } });
   }
 
   /** بيانات الجلسة: المستخدم + صلاحياته + الوحدات المتاحة له وقوائمها */
   async session(userId: string) {
     const user = (await this.resolver.resolve(userId)) as AuthUser;
-    return { user, apps: this.catalog.appsFor(user.permissions) };
+    const { allowedScreens, ...rest } = user;
+    return {
+      user: rest,
+      apps: this.catalog.appsFor(user.permissions, allowedScreens),
+      screens: this.catalog.screenAccess(allowedScreens ?? null),
+    };
   }
 
   async changePassword(userId: string, current: string, next: string) {

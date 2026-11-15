@@ -29,9 +29,11 @@ export const coreManifest: ErpModuleManifest = {
 
 export const PLATFORM_PERMISSIONS = {
   organizationsManage: 'platform.organizations.manage',
+  subscriptionsManage: 'platform.subscriptions.manage',
+  reportsRead: 'platform.reports.read',
 } as const;
 
-/** إدارة المنصة: إنشاء الجمعيات وإيقافها. لمدير المنصة فقط ولا تظهر في أدوار الجمعيات. */
+/** إدارة المنصة: الجمعيات وطلبات اشتراكها وعقودها وتقاريرها. لمدير المنصة فقط ولا تظهر في أدوار الجمعيات. */
 export const platformManifest: ErpModuleManifest = {
   code: 'platform',
   name: 'إدارة المنصة',
@@ -41,6 +43,16 @@ export const platformManifest: ErpModuleManifest = {
   scope: 'platform',
   alwaysEnabled: true,
   sequence: 0,
-  permissions: [{ code: PLATFORM_PERMISSIONS.organizationsManage, name: 'إدارة الجمعيات' }],
-  menu: [{ label: 'الجمعيات', path: '/platform/organizations', permission: PLATFORM_PERMISSIONS.organizationsManage }],
+  permissions: [
+    { code: PLATFORM_PERMISSIONS.organizationsManage, name: 'إدارة الجمعيات' },
+    { code: PLATFORM_PERMISSIONS.subscriptionsManage, name: 'طلبات الاشتراك والعقود' },
+    { code: PLATFORM_PERMISSIONS.reportsRead, name: 'تقارير المنصة' },
+  ],
+  menu: [
+    { label: 'الجمعيات', path: '/platform/organizations', permission: PLATFORM_PERMISSIONS.organizationsManage },
+    { label: 'طلبات الاشتراك', path: '/platform/applications', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
+    { label: 'العقود', path: '/platform/contracts', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
+    { label: 'بنود العقد', path: '/platform/contract-clauses', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
+    { label: 'التقارير', path: '/platform/reports', permission: PLATFORM_PERMISSIONS.reportsRead },
+  ],
 };

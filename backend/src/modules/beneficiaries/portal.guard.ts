@@ -1,6 +1,7 @@
 import { CanActivate, createParamDecorator, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
+import { orgAccessSql } from '../../core/organizations/org-access';
 
 export interface PortalUser {
   beneficiaryId: string;
@@ -27,7 +28,7 @@ export class PortalGuard implements CanActivate {
     if (payload.typ !== 'portal') throw new UnauthorizedException('سجّل الدخول للبوابة');
     const [row] = await this.db.query(
       `SELECT b.id, b.organization_id, b.full_name FROM beneficiaries b JOIN organizations o ON o.id = b.organization_id
-       WHERE b.id = $1 AND o.is_active AND b.portal_password_hash IS NOT NULL`,
+       WHERE b.id = $1 AND ${orgAccessSql('o')} AND b.portal_password_hash IS NOT NULL`,
       [payload.sub],
     );
     if (!row) throw new UnauthorizedException('الحساب غير متاح');

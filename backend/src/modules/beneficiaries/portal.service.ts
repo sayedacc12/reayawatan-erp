@@ -1,3 +1,4 @@
+import { accessProblem } from '../../core/organizations/org-access';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -24,8 +25,10 @@ export class PortalService {
   ) {}
 
   async organization(slug: string) {
-    const org = await this.db.getRepository(Organization).findOne({ where: { slug: slug.toLowerCase(), isActive: true } });
+    const org = await this.db.getRepository(Organization).findOne({ where: { slug: slug.toLowerCase() } });
     if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    // الجمعية الموقوفة أو المنتهي اشتراكها أو فترتها التجريبية
+    if (accessProblem(org)) throw new NotFoundException('بوابة الجمعية غير متاحة حاليًا');
     return org;
   }
 

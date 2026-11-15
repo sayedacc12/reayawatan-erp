@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
+import { accessProblem } from '../organizations/org-access';
 import { AuthUser } from './decorators';
 
 /**
@@ -25,7 +26,8 @@ export class PermissionResolver {
       relations: { roles: { permissions: true }, organization: true },
     });
     if (!user || !user.isActive) return null;
-    if (!user.isPlatformAdmin && !user.organization?.isActive) return null;
+    // الجمعية الموقوفة أو المنتهية فترتها التجريبية أو اشتراكها تمنع كل مستخدميها
+    if (!user.isPlatformAdmin && (!user.organization || accessProblem(user.organization))) return null;
 
     let codes: string[];
     if (user.isPlatformAdmin) {
@@ -33,7 +35,8 @@ export class PermissionResolver {
     } else {
       // صلاحيات الوحدات غير المفعلة للجمعية لا تُحسب حتى لو موجودة في الأدوار
       const enabled = await this.catalog.enabledModuleCodes(user.organizationId!);
-      const orgCodes = this.catalog.permissionCodes('organization', enabled);
+      // وصلاحيات الشاشات غير المسموحة للجمعية تُسحب كذلك
+      const orgCodes = this.catalog.permissionCodes('organization', enabled, user.organization!.allowedScreens);
       codes = user.isSuperadmin ? orgCodes : this.fromRoles(user, new Set(orgCodes));
     }
     return {
@@ -47,6 +50,7 @@ export class PermissionResolver {
       isSuperadmin: user.isSuperadmin,
       isPlatformAdmin: user.isPlatformAdmin,
       permissions: codes.sort(),
+      allowedScreens: user.isPlatformAdmin ? null : user.organization!.allowedScreens,
     };
   }
 
