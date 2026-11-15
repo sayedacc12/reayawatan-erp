@@ -13,6 +13,9 @@ import { FileStore } from './files/file-store.service';
 import { ApplicationsService } from './subscriptions/applications.service';
 import { ContractsService } from './subscriptions/contracts.service';
 import { SUBSCRIPTION_ENTITIES } from './subscriptions/entities';
+import { OrgSupportController, PlatformSupportController } from './support/support.controller';
+import { SUPPORT_ENTITIES } from './support/support.entity';
+import { SupportService } from './support/support.service';
 import { RegistrationController } from './subscriptions/registration.controller';
 import { SubscriptionReportsService } from './subscriptions/reports.service';
 import { SubscriptionReportsController, SubscriptionsController } from './subscriptions/subscriptions.controller';
@@ -31,7 +34,7 @@ import { UsersService } from './users/users.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES]),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -42,11 +45,11 @@ import { UsersService } from './users/users.service';
   ],
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
-    SubscriptionsController, SubscriptionReportsController, RegistrationController,
+    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, PlatformSupportController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService],

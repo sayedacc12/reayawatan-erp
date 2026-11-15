@@ -5,6 +5,7 @@ export const CORE_PERMISSIONS = {
   usersManage: 'core.users.manage',
   rolesRead: 'core.roles.read',
   rolesManage: 'core.roles.manage',
+  supportManage: 'core.support.manage',
 } as const;
 
 export const coreManifest: ErpModuleManifest = {
@@ -20,10 +21,12 @@ export const coreManifest: ErpModuleManifest = {
     { code: CORE_PERMISSIONS.usersManage, name: 'إضافة وتعديل المستخدمين' },
     { code: CORE_PERMISSIONS.rolesRead, name: 'عرض الأدوار والصلاحيات' },
     { code: CORE_PERMISSIONS.rolesManage, name: 'إدارة الأدوار والصلاحيات' },
+    { code: CORE_PERMISSIONS.supportManage, name: 'طلبات الصيانة والدعم الفني للمنصة' },
   ],
   menu: [
     { label: 'المستخدمون', path: '/settings/users', permission: CORE_PERMISSIONS.usersRead },
     { label: 'الأدوار والصلاحيات', path: '/settings/roles', permission: CORE_PERMISSIONS.rolesRead },
+    { label: 'الدعم الفني والصيانة', path: '/settings/support', permission: CORE_PERMISSIONS.supportManage },
   ],
 };
 
@@ -31,6 +34,7 @@ export const PLATFORM_PERMISSIONS = {
   organizationsManage: 'platform.organizations.manage',
   subscriptionsManage: 'platform.subscriptions.manage',
   reportsRead: 'platform.reports.read',
+  supportManage: 'platform.support.manage',
 } as const;
 
 /** إدارة المنصة: الجمعيات وطلبات اشتراكها وعقودها وتقاريرها. لمدير المنصة فقط ولا تظهر في أدوار الجمعيات. */
@@ -47,12 +51,15 @@ export const platformManifest: ErpModuleManifest = {
     { code: PLATFORM_PERMISSIONS.organizationsManage, name: 'إدارة الجمعيات' },
     { code: PLATFORM_PERMISSIONS.subscriptionsManage, name: 'طلبات الاشتراك والعقود' },
     { code: PLATFORM_PERMISSIONS.reportsRead, name: 'تقارير المنصة' },
+    { code: PLATFORM_PERMISSIONS.supportManage, name: 'طلبات الصيانة من الجمعيات' },
   ],
   menu: [
     { label: 'الجمعيات', path: '/platform/organizations', permission: PLATFORM_PERMISSIONS.organizationsManage },
     { label: 'طلبات الاشتراك', path: '/platform/applications', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'العقود', path: '/platform/contracts', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'بنود العقد', path: '/platform/contract-clauses', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
+    { label: 'طلبات الصيانة', path: '/platform/support', permission: PLATFORM_PERMISSIONS.supportManage },
+    { label: 'مستويات الخدمة', path: '/platform/sla', permission: PLATFORM_PERMISSIONS.supportManage },
     { label: 'التقارير', path: '/platform/reports', permission: PLATFORM_PERMISSIONS.reportsRead },
   ],
 };
