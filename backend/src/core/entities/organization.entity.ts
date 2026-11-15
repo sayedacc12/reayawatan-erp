@@ -37,6 +37,10 @@ export class Organization {
   @Column({ type: 'jsonb', nullable: true })
   nationalities!: string[] | null;
 
+  /** الرقم الضريبي للجمعية (إن وجد)، من البيانات الأساسية */
+  @Column({ name: 'tax_number', type: 'varchar', length: 30, nullable: true })
+  taxNumber!: string | null;
+
   /** حالة الاشتراك: trial تجريبي، awaiting_contract بانتظار توقيع العقد، active ساري */
   @Column({ name: 'subscription_status', type: 'varchar', length: 24, default: 'active' })
   subscriptionStatus!: SubscriptionStatus;

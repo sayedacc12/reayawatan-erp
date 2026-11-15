@@ -17,7 +17,12 @@ describe('Demo association across all modules', () => {
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
   const login = async (login: string, password: string, organization?: string) =>
     (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
-  const staff = (name: string) => login(`demo-${name}@sanabelerp.com`, demo.staffPassword, 'demo');
+  // رموز الدخول تُحفظ لكل موظف حتى لا يتجاوز الاختبار حد محاولات الدخول
+  const tokens = new Map<string, string>();
+  const staff = async (name: string) => {
+    if (!tokens.has(name)) tokens.set(name, await login(`demo-${name}@sanabelerp.com`, demo.staffPassword, 'demo'));
+    return tokens.get(name)!;
+  };
 
   beforeAll(async () => {
     Object.assign(process.env, {
@@ -53,6 +58,19 @@ describe('Demo association across all modules', () => {
     expect(res.body.organization.slug).toBe('demo');
     expect(demo.staff).toHaveLength(7);
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
+  }, 90000);
+
+  it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
+    const finance = await staff('finance');
+    const accounts = await http.get('/api/accounting/accounts').set(as(finance)).expect(200);
+    expect(accounts.body.accounts.length).toBeGreaterThan(1300);
+    const receipts = await http.get('/api/accounting/vouchers/receipt').set(as(finance)).expect(200);
+    expect(receipts.body.counts.approved.count).toBeGreaterThan(0);
+    expect(receipts.body.counts.cancelled.count).toBe(1);
+    expect(receipts.body.counts.pending.count).toBeGreaterThan(0);
+    const tb = await http.get('/api/accounting/reports/trial-balance?level=1').set(as(finance)).expect(200);
+    expect(tb.body.totals.debit).toBe(tb.body.totals.credit);
+    expect(tb.body.totals.debit).toBeGreaterThan(0);
   });
 
   it('beneficiaries: cases in every stage, portal and accounting', async () => {
@@ -169,5 +187,5 @@ describe('Demo association across all modules', () => {
     expect((await http.get('/api/platform/applications').set(as(platform)).expect(200)).body).toHaveLength(0);
     const again = await http.post('/api/platform/demo-organization').set(as(platform)).expect(201);
     expect(again.body.organization.slug).toBe('demo');
-  });
+  }, 90000);
 });

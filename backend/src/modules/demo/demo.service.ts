@@ -5,6 +5,7 @@ import { AuthUser } from '../../core/auth/decorators';
 import { Organization } from '../../core/entities';
 import { FileStore } from '../../core/files/file-store.service';
 import { DEMO_SLUG } from './demo-context';
+import { AccountingSeed } from './seed-accounting';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
 import { PlatformSeed } from './seed-platform';
@@ -25,6 +26,7 @@ export class DemoService {
     private readonly projects: ProjectsSeed,
     private readonly finance: FinanceSeed,
     private readonly platform: PlatformSeed,
+    private readonly accounting: AccountingSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -39,6 +41,7 @@ export class DemoService {
       const extra = await this.projects.run(team, tree);
       const cases = await this.beneficiaries.cases(org.id, team, tree, portalPassword);
       await this.finance.run(team, tree, extra, cases);
+      await this.accounting.run(team);
       await this.platform.run(org, platformUser, origin);
       return {
         organization: { name: org.name, slug: org.slug },
