@@ -51,8 +51,8 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     await app.close();
   });
 
-  const login = (email: string, password: string) =>
-    http.post('/api/auth/login').send({ email, password });
+  const login = (email: string, password: string, organization?: string) =>
+    http.post('/api/auth/login').send({ email, password, organization });
   const as = (token: string) => ({ Authorization: `Bearer ${token}` });
 
   it('rejects wrong password and unauthenticated access', async () => {
@@ -105,7 +105,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
   });
 
   it('association admin sees every association app but not the platform', async () => {
-    const res = await login('admin@test.org', 'Admin12345').expect(200);
+    const res = await login('admin@test.org', 'Admin12345', 'al-bir').expect(200);
     adminToken = res.body.accessToken;
     expect(res.body.user.isSuperadmin).toBe(true);
     expect(res.body.user.organizationName).toBe('جمعية البر');
@@ -146,7 +146,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
       .send({ name: 'محرر الموقع', permissions: ['website.pages.manage'] }).expect(201);
 
     // the other association does not get it
-    const bToken = (await login('admin@b.org', 'AdminB1234').expect(200)).body.accessToken;
+    const bToken = (await login('admin@b.org', 'AdminB1234', 'al-khair').expect(200)).body.accessToken;
     const bMe = await http.get('/api/auth/me').set(as(bToken)).expect(200);
     expect(bMe.body.user.permissions).not.toContain('website.pages.manage');
 
@@ -160,7 +160,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
   it('isolates data between associations', async () => {
     const users = await http.get('/api/users').set(as(adminToken)).expect(200);
     expect(users.body.map((u: { email: string }) => u.email)).toEqual(['admin@test.org']);
-    const bToken = (await login('admin@b.org', 'AdminB1234').expect(200)).body.accessToken;
+    const bToken = (await login('admin@b.org', 'AdminB1234', 'al-khair').expect(200)).body.accessToken;
     const bUsers = await http.get('/api/users').set(as(bToken)).expect(200);
     expect(bUsers.body.map((u: { email: string }) => u.email)).toEqual(['admin@b.org']);
     // cannot edit a user of another association
@@ -169,7 +169,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     // suspending an association blocks its users immediately
     await http.patch(`/api/platform/organizations/${orgBId}`).set(as(platformToken)).send({ isActive: false }).expect(200);
     await http.get('/api/users').set(as(bToken)).expect(401);
-    await login('admin@b.org', 'AdminB1234').expect(401);
+    await login('admin@b.org', 'AdminB1234', 'al-khair').expect(401);
   });
 
   it('enforces per-permission access and blocks privilege escalation', async () => {
@@ -183,7 +183,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     }).expect(201);
     expect(user.body.roles[0].name).toBe('مشاهد المستخدمين');
 
-    const staff = (await login('staff@test.org', 'Staff12345').expect(200)).body;
+    const staff = (await login('staff@test.org', 'Staff12345', 'al-bir').expect(200)).body;
     expect(staff.user.permissions).toEqual(['core.users.read']);
     expect(staff.apps[0].menu).toEqual([{ label: 'المستخدمون', path: '/settings/users' }]);
 
@@ -200,7 +200,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     await http.post('/api/users').set(as(adminToken)).send({
       fullName: 'مدير', email: 'mgr@test.org', password: 'Mgr123456', roleIds: [mgrRole.body.id],
     }).expect(201);
-    const mgr = (await login('mgr@test.org', 'Mgr123456').expect(200)).body;
+    const mgr = (await login('mgr@test.org', 'Mgr123456', 'al-bir').expect(200)).body;
     await http.patch(`/api/users/${user.body.id}`).set(as(mgr.accessToken))
       .send({ roleIds: [admins.body.id] }).expect(403);
     await http.patch(`/api/users/${user.body.id}`).set(as(mgr.accessToken))

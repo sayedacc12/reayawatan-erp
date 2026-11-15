@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia';
 import { api, token } from '../api';
 
+const ORG_KEY = 'erp.org';
+/** صفحة الدخول المناسبة: صفحة آخر جمعية دخل منها المستخدم، أو صفحة إدارة المنصة */
+export function loginPath() {
+  const slug = localStorage.getItem(ORG_KEY);
+  return slug ? `/o/${slug}` : '/login';
+}
+
 export interface SessionUser {
   id: string;
   fullName: string;
@@ -35,13 +42,15 @@ export const useSession = defineStore('session', {
       if (!permission) return true;
       return !!this.user && this.user.permissions.includes(permission);
     },
-    /** login: البريد الإلكتروني أو اسم المستخدم */
-    async login(login: string, password: string) {
+    /** login: البريد الإلكتروني أو اسم المستخدم. organization: slug صفحة دخول الجمعية */
+    async login(login: string, password: string, organization?: string) {
       const res = await api<SessionPayload & { accessToken: string }>('/auth/login', {
         method: 'POST',
-        json: { login, password },
+        json: { login, password, organization },
       });
       token.set(res.accessToken);
+      if (res.user.organizationSlug) localStorage.setItem(ORG_KEY, res.user.organizationSlug);
+      else localStorage.removeItem(ORG_KEY);
       this.apply(res);
     },
     async restore() {

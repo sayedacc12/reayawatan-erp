@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { moduleRoutes } from './modules';
-import { useSession } from './stores/session';
+import { loginPath, useSession } from './stores/session';
 import AppShell from './layouts/AppShell.vue';
 import { usePortal } from './portal/portal';
 
@@ -8,6 +8,8 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
+    // صفحة دخول موظفي كل جمعية
+    { path: '/o/:slug', component: () => import('./views/LoginView.vue'), meta: { public: true } },
     // بوابة المستفيدين: مستقلة عن دخول الموظفين
     {
       path: '/portal/:slug',
@@ -45,7 +47,7 @@ router.beforeEach(async (to) => {
   const session = useSession();
   await session.restore();
   if (to.meta.public) return session.isLoggedIn ? '/' : true;
-  if (!session.isLoggedIn) return { path: '/login', query: { next: to.fullPath } };
+  if (!session.isLoggedIn) return { path: loginPath(), query: { next: to.fullPath } };
   if (!session.can(to.meta.permission as string | undefined)) return '/forbidden';
   return true;
 });

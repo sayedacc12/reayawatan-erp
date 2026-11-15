@@ -35,3 +35,11 @@ export class UpdateRoleDto {
   @IsString({ each: true })
   permissions?: string[];
 }
+
+/** صلاحيات وحدة واحدة في دور (من شاشة إعدادات الوحدة) */
+export class ModulePermissionsDto {
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  permissions!: string[];
+}

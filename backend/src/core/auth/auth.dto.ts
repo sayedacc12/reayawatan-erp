@@ -19,6 +19,12 @@ export class LoginDto {
   @MinLength(1, { message: 'كلمة المرور مطلوبة' })
   @MaxLength(200)
   password!: string;
+
+  /** معرف الجمعية (slug) من رابط صفحة دخولها. بدونه الدخول لمدير المنصة فقط */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  organization?: string;
 }
 
 export class ChangePasswordDto {

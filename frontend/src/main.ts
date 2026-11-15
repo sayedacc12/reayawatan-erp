@@ -3,7 +3,7 @@ import { createPinia } from 'pinia';
 import App from './App.vue';
 import { router } from './router';
 import { setUnauthorizedHandler } from './api';
-import { useSession } from './stores/session';
+import { loginPath, useSession } from './stores/session';
 import './styles.css';
 
 const app = createApp(App);
@@ -12,7 +12,8 @@ app.use(router);
 
 setUnauthorizedHandler(() => {
   useSession().logout();
-  if (router.currentRoute.value.path !== '/login') router.push('/login');
+  const path = router.currentRoute.value.path;
+  if (path !== '/login' && !path.startsWith('/o/')) router.push(loginPath());
 });
 
 app.mount('#app');

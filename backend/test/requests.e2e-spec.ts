@@ -14,8 +14,8 @@ describe('Requests workflow + beneficiary portal', () => {
   let platform: string;
   let admin: string;
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
-  const login = async (login: string, password: string) =>
-    (await http.post('/api/auth/login').send({ login, password }).expect(200)).body.accessToken as string;
+  const login = async (login: string, password: string, organization?: string) =>
+    (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
 
   beforeAll(async () => {
     Object.assign(process.env, {
@@ -36,7 +36,7 @@ describe('Requests workflow + beneficiary portal', () => {
         name: `جمعية ${slug}`, slug, adminFullName: 'مدير', adminEmail: `${slug}@test.org`, adminPassword: 'Admin12345',
       }).expect(201);
     }
-    admin = await login('alkhair@test.org', 'Admin12345');
+    admin = await login('alkhair@test.org', 'Admin12345', 'alkhair');
   });
 
   afterAll(async () => {
@@ -155,14 +155,14 @@ describe('Requests workflow + beneficiary portal', () => {
     await http.post(`/api/beneficiaries/requests/${reqId}/decision`).set(as(admin)).send({ decision: 'approve', notes: 'تمام' }).expect(201);
 
     // مرحلة البحث: للباحث فقط
-    const clerk = await login('c@test.org', 'Clerk12345');
+    const clerk = await login('c@test.org', 'Clerk12345', 'alkhair');
     const forClerk = await http.get(`/api/beneficiaries/requests/${reqId}`).set(as(clerk)).expect(200);
     expect(forClerk.body.currentStageId).toBe(s2);
     expect(forClerk.body.canDecide).toBe(false);
     await http.post(`/api/beneficiaries/requests/${reqId}/decision`).set(as(clerk)).send({ decision: 'approve' }).expect(403);
     expect((await http.get('/api/beneficiaries/requests?mine=true').set(as(clerk))).body.total).toBe(0);
 
-    const researcher = await login('r@test.org', 'Research123');
+    const researcher = await login('r@test.org', 'Research123', 'alkhair');
     expect((await http.get('/api/beneficiaries/requests?mine=true').set(as(researcher))).body.total).toBe(1);
     await http.post(`/api/beneficiaries/requests/${reqId}/decision`).set(as(researcher))
       .send({ decision: 'reject', notes: 'x' }).expect(400); // المرحلة لا تسمح بالرفض
@@ -228,7 +228,7 @@ describe('Requests workflow + beneficiary portal', () => {
     await http.post(`/api/beneficiaries/tickets/${t.body.id}/reply`).set(as(admin)).send({ reply: 'تم اعتماد طلبك' }).expect(201);
     const mine = await http.get('/api/portal/tickets').set(as(portal)).expect(200);
     expect(mine.body[0]).toMatchObject({ status: 'answered', reply: 'تم اعتماد طلبك', repliedByName: 'مدير' });
-    const otherAdmin = await login('other@test.org', 'Admin12345');
+    const otherAdmin = await login('other@test.org', 'Admin12345', 'other');
     await http.post(`/api/beneficiaries/tickets/${t.body.id}/reply`).set(as(otherAdmin)).send({ reply: 'محاولة' }).expect(404);
   });
 
@@ -246,7 +246,7 @@ describe('Requests workflow + beneficiary portal', () => {
     expect(demo.body.organization.slug).toBe('demo');
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
 
-    const demoAdmin = await login('demo-admin@sanabelerp.com', demo.body.staffPassword);
+    const demoAdmin = await login('demo-admin@sanabelerp.com', demo.body.staffPassword, 'demo');
     const board = await http.get('/api/beneficiaries/requests/board').set(as(demoAdmin)).expect(200);
     expect(board.body.byStatus).toMatchObject({ approved: 2, rejected: 1, returned: 1, in_progress: 3 });
     const stats = await http.get('/api/beneficiaries/stats').set(as(demoAdmin)).expect(200);

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
-import { useSession } from '../stores/session';
+import { loginPath, useSession } from '../stores/session';
 
 const session = useSession();
 const route = useRoute();
@@ -16,7 +16,7 @@ const currentApp = computed(() =>
 
 function logout() {
   session.logout();
-  router.push('/login');
+  router.push(loginPath());
 }
 </script>
 

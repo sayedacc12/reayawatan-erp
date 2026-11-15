@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import ParticleField from '../components/ParticleField.vue';
+import { api } from '../api';
 import { useSession } from '../stores/session';
 import { hasArabic } from '../validation';
 
@@ -18,6 +19,28 @@ const error = ref('');
 const busy = ref(false);
 const success = ref(false);
 const shake = ref(false);
+
+// صفحة دخول جمعية معينة (/o/:slug)، أو صفحة إدارة المنصة (/login)
+const slug = computed(() => (typeof route.params.slug === 'string' ? route.params.slug : ''));
+const orgName = ref('');
+const orgMissing = ref(false);
+watch(slug, async (s) => {
+  orgName.value = '';
+  orgMissing.value = false;
+  if (!s) return;
+  try {
+    orgName.value = (await api<{ name: string }>(`/auth/org/${s}`)).name;
+  } catch {
+    orgMissing.value = true;
+  }
+}, { immediate: true });
+// لو موظف جمعية دخل من الصفحة العامة، الرسالة فيها رابط جمعيته
+const orgLink = computed(() => error.value.match(/\/o\/[a-z0-9-]+/)?.[0] ?? '');
+function goToOrg() {
+  const target = orgLink.value;
+  error.value = '';
+  router.replace(target);
+}
 
 // عبارات متبدلة في العنوان
 const words = ['التبرعات', 'المستفيدين', 'الأعضاء', 'المحاسبة', 'المتطوعين'];
@@ -50,7 +73,7 @@ async function submit() {
   }
   busy.value = true;
   try {
-    await session.login(email.value, password.value);
+    await session.login(email.value, password.value, slug.value || undefined);
     success.value = true;
     const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') ? route.query.next : '/';
     setTimeout(() => router.replace(next), 650);
@@ -75,11 +98,20 @@ async function submit() {
         <div class="brand-row">
           <div class="hero-mark"><BrandMark :size="64" /></div>
           <div>
-            <div class="wordmark">سنابل</div>
-            <p class="eyebrow">منصة إدارة الجمعيات الخيرية</p>
+            <div class="wordmark">{{ slug ? orgName || '…' : 'سنابل' }}</div>
+            <p class="eyebrow">{{ slug ? 'بوابة موظفي الجمعية · على منصة سنابل' : 'منصة إدارة الجمعيات الخيرية' }}</p>
           </div>
         </div>
-        <h1>
+        <h1 v-if="slug">
+          مساحة عمل<br />
+          فريق
+          <span class="word-wrap">
+            <Transition name="word" mode="out-in">
+              <span :key="wordIndex" class="word">{{ words[wordIndex] }}</span>
+            </Transition>
+          </span>
+        </h1>
+        <h1 v-else>
           منصة واحدة<br />
           لإدارة
           <span class="word-wrap">
@@ -102,13 +134,17 @@ async function submit() {
           <div class="form-head">
             <BrandMark :size="40" />
             <div>
-              <h2>مرحبًا بك في سنابل</h2>
-              <p>سجّل الدخول للمتابعة</p>
+              <h2>{{ slug ? 'دخول الموظفين' : 'مرحبًا بك في سنابل' }}</h2>
+              <p>{{ slug ? orgName : 'دخول إدارة المنصة. موظفو الجمعيات يدخلون من رابط جمعيتهم' }}</p>
             </div>
           </div>
 
+          <div v-if="orgMissing" class="error" role="alert">رابط الجمعية غير صحيح. اتأكد من الرابط مع إدارة جمعيتك.</div>
           <Transition name="fade">
-            <div v-if="error" class="error" role="alert">{{ error }}</div>
+            <div v-if="error" class="error" role="alert">
+              {{ orgLink ? error.replace(/:?\s*\/o\/[a-z0-9-]+/, '.') : error }}
+              <button v-if="orgLink" type="button" class="org-jump" @click="goToOrg">افتح صفحة جمعيتك ←</button>
+            </div>
           </Transition>
 
           <label class="float">
@@ -214,6 +250,9 @@ async function submit() {
 .form-head p { margin: 0; color: var(--ink-2); font-size: 0.93rem; }
 
 .error { background: rgba(244, 63, 94, 0.14); border: 1px solid rgba(244, 63, 94, 0.4); color: #fecdd3; padding: 10px 14px; border-radius: 12px; margin-bottom: 16px; font-size: 0.92rem; }
+.org-jump { display: block; margin-top: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); color: #fff; font: inherit; font-size: 0.88rem;
+  padding: 6px 12px; border-radius: 10px; cursor: pointer; }
+.org-jump:hover { background: rgba(255,255,255,0.18); }
 .hint { color: #fde68a; font-size: 0.86rem; margin: -6px 0 14px; }
 .fade-enter-active, .fade-leave-active { transition: all 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-6px); }

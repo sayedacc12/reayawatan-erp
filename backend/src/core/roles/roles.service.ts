@@ -4,6 +4,7 @@ import { In, Repository } from 'typeorm';
 import { OrgUser } from '../auth/decorators';
 import { Permission, Role, User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
+import { CORE_PERMISSIONS } from '../core.manifest';
 import { CreateRoleDto, UpdateRoleDto } from './roles.dto';
 
 @Injectable()
@@ -62,6 +63,51 @@ export class RolesService {
     const role = await this.find(actor, id);
     if (!actor.isSuperadmin) await this.assertCanAssign(actor, [role]);
     await this.roles.remove(role);
+  }
+
+  // ---- صلاحيات وحدة واحدة (من داخل إعدادات الوحدة) ----
+
+  /** يتأكد إن الوحدة مفعلة للجمعية وإن المستخدم يملك إعداداتها أو صلاحيات الأدوار العامة */
+  private async moduleFor(actor: OrgUser, code: string, write: boolean) {
+    const m = this.catalog.manifest(code);
+    const enabled = await this.catalog.enabledModuleCodes(actor.organizationId);
+    if (!m || !m.settingsPermission || !enabled.has(code)) throw new NotFoundException('الوحدة غير موجودة');
+    const general = write ? CORE_PERMISSIONS.rolesManage : CORE_PERMISSIONS.rolesRead;
+    if (!actor.isSuperadmin && !actor.permissions.includes(m.settingsPermission) && !actor.permissions.includes(general)) {
+      throw new ForbiddenException('لا تملك صلاحية إعدادات هذه الوحدة');
+    }
+    return { manifest: m, codes: new Set(m.permissions.map((p) => p.code)) };
+  }
+
+  async moduleRoles(actor: OrgUser, code: string) {
+    const { manifest, codes } = await this.moduleFor(actor, code, false);
+    const all = await this.list(actor);
+    return {
+      module: { code: manifest.code, name: manifest.name, permissions: manifest.permissions },
+      roles: all.map((r) => ({ ...r, permissions: r.permissions.filter((c) => codes.has(c)) })),
+    };
+  }
+
+  async createForModule(actor: OrgUser, code: string, dto: CreateRoleDto) {
+    const { codes } = await this.moduleFor(actor, code, true);
+    const outside = dto.permissions.filter((c) => !codes.has(c));
+    if (outside.length) throw new BadRequestException(`صلاحيات من خارج الوحدة: ${outside.join(', ')}`);
+    await this.create(actor, dto);
+    return this.moduleRoles(actor, code);
+  }
+
+  /** يستبدل صلاحيات هذه الوحدة فقط في الدور، ويحافظ على صلاحيات الوحدات الأخرى */
+  async setModulePermissions(actor: OrgUser, id: string, code: string, permissions: string[]) {
+    const { codes } = await this.moduleFor(actor, code, true);
+    const outside = permissions.filter((c) => !codes.has(c));
+    if (outside.length) throw new BadRequestException(`صلاحيات من خارج الوحدة: ${outside.join(', ')}`);
+    const role = await this.find(actor, id);
+    const current = new Set(role.permissions.map((p) => p.code));
+    await this.checkPermissions(actor, permissions.filter((c) => !current.has(c)));
+    const kept = role.permissions.map((p) => p.code).filter((c) => !codes.has(c));
+    role.permissions = [...kept, ...permissions].map((c) => ({ code: c }) as Permission);
+    await this.roles.save(role);
+    return this.moduleRoles(actor, code);
   }
 
   private async get(actor: OrgUser, id: string) {
