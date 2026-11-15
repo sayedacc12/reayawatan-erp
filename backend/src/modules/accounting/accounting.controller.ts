@@ -3,7 +3,7 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { today } from './acc-core.service';
 import {
   AccountDto, AccountUpdateDto, AnalyticDto, AnalyticUpdateDto, BatchPostDto, CashAccountDto, CategoryDto, EntryDto, EntryUpdateDto,
-  InventoryDto, MonthDto, PartnerDto, ReasonDto, RequestDecisionDto, SequencesDto, SettingsDto, SetupDto, SetupUpdateDto,
+  InventoryDto, MonthDto, MonthsDto, PartnerDto, ReasonDto, RequestDecisionDto, SequencesDto, SettingsDto, SetupDto, SetupUpdateDto,
   VoucherDecisionDto, VoucherDto, VoucherRequestDto, VoucherStagesDto, WarehouseDto,
 } from './accounting.dto';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
@@ -107,6 +107,24 @@ export class AccountingController {
   @RequirePermissions(P.reopenPeriods)
   reopenMonth(@CurrentOrgUser() actor: OrgUser, @Body() dto: MonthDto) {
     return this.setup.reopenMonth(actor, dto.fiscalYearId, dto.month);
+  }
+
+  @Get('periods/:yearId')
+  @RequireAnyPermission(P.closePeriods, P.reopenPeriods, P.post, P.read)
+  periods(@CurrentOrgUser() actor: OrgUser, @Param('yearId', uuid) id: string) {
+    return this.setup.periods(actor, id);
+  }
+
+  @Post('periods/close')
+  @RequirePermissions(P.closePeriods)
+  closeMonths(@CurrentOrgUser() actor: OrgUser, @Body() dto: MonthsDto) {
+    return this.setup.closeMonths(actor, dto.fiscalYearId, dto.months);
+  }
+
+  @Post('periods/reopen')
+  @RequirePermissions(P.reopenPeriods)
+  reopenMonths(@CurrentOrgUser() actor: OrgUser, @Body() dto: MonthsDto) {
+    return this.setup.reopenMonths(actor, dto.fiscalYearId, dto.months);
   }
 
   // ---------------- الإعدادات ----------------

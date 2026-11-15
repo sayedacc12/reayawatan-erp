@@ -11,11 +11,12 @@ import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
+import { SupportSeed } from './seed-support';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
   imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule],
   controllers: [DemoController],
-  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed],
+  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed],
 })
 export class DemoModule {}

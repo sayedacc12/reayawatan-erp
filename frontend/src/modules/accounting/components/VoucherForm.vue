@@ -37,13 +37,17 @@ const isR = computed(() => props.kind === 'receipt');
 const words = computed(() => (f.amount ? tafqeet(Number(f.amount)) : ''));
 const counterOptions = computed(() => subOptions((a) => !cash.value.some((c) => c.glAccount?.id === a.id)));
 const counter = computed(() => accounts.value.find((a) => a.id === f.counterAccountId));
+const partner = computed(() => partners.value.find((p) => p.id === f.partnerId));
+/** الشريك المسجل المربوط بحساب يحدد الحساب المقابل، فلا يُغيَّر يدويًا */
+const lockedByPartner = computed(() => !!partner.value?.account);
 const analyticText = computed(() => f.analytic.map((s) => `${analytic.value.find((a) => a.id === s.analyticId)?.name ?? ''}${f.analytic.length > 1 ? ` ${s.percent}%` : ''}`).join('، '));
 function pickPartner(id: string | null) {
   f.partnerId = id;
   const p = partners.value.find((x) => x.id === id);
   if (p) {
     f.partyName = p.name;
-    if (p.account && !f.counterAccountId) f.counterAccountId = p.account.id;
+    // الحساب المقابل يُؤخذ من ملف الشريك نفسه
+    if (p.account) f.counterAccountId = p.account.id;
   }
 }
 async function save() {
@@ -122,7 +126,8 @@ async function save() {
       </label>
       <label v-if="f.method !== 'cash'" class="field"><span>{{ f.method === 'cheque' ? 'رقم الشيك' : 'رقم العملية' }}</span><input v-model="f.methodRef" class="input ac-code" /></label>
       <label class="field wide"><span>{{ isR ? 'الحساب الدائن (المقابل)' : 'الحساب المدين (المصروف عليه)' }}</span>
-        <SearchSelect v-model="f.counterAccountId" :options="counterOptions" :selected-label="initial?.counterAccountCode ? `${initial.counterAccountCode} ${initial.counterAccountName}` : ''" placeholder="ابحث في حسابات الجمعية برقم الحساب أو اسمه" required />
+        <div v-if="lockedByPartner" class="input locked" title="من ملف الشريك">🔗 <span class="ac-code">{{ partner?.account?.code }}</span> {{ partner?.account?.name }} <small class="pm-muted">من ملف {{ partner?.name }}</small></div>
+        <SearchSelect v-else v-model="f.counterAccountId" :options="counterOptions" :selected-label="counter ? `${counter.code} ${counter.name}` : initial?.counterAccountCode ? `${initial.counterAccountCode} ${initial.counterAccountName}` : ''" placeholder="ابحث في حسابات الجمعية برقم الحساب أو اسمه" required />
       </label>
       <div class="field"><span>الحساب التحليلي {{ counter?.requiresAnalytic ? '(إلزامي)' : '' }}</span>
         <button type="button" :class="['btn', 'an', { need: counter?.requiresAnalytic && !f.analytic.length }]" @click="picker = true">{{ f.analytic.length ? analyticText : counter?.requiresAnalytic ? 'اختر الحساب التحليلي' : '+ تحليلي (اختياري)' }}</button>
@@ -160,6 +165,7 @@ async function save() {
 .words .val { color: var(--c); }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 4px 14px; margin-top: 14px; }
 .grid .wide { grid-column: span 2; }
+.locked { display: flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--c) 8%, transparent); border-color: color-mix(in srgb, var(--c) 40%, transparent); }
 .an { width: 100%; text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .an.need { border-color: #f59e0b; color: #b45309; }
 @media (max-width: 700px) { .grid .wide { grid-column: auto; } .partner, .src { width: 100%; } }

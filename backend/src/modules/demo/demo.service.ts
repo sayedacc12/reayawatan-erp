@@ -10,6 +10,7 @@ import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
+import { SupportSeed } from './seed-support';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -27,6 +28,7 @@ export class DemoService {
     private readonly finance: FinanceSeed,
     private readonly platform: PlatformSeed,
     private readonly accounting: AccountingSeed,
+    private readonly support: SupportSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -43,12 +45,15 @@ export class DemoService {
       await this.finance.run(team, tree, extra, cases);
       await this.accounting.run(team);
       await this.platform.run(org, platformUser, origin);
+      // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
+      const supportTeam = await this.support.run(team, staffPassword);
       return {
         organization: { name: org.name, slug: org.slug },
         staffPassword,
         staff: accounts,
         portalPassword,
         portalUsers: cases.portalUsers,
+        supportTeam,
       };
     } catch (e) {
       this.logger.error(`Demo seeding failed: ${(e as Error).message}`, (e as Error).stack);

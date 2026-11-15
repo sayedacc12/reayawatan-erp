@@ -189,6 +189,70 @@ describe('Accounting', () => {
     expect(dash.body).toMatchObject({ revenue: 5250.5, expenses: 100 });
   });
 
+  it('keeps opening entries out of posting, and closes months only in sequence after posting all documents', async () => {
+    // القيد الافتتاحي يسري بمجرد حفظه ولا يخضع للترحيل
+    const opening = await http.post(`${A}/entries`).set(as(admin)).send({
+      voucherType: 'opening', documentDate: '2026-01-01', description: 'أرصدة افتتاحية', lines: [
+        { accountId: ids.bankGl, debit: 500, credit: 0 }, { accountId: ids.netAssets, debit: 0, credit: 500 },
+      ],
+    }).expect(201);
+    expect(opening.body.status).toBe('posted');
+    await http.post(`${A}/entries/${opening.body.id}/unpost`).set(as(admin)).expect(409);
+    await http.put(`${A}/entries/${opening.body.id}`).set(as(admin)).send({
+      documentDate: '2026-01-01', description: 'أرصدة افتتاحية معدلة', lines: [
+        { accountId: ids.bankGl, debit: 600, credit: 0 }, { accountId: ids.netAssets, debit: 0, credit: 600 },
+      ],
+    }).expect(200);
+    await http.post(`${A}/posting/batch`).set(as(admin)).send({ dateFrom: '2026-01-01', dateTo: '2026-12-31', voucherType: 'opening', preview: true }).expect(400);
+
+    // قيد غير مرحّل في فبراير يمنع إغلاقه، ويظهر في المعاينة مع سندات لم تُعتمد
+    const draft = await http.post(`${A}/entries`).set(as(admin)).send({
+      voucherType: 'journal', documentDate: '2026-02-05', description: 'قيد فبراير', lines: [
+        { accountId: ids.bankGl, debit: 20, credit: 0 }, { accountId: ids.revenue, debit: 0, credit: 20 },
+      ],
+    }).expect(201);
+    const pv = await http.post(`${A}/posting/batch`).set(as(admin)).send({ dateFrom: '2026-01-01', dateTo: '2026-02-28', preview: true }).expect(201);
+    expect(pv.body.candidates.map((c: { id: string }) => c.id)).toEqual([draft.body.id]);
+    expect(pv.body.pendingVouchers).toEqual([]);
+
+    // التسلسل: لا يُغلق فبراير ويناير مفتوح
+    const seq = await http.post(`${A}/periods/close`).set(as(admin)).send({ fiscalYearId: ids.year, months: ['2026-02'] }).expect(201);
+    expect(seq.body.done).toEqual([]);
+    expect(seq.body.failed[0].reason).toContain('السابقة');
+    // يناير يُغلق، وفبراير لا يُغلق قبل ترحيل قيده
+    const both = await http.post(`${A}/periods/close`).set(as(admin)).send({ fiscalYearId: ids.year, months: ['2026-01', '2026-02'] }).expect(201);
+    expect(both.body.done).toEqual(['2026-01']);
+    expect(both.body.failed[0].reason).toContain('غير مرحّل');
+    await http.post(`${A}/entries/${draft.body.id}/post`).set(as(admin)).expect(201);
+    await http.post(`${A}/periods/close`).set(as(admin)).send({ fiscalYearId: ids.year, months: ['2026-02'] }).expect(201);
+    const per = await http.get(`${A}/periods/${ids.year}`).set(as(admin)).expect(200);
+    expect(per.body.months.filter((m: { closed: boolean }) => m.closed).map((m: { month: string }) => m.month)).toEqual(['2026-01', '2026-02']);
+    // لا يُفك ترحيل مستند في شهر مغلق، ولا يُفتح يناير وفبراير مغلق
+    await http.post(`${A}/entries/${draft.body.id}/unpost`).set(as(admin)).expect(409);
+    const early = await http.post(`${A}/periods/reopen`).set(as(admin)).send({ fiscalYearId: ids.year, months: ['2026-01'] }).expect(201);
+    expect(early.body.failed[0].reason).toContain('اللاحقة');
+    const reopen = await http.post(`${A}/periods/reopen`).set(as(admin)).send({ fiscalYearId: ids.year, months: ['2026-01', '2026-02'] }).expect(201);
+    expect(reopen.body.done).toEqual(['2026-02', '2026-01']);
+  });
+
+  it('fills the counter account from the registered partner file', async () => {
+    const chart = (await http.get(`${A}/accounts`).set(as(admin)).expect(200)).body.accounts as { id: string; code: string }[];
+    const supplierGl = chart.find((a) => a.code === '2130200101')!.id;
+    const cats = (await http.get(`${A}/categories`).set(as(admin)).expect(200)).body as { id: string; behavior: string }[];
+    const partner = await http.post(`${A}/partners`).set(as(admin)).send({
+      name: 'مؤسسة التوريد', categoryId: cats.find((c) => c.behavior === 'supplier')!.id, accountId: supplierGl,
+    }).expect(201);
+    const v = await http.post(`${A}/vouchers/payment`).set(as(admin)).send({
+      voucherDate: '2026-03-12', partyName: 'أي اسم', partnerId: partner.body.id, amount: 75, purpose: 'توريد', method: 'cash',
+      cashAccountId: ids.cash, counterAccountId: ids.revenue,
+    }).expect(201);
+    expect(v.body.counterAccountId).toBe(supplierGl);
+    await http.post(`${A}/vouchers/payment`).set(as(admin)).send({
+      voucherDate: '2026-03-12', partyName: 'بدون حساب', amount: 75, purpose: 'توريد', method: 'cash', cashAccountId: ids.cash,
+    }).expect(400);
+    await http.post(`${A}/voucher/${v.body.id}/request`).set(as(admin)).send({ kind: 'cancel', reason: 'سند اختبار' }).expect(201);
+  });
+
   it('approves the voucher inventory, opens the next year without revenue balances, and closes the year', async () => {
     await http.post(`${A}/inventory/prepare`).set(as(admin)).send({ fiscalYearId: ids.year }).expect(201);
     await http.post(`${A}/inventory/${ids.year}/approve`).set(as(checker)).expect(403);

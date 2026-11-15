@@ -24,6 +24,8 @@ interface CleanLine { accountId: string; debit: number; credit: number; label: s
  * القيود والسندات: الترقيم (رمز القيد الرئيسي ورقم السند)، التحقق من التوازن والحسابات الفرعية والتحليلي،
  * الترحيل المنفرد والجماعي وفك الترحيل، والإلغاء (سند القبض باعتماد ثنائي). لا يُحذف أي قيد بعد حجز رقمه.
  */
+const NO_POSTING_OPENING = 'القيد الافتتاحي لا يخضع للترحيل، ويسري أثره بمجرد حفظه';
+
 @Injectable()
 export class EntriesService {
   constructor(
@@ -183,7 +185,7 @@ export class EntriesService {
 
   async create(actor: OrgUser, dto: EntryDto) {
     const org = actor.organizationId;
-    if (dto.post && !actor.permissions.includes(P.post)) throw new ForbiddenException('ليست لديك صلاحية ترحيل القيود');
+    if (dto.post && dto.voucherType !== 'opening' && !actor.permissions.includes(P.post)) throw new ForbiddenException('ليست لديك صلاحية ترحيل القيود');
     const id = await this.db.transaction(async (em) => {
       if (dto.voucherType === 'receipt' || dto.voucherType === 'payment') {
         throw new BadRequestException('سندات القبض والصرف تُنشأ من شاشتيها، وتصدر قيودها تلقائيًا عند الاعتماد النهائي');
@@ -196,7 +198,8 @@ export class EntriesService {
       const lines = await this.cleanLines(org, dto.voucherType, dto.lines, em);
       const entry = await this.insert(em, actor, year, dto.voucherType, {
         documentDate: dto.documentDate, description: dto.description, counterparty: dto.counterparty ?? null,
-      }, lines, dto.post ? 'posted' : 'draft');
+      // القيد الافتتاحي لا يخضع للترحيل: يسري أثره بمجرد حفظه
+      }, lines, dto.post || dto.voucherType === 'opening' ? 'posted' : 'draft');
       return entry.id;
     });
     return this.get(actor, id);
@@ -260,7 +263,8 @@ export class EntriesService {
     const org = actor.organizationId;
     await this.db.transaction(async (em) => {
       const e = await this.load(em, org, id);
-      if (e.status !== 'draft') throw new ConflictException(e.status === 'posted' ? 'القيود المرحّلة لا تُعدَّل. فك الترحيل أولًا إن كان الشهر مفتوحًا' : 'القيد ملغي');
+      const editableOpening = e.voucherType === 'opening' && e.status === 'posted';
+      if (e.status !== 'draft' && !editableOpening) throw new ConflictException(e.status === 'posted' ? 'القيود المرحّلة لا تُعدَّل. فك الترحيل أولًا إن كان الشهر مفتوحًا' : 'القيد ملغي');
       if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعدَّل من شاشة السند بإعادته للمسودة' : 'القيد الافتتاحي الآلي لا يُعدَّل يدويًا');
       await this.core.assertWritable(org, e.documentDate, em);
       const year = await this.core.assertWritable(org, dto.documentDate, em);
@@ -279,6 +283,7 @@ export class EntriesService {
   // ---------------- الترحيل ----------------
 
   private async postOne(em: EntityManager, actor: OrgUser, e: JournalEntry) {
+    if (e.voucherType === 'opening') throw new ConflictException(NO_POSTING_OPENING);
     if (e.status !== 'draft') throw new ConflictException(e.status === 'posted' ? 'القيد مرحّل بالفعل' : 'القيد ملغي');
     await this.core.assertWritable(e.organizationId, e.documentDate, em);
     // إعادة التحقق من الحسابات (قد يكون أحدها أوقف بعد الحفظ)
@@ -299,11 +304,13 @@ export class EntriesService {
     if ((dto.serialFrom || dto.serialTo) && !dto.voucherType) throw new BadRequestException('حدد نوع السند للترحيل بمدى الأرقام');
     const qb = this.entries.createQueryBuilder('e').leftJoinAndSelect('e.fiscalYear', 'y')
       .where(`e.organization_id = :org AND e.status = 'draft' AND e.document_date BETWEEN :df AND :dt`, { org, df: dto.dateFrom, dt: dto.dateTo });
+    if (dto.voucherType === 'opening') throw new BadRequestException(NO_POSTING_OPENING);
+    qb.andWhere(`e.voucher_type <> 'opening'`);
     if (dto.voucherType) qb.andWhere('e.voucher_type = :vt', { vt: dto.voucherType });
     if (dto.serialFrom) qb.andWhere('e.voucher_serial >= :sf', { sf: dto.serialFrom });
     if (dto.serialTo) qb.andWhere('e.voucher_serial <= :st', { st: dto.serialTo });
     const rows = await qb.orderBy('e.documentDate', 'ASC').addOrderBy('e.entryNo', 'ASC').getMany();
-    if (dto.preview) return { candidates: rows.map((e) => this.summary(e)), posted: 0, failed: [] };
+    if (dto.preview) return { candidates: rows.map((e) => this.summary(e)), pendingVouchers: await this.pendingVouchers(org, dto), posted: 0, failed: [] };
     let posted = 0;
     const failed: { entryNo: number; voucherNo: string; reason: string }[] = [];
     for (const e of rows) {
@@ -320,6 +327,7 @@ export class EntriesService {
   async unpost(actor: OrgUser, id: string) {
     await this.db.transaction(async (em) => {
       const e = await this.load(em, actor.organizationId, id);
+      if (e.voucherType === 'opening') throw new ConflictException(NO_POSTING_OPENING);
       if (e.status !== 'posted') throw new ConflictException('القيد غير مرحّل');
       if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعكس من شاشة السند بإعادته للمسودة' : 'القيد الافتتاحي الآلي لا يُفك ترحيله، ويُحدَّث من شاشة الافتتاحيات');
       await this.core.assertWritable(e.organizationId, e.documentDate, em);
@@ -340,6 +348,23 @@ export class EntriesService {
       await em.getRepository(JournalEntry).update({ id }, { status: 'cancelled', cancelledAt: new Date(), cancelledByName: actor.fullName, cancelReason: reason });
     });
     return this.get(actor, id);
+  }
+
+  /** سندات القبض والصرف التي لم يكتمل اعتمادها: تُرحَّل تلقائيًا عند اعتمادها النهائي، فتُعرض في شاشة الترحيل للمتابعة */
+  private async pendingVouchers(org: string, dto: BatchPostDto) {
+    if (dto.voucherType && dto.voucherType !== 'receipt' && dto.voucherType !== 'payment') return [];
+    const rows: { id: string; kind: string; serial: number; voucher_date: string; party_name: string; amount: string; status: string; request_kind: string | null; year: number }[] = await this.db.query(
+      `SELECT v.id, v.kind, v.serial, to_char(v.voucher_date, 'YYYY-MM-DD') AS voucher_date, v.party_name, v.amount, v.status, v.request_kind, y.name AS year
+         FROM acc_vouchers v JOIN acc_fiscal_years y ON y.id = v.fiscal_year_id
+        WHERE v.organization_id = $1 AND v.voucher_date BETWEEN $2 AND $3 AND ($4::text IS NULL OR v.kind = $4)
+          AND ($5::int IS NULL OR v.serial >= $5) AND ($6::int IS NULL OR v.serial <= $6)
+          AND (v.status IN ('draft', 'pending', 'returned') OR v.request_kind IS NOT NULL)
+        ORDER BY v.voucher_date, v.serial`,
+      [org, dto.dateFrom, dto.dateTo, dto.voucherType ?? null, dto.serialFrom ?? null, dto.serialTo ?? null]);
+    return rows.map((v) => ({
+      id: v.id, kind: v.kind, voucherNo: voucherNo(v.kind as VoucherType, v.serial, v.year), voucherDate: v.voucher_date, partyName: v.party_name,
+      amount: Number(v.amount), status: v.status, requestKind: v.request_kind,
+    }));
   }
 
   /** عدد القيود غير المرحّلة في فترة (لإغلاق الشهر أو السنة) */

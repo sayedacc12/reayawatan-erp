@@ -25,7 +25,7 @@ export interface AppEntry {
   name: string;
   description?: string;
   icon?: string;
-  menu: { label: string; path: string }[];
+  menu: { label: string; path: string; group?: string }[];
 }
 /** الشاشات المسموحة والمحجوبة عن الجمعية (فارغة = كل الشاشات مسموحة) */
 interface ScreenAccess { allowed: string[]; hidden: string[] }

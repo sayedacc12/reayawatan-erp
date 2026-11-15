@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
+import SideNav from '../components/SideNav.vue';
 import { loginPath, useSession } from '../stores/session';
 
 const session = useSession();
@@ -62,7 +63,7 @@ function logout() {
       <Transition name="side">
         <nav v-if="currentApp" class="sidebar">
           <p class="side-title">{{ currentApp.name }}</p>
-          <RouterLink v-for="m in currentApp.menu" :key="m.path" :to="m.path" class="nav-item">{{ m.label }}</RouterLink>
+          <SideNav :items="currentApp.menu" :app-code="currentApp.code" />
         </nav>
       </Transition>
       <main class="content">

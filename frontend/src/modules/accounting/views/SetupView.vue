@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import { P, dt, monthName, shortMonth } from '../lib';
+import { P, dt } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -87,10 +87,6 @@ async function act(path: string, body: unknown, msg: string, confirmText?: strin
     busy.value = false;
   }
 }
-const closeMonth = (m: string) => act('/accounting/months/close', { fiscalYearId: year.value!.id, month: m }, `أُغلق شهر ${monthName(m)}`, `إغلاق شهر ${monthName(m)}؟ لن يُسمح بالتسجيل فيه أو فك الترحيل حتى يُفك إغلاقه.`);
-const reopenMonth = (m: string) => act('/accounting/months/reopen', { fiscalYearId: year.value!.id, month: m }, `فُك إغلاق شهر ${monthName(m)}`, `فك إغلاق شهر ${monthName(m)}؟`);
-const closeYear = () => act(`/accounting/years/${year.value!.id}/close`, {}, 'أُغلقت السنة المالية', `إغلاق السنة المالية ${year.value!.name}؟ تُغلق كل شهورها ولا يُعدَّل عليها إلا بعد فتحها من صاحب الصلاحية.`);
-const reopenYear = () => act(`/accounting/years/${year.value!.id}/reopen`, {}, 'فُتحت السنة المالية', `فتح السنة ${year.value!.name} المغلقة؟ أي تعديل عليها سيُظهر تنبيهًا مستمرًا لمدير النظام باختلاف الأرصدة الافتتاحية للسنة التالية.`);
 const openNext = () => act('/accounting/years/next', {}, 'فُتحت السنة المالية الجديدة وأُنشئ قيدها الافتتاحي',
   `فتح السنة المالية ${data.value!.nextYear!.name}؟ سيُنشأ قيد افتتاحي آلي بأرصدة الأصول والالتزامات وصافي الأصول، وتُقفل نتيجة النشاط (الإيرادات والمصروفات) في صافي الأصول ولا تُرحَّل أرصدتها.`);
 const refresh = (id: string, name: number) => act(`/accounting/years/${id}/refresh-opening`, {}, 'حُدّث القيد الافتتاحي', `تحديث القيد الافتتاحي للسنة ${name} من أرصدة نهاية السنة السابقة؟ يُلغى القيد الحالي ويُنشأ قيد جديد.`);
@@ -123,7 +119,6 @@ async function saveTax() {
     toast.error((e as Error).message);
   }
 }
-const allMonthsClosed = computed(() => year.value?.months.every((m) => m.closed));
 </script>
 
 <template>
@@ -207,11 +202,10 @@ const allMonthsClosed = computed(() => year.value?.months.every((m) => m.closed)
                 <div v-if="year.reopenedAt"><dt>آخر فتح</dt><dd>{{ dt(year.reopenedAt) }} · {{ year.reopenedByName }}</dd></div>
               </dl>
               <div class="modal-actions" style="margin-top: 16px">
-                <button v-if="year.status === 'open' && session.can(P.closePeriods)" class="btn btn-primary" :disabled="busy" @click="closeYear">إغلاق السنة</button>
-                <button v-if="year.status === 'closed' && session.can(P.reopenPeriods)" class="btn btn-danger" :disabled="busy" @click="reopenYear">فتح السنة المغلقة</button>
+                <RouterLink v-if="session.can(P.closePeriods) || session.can(P.reopenPeriods)" :to="`/accounting/periods?year=${year.id}`" class="btn btn-primary">إغلاق الفترات</RouterLink>
                 <RouterLink to="/accounting/inventory" class="btn">محضر جرد السندات</RouterLink>
               </div>
-              <p v-if="year.status === 'open'" class="pm-muted" style="margin-top: 10px">إغلاق السنة يحتاج: إغلاق السنة السابقة، وترحيل أو إلغاء كل القيود، واكتمال اعتماد السندات، واعتماد محضر جرد السندات من مدير النظام.</p>
+              <p class="pm-muted" style="margin-top: 10px">إغلاق الشهور والسنة وفتحها من شاشة «إغلاق الفترات».</p>
             </section>
 
             <section class="card pm-panel">
@@ -242,20 +236,6 @@ const allMonthsClosed = computed(() => year.value?.months.every((m) => m.closed)
             </section>
           </div>
 
-          <section class="card pm-panel" style="margin-top: 16px">
-            <h2>شهور السنة <small class="pm-muted">{{ year.months.filter((m) => m.closed).length }} من {{ year.months.length }} مغلق</small></h2>
-            <div class="months">
-              <div v-for="(m, i) in year.months" :key="m.month" :class="['mcell', { closed: m.closed }]" :style="{ animationDelay: i * 30 + 'ms' }">
-                <b>{{ shortMonth(m.month) }}</b><small>{{ m.month.slice(0, 4) }}</small>
-                <span class="lock">{{ m.closed ? '🔒 مغلق' : 'مفتوح' }}</span>
-                <template v-if="year.status === 'open'">
-                  <button v-if="!m.closed && session.can(P.closePeriods)" class="btn btn-sm" :disabled="busy" @click="closeMonth(m.month)">إغلاق</button>
-                  <button v-if="m.closed && session.can(P.reopenPeriods)" class="btn btn-sm" :disabled="busy" @click="reopenMonth(m.month)">فك الإغلاق</button>
-                </template>
-              </div>
-            </div>
-            <p v-if="allMonthsClosed && year.status === 'open'" class="pm-ok">كل الشهور مغلقة، ويمكن إغلاق السنة بعد اعتماد محضر الجرد.</p>
-          </section>
 
           <section v-if="session.can(P.setup)" class="card pm-panel" style="margin-top: 16px">
             <h2>البيانات الأساسية</h2>
@@ -285,11 +265,4 @@ const allMonthsClosed = computed(() => year.value?.months.every((m) => m.closed)
 .ycard.on { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft), 0 10px 26px rgba(15,118,110,.15); }
 .ycard.closed b { color: var(--muted); }
 .ycard.next { border-style: dashed; cursor: default; background: transparent; box-shadow: none; }
-.months { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
-.mcell { border: 1px solid var(--border); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; animation: pm-rise .4s var(--ease) both;
-  background: linear-gradient(180deg, #f0fdfa, var(--surface)); }
-.mcell.closed { background: linear-gradient(180deg, #f1f5f9, var(--surface)); }
-.mcell small { color: var(--muted); }
-.mcell .lock { font-size: .78rem; color: #059669; font-weight: 600; }
-.mcell.closed .lock { color: #64748b; }
 </style>

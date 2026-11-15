@@ -69,6 +69,15 @@ export class MonthDto {
   month!: string;
 }
 
+export class MonthsDto {
+  @IsUUID()
+  fiscalYearId!: string;
+
+  @IsArray() @ArrayMinSize(1, { message: 'اختر شهرًا واحدًا على الأقل' }) @ArrayMaxSize(24)
+  @Matches(/^\d{4}-\d{2}$/, { each: true, message: 'الشهر بصيغة 2026-01' })
+  months!: string[];
+}
+
 // ---------------- الإعدادات ----------------
 
 export class SettingsDto {
@@ -424,8 +433,9 @@ export class VoucherDto {
   @IsUUID('4', { message: 'اختر البنك أو الصندوق' })
   cashAccountId!: string;
 
-  @IsUUID('4', { message: 'اختر الحساب المقابل' })
-  counterAccountId!: string;
+  /** يُملأ تلقائيًا من ملف الشريك إن اختير شريك مسجل مربوط بحساب */
+  @Nullable() @IsUUID('4', { message: 'اختر الحساب المقابل' })
+  counterAccountId?: string | null;
 
   @IsOptional() @IsArray() @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => AnalyticShareDto)
   analytic?: AnalyticShareDto[];

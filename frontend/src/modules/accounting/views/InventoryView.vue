@@ -6,6 +6,7 @@ import { useToast } from '../../../stores/toast';
 import { P, dt } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
+import CloseFlow from '../components/CloseFlow.vue';
 
 interface Row { voucherType: string; label: string; continuous: boolean; first: number | null; last: number | null; firstNo: string | null; lastNo: string | null; count: number; posted: number; cancelled: number; draft: number; missing: number[]; rangeStart: number; rangeEnd: number | null }
 interface Inv {
@@ -59,7 +60,7 @@ const canPrepare = computed(() => session.can(P.closePeriods) || session.can(P.s
     <section class="pm-hero ac-hero no-print">
       <div>
         <p class="pm-kicker">النظام المالي</p>
-        <h1>محضر جرد السندات الإلكتروني</h1>
+        <h1>الترحيل والإغلاق · محاضر جرد السندات</h1>
         <p class="pm-sub">يحدد لكل نوع سند أول رقم وآخر رقم تُغلق عليه السنة، ويعتمده مدير النظام بنفسه. لا تُغلق السنة بدونه، ولا تُقبل في السنة المغلقة سندات خارج مداه.</p>
       </div>
       <div class="pm-actions">
@@ -67,6 +68,7 @@ const canPrepare = computed(() => session.can(P.closePeriods) || session.can(P.s
         <button class="btn ac-ghost" onclick="window.print()">طباعة</button>
       </div>
     </section>
+    <CloseFlow />
     <div v-if="error" class="alert alert-error">{{ error }}</div>
 
     <template v-if="data">

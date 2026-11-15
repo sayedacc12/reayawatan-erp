@@ -63,7 +63,7 @@ export class AccountingSeed {
     await this.masters.createPartner(admin, {
       name: 'شركة الإعمار للخدمات', categoryId: suppliers, accountId: id('2130200201'), phones: ['0118765432'], taxNumber: '300112233400003',
     });
-    await this.masters.createPartner(admin, {
+    const store = await this.masters.createPartner(admin, {
       name: 'متجر الخير الإلكتروني', categoryId: customers, accountId: id('1140200101'), creditLimit: 50000, phones: ['0551234567'], description: 'منفذ بيع منتجات الأسر المنتجة',
     });
 
@@ -154,7 +154,22 @@ export class AccountingSeed {
     await this.vouchers.request(finance, wrong.id, { kind: 'cancel', reason: 'السند مكرر لنفس الإيصال' });
     await this.vouchers.decideRequest(admin, wrong.id, { decision: 'approve' });
 
-    // إغلاق الشهور السابقة (حتى الشهر قبل الماضي)
+    // سند قبض من عميل مسجل: الحساب المقابل يُؤخذ تلقائيًا من ملف العميل
+    const fromStore = await this.vouchers.create(admin, 'receipt', {
+      voucherDate: dayOf(month, 4), partyName: 'متجر الخير الإلكتروني', partnerId: store.id, amount: 3750, purpose: 'تحصيل مبيعات منتجات الأسر المنتجة',
+      method: 'transfer', methodRef: `STR-${year}-${month}`, cashAccountId: riyad.id,
+    } as never);
+    await approveAll(fromStore.id, 2);
+
+    // قيد تسوية مرحّل في الشهر الماضي (يظهر في شاشة قيود التسوية ضمن العمليات)
+    if (month > 1) {
+      await this.entries.create(admin, {
+        voucherType: 'adjustment', documentDate: dayOf(month - 1, 28), description: 'تسوية فرق عمولات بنكية مع كشف بنك الرياض', post: true,
+        lines: [{ accountId: id('4120300101'), debit: 35, credit: 0, analytic: share('CC01') }, { accountId: id('1110100101'), debit: 0, credit: 35 }],
+      });
+    }
+
+    // إغلاق الشهور السابقة بالتسلسل (حتى الشهر قبل الماضي)
     for (let m = 1; m < month - 1; m++) {
       await this.setup.closeMonth(admin, yearId, `${year}-${String(m).padStart(2, '0')}`);
     }

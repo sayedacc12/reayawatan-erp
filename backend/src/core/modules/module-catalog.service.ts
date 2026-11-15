@@ -127,7 +127,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
       .map((m) => ({
         code: m.code, name: m.name, icon: m.icon ?? null,
         optional: !m.alwaysEnabled, locked: this.isLockedModule(m),
-        screens: m.menu.map(({ label, path }) => ({ label, path })),
+        screens: m.menu.map(({ label, path, group }) => ({ label, path, ...(group ? { group } : {}) })),
       }));
   }
 
@@ -158,7 +158,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
         menu: m.menu
           .filter((i) => [i.permission, ...(i.anyOf ?? [])].some((p) => has.has(p)))
           .filter((i) => !allowed || scopeOf(m) !== 'organization' || this.isLockedModule(m) || allowed.has(i.path))
-          .map(({ label, path }) => ({ label, path })),
+          .map(({ label, path, group }) => ({ label, path, ...(group ? { group } : {}) })),
       }))
       .filter((m) => m.menu.length > 0);
   }
