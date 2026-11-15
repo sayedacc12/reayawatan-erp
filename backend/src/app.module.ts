@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { dataSourceOptions } from './config/data-source';
 import { CoreModule } from './core/core.module';
+import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -15,6 +16,7 @@ import { HealthController } from './health.controller';
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     CoreModule,
+    BeneficiariesModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],
   controllers: [HealthController],

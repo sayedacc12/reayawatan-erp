@@ -11,6 +11,9 @@ ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+# مستندات المستفيدين المرفوعة (مجلد دائم في docker-compose)
+RUN mkdir -p /app/uploads && chown node:node /app/uploads
+ENV UPLOAD_DIR=/app/uploads
 USER node
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
