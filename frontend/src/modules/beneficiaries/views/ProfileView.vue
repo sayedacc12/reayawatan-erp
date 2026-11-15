@@ -10,7 +10,8 @@ import StatusBadge from '../components/StatusBadge.vue';
 import {
   age, AID_TYPES, color, DECISIONS, DOC_TYPES, fmtDate, GENDERS, label, money, RELATIONS, today,
 } from '../labels';
-import type { Aid, Beneficiary, FamilyMember } from '../types';
+import type { Aid, Beneficiary, FamilyMember, Page, RequestRow } from '../types';
+import { passwordProblem } from '../../../validation';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,7 +21,8 @@ const id = route.params.id as string;
 
 const b = ref<Beneficiary | null>(null);
 const error = ref('');
-const tab = ref<'info' | 'family' | 'research' | 'aid' | 'docs'>('info');
+const tab = ref<'info' | 'family' | 'requests' | 'research' | 'aid' | 'docs'>('info');
+const requests = ref<RequestRow[]>([]);
 const editing = ref(false);
 
 const can = {
@@ -34,6 +36,9 @@ const can = {
 async function load() {
   try {
     b.value = await api<Beneficiary>(`/beneficiaries/${id}`);
+    if (session.can('beneficiaries.requests.read')) {
+      requests.value = (await api<Page<RequestRow>>(`/beneficiaries/requests?beneficiaryId=${id}&pageSize=100`)).items;
+    }
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -43,6 +48,7 @@ onMounted(load);
 const tabs = computed(() => [
   { key: 'info', label: 'البيانات' },
   { key: 'family', label: 'الأسرة', count: b.value?.family.length },
+  ...(session.can('beneficiaries.requests.read') ? [{ key: 'requests', label: 'الطلبات', count: requests.value.length }] as const : []),
   { key: 'research', label: 'البحث الاجتماعي', count: b.value?.researches.length },
   { key: 'aid', label: 'المساعدات', count: b.value?.aids.length },
   { key: 'docs', label: 'المستندات', count: b.value?.documents.length },
@@ -51,7 +57,7 @@ const tabs = computed(() => [
 const aidBlocked = computed(() => b.value && ['ineligible', 'suspended'].includes(b.value.status));
 
 // ---------- نافذة عامة للإضافة ----------
-type Dialog = 'family' | 'research' | 'aid' | 'doc' | null;
+type Dialog = 'family' | 'research' | 'aid' | 'doc' | 'portal' | null;
 const dialog = ref<Dialog>(null);
 const dialogError = ref('');
 const busy = ref(false);
@@ -59,7 +65,9 @@ const editingMember = ref<FamilyMember | null>(null);
 
 const memberForm = reactive({ fullName: '', relation: '', gender: 'male', birthDate: '', nationalId: '', occupation: '', monthlyIncome: 0 as number | string, healthStatus: '' });
 const researchForm = reactive({ visitDate: today(), researcherName: '', findings: '', decision: 'eligible', recommendedAid: '', nextReviewDate: '' });
-const aidForm = reactive({ aidType: 'cash', amount: '' as number | string, description: '', disbursedOn: today(), referenceNo: '' });
+const aidForm = reactive({ aidType: 'cash', amount: '' as number | string, description: '', disbursedOn: today(), referenceNo: '', requestId: null as string | null });
+const portalForm = reactive({ password: '' });
+const approvedRequests = computed(() => requests.value.filter((r) => r.status === 'approved'));
 const docForm = reactive({ title: '', docType: 'national_id', file: null as File | null });
 
 function openDialog(d: Exclude<Dialog, null>, member?: FamilyMember) {
@@ -73,7 +81,8 @@ function openDialog(d: Exclude<Dialog, null>, member?: FamilyMember) {
     });
   }
   if (d === 'research') Object.assign(researchForm, { visitDate: today(), researcherName: session.user?.fullName ?? '', findings: '', decision: 'eligible', recommendedAid: '', nextReviewDate: '' });
-  if (d === 'aid') Object.assign(aidForm, { aidType: 'cash', amount: '', description: '', disbursedOn: today(), referenceNo: '' });
+  if (d === 'aid') Object.assign(aidForm, { aidType: 'cash', amount: '', description: '', disbursedOn: today(), referenceNo: '', requestId: approvedRequests.value[0]?.id ?? null });
+  if (d === 'portal') portalForm.password = '';
   if (d === 'doc') Object.assign(docForm, { title: '', docType: 'national_id', file: null });
   dialog.value = d;
 }
@@ -108,6 +117,19 @@ const saveAid = () => submit(
   () => api(`/beneficiaries/${id}/aids`, { method: 'POST', json: { ...aidForm, amount: Number(aidForm.amount) || 0 } }),
   'تم تسجيل المساعدة',
 );
+
+const savePortal = () => submit(async () => {
+  const problem = passwordProblem(portalForm.password);
+  if (problem) throw new Error(problem);
+  await api(`/beneficiaries/${id}/portal-access`, { method: 'POST', json: { password: portalForm.password } });
+}, 'تم تفعيل دخول المستفيد للبوابة');
+
+async function revokePortal() {
+  if (!confirm('إيقاف دخول المستفيد للبوابة؟')) return;
+  await api(`/beneficiaries/${id}/portal-access`, { method: 'DELETE' });
+  toast.success('تم إيقاف دخول البوابة');
+  await load();
+}
 
 const saveDoc = () => submit(async () => {
   if (!docForm.file) throw new Error('اختر الملف أولًا');
@@ -192,6 +214,8 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
         </div>
         <div class="hero-actions">
           <button v-if="can.manage.value" class="btn btn-ghost" @click="editing = true">تعديل البيانات</button>
+          <button v-if="can.manage.value && !b.hasPortalAccess" class="btn btn-ghost" @click="openDialog('portal')">تفعيل البوابة</button>
+          <button v-if="can.manage.value && b.hasPortalAccess" class="btn btn-ghost portal-on" title="اضغط لإيقاف دخول البوابة" @click="revokePortal">● البوابة مفعّلة</button>
           <button v-if="can.aid.value && !aidBlocked" class="btn btn-gold" @click="tab = 'aid'; openDialog('aid')">+ صرف مساعدة</button>
         </div>
       </section>
@@ -252,6 +276,23 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
                 <button class="icon-btn danger" title="حذف" @click="remove(`/family/${m.id}`, m.fullName)">✕</button>
               </div>
             </article>
+          </div>
+        </section>
+
+        <!-- الطلبات -->
+        <section v-else-if="tab === 'requests'" key="requests" class="pane">
+          <div class="pane-head"><h2>طلبات المستفيد</h2><RouterLink to="/beneficiaries/requests" class="btn btn-sm">كل الطلبات</RouterLink></div>
+          <p v-if="!requests.length" class="card empty">لا توجد طلبات لهذا المستفيد.</p>
+          <div v-else class="card table-wrap">
+            <table class="table">
+              <thead><tr><th>رقم الطلب</th><th>المشروع</th><th>المرحلة</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+              <tbody>
+                <tr v-for="r in requests" :key="r.id" class="clickable" @click="router.push(`/beneficiaries/requests/${r.id}`)">
+                  <td><b>#{{ r.requestNo }}</b></td><td>{{ r.project.name }}</td><td>{{ r.stage?.name ?? '—' }}</td>
+                  <td><StatusBadge :value="r.status" kind="request" /></td><td class="muted">{{ fmtDate(r.createdAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -378,7 +419,18 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
           <div class="field"><label>البيان</label><input v-model="aidForm.description" class="input" placeholder="كرتونة رمضان، مصاريف مدرسة..." /></div>
           <div class="field"><label>رقم الإيصال</label><input v-model="aidForm.referenceNo" class="input" /></div>
         </div>
+        <div v-if="approvedRequests.length" class="field"><label>على الطلب المعتمد</label>
+          <select v-model="aidForm.requestId" class="input"><option :value="null">بدون ربط بطلب</option><option v-for="r in approvedRequests" :key="r.id" :value="r.id">طلب #{{ r.requestNo }} · {{ r.project.name }}</option></select>
+        </div>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy">تسجيل الصرف</button><button type="button" class="btn" @click="dialog = null">إلغاء</button></div>
+      </form>
+
+      <form v-else-if="dialog === 'portal'" class="card modal" @submit.prevent="savePortal">
+        <h2 class="mtitle">تفعيل بوابة المستفيد</h2>
+        <div v-if="dialogError" class="alert alert-error">{{ dialogError }}</div>
+        <p class="muted small">المستفيد هيدخل البوابة برقم الهوية <b dir="ltr">{{ b?.nationalId || '(سجّل رقم الهوية أولًا)' }}</b> وكلمة المرور دي. ابعتهاله وهو يقدر يتابع طلباته.</p>
+        <div class="field"><label>كلمة المرور (8 أحرف إنجليزي على الأقل)</label><input v-model="portalForm.password" class="input" dir="ltr" required minlength="8" autocomplete="new-password" /></div>
+        <div class="modal-actions"><button class="btn btn-primary" :disabled="busy">تفعيل</button><button type="button" class="btn" @click="dialog = null">إلغاء</button></div>
       </form>
 
       <form v-else-if="dialog === 'doc'" class="card modal" @submit.prevent="saveDoc">
@@ -403,6 +455,8 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
 <style scoped>
 .back { display: inline-block; margin-bottom: 12px; color: var(--muted); font-size: .9rem; }
 .back:hover { color: var(--primary); }
+.portal-on { color: #86efac !important; border-color: rgba(134,239,172,.4) !important; }
+.clickable { cursor: pointer; }
 
 .profile-hero { position: relative; overflow: hidden; border-radius: 20px; padding: 26px 28px; color: #fff; background: var(--grad-dark);
   display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; box-shadow: 0 16px 40px rgba(6,20,26,.18); }
@@ -429,7 +483,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
 .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: -22px 18px 18px; position: relative; }
 .tile { background: var(--surface); border-radius: 14px; padding: 14px 16px; border: 1px solid var(--border); box-shadow: 0 10px 28px rgba(16,24,40,.08);
   display: flex; flex-direction: column; border-top: 3px solid var(--a); animation: rise .5s .15s var(--ease) both; }
-.tile span { font-size: .8rem; color: var(--muted); }
+.tile > span { font-size: .8rem; color: var(--muted); }
 .tile strong { font-size: 1.35rem; }
 .tile small { font-size: .74rem; color: var(--muted); }
 

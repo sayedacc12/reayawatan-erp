@@ -80,7 +80,7 @@ function opened(b: Beneficiary) {
         <div class="kpi" style="--a: #10b981; --i: 1">
           <span class="kpi-label">حالات مستحقة</span>
           <strong><CountUp :value="eligible" /></strong>
-          <span class="kpi-foot">{{ stats.byStatus.under_review ?? 0 }} تحت الدراسة · {{ stats.byStatus.new ?? 0 }} جديدة</span>
+          <span class="kpi-foot">{{ (stats.byStatus.under_review ?? 0).toLocaleString('ar-EG') }} تحت الدراسة · {{ (stats.byStatus.new ?? 0).toLocaleString('ar-EG') }} جديدة</span>
         </div>
         <div class="kpi" style="--a: #e8b04b; --i: 2">
           <span class="kpi-label">مساعدات هذا الشهر</span>
@@ -210,7 +210,7 @@ function opened(b: Beneficiary) {
 .ring-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
 .ring-center strong { font-size: 1.6rem; line-height: 1; }
 .ring-center span { color: var(--muted); font-size: .8rem; }
-.legend { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: .84rem; }
+.legend { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 6px; font-size: .86rem; }
 .legend li { display: flex; align-items: center; gap: 6px; }
 .legend i { width: 9px; height: 9px; border-radius: 3px; }
 .legend b { margin-inline-start: auto; }

@@ -110,7 +110,7 @@ function go(p: number) { page.value = p; load(); }
 .tot { position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; box-shadow: var(--shadow);
   display: flex; flex-direction: column; animation: rise .5s var(--ease) both; }
 .tot::before { content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--a); box-shadow: 0 0 16px var(--a); }
-.tot span { font-size: .82rem; color: var(--muted); }
+.tot > span { font-size: .82rem; color: var(--muted); }
 .tot strong { font-size: 1.45rem; }
 .amt { color: var(--primary); }
 .dim { opacity: .55; transition: opacity .2s; }

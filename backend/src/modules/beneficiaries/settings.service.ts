@@ -130,6 +130,7 @@ export class SettingsService {
     return rows.map((w) => ({
       id: w.id, name: w.name, description: w.description, isDefault: w.isDefault,
       applicationFormId: w.applicationFormId, applicationFormName: w.applicationForm?.name ?? null,
+      applicationFormFields: w.applicationForm?.fields ?? null,
       stages: (w.stages ?? []).map((s) => ({
         id: s.id, name: s.name, instructions: s.instructions, sortOrder: s.sortOrder,
         formId: s.formId, formName: s.form?.name ?? null, roleId: s.roleId, roleName: s.role?.name ?? null,

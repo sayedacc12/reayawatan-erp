@@ -2,11 +2,26 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { moduleRoutes } from './modules';
 import { useSession } from './stores/session';
 import AppShell from './layouts/AppShell.vue';
+import { usePortal } from './portal/portal';
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
+    // بوابة المستفيدين: مستقلة عن دخول الموظفين
+    {
+      path: '/portal/:slug',
+      component: () => import('./portal/PortalShell.vue'),
+      meta: { portal: true },
+      children: [
+        { path: '', component: () => import('./portal/PortalAuthView.vue'), meta: { portal: true, title: 'بوابة المستفيدين' } },
+        { path: 'home', component: () => import('./portal/PortalHomeView.vue'), meta: { portal: true, portalAuth: true, title: 'طلباتي' } },
+        { path: 'apply', component: () => import('./portal/PortalApplyView.vue'), meta: { portal: true, portalAuth: true, title: 'تقديم طلب' } },
+        { path: 'requests/:id', component: () => import('./portal/PortalRequestView.vue'), meta: { portal: true, portalAuth: true, title: 'متابعة الطلب' } },
+        { path: 'messages', component: () => import('./portal/PortalMessagesView.vue'), meta: { portal: true, portalAuth: true, title: 'شكاوى واستفسارات' } },
+        { path: 'profile', component: () => import('./portal/PortalProfileView.vue'), meta: { portal: true, portalAuth: true, title: 'بياناتي' } },
+      ],
+    },
     {
       path: '/',
       component: AppShell,
@@ -22,6 +37,11 @@ export const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  if (to.meta.portal) {
+    const portal = usePortal(to.params.slug as string);
+    if (to.meta.portalAuth && !portal.token) return `/portal/${to.params.slug}`;
+    return true;
+  }
   const session = useSession();
   await session.restore();
   if (to.meta.public) return session.isLoggedIn ? '/' : true;

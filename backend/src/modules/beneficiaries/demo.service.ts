@@ -107,8 +107,9 @@ export class DemoService {
       await em.save(em.create(WorkflowStage, { organizationId: orgId, workflowId: workflow.id, sortOrder: i + 1, canReturn: true, canReject: true, ...s }));
     }
 
+    let order = 0;
     const act = (level: Activity['level'], name: string, parentId: string | null, description?: string) =>
-      em.save(em.create(Activity, { organizationId: orgId, level, name, parentId, description: description ?? null }));
+      em.save(em.create(Activity, { organizationId: orgId, level, name, parentId, description: description ?? null, sortOrder: ++order }));
     const social = await act('axis', 'الرعاية الاجتماعية', null);
     const sponsorship = await act('program', 'كفالة الأسر', social.id);
     const orphans = await act('project', 'كفالة الأيتام', sponsorship.id, 'كفالة شهرية للأيتام وأسرهم');
@@ -123,7 +124,7 @@ export class DemoService {
     const school = await act('project', 'الحقيبة المدرسية', students.id, 'أدوات ومصروفات مدرسية');
 
     const actor: OrgUser = {
-      id: admin.id, organizationId: orgId, organizationName: null, email: admin.email, username: null,
+      id: admin.id, organizationId: orgId, organizationName: null, organizationSlug: DEMO_SLUG, email: admin.email, username: null,
       fullName: admin.fullName, isSuperadmin: true, isPlatformAdmin: false,
       permissions: Object.values(P),
     };

@@ -61,9 +61,45 @@ export const DOC_TYPES: Opt[] = [
 ];
 export const RELATIONS = ['زوج', 'زوجة', 'ابن', 'ابنة', 'أب', 'أم', 'أخ', 'أخت', 'حفيد', 'حفيدة'];
 
+export const REQUEST_STATUSES: Opt[] = [
+  { value: 'in_progress', label: 'قيد المعالجة', color: '#0ea5e9' },
+  { value: 'returned', label: 'مُعاد لاستكمال البيانات', color: '#f59e0b' },
+  { value: 'approved', label: 'معتمد نهائيًا', color: '#10b981' },
+  { value: 'rejected', label: 'مرفوض', color: '#ef4444' },
+  { value: 'cancelled', label: 'ملغي', color: '#94a3b8' },
+];
+export const ACTION_LABELS: Opt[] = [
+  { value: 'submitted', label: 'تقديم الطلب', color: '#6366f1' },
+  { value: 'approve', label: 'قبول', color: '#10b981' },
+  { value: 'reject', label: 'رفض', color: '#ef4444' },
+  { value: 'return', label: 'إرجاع', color: '#f59e0b' },
+  { value: 'resubmitted', label: 'إعادة تقديم', color: '#6366f1' },
+  { value: 'cancelled', label: 'إلغاء', color: '#94a3b8' },
+];
+export const TICKET_TYPES: Opt[] = [
+  { value: 'complaint', label: 'شكوى', color: '#ef4444' },
+  { value: 'suggestion', label: 'اقتراح', color: '#8b5cf6' },
+  { value: 'inquiry', label: 'استفسار', color: '#0ea5e9' },
+];
+export const TICKET_STATUSES: Opt[] = [
+  { value: 'open', label: 'جديدة', color: '#f59e0b' },
+  { value: 'answered', label: 'تم الرد', color: '#10b981' },
+  { value: 'closed', label: 'مغلقة', color: '#94a3b8' },
+];
+export const FIELD_TYPES: Opt[] = [
+  { value: 'text', label: 'نص قصير' },
+  { value: 'textarea', label: 'نص طويل' },
+  { value: 'number', label: 'رقم' },
+  { value: 'date', label: 'تاريخ' },
+  { value: 'select', label: 'قائمة اختيارات' },
+  { value: 'checkbox', label: 'مربع تأكيد (نعم/لا)' },
+];
+
 const maps = {
   status: toMap(STATUSES), category: toMap(CATEGORIES), aid: toMap(AID_TYPES), decision: toMap(DECISIONS),
   gender: toMap(GENDERS), marital: toMap(MARITAL), housing: toMap(HOUSING), doc: toMap(DOC_TYPES),
+  request: toMap(REQUEST_STATUSES), action: toMap(ACTION_LABELS), ticket: toMap(TICKET_TYPES), ticketStatus: toMap(TICKET_STATUSES),
+  field: toMap(FIELD_TYPES),
 };
 export type LabelKind = keyof typeof maps;
 export const label = (kind: LabelKind, v?: string | null) => (v ? maps[kind][v]?.label ?? v : '—');
@@ -84,4 +120,16 @@ export const age = (birth: string | null | undefined) => {
 export const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+export const fmtDateTime = (d: string | null | undefined) =>
+  d ? new Date(d).toLocaleString('ar-EG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—';
+
+/** عرض إجابة حقل نموذج */
+export const answer = (type: string, v: unknown) => {
+  if (v === undefined || v === null || v === '') return '—';
+  if (type === 'checkbox') return v ? 'نعم ✓' : 'لا';
+  if (type === 'date') return fmtDate(String(v));
+  if (type === 'number') return Number(v).toLocaleString('ar-EG');
+  return String(v);
 };
