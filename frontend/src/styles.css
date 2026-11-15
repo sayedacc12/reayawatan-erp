@@ -54,6 +54,9 @@ h2 { font-size: 1.1rem; }
 }
 .input:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
 .input[dir='ltr'] { text-align: right; }
+.input.invalid { border-color: var(--danger); background: var(--danger-soft); }
+.input.invalid:focus { outline-color: var(--danger-soft); }
+.field-error { color: var(--danger); font-size: 0.84rem; }
 .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .check input { width: 17px; height: 17px; accent-color: var(--primary); }
 

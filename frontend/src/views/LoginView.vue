@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import ParticleField from '../components/ParticleField.vue';
 import { useSession } from '../stores/session';
+import { hasArabic } from '../validation';
 
 const session = useSession();
 const router = useRouter();
 const route = useRoute();
 const email = ref('');
+// تنبيه لو لوحة المفاتيح على العربي وهو بيكتب الدخول أو كلمة المرور
+const arabicKeyboard = computed(() => hasArabic(email.value) || hasArabic(password.value));
 const password = ref('');
 const showPassword = ref(false);
 const error = ref('');
@@ -39,6 +42,12 @@ function spotlight(e: PointerEvent) {
 
 async function submit() {
   error.value = '';
+  if (arabicKeyboard.value) {
+    error.value = 'لوحة المفاتيح على العربي. غيّرها للإنجليزي (Alt + Shift) واكتب البيانات تاني';
+    shake.value = false;
+    requestAnimationFrame(() => (shake.value = true));
+    return;
+  }
   busy.value = true;
   try {
     await session.login(email.value, password.value);
@@ -103,8 +112,8 @@ async function submit() {
           </Transition>
 
           <label class="float">
-            <input v-model="email" type="email" dir="ltr" autocomplete="username" placeholder=" " required autofocus />
-            <span>البريد الإلكتروني</span>
+            <input v-model="email" type="text" dir="ltr" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder=" " required autofocus />
+            <span>اسم المستخدم أو البريد الإلكتروني</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z M4 7l8 6 8-6" /></svg>
           </label>
 
@@ -116,6 +125,10 @@ async function submit() {
               {{ showPassword ? 'إخفاء' : 'إظهار' }}
             </button>
           </label>
+
+          <Transition name="fade">
+            <p v-if="arabicKeyboard && !error" class="hint" role="status">⌨️ لوحة المفاتيح على العربي، غيّرها للإنجليزي (Alt + Shift)</p>
+          </Transition>
 
           <button class="submit" :disabled="busy || success">
             <span class="shine" aria-hidden="true" />
@@ -201,6 +214,7 @@ async function submit() {
 .form-head p { margin: 0; color: var(--ink-2); font-size: 0.93rem; }
 
 .error { background: rgba(244, 63, 94, 0.14); border: 1px solid rgba(244, 63, 94, 0.4); color: #fecdd3; padding: 10px 14px; border-radius: 12px; margin-bottom: 16px; font-size: 0.92rem; }
+.hint { color: #fde68a; font-size: 0.86rem; margin: -6px 0 14px; }
 .fade-enter-active, .fade-leave-active { transition: all 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-6px); }
 

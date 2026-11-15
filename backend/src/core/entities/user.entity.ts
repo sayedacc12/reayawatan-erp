@@ -28,6 +28,11 @@ export class User {
   @Column({ length: 254 })
   email!: string;
 
+  /** اسم دخول اختياري (مثل admin)، بحروف صغيرة وفريد على مستوى المنصة */
+  @Index('IDX_users_username', { unique: true, where: '"username" IS NOT NULL' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  username!: string | null;
+
   @Column({ name: 'password_hash', length: 100, select: false })
   passwordHash!: string;
 

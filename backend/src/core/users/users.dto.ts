@@ -1,3 +1,4 @@
+import { IsValidPassword } from '../validation';
 import {
   ArrayUnique, IsArray, IsBoolean, IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength,
 } from 'class-validator';
@@ -11,9 +12,7 @@ export class CreateUserDto {
   @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' })
   email!: string;
 
-  @IsString()
-  @MinLength(8, { message: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' })
-  @MaxLength(200)
+  @IsValidPassword()
   password!: string;
 
   @IsOptional()
@@ -42,9 +41,7 @@ export class UpdateUserDto {
   email?: string;
 
   @IsOptional()
-  @IsString()
-  @MinLength(8, { message: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' })
-  @MaxLength(200)
+  @IsValidPassword()
   password?: string;
 
   @IsOptional()

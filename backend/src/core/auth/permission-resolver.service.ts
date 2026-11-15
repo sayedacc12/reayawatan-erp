@@ -41,6 +41,7 @@ export class PermissionResolver {
       organizationId: user.organizationId,
       organizationName: user.organization?.name ?? null,
       email: user.email,
+      username: user.username,
       fullName: user.fullName,
       isSuperadmin: user.isSuperadmin,
       isPlatformAdmin: user.isPlatformAdmin,

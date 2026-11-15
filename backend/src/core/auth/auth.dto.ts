@@ -1,8 +1,19 @@
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
+import { IsValidPassword } from '../validation';
 
 export class LoginDto {
-  @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' })
-  email!: string;
+  /** البريد الإلكتروني أو اسم المستخدم */
+  @ValidateIf((o: LoginDto) => o.email === undefined)
+  @IsString({ message: 'اكتب البريد الإلكتروني أو اسم المستخدم' })
+  @MinLength(1, { message: 'اكتب البريد الإلكتروني أو اسم المستخدم' })
+  @MaxLength(254)
+  login?: string;
+
+  /** الاسم القديم للحقل، مقبول للتوافق مع الواجهات القديمة */
+  @IsOptional()
+  @IsString()
+  @MaxLength(254)
+  email?: string;
 
   @IsString()
   @MinLength(1, { message: 'كلمة المرور مطلوبة' })
@@ -12,10 +23,9 @@ export class LoginDto {
 
 export class ChangePasswordDto {
   @IsString()
+  @MinLength(1, { message: 'كلمة المرور الحالية مطلوبة' })
   currentPassword!: string;
 
-  @IsString()
-  @MinLength(8, { message: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' })
-  @MaxLength(200)
+  @IsValidPassword()
   newPassword!: string;
 }

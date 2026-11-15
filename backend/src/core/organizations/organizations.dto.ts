@@ -1,3 +1,4 @@
+import { IsValidPassword } from '../validation';
 import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CreateOrganizationDto {
@@ -19,9 +20,7 @@ export class CreateOrganizationDto {
   @IsEmail({}, { message: 'بريد مدير الجمعية غير صحيح' })
   adminEmail!: string;
 
-  @IsString()
-  @MinLength(8, { message: 'كلمة مرور مدير الجمعية 8 أحرف على الأقل' })
-  @MaxLength(200)
+  @IsValidPassword('كلمة مرور مدير الجمعية 8 أحرف على الأقل')
   adminPassword!: string;
 }
 

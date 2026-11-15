@@ -2,9 +2,12 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
+import { useToast } from '../../../stores/toast';
+import { passwordProblem } from '../../../validation';
 import type { RoleRow, UserRow } from '../types';
 
 const session = useSession();
+const toast = useToast();
 const canManage = computed(() => session.can('core.users.manage'));
 const users = ref<UserRow[]>([]);
 const roles = ref<RoleRow[]>([]);
@@ -48,8 +51,14 @@ function openForm(u?: UserRow) {
   open.value = true;
 }
 
+const pwProblem = computed(() => passwordProblem(form.password));
+
 async function save() {
   formError.value = '';
+  if (pwProblem.value) {
+    formError.value = pwProblem.value;
+    return;
+  }
   saving.value = true;
   try {
     const body: Record<string, unknown> = {
@@ -63,6 +72,7 @@ async function save() {
       await api('/users', { method: 'POST', json: { ...body, password: form.password } });
     }
     open.value = false;
+    toast.success(editing.value ? 'تم حفظ تعديلات المستخدم' : 'تمت إضافة المستخدم');
     await load();
     if (editing.value?.id === session.user?.id) await session.refresh();
   } catch (e) {
@@ -110,7 +120,7 @@ function formatDate(d: string | null) {
       </table>
     </div>
 
-    <div v-if="open" class="modal-backdrop" @click.self="open = false">
+    <div v-if="open" class="modal-backdrop" @click.self="open = false" @keydown.esc="open = false">
       <form class="card modal" @submit.prevent="save">
         <h2 style="margin-bottom: 16px">{{ editing ? 'تعديل مستخدم' : 'مستخدم جديد' }}</h2>
         <div v-if="formError" class="alert alert-error">{{ formError }}</div>
@@ -118,7 +128,8 @@ function formatDate(d: string | null) {
         <div class="field"><label>البريد الإلكتروني</label><input v-model="form.email" class="input" type="email" dir="ltr" required /></div>
         <div class="field">
           <label>{{ editing ? 'كلمة مرور جديدة (اتركها فارغة لعدم التغيير)' : 'كلمة المرور (8 أحرف على الأقل)' }}</label>
-          <input v-model="form.password" class="input" type="password" dir="ltr" minlength="8" :required="!editing" autocomplete="new-password" />
+          <input v-model="form.password" :class="['input', { invalid: pwProblem }]" type="password" dir="ltr" minlength="8" :required="!editing" autocomplete="new-password" />
+          <small v-if="pwProblem" class="field-error">{{ pwProblem }}</small>
         </div>
         <div class="field">
           <label>الأدوار</label>
