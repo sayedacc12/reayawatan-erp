@@ -32,13 +32,17 @@ const donorName = ref('');
 const manager = ref<ManagerRef | null>(null);
 type DonorDetail = { id: string; name: string; managerKind: 'employee' | 'external' | null; managerUserId: string | null; managerName: string | null };
 const managerOf = (d: DonorDetail): ManagerRef | null => (d.managerKind ? { kind: d.managerKind, userId: d.managerUserId, name: d.managerName ?? '' } : null);
-const natInput = ref('');
+const nationalityList = ref<string[]>([]);
+const natKey = ref(0);
+const natOptions = computed<SelectOption[]>(() => nationalityList.value.filter((n) => !form.conditions.nationalities.includes(n)).map((n) => ({ id: n, label: n })));
 const casePicker = ref<number | null>(null);
 const caseSearch = ref('');
 
 onMounted(async () => {
   try {
-    [settings.value, targets.value] = await Promise.all([api<Settings>('/fundraising/settings'), api<Targets>('/fundraising/targets')]);
+    [settings.value, targets.value, nationalityList.value] = await Promise.all([
+      api<Settings>('/fundraising/settings'), api<Targets>('/fundraising/targets'), api<string[]>('/lookups/nationalities'),
+    ]);
     if (editId.value) {
       const o = await api<Opportunity>(`/fundraising/opportunities/${editId.value}`);
       Object.assign(form, {
@@ -114,10 +118,9 @@ function pickCase(c: Targets['cases'][number]) {
   casePicker.value = null;
 }
 const caseOf = (id: string | null) => targets.value?.cases.find((c) => c.id === id);
-function addNat() {
-  const v = natInput.value.trim();
-  if (v && !form.conditions.nationalities.includes(v)) form.conditions.nationalities.push(v);
-  natInput.value = '';
+function addNat(o: SelectOption | null) {
+  if (o && !form.conditions.nationalities.includes(o.id)) form.conditions.nationalities.push(o.id);
+  natKey.value++;
 }
 function toggleCat(c: string) {
   const arr = form.conditions.categories;
@@ -280,7 +283,9 @@ const addButtons = computed(() => ([
               <small class="muted">بدون اختيار = كل الفئات</small></div>
             <div class="field"><label>جنسيات محددة</label>
               <div class="tags"><span v-for="(n, i) in form.conditions.nationalities" :key="n" class="tag">{{ n }} <button type="button" @click="form.conditions.nationalities.splice(i, 1)">×</button></span>
-                <input v-model="natInput" class="input tag-in" placeholder="اكتب الجنسية ثم Enter" @keydown.enter.prevent="addNat" @blur="addNat" /></div>
+              </div>
+              <SearchSelect :key="natKey" :model-value="null" :options="natOptions" placeholder="اختر الجنسية من القائمة" empty-text="لا توجد جنسية بهذا الاسم في القائمة" @select="addNat" />
+              <small v-if="form.conditions.nationalities.some((n) => !nationalityList.includes(n))" class="warn">جنسيات غير موجودة في قائمة الجمعية، احذفها أو أضفها من الإعدادات</small>
               <small class="muted">بدون جنسيات = كل الجنسيات</small></div>
             <div class="field span2"><label>اشتراطات أو إضافات أخرى</label><textarea v-model="form.conditionsText" class="input" rows="3" placeholder="مثل: تقرير ربع سنوي للداعم، تسمية المشروع باسم الداعم..." /></div>
           </div>
@@ -395,4 +400,5 @@ const addButtons = computed(() => ([
 .line-enter-from, .line-leave-to { opacity: 0; transform: translateX(-14px); }
 @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } .side { position: static; } }
 @media (max-width: 640px) { .kinds, .grid2 { grid-template-columns: 1fr; } .span2 { grid-column: auto; } .val { width: 100%; } }
+.warn { color: #b45309; font-size: .8rem; }
 </style>

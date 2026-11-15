@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NationalitiesEditor from '../../../components/NationalitiesEditor.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { api } from '../../../api';
@@ -10,13 +11,14 @@ import '../fr.css';
 
 const toast = useToast();
 const route = useRoute();
-type Tab = 'fields' | 'levels' | 'managers' | 'banks' | 'waqf' | 'stages' | 'routing' | 'permissions';
+type Tab = 'fields' | 'levels' | 'managers' | 'banks' | 'nationalities' | 'waqf' | 'stages' | 'routing' | 'permissions';
 const tabs: { key: Tab; label: string; hint: string }[] = [
   { key: 'fields', label: 'حقول الداعمين', hint: 'حقول إضافية بضوابطها' },
   { key: 'levels', label: 'مستويات الداعمين', hint: 'ماسي، النخبة، بلاتيني...' },
   { key: 'managers', label: 'مدراء الدعم', hint: 'موظفون أو جهات خارجية' },
   { key: 'banks', label: 'الحسابات البنكية', hint: 'حسابات استقبال التبرعات' },
   { key: 'waqf', label: 'مشاريع الأوقاف', hint: 'جهات تبرعات الأوقاف' },
+  { key: 'nationalities', label: 'الجنسيات', hint: 'قائمة مشتركة للجمعية' },
   { key: 'stages', label: 'مراحل الاعتماد', hint: 'اعتماد فرص التبرع' },
   { key: 'routing', label: 'التوجيه المحاسبي', hint: 'حسابات قيود الفرص' },
   { key: 'permissions', label: 'الصلاحيات', hint: 'مهام كل دور' },
@@ -345,6 +347,7 @@ const editingTitle = computed(() => (editing.value ? titles[editing.value.list] 
             <small class="muted">الحالي للزكاة: {{ acct(s.journalRouting.credit.zakat) }}</small></div>
         </section>
 
+        <section v-else-if="tab === 'nationalities'" key="nat" class="fr-panel"><h2>الجنسيات المعتمدة</h2><NationalitiesEditor /></section>
         <ModulePermissionsPane v-else-if="tab === 'permissions'" key="perm" module="fundraising" />
       </Transition>
     </template>

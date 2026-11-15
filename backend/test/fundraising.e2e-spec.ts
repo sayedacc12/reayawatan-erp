@@ -84,6 +84,17 @@ describe('Fundraising', () => {
     expect(stages.body.map((x: { name: string }) => x.name)).toEqual(['مراجعة تنمية الموارد', 'اعتماد المدير المالي']);
   });
 
+  it('shares one nationalities list per association, editable from settings', async () => {
+    const def = await http.get('/api/lookups/nationalities').set(as(approver)).expect(200);
+    expect(def.body).toContain('سعودي');
+    await http.put('/api/lookups/nationalities').set(as(approver)).send({ nationalities: ['سعودي'] }).expect(403);
+    const put = await http.put('/api/lookups/nationalities').set(as(admin)).send({ nationalities: [' سعودي ', 'يمني', 'يمني', 'مصري'] }).expect(200);
+    expect(put.body).toEqual(['سعودي', 'يمني', 'مصري']);
+    await http.put('/api/lookups/nationalities').set(as(admin)).send({ nationalities: [] }).expect(400);
+    // لكل جمعية قائمتها
+    expect((await http.get('/api/lookups/nationalities').set(as(other)).expect(200)).body.length).toBeGreaterThan(10);
+  });
+
   it('validates donor custom fields and numbers donors', async () => {
     const field = (await http.get('/api/fundraising/settings').set(as(admin))).body.donorFields as { key: string; label: string }[];
     const [mobile, pct] = field;
@@ -137,6 +148,8 @@ describe('Fundraising', () => {
     await post({ ...base(), isZakat: true, lines: [{ targetKind: 'program', activityId: ids.zakatProject, mode: 'amount', amount: 90000 }, { targetKind: 'operational', mode: 'amount', amount: 10000 }] }).expect(400);
     await post({ ...base(), lines: [{ targetKind: 'operational', activityId: ids.plainProject, mode: 'amount', amount: 100000 }] }).expect(400);
     await post({ ...base(), lines: [{ targetKind: 'program', activityId: ids.opProject, mode: 'amount', amount: 100000 }] }).expect(400);
+    r = await post({ ...base(), conditions: { ...base().conditions, nationalities: ['فرنسي'] }, lines: [{ targetKind: 'operational', mode: 'amount', amount: 100000 }] }).expect(400);
+    expect(r.body.message).toContain('قائمة الجنسيات');
   });
 
   it('creates a split opportunity, generates batches, and runs the approval stages', async () => {

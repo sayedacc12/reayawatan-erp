@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { LookupsService } from '../../core/lookups/lookups.service';
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { DocumentStorage } from '../beneficiaries/document-storage.service';
@@ -55,6 +56,7 @@ export class FundraisingService {
     private readonly ledger: LedgerService,
     private readonly settings: FundraisingSettingsService,
     private readonly storage: DocumentStorage,
+    private readonly lookups: LookupsService,
   ) {}
 
   // ================= جهات التوزيع =================
@@ -207,6 +209,7 @@ export class FundraisingService {
     const donor = await em.findOne(Donor, { where: { id: dto.donorId, organizationId: orgId } });
     if (!donor) throw new BadRequestException('الداعم غير موجود');
     if (!donor.isActive) throw new BadRequestException('الداعم موقوف، فعّله أولًا من سجل الداعمين');
+    await this.lookups.assertNationalities(orgId, dto.conditions?.nationalities ?? [], em);
     if (dto.supportManager) dto.supportManagerId = await this.settings.resolveManager(orgId, dto.supportManager, em);
     delete dto.supportManager;
     if (dto.supportManagerId && !(await em.exists(SupportManager, { where: { id: dto.supportManagerId, organizationId: orgId } }))) {
