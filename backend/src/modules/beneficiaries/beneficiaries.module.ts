@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CoreModule } from '../../core/core.module';
 import { BeneficiariesController } from './beneficiaries.controller';
 import { BeneficiariesService } from './beneficiaries.service';
 import { DocumentStorage } from './document-storage.service';
@@ -23,6 +24,8 @@ import { TicketsService } from './tickets.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature(BENEFICIARY_ENTITIES),
+    // قائمة الجنسيات المشتركة (LookupsService)
+    CoreModule,
     // رموز البوابة بنفس سر النظام لكن بنوع portal، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],

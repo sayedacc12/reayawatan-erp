@@ -25,6 +25,10 @@ export class PortalRegisterDto {
   @IsIn(GENDERS, { message: 'اختر النوع' })
   gender!: 'male' | 'female';
 
+  /** من قائمة الجنسيات المعتمدة لدى الجمعية */
+  @clean() @IsString({ message: 'اختر الجنسية' }) @MinLength(1, { message: 'اختر الجنسية' }) @MaxLength(60)
+  nationality!: string;
+
   @IsOptional() @clean() @IsDateString({}, { message: 'تاريخ الميلاد غير صحيح' })
   birthDate?: string | null;
 
@@ -55,6 +59,9 @@ export class PortalProfileDto {
 
   @IsOptional() @clean() @IsString() @MaxLength(100)
   city?: string | null;
+
+  @IsOptional() @clean() @IsString() @MinLength(1, { message: 'اختر الجنسية' }) @MaxLength(60)
+  nationality?: string;
 
   @IsOptional() @clean() @IsString() @MaxLength(300)
   address?: string | null;

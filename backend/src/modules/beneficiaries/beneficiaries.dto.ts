@@ -44,8 +44,9 @@ export class CreateBeneficiaryDto {
   @IsOptional() @clean() @IsString() @MaxLength(100)
   city?: string | null;
 
-  @IsOptional() @clean() @IsString() @MaxLength(60)
-  nationality?: string | null;
+  /** إلزامية عند إنشاء الملف، ومن قائمة الجنسيات المعتمدة في الإعدادات */
+  @clean() @IsString({ message: 'اختر الجنسية' }) @MinLength(1, { message: 'اختر الجنسية' }) @MaxLength(60)
+  nationality!: string;
 
   @IsOptional() @IsIn([...RESIDENCIES, null], { message: 'اختر فئة الإقامة' })
   residency?: Residency | null;

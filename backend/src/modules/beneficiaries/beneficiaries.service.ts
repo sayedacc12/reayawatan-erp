@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
+import { LookupsService } from '../../core/lookups/lookups.service';
 import { DECISION_TO_STATUS } from './constants';
 import {
   AidDto, AidLogQuery, CreateBeneficiaryDto, FamilyMemberDto, ListBeneficiariesQuery, ResearchDto,
@@ -28,6 +29,7 @@ export class BeneficiariesService {
     @InjectRepository(AidDisbursement) private readonly aids: Repository<AidDisbursement>,
     @InjectRepository(BeneficiaryDocument) private readonly documents: Repository<BeneficiaryDocument>,
     private readonly storage: DocumentStorage,
+    private readonly lookups: LookupsService,
   ) {}
 
   // ---------------- الملفات ----------------
@@ -81,6 +83,7 @@ export class BeneficiariesService {
 
   async create(actor: OrgUser, dto: CreateBeneficiaryDto) {
     const id = await this.db.transaction(async (em) => {
+      await this.lookups.assertNationalities(actor.organizationId, [dto.nationality], em);
       await this.ensureUniqueNationalId(em, actor.organizationId, dto.nationalId ?? null);
       // قفل على مستوى الجمعية حتى لا يأخذ ملفان نفس الرقم في نفس اللحظة
       await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`beneficiaries:${actor.organizationId}`]);
@@ -137,6 +140,11 @@ export class BeneficiariesService {
 
   async update(actor: OrgUser, id: string, dto: UpdateBeneficiaryDto) {
     const b = await this.find(actor, id);
+    if (dto.nationality === null) throw new BadRequestException('اختر الجنسية');
+    // الجنسية القديمة تبقى كما هي، وأي جنسية جديدة يجب أن تكون من القائمة المعتمدة
+    if (dto.nationality !== undefined && dto.nationality !== b.nationality) {
+      await this.lookups.assertNationalities(actor.organizationId, [dto.nationality]);
+    }
     if (dto.nationalId !== undefined && dto.nationalId !== b.nationalId) {
       await this.ensureUniqueNationalId(this.db.manager, actor.organizationId, dto.nationalId ?? null, b.id);
     }

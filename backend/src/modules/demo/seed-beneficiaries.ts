@@ -194,14 +194,14 @@ export class BeneficiariesSeed {
     const repo = this.db.getRepository(Beneficiary);
     // أرقام الهوية بصيغة سعودية: المواطن يبدأ بـ 1 والمقيم بـ 2
     const people = [
-      { fullName: 'فاطمة عبدالله الزهراني', nationalId: '1085031214', nationality: 'سعودية', residency: 'citizen', gender: 'female', category: 'widow', maritalStatus: 'widowed', city: 'الرياض', monthlyIncome: 900, housingType: 'rented', monthlyRent: 700, portal: true,
+      { fullName: 'فاطمة عبدالله الزهراني', nationalId: '1085031214', nationality: 'سعودي', residency: 'citizen', gender: 'female', category: 'widow', maritalStatus: 'widowed', city: 'الرياض', monthlyIncome: 900, housingType: 'rented', monthlyRent: 700, portal: true,
         family: [['يوسف', 'ابن', 'male', '2014-03-02', 'الصف الخامس'], ['مريم', 'ابنة', 'female', '2017-09-10', 'الصف الثاني']] },
       { fullName: 'محمد عبدالعزيز الحربي', nationalId: '1070110514', nationality: 'سعودي', residency: 'citizen', gender: 'male', category: 'patient', maritalStatus: 'married', city: 'جدة', monthlyIncome: 1500, housingType: 'owned', portal: true,
         family: [['سعاد', 'زوجة', 'female', '1975-01-20', 'ربة منزل']] },
-      { fullName: 'أمينة محمود العتيبي', nationalId: '1092082014', nationality: 'سعودية', residency: 'citizen', gender: 'female', category: 'orphan', maritalStatus: 'single', city: 'مكة المكرمة', monthlyIncome: 0, housingType: 'shared', portal: true,
+      { fullName: 'أمينة محمود العتيبي', nationalId: '1092082014', nationality: 'سعودي', residency: 'citizen', gender: 'female', category: 'orphan', maritalStatus: 'single', city: 'مكة المكرمة', monthlyIncome: 0, housingType: 'shared', portal: true,
         family: [['آدم', 'أخ', 'male', '2012-06-15', 'متوسط'], ['هبة', 'أخت', 'female', '2010-11-01', 'ثانوي']] },
       { fullName: 'سامي فهد القحطاني', nationalId: '1065051014', nationality: 'سعودي', residency: 'citizen', gender: 'male', category: 'elderly', maritalStatus: 'widowed', city: 'الرياض', monthlyIncome: 1200, housingType: 'rented', monthlyRent: 500, portal: true, family: [] },
-      { fullName: 'نادية حسين الغامدي', nationalId: '1088070714', nationality: 'سعودية', residency: 'citizen', gender: 'female', category: 'poor_family', maritalStatus: 'divorced', city: 'الدمام', monthlyIncome: 1100, housingType: 'rented', monthlyRent: 600, portal: true,
+      { fullName: 'نادية حسين الغامدي', nationalId: '1088070714', nationality: 'سعودي', residency: 'citizen', gender: 'female', category: 'poor_family', maritalStatus: 'divorced', city: 'الدمام', monthlyIncome: 1100, housingType: 'rented', monthlyRent: 600, portal: true,
         family: [['عمر', 'ابن', 'male', '2011-02-12', 'متوسط'], ['ليلى', 'ابنة', 'female', '2015-08-08', 'ابتدائي'], ['سلمى', 'ابنة', 'female', '2019-04-04', 'حضانة']] },
       { fullName: 'كريم أحمد مصطفى', nationalId: '2301030314', nationality: 'مصري', residency: 'resident', gender: 'male', category: 'student', maritalStatus: 'single', city: 'المدينة المنورة', monthlyIncome: 0, housingType: 'shared', portal: false, family: [] },
     ] as const;
