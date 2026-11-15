@@ -9,6 +9,8 @@ import { DemoTeam, DemoTree, daysAgo, daysAhead } from './demo-context';
 export interface DemoExtraProjects {
   operations: string;
   awareness: string;
+  /** مشروع وقف معتمد تستهدفه فرص تبرع الوقف */
+  endowment: string;
 }
 
 /**
@@ -107,7 +109,7 @@ export class ProjectsSeed {
     });
     await this.approve(team, waqf!.id);
 
-    return { operations: operations!.id, awareness: awareness!.id };
+    return { operations: operations!.id, awareness: awareness!.id, endowment: waqf!.id };
   }
 
   /** إرسال المشروع للاعتماد ثم موافقة المرحلتين */
