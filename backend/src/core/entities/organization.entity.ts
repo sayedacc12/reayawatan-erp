@@ -33,6 +33,10 @@ export class Organization {
   @Column({ name: 'allowed_screens', type: 'jsonb', nullable: true })
   allowedScreens!: string[] | null;
 
+  /** قائمة الجنسيات المعتمدة في الجمعية (null = القائمة الافتراضية)، يستخدمها المستفيدون والموارد المالية */
+  @Column({ type: 'jsonb', nullable: true })
+  nationalities!: string[] | null;
+
   /** حالة الاشتراك: trial تجريبي، awaiting_contract بانتظار توقيع العقد، active ساري */
   @Column({ name: 'subscription_status', type: 'varchar', length: 24, default: 'active' })
   subscriptionStatus!: SubscriptionStatus;
