@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import { CATEGORIES, GENDERS, HOUSING, MARITAL, STATUSES } from '../labels';
+import { CATEGORIES, GENDERS, HOUSING, MARITAL, RESIDENCIES, STATUSES } from '../labels';
 import type { Beneficiary, BeneficiaryFields } from '../types';
 
 /** نموذج إضافة/تعديل ملف مستفيد في نافذة منبثقة */
@@ -13,7 +13,7 @@ const toast = useToast();
 const b = props.beneficiary;
 const form = reactive<BeneficiaryFields>({
   fullName: b?.fullName ?? '', nationalId: b?.nationalId ?? '', gender: b?.gender ?? 'female',
-  birthDate: b?.birthDate ?? '', phone: b?.phone ?? '', altPhone: b?.altPhone ?? '', city: b?.city ?? '',
+  birthDate: b?.birthDate ?? '', phone: b?.phone ?? '', altPhone: b?.altPhone ?? '', city: b?.city ?? '', nationality: b?.nationality ?? '', residency: b?.residency ?? null,
   address: b?.address ?? '', maritalStatus: b?.maritalStatus ?? null, category: b?.category ?? 'poor_family',
   status: b?.status ?? 'new', monthlyIncome: b?.monthlyIncome ?? 0, incomeSource: b?.incomeSource ?? '',
   housingType: b?.housingType ?? null, monthlyRent: b?.monthlyRent ?? null, healthStatus: b?.healthStatus ?? '',
@@ -74,6 +74,10 @@ async function save() {
           <div class="field"><label>الجوال</label><input v-model="form.phone" class="input" inputmode="tel" dir="ltr" /></div>
           <div class="field"><label>رقم إضافي</label><input v-model="form.altPhone" class="input" inputmode="tel" dir="ltr" /></div>
           <div class="field"><label>المدينة / المنطقة</label><input v-model="form.city" class="input" /></div>
+          <div class="field"><label>الجنسية</label><input v-model="form.nationality" class="input" placeholder="مثل: سعودي" /></div>
+          <div class="field"><label>فئة الإقامة</label>
+            <select v-model="form.residency" class="input"><option :value="null">غير محددة</option><option v-for="r in RESIDENCIES" :key="r.value" :value="r.value">{{ r.label }}</option></select>
+          </div>
           <div class="field"><label>العنوان بالتفصيل</label><input v-model="form.address" class="input" /></div>
         </div>
       </fieldset>

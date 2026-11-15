@@ -68,6 +68,8 @@ export interface BeneficiaryFields {
   phone: string | null;
   altPhone: string | null;
   city: string | null;
+  nationality: string | null;
+  residency: 'citizen' | 'resident' | 'visitor' | null;
   address: string | null;
   maritalStatus: string | null;
   category: string;

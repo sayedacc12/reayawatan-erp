@@ -244,6 +244,7 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
             <div><dt>الجوال</dt><dd dir="ltr">{{ b.phone || '—' }}</dd></div>
             <div><dt>رقم إضافي</dt><dd dir="ltr">{{ b.altPhone || '—' }}</dd></div>
             <div><dt>المدينة</dt><dd>{{ b.city || '—' }}</dd></div>
+            <div><dt>الجنسية</dt><dd>{{ b.nationality || '—' }}<template v-if="b.residency"> · {{ label('residency', b.residency) }}</template></dd></div>
             <div><dt>العنوان</dt><dd>{{ b.address || '—' }}</dd></div>
             <div><dt>الدخل الشهري</dt><dd>{{ money(b.monthlyIncome) }}</dd></div>
             <div><dt>مصدر الدخل</dt><dd>{{ b.incomeSource || '—' }}</dd></div>
