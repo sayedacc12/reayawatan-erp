@@ -2,17 +2,41 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../../api';
 import { useToast } from '../../../../stores/toast';
+import { useSession } from '../../../../stores/session';
 import { FIELD_TYPES, OUTCOMES, color, label, scoreOf } from '../../labels';
-import type { DynamicForm, FormField, ScoreRule } from '../../types';
+import type { DynamicForm, FormField, ScoreRule, WorkflowRow } from '../../types';
 import DynamicFields from '../DynamicFields.vue';
 
 const toast = useToast();
+const session = useSession();
+const canApprove = computed(() => session.can('beneficiaries.forms.approve'));
+const canReview = computed(() => session.can('beneficiaries.forms.review'));
+/** مسار الاعتماد (ضبط الوثائق ISO 9001) */
+const FLOW = [
+  { key: 'draft', label: 'إنشاء', icon: '✎' },
+  { key: 'review', label: 'مراجعة الجودة', icon: '⚑' },
+  { key: 'reviewed', label: 'اعتماد مدير الشاشة', icon: '✓' },
+] as const;
+const ORDER = ['draft', 'review', 'reviewed', 'approved'] as const;
+const flowState = (f: DynamicForm, i: number) => {
+  const at = ORDER.indexOf(f.status ?? 'approved');
+  return at > i ? 'done' : at === i ? 'now' : 'todo';
+};
+const STATUS_TEXT: Record<string, string> = { draft: '✎ مسودة', review: '⚑ عند مراجع الجودة', reviewed: '⏳ مستني اعتماد مدير الشاشة', approved: '✓ معتمد' };
+const STEP_TEXT: Record<string, string> = { created: 'إنشاء النموذج', edited: 'تعديل (رجع مسودة)', submitted: 'إرسال للمراجعة', reviewed: 'مراجعة الجودة', approved: 'اعتماد مدير الشاشة', returned: 'إرجاع للمسودة' };
+const rev = (n?: number) => `Rev.${String(n ?? 0).padStart(2, '0')}`;
+const fmt = (d: string) => new Date(d).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+const showHistory = ref<string | null>(null);
 const forms = ref<DynamicForm[]>([]);
+const workflows = ref<WorkflowRow[]>([]);
 const error = ref('');
 
 async function load() {
   try {
-    forms.value = await api<DynamicForm[]>('/beneficiaries/settings/forms');
+    [forms.value, workflows.value] = await Promise.all([
+      api<DynamicForm[]>('/beneficiaries/settings/forms'),
+      api<WorkflowRow[]>('/beneficiaries/settings/workflows'),
+    ]);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -23,7 +47,9 @@ type EditField = FormField & { optionsText: string; scoresText: string[] };
 const open = ref(false);
 const editing = ref<DynamicForm | null>(null);
 const formError = ref('');
-const form = reactive({ name: '', description: '', scored: false, fields: [] as EditField[], rules: [] as ScoreRule[] });
+const target = reactive({ workflowId: '', stageId: '' });
+const pickWf = computed(() => workflows.value.find((w) => w.id === target.workflowId));
+const form = reactive({ name: '', qualityCode: '', description: '', scored: false, fields: [] as EditField[], rules: [] as ScoreRule[] });
 const preview = ref<Record<string, unknown>>({});
 
 const toEdit = (f: FormField): EditField => ({
@@ -51,11 +77,21 @@ function openForm(f?: DynamicForm) {
   formError.value = '';
   preview.value = {};
   Object.assign(form, {
-    name: f?.name ?? '', description: f?.description ?? '', scored: !!f?.scored, rules: (f?.rules ?? []).map((r) => ({ ...r })),
+    name: f?.name ?? '', qualityCode: f?.qualityCode ?? '', description: f?.description ?? '', scored: !!f?.scored, rules: (f?.rules ?? []).map((r) => ({ ...r })),
     fields: f ? f.fields.map(toEdit) : [toEdit({ key: '', label: '', type: 'text', required: false })],
   });
+  if (!f) {
+    const wf = workflows.value.find((w) => w.isDefault) ?? workflows.value[0];
+    target.workflowId = wf?.id ?? '';
+    target.stageId = firstFree(wf);
+  }
   open.value = true;
 }
+function firstFree(w?: WorkflowRow) {
+  const st = w?.stages.find((s) => !s.formId);
+  return st?.id ?? (w && !w.applicationFormId ? 'application' : '');
+}
+function onWfChange() { target.stageId = firstFree(pickWf.value); }
 function addField() { form.fields.push(toEdit({ key: '', label: '', type: 'text', required: false })); }
 function move(i: number, d: number) { const s = form.fields; [s[i], s[i + d]] = [s[i + d], s[i]]; }
 const cleanFields = () => form.fields.map((f, i): FormField => {
@@ -72,21 +108,56 @@ const previewScore = computed(() => (form.scored ? scoreOf({ fields: cleanFields
 async function save() {
   formError.value = '';
   try {
+    if (!editing.value && (!target.workflowId || !target.stageId)) {
+      formError.value = 'لازم تختار سير العمل والمرحلة اللي النموذج هيتعمل عليها';
+      return;
+    }
     if (!weightOk.value) {
       formError.value = `إجمالي الأهمية النسبية لازم يكون 100%، الإجمالي دلوقتي ${totalWeight.value}%`;
       return;
     }
     const body = {
-      name: form.name, description: form.description, scored: form.scored, fields: cleanFields(),
+      name: form.name, qualityCode: form.qualityCode.trim().toUpperCase(), description: form.description, scored: form.scored, fields: cleanFields(),
       rules: form.scored ? form.rules.map((r) => ({ ...r, contributionPercent: r.outcome === 'contribution' ? r.contributionPercent : undefined })) : [],
     };
     if (editing.value) await api(`/beneficiaries/settings/forms/${editing.value.id}`, { method: 'PUT', json: body });
-    else await api('/beneficiaries/settings/forms', { method: 'POST', json: body });
+    else {
+      await api('/beneficiaries/settings/forms', {
+        method: 'POST', json: { ...body, workflowId: target.workflowId, stageId: target.stageId === 'application' ? null : target.stageId },
+      });
+    }
+    const wasApproved = !!editing.value && editing.value.status !== 'draft';
     open.value = false;
-    toast.success('تم حفظ النموذج');
+    toast.success(wasApproved ? 'تم الحفظ، والنموذج رجع مسودة. ابعته للمراجعة تاني' : 'تم حفظ النموذج كمسودة. ابعته للمراجعة لما يخلص');
     await load();
   } catch (e) {
     formError.value = (e as Error).message;
+  }
+}
+const ACTIONS = {
+  submit: { ask: 'إرسال النموذج "%s" لمراجع الجودة؟', done: 'اتبعت لمراجع الجودة' },
+  review: { ask: 'تأكيد مراجعة الجودة للنموذج "%s"؟ هيروح لمدير الشاشة يعتمده.', done: 'تمت مراجعة الجودة' },
+  approve: { ask: 'اعتماد النموذج "%s"؟ بعد الاعتماد المرحلة اللي عليه مش هتتحذف.', done: 'تم اعتماد النموذج' },
+} as const;
+async function act(f: DynamicForm, action: keyof typeof ACTIONS) {
+  if (!confirm(ACTIONS[action].ask.replace('%s', f.name))) return;
+  try {
+    await api(`/beneficiaries/settings/forms/${f.id}/${action}`, { method: 'POST' });
+    toast.success(ACTIONS[action].done);
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
+async function sendBack(f: DynamicForm) {
+  const note = prompt(`سبب إرجاع "${f.name}" للمسودة:`);
+  if (!note?.trim()) return;
+  try {
+    await api(`/beneficiaries/settings/forms/${f.id}/return`, { method: 'POST', json: { note } });
+    toast.success('النموذج رجع مسودة');
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
   }
 }
 async function remove(f: DynamicForm) {
@@ -104,30 +175,75 @@ async function remove(f: DynamicForm) {
 <template>
   <section>
     <div class="pane-head">
-      <p class="muted">النماذج بتتربط بمراحل سير العمل (زي نموذج البحث الاجتماعي) أو بتقديم الطلب. ضيف الحقول اللي محتاجها وغيّرها في أي وقت.</p>
+      <p class="muted">كل نموذج بيتعمل على مرحلة من مراحل سير العمل أو على تقديم الطلب، وليه كود جودة (ISO 9001) ورقم إصدار. النموذج بيعدّي على: إنشاء ← مراجعة الجودة ← اعتماد مدير الشاشة، ومايشتغلش غير بعد الاعتماد.</p>
       <button class="btn btn-primary btn-sm" @click="openForm()">+ نموذج جديد</button>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <p v-if="!forms.length && !error" class="card empty">لا توجد نماذج بعد.</p>
     <div class="grid">
       <article v-for="(f, i) in forms" :key="f.id" class="card fcard" :style="{ '--i': i }">
+        <div class="qrow"><span v-if="f.qualityCode" class="qcode">{{ f.qualityCode }} · {{ rev(f.revision) }}</span><span v-else class="qcode missing">بدون كود جودة</span></div>
         <h3>{{ f.name }} <span v-if="f.scored" class="sbadge">تقييم آلي</span></h3>
+        <ol class="flowbar">
+          <li v-for="(st, k) in FLOW" :key="st.key" :class="flowState(f, k)"><i>{{ flowState(f, k) === 'done' ? '✓' : st.icon }}</i><span>{{ st.label }}</span></li>
+        </ol>
+        <div class="meta">
+          <span :class="['st', f.status ?? 'approved']">{{ STATUS_TEXT[f.status ?? 'approved'] }}</span>
+          <span v-for="p in f.placements" :key="`${p.workflowId}-${p.stageId}`" class="place">📍 {{ p.workflowName }} ← {{ p.stageName }}</span>
+        </div>
+        <p class="muted small who">{{ [f.createdByName && `أنشأه: ${f.createdByName}`, f.reviewedByName && `راجعه: ${f.reviewedByName}`, f.status === 'approved' && f.approvedByName && `اعتمده: ${f.approvedByName}`].filter(Boolean).join(' · ') }}</p>
         <p v-if="f.description" class="muted small">{{ f.description }}</p>
         <ul class="fields"><li v-for="x in f.fields" :key="x.key">{{ x.label }}<span class="muted"> · {{ label('field', x.type) }}</span><b v-if="x.required" class="req">*</b><span v-if="x.weight" class="wchip">{{ x.weight }}%</span></li></ul>
         <div v-if="f.scored && f.rules?.length" class="rchips">
           <span v-for="(r, j) in f.rules" :key="j" class="rchip" :style="{ '--c': color('outcome', r.outcome) }">{{ r.min }}–{{ r.max }}%: {{ label('outcome', r.outcome) }}<template v-if="r.contributionPercent"> {{ r.contributionPercent }}%</template></span>
         </div>
-        <div class="acts"><button class="btn btn-sm" @click="openForm(f)">تعديل</button><button class="btn btn-sm btn-danger" @click="remove(f)">حذف</button></div>
+        <div class="acts">
+          <button v-if="f.status === 'draft'" class="btn btn-sm btn-primary" @click="act(f, 'submit')">إرسال للمراجعة</button>
+          <button v-if="f.status === 'review' && canReview" class="btn btn-sm btn-primary" @click="act(f, 'review')">تمت مراجعة الجودة</button>
+          <button v-if="f.status === 'reviewed' && canApprove" class="btn btn-sm btn-primary" @click="act(f, 'approve')">اعتماد</button>
+          <button v-if="(f.status === 'review' && canReview) || (f.status === 'reviewed' && canApprove)" class="btn btn-sm" @click="sendBack(f)">إرجاع</button>
+          <button class="btn btn-sm" @click="openForm(f)">تعديل</button>
+          <button v-if="f.status !== 'approved' && !f.history?.some((h) => h.step === 'approved')" class="btn btn-sm btn-danger" @click="remove(f)">حذف</button>
+          <button v-if="f.history?.length" class="btn btn-sm hbtn" @click="showHistory = showHistory === f.id ? null : f.id">سجل الاعتماد</button>
+        </div>
+        <ol v-if="showHistory === f.id" class="hist">
+          <li v-for="(h, k) in [...(f.history ?? [])].reverse()" :key="k" :class="h.step">
+            <b>{{ STEP_TEXT[h.step] }}<template v-if="h.revision !== undefined"> · {{ rev(h.revision) }}</template></b>
+            <span class="muted">{{ h.by }} · {{ fmt(h.at) }}</span>
+            <q v-if="h.note">{{ h.note }}</q>
+          </li>
+        </ol>
       </article>
     </div>
 
     <div v-if="open" class="modal-backdrop" @click.self="open = false">
-      <form class="card modal builder" @submit.prevent="save">
+      <div class="card modal builder">
         <h2 class="mt">{{ editing ? 'تعديل النموذج' : 'نموذج جديد' }}</h2>
         <div v-if="formError" class="alert alert-error">{{ formError }}</div>
+        <div v-if="editing && editing.status !== 'draft'" class="alert alert-warn">النموذج ده {{ editing.status === 'approved' ? 'معتمد' : 'في مسار الاعتماد' }}. أي تعديل هيرجّعه مسودة، ولازم يعدّي على مراجعة الجودة واعتماد مدير الشاشة من الأول، ولحد كده قرارات المرحلة هتقف.</div>
+        <div v-if="!editing" class="target">
+          <p class="sec">النموذج ده هيتعمل على</p>
+          <div class="two">
+            <div class="field"><label>سير العمل *</label>
+              <select v-model="target.workflowId" form="form-builder" class="input" required @change="onWfChange"><option value="" disabled>اختار سير العمل</option><option v-for="w in workflows" :key="w.id" :value="w.id">{{ w.name }}</option></select>
+            </div>
+            <div class="field"><label>المرحلة *</label>
+              <select v-model="target.stageId" form="form-builder" class="input" required>
+                <option value="" disabled>اختار المرحلة</option>
+                <option value="application" :disabled="!!pickWf?.applicationFormId">تقديم الطلب (يعبّيه مقدم الطلب){{ pickWf?.applicationFormId ? ' · عليها نموذج' : '' }}</option>
+                <option v-for="(s, i) in pickWf?.stages ?? []" :key="s.id" :value="s.id" :disabled="!!s.formId">{{ i + 1 }}. {{ s.name }}{{ s.formId ? ` · عليها نموذج (${s.formName})` : '' }}</option>
+              </select>
+            </div>
+          </div>
+          <p v-if="!workflows.length" class="muted small">لازم تعمل سير عمل الأول من تبويب "سير العمل".</p>
+        </div>
         <div class="cols">
-          <div>
-            <div class="field"><label>اسم النموذج *</label><input v-model="form.name" class="input" required placeholder="مثال: نموذج البحث الاجتماعي" /></div>
+          <form id="form-builder" class="bcol" @submit.prevent="save">
+            <div class="namecode">
+              <div class="field"><label>اسم النموذج *</label><input v-model="form.name" class="input" required placeholder="مثال: نموذج البحث الاجتماعي" /></div>
+              <div class="field"><label>كود الجودة (ISO 9001) *</label><input v-model="form.qualityCode" class="input ltr" required pattern="[A-Za-z0-9][A-Za-z0-9._/\-]{1,49}" title="حروف إنجليزي وأرقام وشرطة، مثال QF-BEN-01" placeholder="QF-BEN-01" /></div>
+            </div>
+            <p v-if="editing" class="muted small">الإصدار الحالي {{ rev(editing.revision) }}، وبعد الاعتماد الجاي هيبقى {{ editing.history?.some((h) => h.step === 'approved') ? rev((editing.revision ?? 0) + 1) : rev(0) }}.</p>
             <div class="field"><label>الوصف</label><input v-model="form.description" class="input" /></div>
             <label class="scored-toggle">
               <input v-model="form.scored" type="checkbox" @change="toggleScored" />
@@ -182,11 +298,11 @@ async function remove(f: DynamicForm) {
               </div>
               <button type="button" class="btn btn-sm" @click="addRule">+ إضافة قاعدة</button>
             </template>
-          </div>
+          </form>
           <div class="preview">
             <p class="sec">معاينة</p>
             <div class="pv card">
-              <p class="pv-title">{{ form.name || 'اسم النموذج' }}</p>
+              <p class="pv-title">{{ form.name || 'اسم النموذج' }}<span class="qcode">{{ (form.qualityCode || 'QF-…').toUpperCase() }}</span></p>
               <DynamicFields v-model="preview" :fields="cleanFields().filter((f) => f.label)" />
               <div v-if="previewScore" class="pscore" :style="{ '--c': color('outcome', previewScore.rule?.outcome) }">
                 <span>النتيجة المقترحة</span>
@@ -197,8 +313,8 @@ async function remove(f: DynamicForm) {
             </div>
           </div>
         </div>
-        <div class="modal-actions"><button class="btn btn-primary">حفظ النموذج</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
-      </form>
+        <div class="modal-actions"><button class="btn btn-primary" form="form-builder">حفظ النموذج</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
+      </div>
     </div>
   </section>
 </template>
@@ -213,7 +329,35 @@ async function remove(f: DynamicForm) {
 .small { font-size: .82rem; margin: 4px 0 0; }
 .fields { margin: 10px 0; padding-inline-start: 18px; font-size: .88rem; flex: 1; }
 .req { color: var(--danger); margin-inline-start: 4px; }
-.acts { display: flex; gap: 6px; }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.qrow { margin-bottom: 6px; }
+.qcode { direction: ltr; display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .03em; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
+.pv-title .qcode { float: inline-end; }
+.qcode.missing { color: var(--danger); border-color: var(--danger); direction: rtl; }
+.flowbar { list-style: none; display: flex; gap: 4px; padding: 0; margin: 10px 0 2px; }
+.flowbar li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .68rem; color: var(--muted); position: relative; text-align: center; }
+.flowbar li:not(:last-child)::after { content: ''; position: absolute; top: 12px; inset-inline-start: calc(50% + 14px); width: calc(100% - 28px); height: 2px; background: var(--border); }
+.flowbar li.done:not(:last-child)::after { background: #10b981; }
+.flowbar i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 2px solid var(--border); font-size: .75rem; }
+.flowbar .done i { background: #10b981; border-color: #10b981; color: #fff; }
+.flowbar .now i { border-color: #f59e0b; color: #b45309; box-shadow: 0 0 0 4px #f59e0b33; animation: pulse 1.6s infinite; }
+.flowbar .now span { color: #b45309; font-weight: 700; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 7px #f59e0b11; } }
+.hbtn { margin-inline-start: auto; }
+.hist { list-style: none; padding: 10px 0 0; margin: 10px 0 0; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px; font-size: .8rem; }
+.hist li { display: flex; flex-direction: column; padding-inline-start: 10px; border-inline-start: 3px solid #818cf8; }
+.hist li.approved { border-color: #10b981; } .hist li.returned { border-color: var(--danger); } .hist li.reviewed { border-color: #0ea5e9; }
+.hist q { color: var(--danger); }
+.namecode { display: grid; grid-template-columns: 1fr 180px; gap: 10px; }
+.ltr { direction: ltr; text-align: left; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.st { font-size: .72rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.st.draft { background: #f1f5f9; color: #475569; } .st.review, .st.reviewed { background: #fef3c7; color: #92400e; } .st.approved { background: #dcfce7; color: #166534; }
+.place { font-size: .72rem; padding: 2px 8px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); }
+.who { min-height: 1em; }
+.target { padding: 12px; border: 1px dashed var(--primary); border-radius: 12px; margin-bottom: 14px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.alert-warn { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 .builder { max-width: 1000px; }
 .mt { margin-bottom: 14px; }
 .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; }

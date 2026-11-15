@@ -59,17 +59,6 @@ describe('Requests workflow + beneficiary portal', () => {
   });
 
   it('defines dynamic forms and a workflow with stages and responsible roles', async () => {
-    await http.post('/api/beneficiaries/settings/forms').set(as(admin))
-      .send({ name: 'خطأ', fields: [{ label: 'قائمة', type: 'select' }] }).expect(400);
-    const app1 = await http.post('/api/beneficiaries/settings/forms').set(as(admin)).send({
-      name: 'بيانات الطلب', fields: [{ key: 'reason', label: 'سبب الطلب', type: 'textarea', required: true }, { label: 'عدد الأفراد', type: 'number' }],
-    }).expect(201);
-    expect(app1.body.fields[1].key).toBe('f2');
-    const research = await http.post('/api/beneficiaries/settings/forms').set(as(admin)).send({
-      name: 'البحث الاجتماعي',
-      fields: [{ key: 'housing', label: 'حالة السكن', type: 'select', required: true, options: ['جيدة', 'سيئة'] }, { key: 'ok', label: 'تمت الزيارة', type: 'checkbox', required: true }],
-    }).expect(201);
-    ids.researchForm = research.body.id;
 
     const role = await http.post('/api/roles').set(as(admin)).send({
       name: 'باحث', permissions: ['beneficiaries.requests.read', 'beneficiaries.requests.process'],
@@ -83,13 +72,50 @@ describe('Requests workflow + beneficiary portal', () => {
 
     await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({ name: 'فاضي', stages: [] }).expect(400);
     const wf = await http.post('/api/beneficiaries/settings/workflows').set(as(admin)).send({
-      name: 'سير المساعدات', applicationFormId: app1.body.id,
+      name: 'سير المساعدات',
       stages: [
         { name: 'مراجعة' },
-        { name: 'البحث الاجتماعي', formId: research.body.id, roleId: role.body.id, canReject: false },
+        { name: 'البحث الاجتماعي', roleId: role.body.id, canReject: false },
         { name: 'الاعتماد النهائي' },
       ],
     }).expect(201);
+
+    // النماذج بتتعمل على مرحلة (أو على تقديم الطلب) وبتتعتمد من مدير الشاشة
+    const forms = '/api/beneficiaries/settings/forms';
+    await http.post(forms).set(as(admin)).send({ qualityCode: 'QF-00', name: 'من غير مرحلة', fields: [{ label: 'أ', type: 'text' }] }).expect(400);
+    await http.post(forms).set(as(admin))
+      .send({ qualityCode: 'QF-00', name: 'خطأ', workflowId: wf.body.id, fields: [{ label: 'قائمة', type: 'select' }] }).expect(400);
+    const app1 = await http.post(forms).set(as(admin)).send({
+      qualityCode: 'qf-ben-01', name: 'بيانات الطلب', workflowId: wf.body.id,
+      fields: [{ key: 'reason', label: 'سبب الطلب', type: 'textarea', required: true }, { label: 'عدد الأفراد', type: 'number' }],
+    }).expect(201);
+    expect(app1.body.fields[1].key).toBe('f2');
+    expect(app1.body).toMatchObject({ qualityCode: 'QF-BEN-01', revision: 0, status: 'draft', placements: [{ stageId: null, stageName: 'تقديم الطلب' }] });
+    await http.post(forms).set(as(admin)).send({ qualityCode: 'QF-BEN-09', name: 'تاني', workflowId: wf.body.id, fields: [{ label: 'أ', type: 'text' }] }).expect(409);
+    const research = await http.post(forms).set(as(admin)).send({
+      qualityCode: 'QF-BEN-02', name: 'البحث الاجتماعي', workflowId: wf.body.id, stageId: wf.body.stages[1].id,
+      fields: [{ key: 'housing', label: 'حالة السكن', type: 'select', required: true, options: ['جيدة', 'سيئة'] }, { key: 'ok', label: 'تمت الزيارة', type: 'checkbox', required: true }],
+    }).expect(201);
+    ids.researchForm = research.body.id;
+    const clerkToken = await login('c@test.org', 'Clerk12345', 'alkhair');
+    await http.post(`${forms}/${app1.body.id}/approve`).set(as(clerkToken)).expect(403); // مش مدير الشاشة
+    for (const f of [app1.body.id, research.body.id]) {
+      await http.post(`${forms}/${f}/submit`).set(as(admin)).expect(200);
+      await http.post(`${forms}/${f}/review`).set(as(admin)).expect(200);
+      const ok = await http.post(`${forms}/${f}/approve`).set(as(admin)).expect(200);
+      expect(ok.body).toMatchObject({ status: 'approved', approvedByName: 'مدير' });
+    }
+    // مرحلة عليها نموذج معتمد مايتحذفش ونموذجها مايتغيرش
+    const [st1, st2, st3] = wf.body.stages.map((s: { id: string }) => s.id);
+    await http.put(`/api/beneficiaries/settings/workflows/${wf.body.id}`).set(as(admin)).send({
+      name: 'سير المساعدات', stages: [{ id: st1, name: 'مراجعة' }, { id: st3, name: 'الاعتماد النهائي' }],
+    }).expect(409);
+    await http.put(`/api/beneficiaries/settings/workflows/${wf.body.id}`).set(as(admin)).send({
+      name: 'سير المساعدات', stages: [{ id: st1, name: 'مراجعة' }, { id: st2, name: 'البحث الاجتماعي', formId: null }, { id: st3, name: 'الاعتماد النهائي' }],
+    }).expect(409);
+    await http.delete(`${forms}/${research.body.id}`).set(as(admin)).expect(409);
+    const again = await http.get(`/api/beneficiaries/settings/workflows`).set(as(admin)).expect(200);
+    Object.assign(wf.body, again.body.find((w: { id: string }) => w.id === wf.body.id));
     expect(wf.body.isDefault).toBe(true);
     expect(wf.body.stages.map((s: { name: string }) => s.name)).toEqual(['مراجعة', 'البحث الاجتماعي', 'الاعتماد النهائي']);
     ids.workflow = wf.body.id;

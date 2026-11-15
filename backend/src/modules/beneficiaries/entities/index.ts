@@ -17,7 +17,7 @@ export {
   RequestAction, Ticket, Workflow, WorkflowStage,
 };
 export type { ActivityLevel, ProjectService, Recurrence } from './activity.entity';
-export type { FieldType, FormField, ScoreOutcome, ScoreRule, SupportAnswer, SupportDecision } from './dynamic-form.entity';
+export type { FieldType, FormField, FormStatus, FormStep, FormHistoryEntry, ScoreOutcome, ScoreRule, SupportAnswer, SupportDecision } from './dynamic-form.entity';
 export type { ContributionStatus, JournalEntry, RequestStatus } from './beneficiary-request.entity';
 export type { RequestDecision } from './request-action.entity';
 export type { TicketStatus, TicketType } from './ticket.entity';

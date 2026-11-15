@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { CurrentOrgUser, OrgUser, RequirePermissions } from '../../core/auth/decorators';
 import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
-import { AccountingDto, ActivityDto, FormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
+import { AccountingDto, ActivityDto, CreateFormDto, FormDto, ReturnFormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
 import { SettingsService } from './settings.service';
 
 const uuid = new ParseUUIDPipe();
@@ -44,8 +44,36 @@ export class SettingsController {
 
   @Post('forms')
   @RequirePermissions(P.settings)
-  createForm(@CurrentOrgUser() actor: OrgUser, @Body() dto: FormDto) {
+  createForm(@CurrentOrgUser() actor: OrgUser, @Body() dto: CreateFormDto) {
     return this.settings.createForm(actor, dto);
+  }
+
+  @Post('forms/:id/submit')
+  @HttpCode(200)
+  @RequirePermissions(P.settings)
+  submitForm(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.settings.submitForm(actor, id);
+  }
+
+  @Post('forms/:id/review')
+  @HttpCode(200)
+  @RequirePermissions(P.formsReview)
+  reviewForm(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.settings.reviewForm(actor, id);
+  }
+
+  /** الصلاحية بتتحدد حسب مرحلة النموذج (مراجع الجودة أو مدير الشاشة) */
+  @Post('forms/:id/return')
+  @HttpCode(200)
+  returnForm(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string, @Body() dto: ReturnFormDto) {
+    return this.settings.returnForm(actor, id, dto);
+  }
+
+  @Post('forms/:id/approve')
+  @HttpCode(200)
+  @RequirePermissions(P.formsApprove)
+  approveForm(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.settings.approveForm(actor, id);
   }
 
   @Put('forms/:id')

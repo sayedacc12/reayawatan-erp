@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Matches, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
 } from 'class-validator';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
@@ -91,6 +91,11 @@ export class FormDto {
   @IsOptional() @trim() @IsString() @MaxLength(1000)
   description?: string | null;
 
+  /** كود الوثيقة في نظام الجودة ISO 9001 */
+  @trim() @IsString({ message: 'اكتب كود الجودة للنموذج' })
+  @Matches(/^[A-Za-z0-9][A-Za-z0-9._/-]{1,49}$/, { message: 'كود الجودة لازم يكون حروف إنجليزي وأرقام وشرطة، مثال QF-BEN-01' })
+  qualityCode!: string;
+
   /** يُتحقق منها بالتفصيل في normalizeFields */
   @IsArray()
   fields!: unknown[];
@@ -102,6 +107,16 @@ export class FormDto {
   /** قواعد نتيجة التقييم، يُتحقق منها في normalizeRules */
   @IsOptional() @IsArray()
   rules?: unknown[];
+}
+
+/** إنشاء نموذج: لازم يكون على مرحلة (أو على تقديم الطلب في سير عمل) */
+export class CreateFormDto extends FormDto {
+  @IsUUID('all', { message: 'اختر سير العمل' })
+  workflowId!: string;
+
+  /** فاضي = نموذج تقديم الطلب */
+  @IsOptional() @IsUUID('all', { message: 'اختر المرحلة' })
+  stageId?: string | null;
 }
 
 export class StageDto {
@@ -167,4 +182,10 @@ export class WorkflowDto {
   @IsArray() @ArrayMinSize(1, { message: 'أضف مرحلة واحدة على الأقل' }) @ArrayMaxSize(30)
   @ValidateNested({ each: true }) @Type(() => StageDto)
   stages!: StageDto[];
+}
+
+/** إرجاع النموذج للمسودة من مراجع الجودة أو مدير الشاشة */
+export class ReturnFormDto {
+  @trim() @IsString() @MinLength(3, { message: 'اكتب سبب الإرجاع' }) @MaxLength(1000)
+  note!: string;
 }
