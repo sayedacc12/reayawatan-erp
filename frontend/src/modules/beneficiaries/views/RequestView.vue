@@ -5,6 +5,7 @@ import { api, openProtectedFile } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import AnswersList from '../components/AnswersList.vue';
+import CaseFilePanel from '../components/CaseFilePanel.vue';
 import DynamicFields from '../components/DynamicFields.vue';
 import StageStepper from '../components/StageStepper.vue';
 import StatusBadge from '../components/StatusBadge.vue';
@@ -264,6 +265,9 @@ async function resubmit() {
             <p v-if="r.description" class="pre desc">{{ r.description }}</p>
             <p v-if="!r.workflow?.applicationForm && !r.description" class="muted">لا توجد بيانات إضافية.</p>
           </section>
+
+          <!-- ملف المستفيد كاملًا لمتخذ القرار -->
+          <CaseFilePanel v-if="r.caseFile && r.beneficiary" :beneficiary-id="r.beneficiary.id" :file="r.caseFile" :national-id="r.beneficiary.nationalId" :phone="r.beneficiary.phone" />
         </div>
 
         <!-- سجل الحركة -->

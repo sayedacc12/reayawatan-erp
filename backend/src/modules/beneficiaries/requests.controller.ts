@@ -33,7 +33,7 @@ export class RequestsController {
   @RequirePermissions(P.requestsRead)
   async get(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
     const r = await this.requests.get(actor.organizationId, id);
-    return { ...r, canDecide: r.status === 'in_progress' && (await this.requests.canDecide(actor, r.currentStageId)) };
+    return { ...r, caseFile: await this.requests.caseFile(actor.organizationId, r.beneficiary.id, r.id), canDecide: r.status === 'in_progress' && (await this.requests.canDecide(actor, r.currentStageId)) };
   }
 
   @Post(':id/decision')

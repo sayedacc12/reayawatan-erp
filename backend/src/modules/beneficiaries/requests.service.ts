@@ -132,6 +132,39 @@ export class RequestsService {
     };
   }
 
+  /**
+   * ملف المستفيد كاملًا لمتخذ القرار: البيانات الشخصية والسكن والدخل، أفراد الأسرة، المستندات،
+   * المساعدات السابقة، وطلباته الأخرى. يُعرض في صفحة الطلب حتى يقرر دون الانتقال لشاشة أخرى.
+   * (للموظفين فقط، ولا يُرسل للبوابة)
+   */
+  async caseFile(organizationId: string, beneficiaryId: string, requestId: string) {
+    const b = await this.db.getRepository(Beneficiary).findOne({
+      where: { id: beneficiaryId, organizationId },
+      relations: { family: true, aids: true, documents: true },
+      order: { family: { createdAt: 'ASC' }, aids: { disbursedOn: 'DESC' }, documents: { createdAt: 'DESC' } },
+    });
+    if (!b) return null;
+    const others: { id: string; requestNo: number; status: string; projectName: string; createdAt: Date }[] = await this.db.query(
+      `SELECT r.id, r.request_no AS "requestNo", r.status, a.name AS "projectName", r.created_at AS "createdAt"
+         FROM beneficiary_requests r JOIN activities a ON a.id = r.project_id
+        WHERE r.organization_id = $1 AND r.beneficiary_id = $2 AND r.id <> $3 ORDER BY r.created_at DESC LIMIT 20`,
+      [organizationId, beneficiaryId, requestId]);
+    const family = b.family ?? [];
+    const aids = b.aids ?? [];
+    return {
+      gender: b.gender, birthDate: b.birthDate, nationality: b.nationality, residency: b.residency, maritalStatus: b.maritalStatus,
+      city: b.city, address: b.address, altPhone: b.altPhone, monthlyIncome: b.monthlyIncome, incomeSource: b.incomeSource,
+      housingType: b.housingType, monthlyRent: b.monthlyRent, healthStatus: b.healthStatus, notes: b.notes,
+      householdIncome: b.monthlyIncome + family.reduce((sum, m) => sum + (m.monthlyIncome ?? 0), 0),
+      family: family.map((m) => ({ id: m.id, fullName: m.fullName, relation: m.relation, gender: m.gender, birthDate: m.birthDate, occupation: m.occupation, monthlyIncome: m.monthlyIncome, healthStatus: m.healthStatus })),
+      documents: (b.documents ?? []).map((d) => ({ id: d.id, title: d.title, docType: d.docType, originalName: d.originalName, mimeType: d.mimeType, createdAt: d.createdAt })),
+      aids: aids.slice(0, 10).map((a) => ({ id: a.id, aidType: a.aidType, amount: a.amount, disbursedOn: a.disbursedOn, description: a.description, referenceNo: a.referenceNo })),
+      aidTotal: aids.reduce((sum, a) => sum + a.amount, 0),
+      aidCount: aids.length,
+      otherRequests: others,
+    };
+  }
+
   /** تفاصيل الطلب: المستفيد، شجرة النشاط، مراحل سير العمل، السجل، والنماذج */
   async get(organizationId: string, id: string, beneficiaryId?: string) {
     const r = await this.requests.findOne({
