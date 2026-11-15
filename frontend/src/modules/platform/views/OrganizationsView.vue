@@ -82,6 +82,29 @@ async function createDemo(recreate = false) {
 }
 const origin = location.origin;
 
+/** تصدير بيانات الدخول وملخص الجمعية التجريبية إلى ملف Word (يفتحه Word مباشرة) */
+function exportDemoWord() {
+  const d = demo.value;
+  if (!d) return;
+  const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const rows = (items: [string, string][]) => items.map(([a, b]) => `<tr><td>${esc(a)}</td><td dir="ltr">${esc(b)}</td></tr>`).join('');
+  const scope = [...document.querySelectorAll('.demo-scope li')].map((li) => `<li>${esc(li.textContent ?? '')}</li>`).join('');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">
+<style>body{font-family:Arial;direction:rtl}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:6px;text-align:right}th{background:#e6f2ef}</style></head>
+<body dir="rtl"><h1>بيانات الدخول: ${esc(d.organization.name)}</h1><ul>${scope}</ul>
+<h2>دخول الموظفين: ${esc(origin)}/o/${esc(d.organization.slug)}</h2>
+<table><tr><th>الدور</th><th>البريد الإلكتروني</th></tr>${rows([...d.staff.map((s) => [s.role, s.email] as [string, string]), ['كلمة المرور للكل', d.staffPassword]])}</table>
+<h2>بوابة المستفيدين: ${esc(origin)}/portal/${esc(d.organization.slug)}</h2>
+<table><tr><th>المستفيد</th><th>رقم الهوية</th></tr>${rows([...d.portalUsers.map((p) => [p.fullName, p.nationalId] as [string, string]), ['كلمة المرور للكل', d.portalPassword]])}</table>
+</body></html>`;
+  const url = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `بيانات-الجمعية-التجريبية.doc`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 const moduleName = (code: string) => optional.value.find((m) => m.code === code)?.name ?? code;
 const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionEndsOn);
 </script>
@@ -160,7 +183,7 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
           <tr v-for="p in demo.portalUsers" :key="p.nationalId"><td>{{ p.fullName }}</td><td dir="ltr"><code>{{ p.nationalId }}</code></td></tr>
           <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.portalPassword }}</code></td></tr>
         </table>
-        <div class="modal-actions"><button class="btn btn-primary" @click="demo = null">حسنًا</button></div>
+        <div class="modal-actions"><button class="btn btn-ghost" @click="exportDemoWord">⬇ تصدير Word</button><button class="btn btn-primary" @click="demo = null">حسنًا</button></div>
       </div>
     </div>
   </div>
