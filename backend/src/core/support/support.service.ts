@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { AuthUser, OrgUser } from '../auth/decorators';
 import { User } from '../entities';
@@ -6,7 +6,8 @@ import { FileStore } from '../files/file-store.service';
 import { nextNumber } from '../subscriptions/contracts.service';
 import { PlatformSetting } from '../subscriptions/entities';
 import { CATEGORIES, DEFAULT_SLA, OPEN_STATUSES, PRIORITIES, Priority, SlaLevel } from './sla';
-import { SupportMessage, SupportTicket, TicketEvent } from './support.entity';
+import { SupportMessage, SupportTask, SupportTicket, TicketEvent } from './support.entity';
+import { SUPPORT_PERMISSIONS } from './support.manifest';
 import { CloseDto, CreateTicketDto, MessageDto, SlaLevelDto, UpdateTicketDto } from './support.dto';
 
 const HOUR = 3_600_000;
@@ -75,7 +76,7 @@ export class SupportService {
   private summary(t: SupportTicket, levels: SlaLevel[]) {
     return {
       id: t.id, number: t.number, subject: t.subject, category: t.category, priority: t.priority, requestedPriority: t.requestedPriority,
-      status: t.status, screen: t.screen, createdByName: t.createdByName, contactPhone: t.contactPhone, assigneeName: t.assigneeName,
+      status: t.status, screen: t.screen, createdByName: t.createdByName, contactPhone: t.contactPhone, assigneeId: t.assigneeId, assigneeName: t.assigneeName,
       createdAt: t.createdAt, updatedAt: t.updatedAt, firstResponseAt: t.firstResponseAt, resolvedAt: t.resolvedAt, closedAt: t.closedAt,
       escalatedAt: t.escalatedAt, rating: t.rating,
       organization: t.organization ? { id: t.organization.id, name: t.organization.name, slug: t.organization.slug } : undefined,
@@ -148,6 +149,10 @@ export class SupportService {
         id: m.id, side: m.side, authorName: m.authorName, body: m.body, isInternal: m.isInternal,
         createdAt: m.createdAt, file: m.fileName ? { name: m.fileName, mime: m.fileMime } : null,
       })),
+      tasks: platform
+        ? (await this.db.getRepository(SupportTask).find({ where: { ticketId: t.id }, order: { createdAt: 'ASC' } }))
+            .map((k) => ({ id: k.id, number: k.number, title: k.title, status: k.status, assigneeName: k.assigneeName, dueAt: k.dueAt, spentHours: k.spentHours }))
+        : undefined,
       canReopen: t.status === 'resolved' || (t.status === 'closed' && !!t.closedAt && Date.now() - new Date(t.closedAt).getTime() < REOPEN_DAYS * 24 * HOUR),
     };
   }
@@ -204,19 +209,24 @@ export class SupportService {
     t.waitingSince = null;
   }
 
-  private setStatus(t: SupportTicket, status: 'in_progress' | 'waiting_customer' | 'resolved', by: string) {
+  private setStatus(t: SupportTicket, status: 'in_progress' | 'waiting_customer' | 'resolved', by: string, byId?: string) {
     if (t.status === status) return;
     if (t.status === 'waiting_customer') this.resume(t);
     if (status === 'waiting_customer') t.waitingSince = new Date();
-    if (status === 'resolved') t.resolvedAt = new Date();
-    else t.resolvedAt = null;
+    if (status === 'resolved') {
+      t.resolvedAt = new Date();
+      t.resolvedById = byId ?? null;
+    } else {
+      t.resolvedAt = null;
+      t.resolvedById = null;
+    }
     t.status = status;
     t.history = [...t.history, event('status', by, status)];
   }
 
   private async reply(
     id: string, dto: MessageDto, file: Express.Multer.File | undefined,
-    who: { side: 'org' | 'platform'; name: string; orgId?: string },
+    who: { side: 'org' | 'platform'; name: string; orgId?: string; id?: string },
   ) {
     const t0 = await this.db.getRepository(SupportTicket).findOne({ where: { id, ...(who.orgId ? { organizationId: who.orgId } : {}) } });
     if (!t0) throw new NotFoundException('الطلب غير موجود');
@@ -234,10 +244,13 @@ export class SupportService {
           if (t.status === 'waiting_customer') this.setStatus(t, 'in_progress', who.name);
         } else if (!internal) {
           // أول رد من فريق المنصة يحقق مهلة الاستجابة
-          if (!t.firstResponseAt) t.firstResponseAt = new Date();
-          this.setStatus(t, dto.status ?? (t.status === 'new' ? 'in_progress' : (t.status as 'in_progress')), who.name);
+          if (!t.firstResponseAt) {
+            t.firstResponseAt = new Date();
+            t.firstResponseById = who.id ?? null;
+          }
+          this.setStatus(t, dto.status ?? (t.status === 'new' ? 'in_progress' : (t.status as 'in_progress')), who.name, who.id);
         } else if (dto.status) {
-          this.setStatus(t, dto.status, who.name);
+          this.setStatus(t, dto.status, who.name, who.id);
         }
         await em.save(t);
       });
@@ -286,7 +299,7 @@ export class SupportService {
   }
 
   async platformReply(actor: AuthUser, id: string, dto: MessageDto, file?: Express.Multer.File) {
-    await this.reply(id, dto, file, { side: 'platform', name: actor.fullName });
+    await this.reply(id, dto, file, { side: 'platform', name: actor.fullName, id: actor.id });
     return this.platformGet(id);
   }
 
@@ -295,8 +308,10 @@ export class SupportService {
       const t = await em.findOne(SupportTicket, { where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!t) throw new NotFoundException('الطلب غير موجود');
       if (t.status === 'closed') throw new BadRequestException('الطلب مغلق');
-      if (dto.status) this.setStatus(t, dto.status, actor.fullName);
+      const manager = actor.permissions.includes(SUPPORT_PERMISSIONS.manage);
+      if (dto.status) this.setStatus(t, dto.status, actor.fullName, actor.id);
       if (dto.priority && dto.priority !== t.priority) {
+        if (!manager) throw new ForbiddenException('تعديل مستوى الخدمة لمدير الدعم فقط');
         if (!dto.priorityReason || dto.priorityReason.length < 3) throw new BadRequestException('اكتب سبب تغيير مستوى الخدمة ليظهر للجمعية');
         // المهل تُعاد حسابها من وقت تقديم الطلب بالمستوى الجديد
         const lvl = this.level(await this.sla(em), dto.priority);
@@ -310,11 +325,15 @@ export class SupportService {
         }));
         t.priority = dto.priority;
       }
-      if (dto.assigneeId) {
+      if (dto.assigneeId && dto.assigneeId !== t.assigneeId) {
+        // موظف الدعم يستلم الطلب لنفسه فقط، والتوزيع على الآخرين لمدير الدعم
+        if (!manager && dto.assigneeId !== actor.id) throw new ForbiddenException('توزيع الطلبات على الفريق لمدير الدعم فقط');
+        if (!manager && t.assigneeId) throw new ForbiddenException('الطلب مسند لعضو آخر');
         const u = await em.findOne(User, { where: { id: dto.assigneeId, isPlatformAdmin: true, isActive: true } });
-        if (!u) throw new BadRequestException('المسؤول يجب أن يكون من فريق إدارة المنصة');
+        if (!u) throw new BadRequestException('المسؤول يجب أن يكون من فريق الدعم');
         t.assigneeId = u.id;
         t.assigneeName = u.fullName;
+        t.assignedAt = new Date();
         t.history = [...t.history, event('assigned', actor.fullName, u.fullName)];
       }
       await em.save(t);
@@ -335,9 +354,11 @@ export class SupportService {
     return this.platformGet(id);
   }
 
-  /** فريق المنصة (لإسناد الطلبات) */
+  /** فريق الدعم النشط (لإسناد الطلبات والمهام) */
   team() {
-    return this.db.getRepository(User).find({ where: { isPlatformAdmin: true, isActive: true }, select: { id: true, fullName: true } });
+    return this.db.getRepository(User).find({
+      where: { isPlatformAdmin: true, isActive: true }, select: { id: true, fullName: true, platformRole: true }, order: { fullName: 'ASC' },
+    });
   }
 
   // ---------- التقارير ----------

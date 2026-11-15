@@ -13,7 +13,8 @@ import { FileStore } from './files/file-store.service';
 import { ApplicationsService } from './subscriptions/applications.service';
 import { ContractsService } from './subscriptions/contracts.service';
 import { SUBSCRIPTION_ENTITIES } from './subscriptions/entities';
-import { OrgSupportController, PlatformSupportController } from './support/support.controller';
+import { OrgSupportController, SupportDeskController } from './support/support.controller';
+import { SupportDeskService } from './support/support-desk.service';
 import { SUPPORT_ENTITIES } from './support/support.entity';
 import { SupportService } from './support/support.service';
 import { RegistrationController } from './subscriptions/registration.controller';
@@ -45,11 +46,11 @@ import { UsersService } from './users/users.service';
   ],
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
-    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, PlatformSupportController,
+    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService],

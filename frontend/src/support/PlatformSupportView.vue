@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../api';
+import { useSession } from '../stores/session';
 import '../modules/platform/platform.css';
 import SlaBadge from './SlaBadge.vue';
 import { CATEGORY, PRIORITY, STATUS, fmtDT, type TicketSummary } from './support';
@@ -12,7 +13,8 @@ const rows = ref<TicketSummary[]>([]);
 const error = ref('');
 const status = ref<'open' | ''>('open');
 const priority = ref('');
-const quick = ref<'' | 'breached' | 'escalate' | 'unassigned'>('');
+const quick = ref<'' | 'breached' | 'escalate' | 'unassigned' | 'mine'>('');
+const myId = useSession().user?.id;
 const now = ref(Date.now());
 let timer: ReturnType<typeof setInterval>;
 
@@ -20,7 +22,7 @@ async function load() {
   try {
     const q = new URLSearchParams();
     if (status.value) q.set('status', status.value);
-    rows.value = await api<TicketSummary[]>(`/platform/support/tickets?${q}`);
+    rows.value = await api<TicketSummary[]>(`/support-desk/tickets?${q}`);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -38,6 +40,7 @@ const kpi = computed(() => ({
   breached: open.value.filter(breached).length,
   escalate: open.value.filter((t) => t.sla.needsEscalation).length,
   unassigned: open.value.filter((t) => !t.assigneeName).length,
+  mine: open.value.filter((t) => t.assigneeId === myId).length,
 }));
 const countBy = (p: string) => rows.value.filter((t) => t.priority === p).length;
 const shown = computed(() => rows.value.filter((t) => {
@@ -45,6 +48,7 @@ const shown = computed(() => rows.value.filter((t) => {
   if (quick.value === 'breached') return breached(t);
   if (quick.value === 'escalate') return t.sla.needsEscalation;
   if (quick.value === 'unassigned') return isOpen(t) && !t.assigneeName;
+  if (quick.value === 'mine') return t.assigneeId === myId;
   return true;
 }));
 </script>
@@ -53,11 +57,11 @@ const shown = computed(() => rows.value.filter((t) => {
   <div>
     <section class="p-hero">
       <div>
-        <p class="p-kicker">خدمة العملاء</p>
+        <p class="p-kicker">الدعم الفني</p>
         <h1>طلبات الصيانة</h1>
         <p class="p-sub">طلبات الجمعيات مرتبة حسب مستوى الخدمة ثم أقرب مهلة. ابدأ دائمًا بالأحمر، وصعّد ما تجاوز مهلته.</p>
       </div>
-      <RouterLink to="/platform/sla" class="btn btn-ghost-light">مستويات الخدمة وآلية التعامل</RouterLink>
+      <RouterLink to="/support-desk/sla" class="btn btn-ghost-light">مستويات الخدمة وآلية التعامل</RouterLink>
     </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
 
@@ -66,6 +70,7 @@ const shown = computed(() => rows.value.filter((t) => {
       <button :class="['kpi bad', { on: quick === 'breached', pulse: kpi.breached }]" @click="quick = 'breached'"><b>{{ kpi.breached }}</b><span>تجاوز المهلة</span></button>
       <button :class="['kpi warn', { on: quick === 'escalate', pulse: kpi.escalate }]" @click="quick = 'escalate'"><b>{{ kpi.escalate }}</b><span>يحتاج تصعيدًا</span></button>
       <button :class="['kpi', { on: quick === 'unassigned' }]" @click="quick = 'unassigned'"><b>{{ kpi.unassigned }}</b><span>بدون مسؤول</span></button>
+      <button :class="['kpi', { on: quick === 'mine' }]" @click="quick = 'mine'"><b>{{ kpi.mine }}</b><span>مسندة لي</span></button>
     </div>
 
     <div class="p-filters">
@@ -80,7 +85,7 @@ const shown = computed(() => rows.value.filter((t) => {
       <table class="table">
         <thead><tr><th>الطلب</th><th>الجمعية</th><th>المستوى</th><th>الحالة</th><th>المهل</th><th>المسؤول</th></tr></thead>
         <tbody>
-          <tr v-for="t in shown" :key="t.id" :class="['clickable', { hot: t.sla.needsEscalation }]" :style="{ '--c': PRIORITY[t.priority].color }" @click="router.push(`/platform/support/${t.id}`)">
+          <tr v-for="t in shown" :key="t.id" :class="['clickable', { hot: t.sla.needsEscalation }]" :style="{ '--c': PRIORITY[t.priority].color }" @click="router.push(`/support-desk/tickets/${t.id}`)">
             <td class="first"><b dir="ltr">{{ t.number }}</b> {{ t.subject }}<br /><small class="muted">{{ CATEGORY[t.category] }} · {{ fmtDT(t.createdAt) }}</small></td>
             <td>{{ t.organization?.name }}</td>
             <td><span class="prio">{{ PRIORITY[t.priority].label }}</span><span v-if="t.escalatedAt" class="tone tone-bad esc">مُصعّد</span></td>
@@ -96,7 +101,7 @@ const shown = computed(() => rows.value.filter((t) => {
 </template>
 
 <style scoped>
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 @media (max-width: 800px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
 .kpi { --k: var(--primary); text-align: start; border: 1px solid var(--border); background: var(--surface); border-radius: 16px; padding: 14px 16px; cursor: pointer; font: inherit; display: flex; flex-direction: column; gap: 2px; transition: all .2s var(--ease); }
 .kpi b { font-size: 1.8rem; color: var(--k); line-height: 1.1; }

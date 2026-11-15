@@ -14,7 +14,7 @@ interface Report {
 const r = ref<Report | null>(null);
 const error = ref('');
 onMounted(async () => {
-  try { r.value = await api<Report>('/platform/support/report'); } catch (e) { error.value = (e as Error).message; }
+  try { r.value = await api<Report>('/support-desk/report'); } catch (e) { error.value = (e as Error).message; }
 });
 const pct = (n: number | null) => (n === null ? '—' : `${n}%`);
 const tone = (n: number | null) => (n === null ? 'muted' : n >= 90 ? 'ok' : n >= 70 ? 'warn' : 'bad');
@@ -23,7 +23,7 @@ const max = (xs: { total: number }[]) => Math.max(1, ...xs.map((x) => x.total));
 
 <template>
   <div class="support-report">
-    <h2 class="title">🛠️ تقارير الدعم الفني ومستويات الخدمة</h2>
+    
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="r">
       <div class="nums">
@@ -71,7 +71,7 @@ const max = (xs: { total: number }[]) => Math.max(1, ...xs.map((x) => x.total));
         </section>
         <section class="card p-panel">
           <h2>تحتاج انتباهًا الآن</h2>
-          <RouterLink v-for="t in r.attention" :key="t.id" :to="`/platform/support/${t.id}`" class="att">
+          <RouterLink v-for="t in r.attention" :key="t.id" :to="`/support-desk/tickets/${t.id}`" class="att">
             <i :style="{ background: PRIORITY[t.priority].color }" />
             <span class="grow">{{ t.subject }}<small class="muted"> · {{ t.organization?.name }}</small></span>
             <span v-if="t.sla.needsEscalation" class="tone tone-bad">تصعيد</span>

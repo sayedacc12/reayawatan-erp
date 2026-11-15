@@ -5,10 +5,14 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { AuthUser, CurrentOrgUser, CurrentUser, OrgUser, RequirePermissions } from '../auth/decorators';
-import { CORE_PERMISSIONS, PLATFORM_PERMISSIONS } from '../core.manifest';
+import { CORE_PERMISSIONS } from '../core.manifest';
+import { SupportDeskService } from './support-desk.service';
+import { SUPPORT_PERMISSIONS } from './support.manifest';
 import { MAX_UPLOAD_BYTES } from '../files/file-store.service';
 import { NoteDto } from '../subscriptions/subscriptions.dto';
-import { CloseDto, CreateTicketDto, EscalateDto, MessageDto, SlaDto, UpdateTicketDto } from './support.dto';
+import {
+  CloseDto, CreateMemberDto, CreateTaskDto, CreateTicketDto, EscalateDto, LogHoursDto, MessageDto, SlaDto, UpdateMemberDto, UpdateTaskDto, UpdateTicketDto,
+} from './support.dto';
 import { SupportService } from './support.service';
 
 const attachment = () =>
@@ -77,11 +81,16 @@ export class OrgSupportController {
   }
 }
 
-/** صندوق طلبات الصيانة لدى مدير المنصة، ومستويات الخدمة */
-@Controller('platform/support')
-@RequirePermissions(PLATFORM_PERMISSIONS.supportManage)
-export class PlatformSupportController {
-  constructor(private readonly support: SupportService) {}
+/** تطبيق الدعم الفني لفريق المنصة: الطلبات والمهام والفريق والتقييم */
+@Controller('support-desk')
+@RequirePermissions(SUPPORT_PERMISSIONS.work)
+export class SupportDeskController {
+  constructor(private readonly support: SupportService, private readonly desk: SupportDeskService) {}
+
+  @Get('dashboard')
+  dashboard(@CurrentUser() actor: AuthUser) {
+    return this.desk.dashboard(actor);
+  }
 
   @Get('sla')
   sla() {
@@ -89,12 +98,14 @@ export class PlatformSupportController {
   }
 
   @Put('sla')
+  @RequirePermissions(SUPPORT_PERMISSIONS.manage)
   setSla(@Body() dto: SlaDto) {
     return this.support.setSla(dto.levels);
   }
 
-  @Get('team')
-  team() {
+  /** قائمة مختصرة للإسناد */
+  @Get('assignees')
+  assignees() {
     return this.support.team();
   }
 
@@ -130,8 +141,61 @@ export class PlatformSupportController {
     return sendFile(res, await this.support.attachment(id, messageId));
   }
 
+  // ---------- المهام ----------
+
+  @Get('tasks')
+  tasks(@CurrentUser() actor: AuthUser, @Query('scope') scope?: string, @Query('ticketId') ticketId?: string, @Query('assigneeId') assigneeId?: string) {
+    return this.desk.listTasks(actor, { scope, ticketId, assigneeId });
+  }
+
+  @Post('tasks')
+  createTask(@CurrentUser() actor: AuthUser, @Body() dto: CreateTaskDto) {
+    return this.desk.createTask(actor, dto);
+  }
+
+  @Get('tasks/:id')
+  task(@CurrentUser() actor: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.desk.getTask(actor, id);
+  }
+
+  @Patch('tasks/:id')
+  updateTask(@CurrentUser() actor: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTaskDto) {
+    return this.desk.updateTask(actor, id, dto);
+  }
+
+  @Post('tasks/:id/hours')
+  logHours(@CurrentUser() actor: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: LogHoursDto) {
+    return this.desk.logHours(actor, id, dto);
+  }
+
+  // ---------- الفريق والتقييم ----------
+
+  @Get('team')
+  @RequirePermissions(SUPPORT_PERMISSIONS.manage)
+  team() {
+    return this.desk.team();
+  }
+
+  @Post('team')
+  @RequirePermissions(SUPPORT_PERMISSIONS.manage)
+  addMember(@Body() dto: CreateMemberDto) {
+    return this.desk.createMember(dto);
+  }
+
+  @Patch('team/:id')
+  @RequirePermissions(SUPPORT_PERMISSIONS.manage)
+  updateMember(@CurrentUser() actor: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateMemberDto) {
+    return this.desk.updateMember(actor, id, dto);
+  }
+
+  @Get('performance')
+  @RequirePermissions(SUPPORT_PERMISSIONS.reports)
+  performance(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.desk.performance(from, to);
+  }
+
   @Get('report')
-  @RequirePermissions(PLATFORM_PERMISSIONS.reportsRead)
+  @RequirePermissions(SUPPORT_PERMISSIONS.reports)
   report() {
     return this.support.report();
   }

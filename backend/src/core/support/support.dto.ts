@@ -1,5 +1,7 @@
 import { Transform, Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsIn, IsISO8601, IsInt, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { IsValidPassword } from '../validation';
+import { PLATFORM_ROLES, PlatformRole } from './support.manifest';
 import { CATEGORIES, Category, PRIORITIES, Priority, TICKET_STATUSES } from './sla';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
@@ -81,4 +83,82 @@ export class SlaLevelDto {
 export class SlaDto {
   @IsArray() @ValidateNested({ each: true }) @Type(() => SlaLevelDto)
   levels!: SlaLevelDto[];
+}
+
+// ---------- المهام والتكليفات ----------
+
+export class CreateTaskDto {
+  @trim() @IsString() @MinLength(3, { message: 'اكتب عنوانًا للمهمة' }) @MaxLength(200)
+  title!: string;
+
+  @IsOptional() @trim() @IsString() @MaxLength(5000)
+  description?: string;
+
+  @emptyToUndefined() @IsOptional() @IsUUID('all', { message: 'الطلب غير صحيح' })
+  ticketId?: string;
+
+  @IsUUID('all', { message: 'اختر المكلَّف بالمهمة' })
+  assigneeId!: string;
+
+  @IsOptional() @IsIn(PRIORITIES, { message: 'الأولوية غير صحيحة' })
+  priority?: Priority;
+
+  /** موعد التسليم. إن تُرك: موعد حل الطلب المرتبط، أو مهلة الحل لمستوى الأولوية */
+  @emptyToUndefined() @IsOptional() @IsISO8601({}, { message: 'موعد التسليم غير صحيح' })
+  dueAt?: string;
+
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0.25) @Max(1000)
+  estimatedHours?: number;
+}
+
+export class UpdateTaskDto {
+  @IsOptional() @IsIn(['todo', 'in_progress', 'done', 'cancelled'], { message: 'الحالة غير صحيحة' })
+  status?: 'todo' | 'in_progress' | 'done' | 'cancelled';
+
+  @IsOptional() @IsUUID('all', { message: 'المكلَّف غير صحيح' })
+  assigneeId?: string;
+
+  @emptyToUndefined() @IsOptional() @IsISO8601({}, { message: 'موعد التسليم غير صحيح' })
+  dueAt?: string;
+
+  @IsOptional() @IsIn(PRIORITIES, { message: 'الأولوية غير صحيحة' })
+  priority?: Priority;
+
+  @IsOptional() @trim() @IsString() @MaxLength(1000)
+  note?: string;
+}
+
+export class LogHoursDto {
+  @Type(() => Number) @IsNumber() @Min(0.25, { message: 'أقل مدة ربع ساعة' }) @Max(24, { message: 'أكثر مدة 24 ساعة في المرة' })
+  hours!: number;
+
+  @IsOptional() @trim() @IsString() @MaxLength(1000)
+  note?: string;
+}
+
+// ---------- فريق الدعم ----------
+
+export class CreateMemberDto {
+  @trim() @IsString() @MinLength(2, { message: 'الاسم قصير جدًا' }) @MaxLength(200)
+  fullName!: string;
+
+  @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' })
+  email!: string;
+
+  @IsValidPassword()
+  password!: string;
+
+  @IsIn(PLATFORM_ROLES, { message: 'الدور غير صحيح' })
+  role!: PlatformRole;
+}
+
+export class UpdateMemberDto {
+  @IsOptional() @IsIn(PLATFORM_ROLES, { message: 'الدور غير صحيح' })
+  role?: PlatformRole;
+
+  @IsOptional() @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional() @IsValidPassword()
+  password?: string;
 }

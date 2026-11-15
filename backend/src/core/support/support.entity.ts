@@ -67,6 +67,9 @@ export class SupportTicket {
   @Column({ name: 'assignee_name', type: 'varchar', length: 200, nullable: true })
   assigneeName!: string | null;
 
+  @Column({ name: 'assigned_at', type: 'timestamptz', nullable: true })
+  assignedAt!: Date | null;
+
   @Column({ name: 'response_due_at', type: 'timestamptz' })
   responseDueAt!: Date;
 
@@ -75,6 +78,14 @@ export class SupportTicket {
 
   @Column({ name: 'first_response_at', type: 'timestamptz', nullable: true })
   firstResponseAt!: Date | null;
+
+  /** من قدّم أول رد (لتقييم الأداء) */
+  @Column({ name: 'first_response_by_id', type: 'uuid', nullable: true })
+  firstResponseById!: string | null;
+
+  /** من أنهى الطلب بالحل (لتقييم الأداء) */
+  @Column({ name: 'resolved_by_id', type: 'uuid', nullable: true })
+  resolvedById!: string | null;
 
   /** بداية انتظار رد الجمعية (تتوقف المهل) */
   @Column({ name: 'waiting_since', type: 'timestamptz', nullable: true })
@@ -143,4 +154,81 @@ export class SupportMessage {
   createdAt!: Date;
 }
 
-export const SUPPORT_ENTITIES = [SupportTicket, SupportMessage];
+export type TaskStatus = 'todo' | 'in_progress' | 'done' | 'cancelled';
+export const TASK_STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done', 'cancelled'];
+
+export interface TaskEvent { step: 'created' | 'assigned' | 'status' | 'hours' | 'due' | 'comment'; by: string; byId?: string; at: string; note?: string; hours?: number }
+
+/**
+ * مهمة عمل لفريق الدعم: تكليف لعضو بمهلة، مرتبط بطلب صيانة أو مستقل
+ * (مثل: إصلاح خلل، مراجعة سجلات، تدريب جمعية). تُسجَّل عليها ساعات العمل.
+ */
+@Entity('support_tasks')
+@Index(['assigneeId', 'status'])
+export class SupportTask {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  /** رقم المهمة مثل TK-2026-0001 */
+  @Index({ unique: true })
+  @Column({ length: 32 })
+  number!: string;
+
+  @Index()
+  @Column({ name: 'ticket_id', type: 'uuid', nullable: true })
+  ticketId!: string | null;
+
+  @ManyToOne(() => SupportTicket, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'ticket_id' })
+  ticket!: SupportTicket | null;
+
+  @Column({ length: 200 })
+  title!: string;
+
+  @Column({ type: 'text', default: '' })
+  description!: string;
+
+  @Column({ type: 'varchar', length: 24 })
+  priority!: Priority;
+
+  @Column({ type: 'varchar', length: 24, default: 'todo' })
+  status!: TaskStatus;
+
+  @Column({ name: 'assignee_id', type: 'uuid' })
+  assigneeId!: string;
+
+  @Column({ name: 'assignee_name', length: 200 })
+  assigneeName!: string;
+
+  @Column({ name: 'created_by_id', type: 'uuid' })
+  createdById!: string;
+
+  @Column({ name: 'created_by_name', length: 200 })
+  createdByName!: string;
+
+  @Column({ name: 'due_at', type: 'timestamptz' })
+  dueAt!: Date;
+
+  @Column({ name: 'estimated_hours', type: 'numeric', precision: 7, scale: 2, nullable: true, transformer: { to: (v) => v, from: (v) => (v === null ? null : Number(v)) } })
+  estimatedHours!: number | null;
+
+  @Column({ name: 'spent_hours', type: 'numeric', precision: 7, scale: 2, default: 0, transformer: { to: (v) => v, from: (v) => Number(v) } })
+  spentHours!: number;
+
+  @Column({ name: 'started_at', type: 'timestamptz', nullable: true })
+  startedAt!: Date | null;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt!: Date | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  history!: TaskEvent[];
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+export const SUPPORT_ENTITIES = [SupportTicket, SupportMessage, SupportTask];
