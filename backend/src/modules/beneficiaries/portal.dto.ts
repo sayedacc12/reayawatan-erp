@@ -19,7 +19,7 @@ export class PortalRegisterDto {
   @clean() @Matches(/^[0-9]{5,20}$/, { message: 'رقم الهوية أرقام فقط (من 5 إلى 20 رقم)' })
   nationalId!: string;
 
-  @clean() @Matches(/^\+?[0-9 -]{6,20}$/, { message: 'رقم الموبايل غير صحيح' })
+  @clean() @Matches(/^\+?[0-9 -]{6,20}$/, { message: 'رقم الجوال غير صحيح' })
   phone!: string;
 
   @IsIn(GENDERS, { message: 'اختر النوع' })
@@ -47,7 +47,7 @@ export class PortalLoginDto {
 }
 
 export class PortalProfileDto {
-  @IsOptional() @clean() @Matches(/^\+?[0-9 -]{6,20}$/, { message: 'رقم الموبايل غير صحيح' })
+  @IsOptional() @clean() @Matches(/^\+?[0-9 -]{6,20}$/, { message: 'رقم الجوال غير صحيح' })
   phone?: string;
 
   @IsOptional() @clean() @Matches(/^\+?[0-9 -]{6,20}$/, { message: 'الرقم الإضافي غير صحيح' })
@@ -76,7 +76,7 @@ export class PortalRequestDto {
 
 /** إثبات المساهمة: المبلغ المدفوع (الملف في multipart) */
 export class ContributionDto {
-  @Type(() => Number) @IsNumber({}, { message: 'اكتب المبلغ اللي دفعته' }) @Min(0.01, { message: 'اكتب المبلغ اللي دفعته' })
+  @Type(() => Number) @IsNumber({}, { message: 'أدخل المبلغ الذي دفعته' }) @Min(0.01, { message: 'أدخل المبلغ الذي دفعته' })
   amount!: number;
 }
 

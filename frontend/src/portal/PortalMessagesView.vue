@@ -23,7 +23,7 @@ async function send() {
   error.value = '';
   try {
     await portalApi('/tickets', { method: 'POST', json: form });
-    toast.success('تم إرسال رسالتك، وهيظهر رد الجمعية هنا');
+    toast.success('تم إرسال رسالتك، وسيظهر رد الجمعية هنا');
     Object.assign(form, { subject: '', message: '', requestId: null });
     await load();
   } catch (e) {

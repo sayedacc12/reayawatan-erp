@@ -35,14 +35,14 @@ const progress = (r: PortalRequestRow) => {
     <section class="welcome">
       <div>
         <h1>أهلًا {{ name.split(' ')[0] }} 👋</h1>
-        <p class="muted">هنا تقدر تتابع كل طلباتك ومرحلة كل طلب.</p>
+        <p class="muted">هنا يمكنك متابعة جميع طلباتك ومرحلة كل طلب.</p>
       </div>
       <RouterLink :to="`/portal/${slug}/apply`" class="btn btn-primary big">+ تقديم طلب جديد</RouterLink>
     </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="rows && !rows.length" class="card empty">
       <div class="art">🌾</div>
-      <p>لسه ما قدمتش أي طلب.</p>
+      <p>لم تقدّم أي طلب بعد.</p>
       <RouterLink :to="`/portal/${slug}/apply`" class="btn btn-primary">قدّم أول طلب</RouterLink>
     </div>
     <div class="list">
@@ -55,7 +55,7 @@ const progress = (r: PortalRequestRow) => {
         <p class="muted small">
           <template v-if="r.status === 'in_progress' && r.contributionStatus === 'awaiting'"><b class="need">💰 مطلوب منك رفع إثبات مساهمتك</b></template>
           <template v-else-if="r.status === 'in_progress'">المرحلة الحالية: <b>{{ r.stage }}</b> ({{ r.stageIndex }} من {{ r.stageCount }})</template>
-          <template v-else-if="r.status === 'returned'">⚠ الطلب محتاج منك استكمال بيانات، افتحه وشوف المطلوب</template>
+          <template v-else-if="r.status === 'returned'">⚠ يحتاج الطلب إلى استكمال بيانات، افتحه لمعرفة المطلوب</template>
           <template v-else-if="r.status === 'approved'">🎉 تم اعتماد طلبك</template>
           <template v-else>آخر تحديث {{ fmtDateTime(r.updatedAt) }}</template>
         </p>

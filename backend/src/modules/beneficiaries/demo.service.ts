@@ -73,12 +73,16 @@ export class DemoService {
     const perms = (codes: string[]) => em.find(Permission, { where: { code: In(codes) } });
 
     const researcherRole = await em.save(em.create(Role, {
-      organizationId: orgId, name: 'باحث اجتماعي', description: 'يجري البحث الميداني ويعبّي نموذج البحث',
+      organizationId: orgId, name: 'باحث اجتماعي', description: 'يجري البحث الميداني ويعبّئ نموذج البحث',
       permissions: await perms([P.read, P.requestsRead, P.requestsProcess, P.research]),
+    }));
+    const qualityRole = await em.save(em.create(Role, {
+      organizationId: orgId, name: 'مراجع الجودة', description: 'يراجع نماذج المراحل وأكوادها حسب دليل الجودة ISO 9001',
+      permissions: await perms([P.formsReview]),
     }));
     const managerRole = await em.save(em.create(Role, {
       organizationId: orgId, name: 'مدير الحالات', description: 'يراجع الطلبات ويعتمدها نهائيًا ويصرف المساعدات',
-      permissions: await perms([P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsReview, P.formsApprove]),
+      permissions: await perms([P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove]),
     }));
     const user = (fullName: string, email: string, extra: Partial<User>) => em.save(em.create(User, {
       organizationId: orgId, fullName, email, passwordHash: hash, ...extra,
@@ -86,9 +90,10 @@ export class DemoService {
     const admin = await user('مدير الجمعية التجريبية', 'demo-admin@sanabelerp.com', { isSuperadmin: true });
     await user('منى عبد الرحمن', 'demo-researcher@sanabelerp.com', { roles: [researcherRole] });
     await user('خالد إبراهيم', 'demo-manager@sanabelerp.com', { roles: [managerRole] });
+    await user('هبة سمير', 'demo-quality@sanabelerp.com', { roles: [qualityRole] });
 
     const appForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, ...approvedDemo('QF-BEN-01'), name: 'نموذج بيانات الطلب', description: 'يعبّيه المستفيد عند التقديم',
+      organizationId: orgId, ...approvedDemo('QF-BEN-01'), name: 'نموذج بيانات الطلب', description: 'يعبّئه المستفيد عند التقديم',
       fields: normalizeFields([
         { key: 'reason', label: 'سبب الطلب', type: 'textarea', required: true, placeholder: 'اشرح ظروفك باختصار' },
         { key: 'members', label: 'عدد أفراد الأسرة', type: 'number', required: true },
@@ -97,7 +102,7 @@ export class DemoService {
       ]),
     }));
     const researchForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, ...approvedDemo('QF-BEN-02'), name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية، والنظام بيحسب نتيجة التقييم',
+      organizationId: orgId, ...approvedDemo('QF-BEN-02'), name: 'نموذج البحث الاجتماعي', description: 'يعبّئه الباحث بعد الزيارة الميدانية، ويحسب النظام نتيجة التقييم',
       scored: true,
       fields: normalizeFields([
         { key: 'visit_date', label: 'تاريخ الزيارة', type: 'date', required: true },
@@ -123,7 +128,7 @@ export class DemoService {
       { name: 'مراجعة الطلب', instructions: 'تأكد من اكتمال البيانات والمستندات', roleId: managerRole.id, canReject: true },
       { name: 'البحث الاجتماعي', instructions: 'زيارة ميدانية وتعبئة نموذج البحث', formId: researchForm.id, roleId: researcherRole.id },
       { name: 'لجنة الحالات', instructions: 'مناقشة الحالة وتحديد نوع المساعدة' },
-      { name: 'تأكيد مساهمة المستفيد', kind: 'contribution' as const, instructions: 'راجع إثبات المساهمة اللي رفعه المستفيد من البوابة', roleId: managerRole.id },
+      { name: 'تأكيد مساهمة المستفيد', kind: 'contribution' as const, instructions: 'راجع إثبات المساهمة الذي رفعه المستفيد من البوابة', roleId: managerRole.id },
       { name: 'الاعتماد النهائي', instructions: 'اعتماد الطلب من مدير الحالات', roleId: managerRole.id },
     ];
     for (const [i, s] of stages.entries()) {
@@ -173,6 +178,7 @@ export class DemoService {
         { role: 'مدير الجمعية (كل الصلاحيات)', email: admin.email },
         { role: 'باحث اجتماعي', email: 'demo-researcher@sanabelerp.com' },
         { role: 'مدير الحالات', email: 'demo-manager@sanabelerp.com' },
+        { role: 'مراجع الجودة', email: 'demo-quality@sanabelerp.com' },
       ],
     };
   }
@@ -181,16 +187,16 @@ export class DemoService {
     const portalHash = await bcrypt.hash(portalPassword, 12);
     const repo = this.db.getRepository(Beneficiary);
     const people = [
-      { fullName: 'فاطمة السيد عبد الله', nationalId: '28503121401234', gender: 'female', category: 'widow', maritalStatus: 'widowed', city: 'القاهرة', monthlyIncome: 900, housingType: 'rented', monthlyRent: 700, portal: true,
+      { fullName: 'فاطمة السيد عبد الله', nationalId: '28503121401234', gender: 'female', category: 'widow', maritalStatus: 'widowed', city: 'الرياض', monthlyIncome: 900, housingType: 'rented', monthlyRent: 700, portal: true,
         family: [['يوسف', 'ابن', 'male', '2014-03-02', 'الصف الخامس'], ['مريم', 'ابنة', 'female', '2017-09-10', 'الصف الثاني']] },
-      { fullName: 'محمد عبد العزيز حسن', nationalId: '27011051402345', gender: 'male', category: 'patient', maritalStatus: 'married', city: 'الجيزة', monthlyIncome: 1500, housingType: 'owned', portal: true,
+      { fullName: 'محمد عبد العزيز حسن', nationalId: '27011051402345', gender: 'male', category: 'patient', maritalStatus: 'married', city: 'جدة', monthlyIncome: 1500, housingType: 'owned', portal: true,
         family: [['سعاد', 'زوجة', 'female', '1975-01-20', 'ربة منزل']] },
-      { fullName: 'أمينة محمود رمضان', nationalId: '29208201403456', gender: 'female', category: 'orphan', maritalStatus: 'single', city: 'الإسكندرية', monthlyIncome: 0, housingType: 'shared', portal: true,
-        family: [['آدم', 'أخ', 'male', '2012-06-15', 'إعدادي'], ['هبة', 'أخت', 'female', '2010-11-01', 'ثانوي']] },
-      { fullName: 'سامي فتحي إبراهيم', nationalId: '26505101404567', gender: 'male', category: 'elderly', maritalStatus: 'widowed', city: 'القاهرة', monthlyIncome: 1200, housingType: 'rented', monthlyRent: 500, portal: true, family: [] },
-      { fullName: 'نادية حسين علي', nationalId: '28807071405678', gender: 'female', category: 'poor_family', maritalStatus: 'divorced', city: 'طنطا', monthlyIncome: 1100, housingType: 'rented', monthlyRent: 600, portal: true,
-        family: [['عمر', 'ابن', 'male', '2011-02-12', 'إعدادي'], ['ليلى', 'ابنة', 'female', '2015-08-08', 'ابتدائي'], ['سلمى', 'ابنة', 'female', '2019-04-04', 'حضانة']] },
-      { fullName: 'كريم أحمد مصطفى', nationalId: '20103031406789', gender: 'male', category: 'student', maritalStatus: 'single', city: 'المنصورة', monthlyIncome: 0, housingType: 'shared', portal: false, family: [] },
+      { fullName: 'أمينة محمود رمضان', nationalId: '29208201403456', gender: 'female', category: 'orphan', maritalStatus: 'single', city: 'مكة المكرمة', monthlyIncome: 0, housingType: 'shared', portal: true,
+        family: [['آدم', 'أخ', 'male', '2012-06-15', 'متوسط'], ['هبة', 'أخت', 'female', '2010-11-01', 'ثانوي']] },
+      { fullName: 'سامي فتحي إبراهيم', nationalId: '26505101404567', gender: 'male', category: 'elderly', maritalStatus: 'widowed', city: 'الرياض', monthlyIncome: 1200, housingType: 'rented', monthlyRent: 500, portal: true, family: [] },
+      { fullName: 'نادية حسين علي', nationalId: '28807071405678', gender: 'female', category: 'poor_family', maritalStatus: 'divorced', city: 'الدمام', monthlyIncome: 1100, housingType: 'rented', monthlyRent: 600, portal: true,
+        family: [['عمر', 'ابن', 'male', '2011-02-12', 'متوسط'], ['ليلى', 'ابنة', 'female', '2015-08-08', 'ابتدائي'], ['سلمى', 'ابنة', 'female', '2019-04-04', 'حضانة']] },
+      { fullName: 'كريم أحمد مصطفى', nationalId: '20103031406789', gender: 'male', category: 'student', maritalStatus: 'single', city: 'المدينة المنورة', monthlyIncome: 0, housingType: 'shared', portal: false, family: [] },
     ] as const;
 
     const ids: string[] = [];
@@ -223,15 +229,15 @@ export class DemoService {
     // 1) معتمد نهائيًا ومصروف عليه
     const r1 = await submit(0, setup.projects.widows, 'أرملة وأعول طفلين والإيجار أكبر من دخلي', 3, 1000);
     await decide(r1, 'approve', 'البيانات مكتملة');
-    await decide(r1, 'approve', 'تمت الزيارة', research('عالية', 'كفالة شهرية 1000 جنيه'));
+    await decide(r1, 'approve', 'تمت الزيارة', research('عالية', 'كفالة شهرية 1000 ريال'));
     await decide(r1, 'approve', 'وافقت اللجنة على كفالة شهرية');
     await decide(r1, 'approve', 'اعتماد نهائي');
     await this.beneficiaries.addAid(setup.actor, ids[0], { aidType: 'cash', amount: 1000, disbursedOn: daysAgo(2), description: 'كفالة شهر', referenceNo: 'R-1001', requestId: r1 });
 
     // 2) علاج: الباحث قيّمه "مستحق بنسبة" 70% على الجمعية و30% على المستفيد، ومستني يرفع إثبات المساهمة من البوابة
-    const r2 = await submit(1, setup.projects.surgery, 'محتاج عملية قلب مفتوح والتأمين لا يغطي', 2, 25000, ['عملية جراحية']);
+    const r2 = await submit(1, setup.projects.surgery, 'أحتاج إلى عملية قلب مفتوح والتأمين لا يغطيها', 2, 25000, ['عملية جراحية']);
     await decide(r2, 'approve');
-    await decide(r2, 'approve', undefined, research('متوسطة', 'الأسرة تقدر تساهم بجزء من التكلفة', 'متوسطة', false, 70));
+    await decide(r2, 'approve', undefined, research('متوسطة', 'تستطيع الأسرة المساهمة بجزء من التكلفة', 'متوسطة', false, 70));
     await decide(r2, 'approve', 'الجمعية تتحمل 70% والمستفيد 30%');
 
     // 3) في مرحلة البحث الاجتماعي
@@ -240,26 +246,26 @@ export class DemoService {
 
     // 4) راجع لمقدم الطلب لاستكمال البيانات
     const r4 = await submit(3, setup.projects.ramadan, 'مسن وأعيش وحدي', 1);
-    await decide(r4, 'return', 'برجاء رفع صورة البطاقة وإيصال المعاش');
+    await decide(r4, 'return', 'نرجو رفع صورة الهوية وإيصال المعاش');
 
     // 5) في لجنة الحالات
-    const r5 = await submit(4, setup.projects.school, 'ثلاثة أطفال في المدارس ومحتاجة أدوات', 4, 1500, ['حقيبة مدرسية', 'مصروفات دراسية']);
+    const r5 = await submit(4, setup.projects.school, 'لديّ ثلاثة أطفال في المدارس وأحتاج إلى أدوات مدرسية', 4, 1500, ['حقيبة مدرسية', 'مصروفات دراسية']);
     await decide(r5, 'approve');
     await decide(r5, 'approve', undefined, research('متوسطة', 'حقيبة مدرسية لكل طفل'));
 
     // 6) مرفوض
-    const r6 = await submit(5, setup.projects.school, 'طالب جامعي ومحتاج مصاريف', 1, 3000, ['مصروفات دراسية']);
+    const r6 = await submit(5, setup.projects.school, 'طالب جامعي وأحتاج إلى مصاريف دراسية', 1, 3000, ['مصروفات دراسية']);
     await decide(r6, 'reject', 'المشروع مخصص لطلاب المدارس فقط، يمكن التقديم على منحة الجامعة لاحقًا');
 
     // 7) طلب جديد في أول مرحلة
-    await submit(4, setup.projects.ramadan, 'محتاجة سلة رمضان للأسرة', 4);
+    await submit(4, setup.projects.ramadan, 'أحتاج إلى سلة رمضان للأسرة', 4);
 
     const tickets = this.db.getRepository(Ticket);
     await tickets.save([
-      { organizationId: orgId, ticketNo: 1, beneficiaryId: ids[0], type: 'inquiry', subject: 'موعد صرف الكفالة', message: 'إمتى بيتم صرف الكفالة كل شهر؟', status: 'answered',
-        reply: 'الصرف أول أسبوع من كل شهر من مقر الجمعية', repliedByName: setup.managerName, repliedAt: new Date() },
-      { organizationId: orgId, ticketNo: 2, beneficiaryId: ids[3], type: 'complaint', subject: 'تأخر الرد على الطلب', message: 'قدمت من أسبوع ومحدش كلمني', status: 'open' },
-      { organizationId: orgId, ticketNo: 3, beneficiaryId: ids[4], type: 'suggestion', subject: 'مواعيد مسائية', message: 'ياريت يكون فيه مواعيد مسائية لاستلام المساعدات', status: 'open' },
+      { organizationId: orgId, ticketNo: 1, beneficiaryId: ids[0], type: 'inquiry', subject: 'موعد صرف الكفالة', message: 'متى يتم صرف الكفالة كل شهر؟', status: 'answered',
+        reply: 'يتم الصرف في الأسبوع الأول من كل شهر من مقر الجمعية', repliedByName: setup.managerName, repliedAt: new Date() },
+      { organizationId: orgId, ticketNo: 2, beneficiaryId: ids[3], type: 'complaint', subject: 'تأخر الرد على الطلب', message: 'قدّمت طلبي منذ أسبوع ولم يتواصل معي أحد', status: 'open' },
+      { organizationId: orgId, ticketNo: 3, beneficiaryId: ids[4], type: 'suggestion', subject: 'مواعيد مسائية', message: 'أقترح توفير مواعيد مسائية لاستلام المساعدات', status: 'open' },
     ]);
 
     return people.filter((p) => p.portal).map((p) => ({ fullName: p.fullName, nationalId: p.nationalId }));

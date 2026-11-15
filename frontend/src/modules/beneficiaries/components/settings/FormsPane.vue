@@ -7,6 +7,8 @@ import { FIELD_TYPES, OUTCOMES, color, label, scoreOf } from '../../labels';
 import type { DynamicForm, FormField, ScoreRule, WorkflowRow } from '../../types';
 import DynamicFields from '../DynamicFields.vue';
 
+/** approval = شاشة "اعتماد النماذج" لمراجع الجودة ومدير الشاشة: عرض ومراجعة واعتماد فقط */
+const props = withDefaults(defineProps<{ mode?: 'manage' | 'approval' }>(), { mode: 'manage' });
 const toast = useToast();
 const session = useSession();
 const canApprove = computed(() => session.can('beneficiaries.forms.approve'));
@@ -22,8 +24,8 @@ const flowState = (f: DynamicForm, i: number) => {
   const at = ORDER.indexOf(f.status ?? 'approved');
   return at > i ? 'done' : at === i ? 'now' : 'todo';
 };
-const STATUS_TEXT: Record<string, string> = { draft: '✎ مسودة', review: '⚑ عند مراجع الجودة', reviewed: '⏳ مستني اعتماد مدير الشاشة', approved: '✓ معتمد' };
-const STEP_TEXT: Record<string, string> = { created: 'إنشاء النموذج', edited: 'تعديل (رجع مسودة)', submitted: 'إرسال للمراجعة', reviewed: 'مراجعة الجودة', approved: 'اعتماد مدير الشاشة', returned: 'إرجاع للمسودة' };
+const STATUS_TEXT: Record<string, string> = { draft: '✎ مسودة', review: '⚑ عند مراجع الجودة', reviewed: '⏳ بانتظار اعتماد مدير الشاشة', approved: '✓ معتمد' };
+const STEP_TEXT: Record<string, string> = { created: 'إنشاء النموذج', edited: 'تعديل (أُعيد إلى المسودة)', submitted: 'إرسال للمراجعة', reviewed: 'مراجعة الجودة', approved: 'اعتماد مدير الشاشة', returned: 'إرجاع للمسودة' };
 const rev = (n?: number) => `Rev.${String(n ?? 0).padStart(2, '0')}`;
 const fmt = (d: string) => new Date(d).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
 const showHistory = ref<string | null>(null);
@@ -33,6 +35,13 @@ const error = ref('');
 
 async function load() {
   try {
+    if (props.mode === 'approval') {
+      const all = await api<DynamicForm[]>('/beneficiaries/settings/forms');
+      // النماذج اللي مستنية إجراء من المستخدم الحالي تظهر الأول
+      const mine = (f: DynamicForm) => (f.status === 'review' && canReview.value) || (f.status === 'reviewed' && canApprove.value);
+      forms.value = [...all.filter(mine), ...all.filter((f) => !mine(f))];
+      return;
+    }
     [forms.value, workflows.value] = await Promise.all([
       api<DynamicForm[]>('/beneficiaries/settings/forms'),
       api<WorkflowRow[]>('/beneficiaries/settings/workflows'),
@@ -109,11 +118,11 @@ async function save() {
   formError.value = '';
   try {
     if (!editing.value && (!target.workflowId || !target.stageId)) {
-      formError.value = 'لازم تختار سير العمل والمرحلة اللي النموذج هيتعمل عليها';
+      formError.value = 'اختر سير العمل والمرحلة التي سيرتبط بها النموذج';
       return;
     }
     if (!weightOk.value) {
-      formError.value = `إجمالي الأهمية النسبية لازم يكون 100%، الإجمالي دلوقتي ${totalWeight.value}%`;
+      formError.value = `يجب أن يساوي إجمالي الأهمية النسبية 100%، والإجمالي الحالي ${totalWeight.value}%`;
       return;
     }
     const body = {
@@ -128,16 +137,16 @@ async function save() {
     }
     const wasApproved = !!editing.value && editing.value.status !== 'draft';
     open.value = false;
-    toast.success(wasApproved ? 'تم الحفظ، والنموذج رجع مسودة. ابعته للمراجعة تاني' : 'تم حفظ النموذج كمسودة. ابعته للمراجعة لما يخلص');
+    toast.success(wasApproved ? 'تم الحفظ وأُعيد النموذج إلى المسودة. أرسله للمراجعة مرة أخرى' : 'تم حفظ النموذج مسودةً. أرسله للمراجعة عند اكتماله');
     await load();
   } catch (e) {
     formError.value = (e as Error).message;
   }
 }
 const ACTIONS = {
-  submit: { ask: 'إرسال النموذج "%s" لمراجع الجودة؟', done: 'اتبعت لمراجع الجودة' },
-  review: { ask: 'تأكيد مراجعة الجودة للنموذج "%s"؟ هيروح لمدير الشاشة يعتمده.', done: 'تمت مراجعة الجودة' },
-  approve: { ask: 'اعتماد النموذج "%s"؟ بعد الاعتماد المرحلة اللي عليه مش هتتحذف.', done: 'تم اعتماد النموذج' },
+  submit: { ask: 'إرسال النموذج "%s" لمراجع الجودة؟', done: 'تم الإرسال إلى مراجع الجودة' },
+  review: { ask: 'تأكيد مراجعة الجودة للنموذج "%s"؟ سيُحال إلى مدير الشاشة لاعتماده.', done: 'تمت مراجعة الجودة' },
+  approve: { ask: 'اعتماد النموذج "%s"؟ بعد الاعتماد لن يمكن حذف المرحلة المرتبطة به.', done: 'تم اعتماد النموذج' },
 } as const;
 async function act(f: DynamicForm, action: keyof typeof ACTIONS) {
   if (!confirm(ACTIONS[action].ask.replace('%s', f.name))) return;
@@ -150,11 +159,11 @@ async function act(f: DynamicForm, action: keyof typeof ACTIONS) {
   }
 }
 async function sendBack(f: DynamicForm) {
-  const note = prompt(`سبب إرجاع "${f.name}" للمسودة:`);
+  const note = prompt(`سبب إعادة "${f.name}" إلى المسودة:`);
   if (!note?.trim()) return;
   try {
     await api(`/beneficiaries/settings/forms/${f.id}/return`, { method: 'POST', json: { note } });
-    toast.success('النموذج رجع مسودة');
+    toast.success('أُعيد النموذج إلى المسودة');
     await load();
   } catch (e) {
     toast.error((e as Error).message);
@@ -175,8 +184,9 @@ async function remove(f: DynamicForm) {
 <template>
   <section>
     <div class="pane-head">
-      <p class="muted">كل نموذج بيتعمل على مرحلة من مراحل سير العمل أو على تقديم الطلب، وليه كود جودة (ISO 9001) ورقم إصدار. النموذج بيعدّي على: إنشاء ← مراجعة الجودة ← اعتماد مدير الشاشة، ومايشتغلش غير بعد الاعتماد.</p>
-      <button class="btn btn-primary btn-sm" @click="openForm()">+ نموذج جديد</button>
+      <p v-if="mode === 'approval'" class="muted">النماذج التي تنتظر إجراءً منك تظهر أولًا. يراجع مراجع الجودة النموذج وكوده وفق دليل الجودة (ISO 9001)، ثم يعتمده مدير الشاشة، ويمكن لكل منهما إعادته إلى المسودة مع ذكر السبب.</p>
+      <p v-else class="muted">يرتبط كل نموذج بمرحلة من مراحل سير العمل أو بتقديم الطلب، وله كود جودة (ISO 9001) ورقم إصدار. يمر النموذج بالخطوات: إنشاء ← مراجعة الجودة ← اعتماد مدير الشاشة، ولا يُعمل به إلا بعد الاعتماد.</p>
+      <button v-if="mode === 'manage'" class="btn btn-primary btn-sm" @click="openForm()">+ نموذج جديد</button>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <p v-if="!forms.length && !error" class="card empty">لا توجد نماذج بعد.</p>
@@ -198,12 +208,12 @@ async function remove(f: DynamicForm) {
           <span v-for="(r, j) in f.rules" :key="j" class="rchip" :style="{ '--c': color('outcome', r.outcome) }">{{ r.min }}–{{ r.max }}%: {{ label('outcome', r.outcome) }}<template v-if="r.contributionPercent"> {{ r.contributionPercent }}%</template></span>
         </div>
         <div class="acts">
-          <button v-if="f.status === 'draft'" class="btn btn-sm btn-primary" @click="act(f, 'submit')">إرسال للمراجعة</button>
+          <button v-if="f.status === 'draft' && mode === 'manage'" class="btn btn-sm btn-primary" @click="act(f, 'submit')">إرسال للمراجعة</button>
           <button v-if="f.status === 'review' && canReview" class="btn btn-sm btn-primary" @click="act(f, 'review')">تمت مراجعة الجودة</button>
           <button v-if="f.status === 'reviewed' && canApprove" class="btn btn-sm btn-primary" @click="act(f, 'approve')">اعتماد</button>
           <button v-if="(f.status === 'review' && canReview) || (f.status === 'reviewed' && canApprove)" class="btn btn-sm" @click="sendBack(f)">إرجاع</button>
-          <button class="btn btn-sm" @click="openForm(f)">تعديل</button>
-          <button v-if="f.status !== 'approved' && !f.history?.some((h) => h.step === 'approved')" class="btn btn-sm btn-danger" @click="remove(f)">حذف</button>
+          <button v-if="mode === 'manage'" class="btn btn-sm" @click="openForm(f)">تعديل</button>
+          <button v-if="mode === 'manage' && f.status !== 'approved' && !f.history?.some((h) => h.step === 'approved')" class="btn btn-sm btn-danger" @click="remove(f)">حذف</button>
           <button v-if="f.history?.length" class="btn btn-sm hbtn" @click="showHistory = showHistory === f.id ? null : f.id">سجل الاعتماد</button>
         </div>
         <ol v-if="showHistory === f.id" class="hist">
@@ -220,38 +230,38 @@ async function remove(f: DynamicForm) {
       <div class="card modal builder">
         <h2 class="mt">{{ editing ? 'تعديل النموذج' : 'نموذج جديد' }}</h2>
         <div v-if="formError" class="alert alert-error">{{ formError }}</div>
-        <div v-if="editing && editing.status !== 'draft'" class="alert alert-warn">النموذج ده {{ editing.status === 'approved' ? 'معتمد' : 'في مسار الاعتماد' }}. أي تعديل هيرجّعه مسودة، ولازم يعدّي على مراجعة الجودة واعتماد مدير الشاشة من الأول، ولحد كده قرارات المرحلة هتقف.</div>
+        <div v-if="editing && editing.status !== 'draft'" class="alert alert-warn">هذا النموذج {{ editing.status === 'approved' ? 'معتمد' : 'في مسار الاعتماد' }}. أي تعديل سيعيده إلى المسودة، ويجب أن يمر بمراجعة الجودة واعتماد مدير الشاشة من جديد، وتتوقف قرارات المرحلة حتى ذلك الحين.</div>
         <div v-if="!editing" class="target">
-          <p class="sec">النموذج ده هيتعمل على</p>
+          <p class="sec">سيرتبط هذا النموذج بـ</p>
           <div class="two">
             <div class="field"><label>سير العمل *</label>
-              <select v-model="target.workflowId" form="form-builder" class="input" required @change="onWfChange"><option value="" disabled>اختار سير العمل</option><option v-for="w in workflows" :key="w.id" :value="w.id">{{ w.name }}</option></select>
+              <select v-model="target.workflowId" form="form-builder" class="input" required @change="onWfChange"><option value="" disabled>اختر سير العمل</option><option v-for="w in workflows" :key="w.id" :value="w.id">{{ w.name }}</option></select>
             </div>
             <div class="field"><label>المرحلة *</label>
               <select v-model="target.stageId" form="form-builder" class="input" required>
-                <option value="" disabled>اختار المرحلة</option>
-                <option value="application" :disabled="!!pickWf?.applicationFormId">تقديم الطلب (يعبّيه مقدم الطلب){{ pickWf?.applicationFormId ? ' · عليها نموذج' : '' }}</option>
-                <option v-for="(s, i) in pickWf?.stages ?? []" :key="s.id" :value="s.id" :disabled="!!s.formId">{{ i + 1 }}. {{ s.name }}{{ s.formId ? ` · عليها نموذج (${s.formName})` : '' }}</option>
+                <option value="" disabled>اختر المرحلة</option>
+                <option value="application" :disabled="!!pickWf?.applicationFormId">تقديم الطلب (يعبّئه مقدم الطلب){{ pickWf?.applicationFormId ? ' · مرتبط بنموذج' : '' }}</option>
+                <option v-for="(s, i) in pickWf?.stages ?? []" :key="s.id" :value="s.id" :disabled="!!s.formId">{{ i + 1 }}. {{ s.name }}{{ s.formId ? ` · مرتبطة بنموذج (${s.formName})` : '' }}</option>
               </select>
             </div>
           </div>
-          <p v-if="!workflows.length" class="muted small">لازم تعمل سير عمل الأول من تبويب "سير العمل".</p>
+          <p v-if="!workflows.length" class="muted small">أنشئ سير عمل أولًا من تبويب "سير العمل".</p>
         </div>
         <div class="cols">
           <form id="form-builder" class="bcol" @submit.prevent="save">
             <div class="namecode">
               <div class="field"><label>اسم النموذج *</label><input v-model="form.name" class="input" required placeholder="مثال: نموذج البحث الاجتماعي" /></div>
-              <div class="field"><label>كود الجودة (ISO 9001) *</label><input v-model="form.qualityCode" class="input ltr" required pattern="[A-Za-z0-9][A-Za-z0-9._/\-]{1,49}" title="حروف إنجليزي وأرقام وشرطة، مثال QF-BEN-01" placeholder="QF-BEN-01" /></div>
+              <div class="field"><label>كود الجودة (ISO 9001) *</label><input v-model="form.qualityCode" class="input ltr" required pattern="[A-Za-z0-9][A-Za-z0-9._/\-]{1,49}" title="حروف إنجليزية وأرقام وشَرطة، مثل QF-BEN-01" placeholder="QF-BEN-01" /></div>
             </div>
-            <p v-if="editing" class="muted small">الإصدار الحالي {{ rev(editing.revision) }}، وبعد الاعتماد الجاي هيبقى {{ editing.history?.some((h) => h.step === 'approved') ? rev((editing.revision ?? 0) + 1) : rev(0) }}.</p>
+            <p v-if="editing" class="muted small">الإصدار الحالي {{ rev(editing.revision) }}، وسيصبح بعد الاعتماد القادم {{ editing.history?.some((h) => h.step === 'approved') ? rev((editing.revision ?? 0) + 1) : rev(0) }}.</p>
             <div class="field"><label>الوصف</label><input v-model="form.description" class="input" /></div>
             <label class="scored-toggle">
               <input v-model="form.scored" type="checkbox" @change="toggleScored" />
-              <span><b>نموذج تقييم آلي</b><br /><small class="muted">كل بند ليه أهمية نسبية، والنظام بيحسب نتيجة من 100 ويقترح القرار ونسبة مساهمة المستفيد</small></span>
+              <span><b>نموذج تقييم آلي</b><br /><small class="muted">لكل بند أهمية نسبية، ويحسب النظام نتيجة من 100 ويقترح القرار ونسبة مساهمة المستفيد</small></span>
             </label>
             <div v-if="form.scored" :class="['wmeter', { ok: weightOk, over: totalWeight > 100 }]">
               <div class="wbar"><i :style="{ width: `${Math.min(totalWeight, 100)}%` }" /></div>
-              <span>إجمالي الأهمية النسبية: <b>{{ totalWeight }}%</b> <template v-if="!weightOk">(لازم يكون 100%)</template><template v-else>✓</template></span>
+              <span>إجمالي الأهمية النسبية: <b>{{ totalWeight }}%</b> <template v-if="!weightOk">(يجب أن يساوي 100%)</template><template v-else>✓</template></span>
             </div>
             <p class="sec">الحقول</p>
             <TransitionGroup name="list" tag="div" class="flist">
@@ -260,14 +270,14 @@ async function remove(f: DynamicForm) {
                   <input v-model="f.label" class="input" placeholder="اسم الحقل" required />
                   <select v-model="f.type" class="input type"><option v-for="t in FIELD_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option></select>
                 </div>
-                <textarea v-if="f.type === 'select'" v-model="f.optionsText" class="input" rows="2" placeholder="الخيارات: كل خيار في سطر" required />
+                <textarea v-if="f.type === 'select'" v-model="f.optionsText" class="input" rows="2" placeholder="الخيارات: كل خيار في سطر مستقل" required />
                 <div v-if="form.scored && scorable(f)" class="wrow">
                   <label class="wlabel">الأهمية النسبية <input v-model.number="f.weight" type="number" min="0" max="100" step="0.01" class="input wnum" placeholder="0" /> %</label>
                   <div v-if="f.type === 'select' && f.weight && optionsOf(f).length" class="oscores">
-                    <span class="muted small">درجة كل اختيار (من 100):</span>
+                    <span class="muted small">درجة كل خيار (من 100):</span>
                     <label v-for="(o, j) in optionsOf(f)" :key="o" class="oscore">{{ o }} <input v-model="f.scoresText[j]" type="number" min="0" max="100" class="input wnum" placeholder="0" /></label>
                   </div>
-                  <span v-if="f.type === 'checkbox' && f.weight" class="muted small">لو متعلم ياخد الدرجة كاملة</span>
+                  <span v-if="f.type === 'checkbox' && f.weight" class="muted small">عند تحديده يأخذ الدرجة كاملة</span>
                 </div>
                 <div class="r2">
                   <label class="check"><input v-model="f.required" type="checkbox" /> مطلوب</label>
@@ -283,11 +293,11 @@ async function remove(f: DynamicForm) {
 
             <template v-if="form.scored">
               <p class="sec">قواعد التعامل مع النتيجة</p>
-              <p class="muted small">حدد النتيجة لكل نطاق: مثلا أقل من 40% رفض، من 40% لـ 70% قبول بمساهمة من المستفيد، وأعلى قبول.</p>
+              <p class="muted small">حدّد النتيجة لكل نطاق، مثلًا: أقل من 40% رفض، ومن 40% إلى 70% قبول بمساهمة من المستفيد، وما فوق ذلك قبول.</p>
               <div class="rules">
                 <div v-for="(r, j) in form.rules" :key="j" class="rule" :style="{ '--c': color('outcome', r.outcome) }">
                   <span>من</span><input v-model.number="r.min" type="number" min="0" max="100" step="0.01" class="input wnum" />
-                  <span>لـ</span><input v-model.number="r.max" type="number" min="0" max="100" step="0.01" class="input wnum" />
+                  <span>إلى</span><input v-model.number="r.max" type="number" min="0" max="100" step="0.01" class="input wnum" />
                   <span>%</span>
                   <select v-model="r.outcome" class="input outsel"><option v-for="o in OUTCOMES" :key="o.value" :value="o.value">{{ o.label }}</option></select>
                   <template v-if="r.outcome === 'contribution'">
@@ -308,7 +318,7 @@ async function remove(f: DynamicForm) {
                 <span>النتيجة المقترحة</span>
                 <b>{{ previewScore.score }}%</b>
                 <span v-if="previewScore.rule">{{ label('outcome', previewScore.rule.outcome) }}<template v-if="previewScore.rule.contributionPercent"> · يتحمل المستفيد {{ previewScore.rule.contributionPercent }}%</template></span>
-                <span v-else class="muted">مفيش قاعدة للنتيجة دي</span>
+                <span v-else class="muted">لا توجد قاعدة لهذه النتيجة</span>
               </div>
             </div>
           </div>

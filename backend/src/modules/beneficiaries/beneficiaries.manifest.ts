@@ -46,6 +46,7 @@ export const beneficiariesManifest: ErpModuleManifest = {
     { label: 'الطلبات', path: '/beneficiaries/requests', permission: BENEFICIARY_PERMISSIONS.requestsRead },
     { label: 'سجل المساعدات', path: '/beneficiaries/aid-log', permission: BENEFICIARY_PERMISSIONS.read },
     { label: 'الشكاوى والمقترحات', path: '/beneficiaries/tickets', permission: BENEFICIARY_PERMISSIONS.tickets },
+    { label: 'اعتماد النماذج', path: '/beneficiaries/forms-approval', permission: BENEFICIARY_PERMISSIONS.formsReview, anyOf: [BENEFICIARY_PERMISSIONS.formsApprove] },
     { label: 'الإعدادات', path: '/beneficiaries/settings', permission: BENEFICIARY_PERMISSIONS.settings },
   ],
 };

@@ -10,5 +10,9 @@ export const beneficiariesRoutes: RouteRecordRaw[] = [
   { path: '/beneficiaries/requests', component: () => import('./views/RequestsView.vue'), meta: { ...meta('الطلبات'), permission: 'beneficiaries.requests.read' } },
   { path: '/beneficiaries/requests/:id', component: () => import('./views/RequestView.vue'), meta: { ...meta('تفاصيل الطلب'), permission: 'beneficiaries.requests.read' } },
   { path: '/beneficiaries/tickets', component: () => import('./views/TicketsView.vue'), meta: { ...meta('الشكاوى والمقترحات'), permission: 'beneficiaries.tickets.manage' } },
+  {
+    path: '/beneficiaries/forms-approval', component: () => import('./views/FormsApprovalView.vue'),
+    meta: { ...meta('اعتماد النماذج'), permission: undefined, anyPermission: ['beneficiaries.forms.review', 'beneficiaries.forms.approve'] },
+  },
   { path: '/beneficiaries/settings', component: () => import('./views/SettingsView.vue'), meta: { ...meta('إعدادات المستفيدين'), permission: 'beneficiaries.settings.manage' } },
 ];

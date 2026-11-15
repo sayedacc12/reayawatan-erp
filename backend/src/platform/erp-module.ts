@@ -20,6 +20,8 @@ export interface ErpMenuItem {
   path: string;
   /** الصلاحية المطلوبة لعرض العنصر */
   permission: string;
+  /** صلاحيات بديلة: يكفي أي واحدة منها مع permission */
+  anyOf?: string[];
 }
 
 export interface ErpModuleManifest {

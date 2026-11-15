@@ -33,10 +33,10 @@ export function normalizeFields(input: unknown, scored = false): FormField[] {
   if (scored) {
     const total = fields.reduce((sum, f) => sum + (f.weight ?? 0), 0);
     if (Math.abs(total - 100) > 0.001) {
-      throw new BadRequestException(`إجمالي الأهمية النسبية للبنود لازم يكون 100%، الإجمالي الحالي ${round(total)}%`);
+      throw new BadRequestException(`إجمالي الأهمية النسبية للبنود يجب أن يساوي 100%، والإجمالي الحالي ${round(total)}%`);
     }
   }
-  if (fields.filter((f) => f.type === 'support').length > 1) throw new BadRequestException('النموذج فيه حقل "تقييم الباحث" واحد بس');
+  if (fields.filter((f) => f.type === 'support').length > 1) throw new BadRequestException('لا يقبل النموذج إلا حقلًا واحدًا من نوع "تقييم الباحث"');
   return fields;
 }
 
@@ -49,16 +49,16 @@ const pct = (v: unknown) => {
 /** أوزان ودرجات بند في نموذج التقييم: القائمة (درجة لكل خيار) ومربع التأكيد (100 لو متعلم) فقط */
 function scoreField(field: FormField, raw: Record<string, unknown>) {
   const weight = raw.weight === undefined || raw.weight === null || raw.weight === '' ? 0 : pct(raw.weight);
-  if (Number.isNaN(weight)) throw new BadRequestException(`الأهمية النسبية للبند "${field.label}" لازم تكون من 0 لـ 100`);
+  if (Number.isNaN(weight)) throw new BadRequestException(`الأهمية النسبية للبند "${field.label}" يجب أن تكون من 0 إلى 100`);
   if (!weight) return;
   if (field.type !== 'select' && field.type !== 'checkbox') {
-    throw new BadRequestException(`البند "${field.label}" مايتقيّمش. الأهمية النسبية بتتحط على القوائم ومربعات التأكيد بس`);
+    throw new BadRequestException(`البند "${field.label}" لا يقبل التقييم. تُحدَّد الأهمية النسبية للقوائم ومربعات التأكيد فقط`);
   }
   field.weight = weight;
   if (field.type === 'select') {
     const scores = Array.isArray(raw.optionScores) ? raw.optionScores.map(pct) : [];
     if (scores.length !== field.options!.length || scores.some((n) => Number.isNaN(n))) {
-      throw new BadRequestException(`حط درجة من 0 لـ 100 لكل اختيار في "${field.label}"`);
+      throw new BadRequestException(`حدّد درجة من 0 إلى 100 لكل خيار في "${field.label}"`);
     }
     field.optionScores = scores;
   }
@@ -73,14 +73,14 @@ export function normalizeRules(input: unknown): ScoreRule[] {
     const min = pct(r.min);
     const max = pct(r.max);
     if (Number.isNaN(min) || Number.isNaN(max) || min > max) {
-      throw new BadRequestException(`القاعدة رقم ${i + 1}: النطاق لازم يكون من 0 لـ 100 والبداية أصغر من النهاية`);
+      throw new BadRequestException(`القاعدة رقم ${i + 1}: يجب أن يكون النطاق من 0 إلى 100 وأن تكون البداية أصغر من النهاية`);
     }
     const outcome = r.outcome as ScoreOutcome;
     if (!['reject', 'approve', 'contribution'].includes(outcome)) throw new BadRequestException(`القاعدة رقم ${i + 1}: اختر النتيجة`);
     const rule: ScoreRule = { min, max, outcome };
     if (outcome === 'contribution') {
       const c = pct(r.contributionPercent);
-      if (Number.isNaN(c) || c <= 0) throw new BadRequestException(`القاعدة رقم ${i + 1}: اكتب نسبة مساهمة المستفيد (أكبر من 0 لحد 100)`);
+      if (Number.isNaN(c) || c <= 0) throw new BadRequestException(`القاعدة رقم ${i + 1}: اكتب نسبة مساهمة المستفيد (أكبر من 0 وحتى 100)`);
       rule.contributionPercent = c;
     }
     return rule;
@@ -132,7 +132,7 @@ export function validateAnswers(fields: FormField[], input: unknown): Record<str
       || (f.type === 'support' && !(v as SupportAnswer)?.decision);
     if (empty) {
       if (f.required) {
-        throw new BadRequestException(f.type === 'checkbox' ? `لازم تأكيد "${f.label}"` : `الحقل "${f.label}" مطلوب`);
+        throw new BadRequestException(f.type === 'checkbox' ? `يجب تأكيد "${f.label}"` : `الحقل "${f.label}" مطلوب`);
       }
       if (f.type === 'checkbox') out[f.key] = false;
       continue;
@@ -140,7 +140,7 @@ export function validateAnswers(fields: FormField[], input: unknown): Record<str
     switch (f.type) {
       case 'number': {
         const n = Number(String(v).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)));
-        if (!Number.isFinite(n)) throw new BadRequestException(`الحقل "${f.label}" لازم يكون رقم`);
+        if (!Number.isFinite(n)) throw new BadRequestException(`الحقل "${f.label}" يجب أن يكون رقمًا`);
         out[f.key] = n;
         break;
       }

@@ -66,7 +66,7 @@ function spotlight(e: PointerEvent) {
 async function submit() {
   error.value = '';
   if (arabicKeyboard.value) {
-    error.value = 'لوحة المفاتيح على العربي. غيّرها للإنجليزي (Alt + Shift) واكتب البيانات تاني';
+    error.value = 'لوحة المفاتيح على اللغة العربية. غيّرها إلى الإنجليزية (Alt + Shift) ثم أعد كتابة البيانات';
     shake.value = false;
     requestAnimationFrame(() => (shake.value = true));
     return;
@@ -139,7 +139,7 @@ async function submit() {
             </div>
           </div>
 
-          <div v-if="orgMissing" class="error" role="alert">رابط الجمعية غير صحيح. اتأكد من الرابط مع إدارة جمعيتك.</div>
+          <div v-if="orgMissing" class="error" role="alert">رابط الجمعية غير صحيح. تأكد من الرابط مع إدارة جمعيتك.</div>
           <Transition name="fade">
             <div v-if="error" class="error" role="alert">
               {{ orgLink ? error.replace(/:?\s*\/o\/[a-z0-9-]+/, '.') : error }}
@@ -163,7 +163,7 @@ async function submit() {
           </label>
 
           <Transition name="fade">
-            <p v-if="arabicKeyboard && !error" class="hint" role="status">⌨️ لوحة المفاتيح على العربي، غيّرها للإنجليزي (Alt + Shift)</p>
+            <p v-if="arabicKeyboard && !error" class="hint" role="status">⌨️ لوحة المفاتيح على اللغة العربية، غيّرها إلى الإنجليزية (Alt + Shift)</p>
           </Transition>
 
           <button class="submit" :disabled="busy || success">

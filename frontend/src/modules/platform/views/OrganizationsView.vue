@@ -201,7 +201,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
     <div v-if="demo" class="modal-backdrop" @click.self="demo = null">
       <div class="card modal modal-wide demo">
         <h2>✨ تم تجهيز {{ demo.organization.name }}</h2>
-        <p class="muted">احفظ البيانات دي، كلمات المرور مش هتظهر تاني.</p>
+        <p class="muted">احفظ هذه البيانات، فلن تظهر كلمات المرور مرة أخرى.</p>
         <h3>دخول الموظفين <a :href="`/o/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/o/{{ demo.organization.slug }}</a></h3>
         <table class="table">
           <tr v-for="s in demo.staff" :key="s.email"><td>{{ s.role }}</td><td dir="ltr"><code>{{ s.email }}</code></td></tr>
@@ -212,7 +212,7 @@ const moduleName = (code: string) => optional.value.find((m) => m.code === code)
           <tr v-for="p in demo.portalUsers" :key="p.nationalId"><td>{{ p.fullName }}</td><td dir="ltr"><code>{{ p.nationalId }}</code></td></tr>
           <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.portalPassword }}</code></td></tr>
         </table>
-        <div class="modal-actions"><button class="btn btn-primary" @click="demo = null">تمام</button></div>
+        <div class="modal-actions"><button class="btn btn-primary" @click="demo = null">حسنًا</button></div>
       </div>
     </div>
   </div>

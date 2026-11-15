@@ -49,6 +49,8 @@ router.beforeEach(async (to) => {
   if (to.meta.public) return session.isLoggedIn ? '/' : true;
   if (!session.isLoggedIn) return { path: loginPath(), query: { next: to.fullPath } };
   if (!session.can(to.meta.permission as string | undefined)) return '/forbidden';
+  const anyOf = to.meta.anyPermission as string[] | undefined;
+  if (anyOf?.length && !anyOf.some((p) => session.can(p))) return '/forbidden';
   return true;
 });
 

@@ -27,7 +27,7 @@ const formError = ref('');
 const saving = ref(false);
 const blankStage = (): StageRow => ({ name: '', instructions: '', formId: null, roleId: null, canReject: true, canReturn: true, kind: 'standard' });
 const form = reactive({ name: '', description: '', isDefault: false, stages: [] as StageRow[] });
-const STATUS_LABEL = { draft: 'مسودة', review: 'عند مراجع الجودة', reviewed: 'مستني اعتماد المدير', approved: 'معتمد' } as const;
+const STATUS_LABEL = { draft: 'مسودة', review: 'عند مراجع الجودة', reviewed: 'بانتظار اعتماد المدير', approved: 'معتمد' } as const;
 const locked = (s: StageRow) => s.formStatus === 'approved';
 
 function openForm(w?: WorkflowRow) {
@@ -79,11 +79,11 @@ async function remove(w: WorkflowRow) {
 <template>
   <section>
     <div class="pane-head">
-      <p class="muted">كل مرحلة فيها قرار: قبول وتحويل للي بعدها، أو رفض، أو إرجاع للمرحلة السابقة مع السبب. آخر مرحلة = الاعتماد النهائي.</p>
+      <p class="muted">في كل مرحلة قرار: قبول وتحويل إلى المرحلة التالية، أو رفض، أو إرجاع إلى المرحلة السابقة مع ذكر السبب. والمرحلة الأخيرة هي الاعتماد النهائي.</p>
       <button class="btn btn-primary btn-sm" @click="openForm()">+ سير عمل جديد</button>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
-    <p v-if="!workflows.length && !error" class="card empty">لسه مفيش سير عمل. أضف واحد علشان الطلبات تقدر تتقدم.</p>
+    <p v-if="!workflows.length && !error" class="card empty">لا يوجد سير عمل بعد. أضف سير عمل حتى يمكن تقديم الطلبات.</p>
 
     <article v-for="(w, wi) in workflows" :key="w.id" class="card wf" :style="{ '--i': wi }">
       <header>
@@ -113,12 +113,12 @@ async function remove(w: WorkflowRow) {
         <div v-if="formError" class="alert alert-error">{{ formError }}</div>
         <div class="two">
           <div class="field"><label>الاسم *</label><input v-model="form.name" class="input" required /></div>
-          <div class="field"><label>نموذج بيانات الطلب (يعبّيه مقدم الطلب)</label>
+          <div class="field"><label>نموذج بيانات الطلب (يعبّئه مقدم الطلب)</label>
             <div class="ro">{{ editing?.applicationFormName ?? 'بدون نموذج' }}<span v-if="editing?.applicationFormStatus" :class="['st', editing.applicationFormStatus]">{{ STATUS_LABEL[editing.applicationFormStatus] }}</span></div>
           </div>
         </div>
         <div class="field"><label>الوصف</label><input v-model="form.description" class="input" /></div>
-        <label class="check"><input v-model="form.isDefault" type="checkbox" /> سير العمل الافتراضي لكل المشاريع اللي مش محدد لها سير عمل</label>
+        <label class="check"><input v-model="form.isDefault" type="checkbox" /> سير العمل الافتراضي لكل المشاريع التي لم يُحدَّد لها سير عمل</label>
 
         <p class="stages-title">المراحل بالترتيب</p>
         <TransitionGroup name="list" tag="div" class="stages">
@@ -130,14 +130,14 @@ async function remove(w: WorkflowRow) {
                 <div class="mv">
                   <button type="button" class="icon" :disabled="i === 0" title="لأعلى" @click="move(i, -1)">▲</button>
                   <button type="button" class="icon" :disabled="i === form.stages.length - 1" title="لأسفل" @click="move(i, 1)">▼</button>
-                  <button type="button" class="icon danger" :disabled="form.stages.length === 1 || locked(s)" :title="locked(s) ? 'المرحلة دي عليها نموذج معتمد، مينفعش تتحذف' : 'حذف'" @click="form.stages.splice(i, 1)">✕</button>
+                  <button type="button" class="icon danger" :disabled="form.stages.length === 1 || locked(s)" :title="locked(s) ? 'لا يمكن حذف هذه المرحلة لأنها مرتبطة بنموذج معتمد' : 'حذف'" @click="form.stages.splice(i, 1)">✕</button>
                 </div>
               </div>
               <select v-model="s.kind" class="input">
                 <option value="standard">مرحلة عادية (قرار وتحويل)</option>
                 <option value="contribution">مرحلة تأكيد مساهمة المستفيد (المستفيد يرفع إثبات من البوابة)</option>
               </select>
-              <p v-if="s.kind === 'contribution'" class="muted small khint">المرحلة دي بتشتغل بس لو نتيجة التقييم طلبت مساهمة من المستفيد، غير كده بتتعدى تلقائي. القبول فيها = التحقق من المبلغ وتوجيه القيد المحاسبي.</p>
+              <p v-if="s.kind === 'contribution'" class="muted small khint">تعمل هذه المرحلة فقط إذا تطلبت نتيجة التقييم مساهمة من المستفيد، وإلا فيتم تجاوزها تلقائيًا. القبول فيها يعني التحقق من المبلغ وتوجيه القيد المحاسبي.</p>
               <div class="row3">
                 <div class="ro">📝 {{ s.formName ?? 'بدون نموذج (قرار فقط)' }}<span v-if="s.formStatus" :class="['st', s.formStatus]">{{ STATUS_LABEL[s.formStatus] }}</span><span v-if="locked(s)" class="lock">🔒</span></div>
                 <select v-model="s.roleId" class="input"><option :value="null">أي موظف معه صلاحية المعالجة</option><option v-for="r in roles" :key="r.id" :value="r.id">المسؤول: {{ r.name }}</option></select>
@@ -151,7 +151,7 @@ async function remove(w: WorkflowRow) {
             </div>
           </div>
         </TransitionGroup>
-        <p class="muted small hint">النماذج بتتضاف للمراحل من تبويب "النماذج"، والمرحلة اللي عليها نموذج معتمد مينفعش تتحذف.</p>
+        <p class="muted small hint">تُضاف النماذج إلى المراحل من تبويب "النماذج"، ولا يمكن حذف مرحلة مرتبطة بنموذج معتمد.</p>
         <button type="button" class="btn btn-sm add" @click="form.stages.push(blankStage())">+ إضافة مرحلة</button>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="saving">حفظ</button><button type="button" class="btn" @click="open = false">إلغاء</button></div>
       </form>

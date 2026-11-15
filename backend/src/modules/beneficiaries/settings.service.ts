@@ -8,7 +8,7 @@ import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
 import { Activity, BeneficiaryRequest, BeneficiarySettings, DynamicForm, FormHistoryEntry, FormStatus, FormStep, Workflow, WorkflowStage } from './entities';
 import { AccountingDto, ActivityDto, CreateFormDto, FormDto, ReturnFormDto, ServiceDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
 
-const FORM_STATUS_AR: Record<FormStatus, string> = { draft: 'مسودة', review: 'عند مراجع الجودة', reviewed: 'مستني اعتماد مدير الشاشة', approved: 'معتمد' };
+const FORM_STATUS_AR: Record<FormStatus, string> = { draft: 'مسودة', review: 'عند مراجع الجودة', reviewed: 'بانتظار اعتماد مدير الشاشة', approved: 'معتمد' };
 
 const PARENT_LEVEL = { axis: null, program: 'axis', project: 'program' } as const;
 
@@ -104,7 +104,7 @@ export class SettingsService {
       throw new ConflictException('احذف العناصر التابعة له أولًا');
     }
     if (await this.requests.exists({ where: { projectId: a.id } })) {
-      throw new ConflictException('المشروع عليه طلبات، أوقفه بدل ما تحذفه');
+      throw new ConflictException('يوجد طلبات على هذا المشروع، لذا أوقفه بدلًا من حذفه');
     }
     await this.activities.delete({ id: a.id });
   }
@@ -138,9 +138,9 @@ export class SettingsService {
       let stage: WorkflowStage | null = null;
       if (dto.stageId) {
         stage = await em.findOne(WorkflowStage, { where: { id: dto.stageId, workflowId: w.id } });
-        if (!stage) throw new BadRequestException('المرحلة غير موجودة في سير العمل ده');
-        if (stage.formId) throw new ConflictException(`مرحلة "${stage.name}" عليها نموذج بالفعل`);
-      } else if (w.applicationFormId) throw new ConflictException('تقديم الطلب في سير العمل ده عليه نموذج بالفعل');
+        if (!stage) throw new BadRequestException('المرحلة غير موجودة في سير العمل هذا');
+        if (stage.formId) throw new ConflictException(`مرحلة "${stage.name}" مرتبطة بنموذج بالفعل`);
+      } else if (w.applicationFormId) throw new ConflictException('يوجد نموذج مرتبط بتقديم الطلب في سير العمل هذا');
       const qualityCode = await this.uniqueCode(em, actor.organizationId, dto.qualityCode);
       const f = await em.save(em.create(DynamicForm, {
         organizationId: actor.organizationId, name: dto.name, description: dto.description ?? null, ...this.formBody(dto),
@@ -157,7 +157,7 @@ export class SettingsService {
   async updateForm(actor: OrgUser, id: string, dto: FormDto) {
     const f = await this.findForm(actor, id);
     const qualityCode = await this.uniqueCode(this.forms.manager, actor.organizationId, dto.qualityCode, f.id);
-    const history = f.status === 'draft' ? f.history : [...f.history, this.step(actor, 'edited', `كان ${FORM_STATUS_AR[f.status]}`)];
+    const history = f.status === 'draft' ? f.history : [...f.history, this.step(actor, 'edited', `كانت حالته: ${FORM_STATUS_AR[f.status]}`)];
     Object.assign(f, {
       name: dto.name, description: dto.description ?? null, ...this.formBody(dto), qualityCode, history,
       status: 'draft', reviewedByName: null, reviewedAt: null, approvedByName: null, approvedAt: null,
@@ -183,8 +183,8 @@ export class SettingsService {
   async returnForm(actor: OrgUser, id: string, dto: ReturnFormDto) {
     const f = await this.findForm(actor, id);
     const needed = f.status === 'review' ? P.formsReview : f.status === 'reviewed' ? P.formsApprove : null;
-    if (!needed) throw new ConflictException('النموذج مش في مرحلة مراجعة أو اعتماد علشان يترجّع');
-    if (!actor.permissions.includes(needed)) throw new ForbiddenException('مالكش صلاحية ترجّع النموذج في المرحلة دي');
+    if (!needed) throw new ConflictException('لا يمكن إرجاع النموذج لأنه ليس في مرحلة المراجعة أو الاعتماد');
+    if (!actor.permissions.includes(needed)) throw new ForbiddenException('ليست لديك صلاحية إرجاع النموذج في هذه المرحلة');
     Object.assign(f, {
       status: 'draft', reviewedByName: null, reviewedAt: null,
       history: [...f.history, this.step(actor, 'returned', dto.note)],
@@ -196,9 +196,9 @@ export class SettingsService {
   private async moveForm(actor: OrgUser, id: string, from: FormStatus, to: FormStatus, step: FormStep, extra: Partial<DynamicForm> = {}) {
     const f = await this.findForm(actor, id);
     if (f.status !== from) {
-      throw new ConflictException(`النموذج دلوقتي ${FORM_STATUS_AR[f.status]}، والخطوة دي محتاجة يكون ${FORM_STATUS_AR[from]}`);
+      throw new ConflictException(`حالة النموذج الآن: ${FORM_STATUS_AR[f.status]}، وهذه الخطوة تتطلب أن تكون حالته: ${FORM_STATUS_AR[from]}`);
     }
-    if (!f.qualityCode) throw new BadRequestException('اكتب كود الجودة للنموذج الأول (عدّل النموذج)');
+    if (!f.qualityCode) throw new BadRequestException('أدخل كود الجودة للنموذج أولًا (من خلال تعديل النموذج)');
     if (to === 'approved' && f.history.some((h) => h.step === 'approved')) f.revision += 1;
     Object.assign(f, extra, { status: to });
     f.history = [...f.history, { ...this.step(actor, step), ...(to === 'approved' ? { revision: f.revision } : {}) }];
@@ -214,7 +214,7 @@ export class SettingsService {
   private async uniqueCode(em: EntityManager, org: string, code: string, exceptId?: string) {
     const qualityCode = code.toUpperCase();
     const other = await em.findOne(DynamicForm, { where: { organizationId: org, qualityCode }, select: { id: true, name: true } });
-    if (other && other.id !== exceptId) throw new ConflictException(`كود الجودة ${qualityCode} مستخدم في نموذج "${other.name}"`);
+    if (other && other.id !== exceptId) throw new ConflictException(`كود الجودة ${qualityCode} مستخدم في النموذج "${other.name}"`);
     return qualityCode;
   }
 
@@ -227,7 +227,7 @@ export class SettingsService {
   async removeForm(actor: OrgUser, id: string) {
     const f = await this.findForm(actor, id);
     if (f.history.some((h) => h.step === 'approved') || f.status === 'approved') {
-      throw new ConflictException('النموذج اتعتمد قبل كده ومسجل في نظام الجودة، مايتحذفش');
+      throw new ConflictException('لا يمكن حذف النموذج لأنه اعتُمد سابقًا وهو مسجل في نظام الجودة');
     }
     // المسودة بتتشال من مرحلتها وتتحذف
     await this.stages.update({ formId: f.id }, { formId: null });
@@ -287,7 +287,7 @@ export class SettingsService {
         w.isDefault = true;
       }
       if (dto.applicationFormId !== undefined && (dto.applicationFormId ?? null) !== w.applicationFormId) {
-        await this.assertNotApproved(em, w.applicationFormId, 'نموذج تقديم الطلب معتمد، مايتشالش من سير العمل');
+        await this.assertNotApproved(em, w.applicationFormId, 'نموذج تقديم الطلب معتمد، ولا يمكن فصله عن سير العمل');
         w.applicationFormId = dto.applicationFormId ?? null;
       }
       Object.assign(w, { name: dto.name, description: dto.description ?? null });
@@ -304,7 +304,7 @@ export class SettingsService {
     }
     const stageForms = (await this.stages.find({ where: { workflowId: w.id } })).map((s) => s.formId);
     if ((await this.approvedForms(this.forms.manager, [w.applicationFormId, ...stageForms])).size) {
-      throw new ConflictException('سير العمل فيه مراحل عليها نماذج معتمدة، مايتحذفش');
+      throw new ConflictException('لا يمكن حذف سير العمل لأن بعض مراحله مرتبطة بنماذج معتمدة');
     }
     await this.workflows.delete({ id: w.id });
     if (w.isDefault) {
@@ -370,11 +370,11 @@ export class SettingsService {
     if (removed.length) {
       const locked = await this.approvedForms(em, removed.map((s) => s.formId));
       const lockedStage = removed.find((s) => s.formId && locked.has(s.formId));
-      if (lockedStage) throw new ConflictException(`مرحلة "${lockedStage.name}" عليها نموذج معتمد، مايتحذفش`);
+      if (lockedStage) throw new ConflictException(`لا يمكن حذف مرحلة "${lockedStage.name}" لأنها مرتبطة بنموذج معتمد`);
       const busy = await em.count(BeneficiaryRequest, {
         where: { currentStageId: In(removed.map((s) => s.id)), status: In(['in_progress', 'returned']) },
       });
-      if (busy) throw new ConflictException(`فيه ${busy} طلب واقف على مرحلة بتحاول تحذفها. خلّصهم الأول`);
+      if (busy) throw new ConflictException(`يوجد ${busy} طلب في مرحلة تحاول حذفها. أنهِ هذه الطلبات أولًا`);
       // الطلبات المنتهية تحتفظ باسم المرحلة في سجلها، فنفك الربط فقط
       await em.update(BeneficiaryRequest, { currentStageId: In(removed.map((s) => s.id)) }, { currentStageId: null });
       await em.delete(WorkflowStage, { id: In(removed.map((s) => s.id)) });
@@ -386,7 +386,7 @@ export class SettingsService {
       const current = s.id ? byId.get(s.id)!.formId : null;
       const formId = s.formId === undefined ? current : s.formId ?? null;
       if (current && formId !== current && locked.has(current)) {
-        throw new ConflictException(`مرحلة "${s.name}" عليها نموذج معتمد، مايتغيرش`);
+        throw new ConflictException(`لا يمكن تغيير نموذج مرحلة "${s.name}" لأنه معتمد`);
       }
       const values = {
         name: s.name, instructions: s.instructions ?? null, sortOrder: i + 1, formId,

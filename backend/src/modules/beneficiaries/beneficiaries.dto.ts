@@ -35,7 +35,7 @@ export class CreateBeneficiaryDto {
   @IsOptional() @clean() @IsDateString({}, { message: 'تاريخ الميلاد غير صحيح' })
   birthDate?: string | null;
 
-  @IsOptional() @clean() @Matches(PHONE, { message: 'رقم الموبايل غير صحيح' })
+  @IsOptional() @clean() @Matches(PHONE, { message: 'رقم الجوال غير صحيح' })
   phone?: string | null;
 
   @IsOptional() @clean() @Matches(PHONE, { message: 'الرقم الإضافي غير صحيح' })

@@ -109,7 +109,7 @@ async function remove() {
     <div class="page-head">
       <div>
         <h1>الأدوار والصلاحيات</h1>
-        <p class="muted">هنا الأدوار والصلاحيات العامة. صلاحيات كل وحدة (زي المستفيدين) بتتظبط من تبويب "الصلاحيات" في إعدادات الوحدة نفسها.</p>
+        <p class="muted">هنا الأدوار والصلاحيات العامة. أما صلاحيات كل وحدة (مثل المستفيدين) فتُضبط من تبويب "الصلاحيات" في إعدادات الوحدة نفسها.</p>
       </div>
       <button v-if="canManage" class="btn btn-primary" @click="startNew">+ دور جديد</button>
     </div>
@@ -154,8 +154,8 @@ async function remove() {
             <div class="own-mods">
               <RouterLink v-for="m in ownModules" :key="m.code" :to="`${m.settingsPath}?tab=permissions`" class="own-mod">
                 <strong>{{ m.name }}</strong>
-                <span class="muted small">{{ countIn(m) }} من {{ m.permissions.length }} صلاحية في الدور ده</span>
-                <span class="go">تتظبط من إعدادات الوحدة ←</span>
+                <span class="muted small">{{ countIn(m) }} من {{ m.permissions.length }} صلاحية في هذا الدور</span>
+                <span class="go">تُضبط من إعدادات الوحدة ←</span>
               </RouterLink>
             </div>
           </template>

@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
-import { CurrentOrgUser, OrgUser, RequirePermissions } from '../../core/auth/decorators';
+import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
 import { AccountingDto, ActivityDto, CreateFormDto, FormDto, ReturnFormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
 import { SettingsService } from './settings.service';
@@ -36,8 +36,9 @@ export class SettingsController {
     return this.settings.removeActivity(actor, id);
   }
 
+  /** مراجع الجودة ومدير الشاشة بيشوفوا النماذج من شاشة "اعتماد النماذج" من غير صلاحية الإعدادات */
   @Get('forms')
-  @RequirePermissions(P.settings)
+  @RequireAnyPermission(P.settings, P.formsReview, P.formsApprove)
   forms(@CurrentOrgUser() actor: OrgUser) {
     return this.settings.listForms(actor);
   }

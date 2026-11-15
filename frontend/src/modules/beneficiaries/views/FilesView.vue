@@ -68,7 +68,7 @@ function opened(b: Beneficiary) {
     <div class="toolbar card">
       <div class="search">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-        <input v-model="search" class="input" placeholder="ابحث بالاسم أو رقم الهوية أو الموبايل أو رقم الملف" />
+        <input v-model="search" class="input" placeholder="ابحث بالاسم أو رقم الهوية أو الجوال أو رقم الملف" />
       </div>
       <select v-model="category" class="input cat"><option value="">كل الفئات</option><option v-for="c in CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option></select>
       <div class="chips">

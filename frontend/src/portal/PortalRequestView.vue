@@ -43,7 +43,7 @@ async function sendContribution() {
     body.append('file', proof.file);
     r.value = await portalApi<RequestDetail>(`/requests/${id}/contribution`, { method: 'POST', body });
     Object.assign(proof, { amount: '', file: null });
-    toast.success('تم رفع إثبات المساهمة، والجمعية هتراجعه');
+    toast.success('تم رفع إثبات المساهمة، وستراجعه الجمعية');
   } catch (e) {
     toast.error((e as Error).message);
   } finally {
@@ -69,7 +69,7 @@ async function resubmit() {
   }
 }
 async function cancel() {
-  if (!confirm('متأكد إنك عايز تلغي الطلب؟')) return;
+  if (!confirm('هل تريد إلغاء الطلب؟')) return;
   try {
     r.value = await portalApi<RequestDetail>(`/requests/${id}/cancel`, { method: 'POST' });
     toast.success('تم إلغاء الطلب');
@@ -86,7 +86,7 @@ async function cancel() {
     <template v-if="r">
       <div v-if="isNew" class="celebrate card">
         <span class="spark">✓</span>
-        <div><b>تم استلام طلبك بنجاح</b><p class="muted">رقم الطلب {{ r.requestNo }}. هتقدر تتابع كل مرحلة من هنا.</p></div>
+        <div><b>تم استلام طلبك بنجاح</b><p class="muted">رقم الطلب {{ r.requestNo }}. يمكنك متابعة كل مرحلة من هنا.</p></div>
       </div>
 
       <section class="card head">
@@ -102,26 +102,26 @@ async function cancel() {
       </section>
 
       <section v-if="r.status === 'in_progress' && isContribution" :class="['card notice contrib', r.contribution.status]">
-        <h2>💰 {{ r.contribution.status === 'submitted' ? 'إثبات مساهمتك وصل للجمعية' : 'مطلوب منك تأكيد مساهمتك' }}</h2>
+        <h2>💰 {{ r.contribution.status === 'submitted' ? 'وصل إثبات مساهمتك إلى الجمعية' : 'مطلوب منك تأكيد مساهمتك' }}</h2>
         <div class="c-grid">
-          <div><small>الجمعية بتتحمل</small><b>{{ Math.round((100 - (r.contribution.percent ?? 0)) * 100) / 100 }}%</b></div>
+          <div><small>تتحمل الجمعية</small><b>{{ Math.round((100 - (r.contribution.percent ?? 0)) * 100) / 100 }}%</b></div>
           <div><small>نسبة مساهمتك</small><b>{{ r.contribution.percent }}%</b></div>
-          <div v-if="r.contribution.requiredAmount !== null"><small>المبلغ المطلوب</small><b>{{ money(r.contribution.requiredAmount) }} جنيه</b></div>
-          <div v-if="r.contribution.amount !== null"><small>اللي رفعته</small><b>{{ money(r.contribution.amount) }} جنيه</b></div>
+          <div v-if="r.contribution.requiredAmount !== null"><small>المبلغ المطلوب</small><b>{{ money(r.contribution.requiredAmount) }} ريال</b></div>
+          <div v-if="r.contribution.amount !== null"><small>المبلغ الذي رفعته</small><b>{{ money(r.contribution.amount) }} ريال</b></div>
         </div>
-        <p v-if="r.contribution.status === 'submitted'" class="muted">الجمعية بتراجع الإيصال دلوقتي، وهيتحول طلبك للمرحلة اللي بعدها بعد التأكيد.</p>
+        <p v-if="r.contribution.status === 'submitted'" class="muted">تراجع الجمعية الإيصال الآن، وسيُحوَّل طلبك إلى المرحلة التالية بعد التأكيد.</p>
         <template v-else>
           <p v-if="returnReason && r.actions.at(-1)?.decision === 'return'"><b>ملاحظة الجمعية:</b> {{ returnReason }}</p>
           <p class="muted">ادفع مساهمتك وارفع صورة الإيصال أو التحويل هنا.</p>
           <form class="up" @submit.prevent="sendContribution">
-            <div class="field"><label>المبلغ اللي دفعته (جنيه)</label><input v-model.number="proof.amount" type="number" min="1" step="0.01" class="input" :placeholder="r.contribution.requiredAmount ? String(r.contribution.requiredAmount) : ''" required /></div>
-            <label class="drop"><input type="file" accept="image/png,image/jpeg,application/pdf" @change="onFile" /><span>📎 {{ proof.file?.name ?? 'اختار صورة الإيصال (صورة أو PDF)' }}</span></label>
+            <div class="field"><label>المبلغ الذي دفعته (ريال)</label><input v-model.number="proof.amount" type="number" min="1" step="0.01" class="input" :placeholder="r.contribution.requiredAmount ? String(r.contribution.requiredAmount) : ''" required /></div>
+            <label class="drop"><input type="file" accept="image/png,image/jpeg,application/pdf" @change="onFile" /><span>📎 {{ proof.file?.name ?? 'اختر صورة الإيصال (صورة أو PDF)' }}</span></label>
             <button class="btn btn-primary" :disabled="proof.busy">{{ proof.busy ? 'جارٍ الرفع...' : 'رفع إثبات المساهمة' }}</button>
           </form>
         </template>
       </section>
       <section v-if="r.status === 'returned'" class="card notice warn">
-        <h2>⚠ طلبك محتاج استكمال</h2>
+        <h2>⚠ طلبك يحتاج إلى استكمال</h2>
         <p v-if="returnReason"><b>ملاحظة الجمعية:</b> {{ returnReason }}</p>
         <template v-if="editing">
           <DynamicFields v-if="r.workflow?.applicationForm" v-model="form.applicationData" :fields="r.workflow.applicationForm.fields" />
@@ -132,12 +132,12 @@ async function cancel() {
         <button v-else class="btn btn-primary" @click="startEdit">استكمال وإعادة التقديم</button>
       </section>
       <section v-else-if="r.status === 'approved'" class="card notice ok">
-        <span class="star">★</span><div><h2>مبروك! تم اعتماد طلبك نهائيًا</h2><p class="muted">هتتواصل معاك الجمعية بخصوص الصرف.</p></div>
+        <span class="star">★</span><div><h2>تهانينا! تم اعتماد طلبك نهائيًا</h2><p class="muted">ستتواصل معك الجمعية بخصوص الصرف.</p></div>
       </section>
       <section v-else-if="r.status === 'rejected'" class="card notice bad">
         <h2>نأسف، لم يتم قبول الطلب</h2>
         <p v-if="rejectReason"><b>السبب:</b> {{ rejectReason }}</p>
-        <p class="muted small">لو عندك استفسار تقدر تبعت رسالة من صفحة الشكاوى والاستفسارات.</p>
+        <p class="muted small">إذا كان لديك استفسار يمكنك إرسال رسالة من صفحة الشكاوى والاستفسارات.</p>
       </section>
 
       <div class="cols">

@@ -22,7 +22,7 @@ const loading = ref(false);
 
 const presets = [
   { label: 'هذا الشهر', from: () => monthStart, to: today },
-  { label: 'آخر 3 شهور', from: () => shift(-2), to: today },
+  { label: 'آخر 3 أشهر', from: () => shift(-2), to: today },
   { label: 'هذا العام', from: () => today().slice(0, 4) + '-01-01', to: today },
   { label: 'الكل', from: () => '', to: () => '' },
 ];

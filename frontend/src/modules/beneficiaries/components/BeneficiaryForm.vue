@@ -51,7 +51,7 @@ async function save() {
         <legend>البيانات الأساسية</legend>
         <div class="grid">
           <div class="field span-2"><label>الاسم رباعي *</label><input v-model="form.fullName" class="input" required minlength="3" autofocus /></div>
-          <div class="field"><label>رقم الهوية / الرقم القومي</label><input v-model="form.nationalId" class="input" inputmode="numeric" dir="ltr" maxlength="20" /></div>
+          <div class="field"><label>رقم الهوية / الإقامة</label><input v-model="form.nationalId" class="input" inputmode="numeric" dir="ltr" maxlength="20" /></div>
           <div class="field"><label>النوع *</label>
             <div class="seg"><label v-for="g in GENDERS" :key="g.value" :class="{ on: form.gender === g.value }"><input v-model="form.gender" type="radio" :value="g.value" />{{ g.label }}</label></div>
           </div>
@@ -71,7 +71,7 @@ async function save() {
       <fieldset>
         <legend>التواصل والعنوان</legend>
         <div class="grid">
-          <div class="field"><label>الموبايل</label><input v-model="form.phone" class="input" inputmode="tel" dir="ltr" /></div>
+          <div class="field"><label>الجوال</label><input v-model="form.phone" class="input" inputmode="tel" dir="ltr" /></div>
           <div class="field"><label>رقم إضافي</label><input v-model="form.altPhone" class="input" inputmode="tel" dir="ltr" /></div>
           <div class="field"><label>المدينة / المنطقة</label><input v-model="form.city" class="input" /></div>
           <div class="field"><label>العنوان بالتفصيل</label><input v-model="form.address" class="input" /></div>

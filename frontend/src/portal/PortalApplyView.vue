@@ -54,7 +54,7 @@ function choose(p: PortalProject) {
 
 async function submit() {
   if (!chosen.value) return;
-  if (chosen.value.services.length && !form.services.length) { error.value = 'اختار الخدمة اللي محتاجها'; return; }
+  if (chosen.value.services.length && !form.services.length) { error.value = 'اختر الخدمة التي تحتاجها'; return; }
   busy.value = true;
   error.value = '';
   try {
@@ -103,20 +103,20 @@ async function submit() {
 
       <form v-else key="form" class="card apply" @submit.prevent="submit">
         <div class="chosen">
-          <div><small>{{ chosen.axis }} ‹ {{ chosen.program }}</small><h2>{{ chosen.name }}</h2><small class="rec">🔁 الدعم في المشروع ده {{ chosen.recurrenceLabel }}</small></div>
+          <div><small>{{ chosen.axis }} ‹ {{ chosen.program }}</small><h2>{{ chosen.name }}</h2><small class="rec">🔁 الدعم في هذا المشروع {{ chosen.recurrenceLabel }}</small></div>
           <button type="button" class="btn btn-sm" @click="chosen = null">تغيير المشروع</button>
         </div>
         <div v-if="chosen.services.length" class="svc-box">
-          <p class="form-name">{{ chosen.multiServices ? 'اختار الخدمات اللي محتاجها (تقدر تختار أكتر من خدمة)' : 'اختار الخدمة اللي محتاجها' }}</p>
+          <p class="form-name">{{ chosen.multiServices ? 'اختر الخدمات التي تحتاجها (يمكنك اختيار أكثر من خدمة)' : 'اختر الخدمة التي تحتاجها' }}</p>
           <div class="svcs">
             <label v-for="x in chosen.services" :key="x.name" :class="['svc', { on: form.services.includes(x.name) }]">
               <input :type="chosen.multiServices ? 'checkbox' : 'radio'" :checked="form.services.includes(x.name)" name="svc" @change="pickService(x.name)" />
               <span class="mark" />
               <span class="sn">{{ x.name }}</span>
-              <small v-if="typeof x.cost === 'number'" class="muted">{{ money(x.cost) }} ج</small>
+              <small v-if="typeof x.cost === 'number'" class="muted">{{ money(x.cost) }} ريال</small>
             </label>
           </div>
-          <p v-if="servicesTotal !== null && form.services.length" class="muted small">التكلفة التقديرية: {{ money(servicesTotal) }} جنيه</p>
+          <p v-if="servicesTotal !== null && form.services.length" class="muted small">التكلفة التقديرية: {{ money(servicesTotal) }} ريال</p>
         </div>
         <template v-if="chosen.applicationForm">
           <p class="form-name">{{ chosen.applicationForm.name }}</p>

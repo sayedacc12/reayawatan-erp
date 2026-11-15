@@ -73,7 +73,7 @@ export class PortalService {
     const org = await this.organization(slug);
     const existing = await this.beneficiaries.findOne({ where: { organizationId: org.id, nationalId: dto.nationalId } });
     if (existing) {
-      throw new ConflictException('رقم الهوية مسجل لدى الجمعية بالفعل. لو عندك حساب ادخل بيه، أو تواصل مع الجمعية لتفعيل حسابك');
+      throw new ConflictException('رقم الهوية مسجل لدى الجمعية بالفعل. إذا كان لديك حساب فسجّل الدخول به، أو تواصل مع الجمعية لتفعيل حسابك');
     }
     const id = await this.db.transaction(async (em) => {
       await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`beneficiaries:${org.id}`]);
@@ -118,7 +118,7 @@ export class PortalService {
 
   async updateProfile(p: PortalUser, dto: PortalProfileDto) {
     const patch = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
-    if (patch.phone === null) throw new BadRequestException('رقم الموبايل مطلوب');
+    if (patch.phone === null) throw new BadRequestException('رقم الجوال مطلوب');
     if (Object.keys(patch).length) await this.beneficiaries.update(p.beneficiaryId, patch);
     return this.me(p);
   }

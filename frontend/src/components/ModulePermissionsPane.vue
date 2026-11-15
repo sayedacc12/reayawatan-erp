@@ -80,7 +80,7 @@ async function addRole() {
     const created = data.value.roles.find((r) => r.name === name);
     if (created) select(created);
     newName.value = '';
-    toast.success(`تم إنشاء دور "${name}"، اختار صلاحياته`);
+    toast.success(`تم إنشاء دور "${name}"، اختر صلاحياته`);
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -110,7 +110,7 @@ async function addRole() {
         <div class="perms-head">
           <div>
             <h2>صلاحيات "{{ selected.name }}" في {{ data.module.name }}</h2>
-            <p class="muted small">التعديل هنا بيغيّر صلاحيات {{ data.module.name }} بس. الصلاحيات العامة بتتظبط من شاشة الأدوار في الإعدادات العامة.</p>
+            <p class="muted small">التعديل هنا يغيّر صلاحيات {{ data.module.name }} فقط. أما الصلاحيات العامة فتُضبط من شاشة الأدوار في الإعدادات العامة.</p>
           </div>
           <button class="btn btn-sm" @click="toggleAll">{{ picked.size === data.module.permissions.length ? 'إلغاء الكل' : 'تحديد الكل' }}</button>
         </div>
@@ -121,11 +121,11 @@ async function addRole() {
           </label>
         </div>
         <div class="foot">
-          <span v-if="dirty" class="muted small">فيه تغييرات لسه ماتحفظتش</span>
+          <span v-if="dirty" class="muted small">توجد تغييرات لم تُحفظ بعد</span>
           <button class="btn btn-primary" :disabled="saving || !dirty" @click="save">حفظ الصلاحيات</button>
         </div>
       </div>
-      <div v-else class="card perms muted">مفيش أدوار لسه. ضيف أول دور من القائمة.</div>
+      <div v-else class="card perms muted">لا توجد أدوار بعد. أضف أول دور من القائمة.</div>
     </div>
   </section>
 </template>

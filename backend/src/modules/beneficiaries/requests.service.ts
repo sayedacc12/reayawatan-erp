@@ -30,7 +30,7 @@ export interface NewRequest {
 const OPEN = ['in_progress', 'returned'];
 
 export const RECURRENCE_LABEL: Record<Recurrence, string> = {
-  once: 'مرة واحدة', weekly: 'أسبوعي', monthly: 'شهري', quarterly: 'كل 3 شهور', semiannual: 'كل 6 شهور', yearly: 'سنوي',
+  once: 'مرة واحدة', weekly: 'أسبوعي', monthly: 'شهري', quarterly: 'كل 3 أشهر', semiannual: 'كل 6 أشهر', yearly: 'سنوي',
 };
 
 function addPeriod(from: Date, r: Recurrence) {
@@ -276,14 +276,14 @@ export class RequestsService {
 
       if (dto.estimatedCost !== undefined) r.estimatedCost = dto.estimatedCost;
       if (stage.form && stage.form.status !== 'approved' && dto.decision !== 'return') {
-        throw new BadRequestException(`نموذج "${stage.form.name}" في المرحلة دي لسه مستني اعتماد مدير الشاشة`);
+        throw new BadRequestException(`نموذج "${stage.form.name}" في هذه المرحلة لم يُعتمد بعد، وينتظر مراجعة الجودة واعتماد مدير الشاشة`);
       }
 
       if (dto.decision === 'approve') {
         const form = stage.form ? { form: stage.form, data: validateAnswers(stage.form.fields, dto.formData) } : null;
         let score: number | null = null;
         const explicit = form ? supportDecision(form.form.fields, form.data) : null;
-        if (explicit?.decision === 'none') throw new BadRequestException('تقييم الباحث "غير مستحق". اختار "رفض" واكتب السبب');
+        if (explicit?.decision === 'none') throw new BadRequestException('تقييم الباحث "غير مستحق"، لذا اختر "رفض" واكتب السبب');
         const rule = form?.form.scored ? scoreAnswers(form.form, form.data) : null;
         if (rule || explicit) {
           // قرار الباحث: مستحق = الجمعية 100%، مستحق بنسبة = نسبة الجمعية والباقي على المستفيد.
@@ -344,7 +344,7 @@ export class RequestsService {
         const r = await this.lockRequest(em, actor.organizationId, id, beneficiaryId);
         const stage = r.currentStageId ? await em.findOne(WorkflowStage, { where: { id: r.currentStageId } }) : null;
         if (r.status !== 'in_progress' || stage?.kind !== 'contribution' || !['awaiting', 'submitted'].includes(r.contributionStatus)) {
-          throw new BadRequestException('الطلب مش في مرحلة تأكيد المساهمة');
+          throw new BadRequestException('الطلب ليس في مرحلة تأكيد المساهمة');
         }
         const doc = await em.save(em.create(BeneficiaryDocument, {
           organizationId: actor.organizationId, beneficiaryId, title: `إثبات مساهمة - طلب رقم ${r.requestNo}`,
@@ -367,7 +367,7 @@ export class RequestsService {
   private async verifyContribution(em: EntityManager, r: BeneficiaryRequest, dto: DecisionDto) {
     if (dto.contributionAmount !== undefined) r.contributionAmount = dto.contributionAmount;
     else if (r.contributionStatus !== 'submitted') {
-      throw new BadRequestException('المستفيد لسه مارفعش إثبات المساهمة. استنى رفعه، أو سجّل المبلغ اللي دفعه في الجمعية');
+      throw new BadRequestException('لم يرفع المستفيد إثبات المساهمة بعد. انتظر حتى يرفعه، أو سجّل المبلغ الذي دفعه في مقر الجمعية');
     }
     const amount = r.contributionAmount ?? 0;
     const acc = await em.findOne(BeneficiarySettings, { where: { organizationId: r.organizationId } });
@@ -398,7 +398,7 @@ export class RequestsService {
       || (decided === 'contribution' && Math.abs(rule.contributionPercent - contribution) > 0.001));
     if (differs && !notes) {
       const suggested = rule.outcome === 'contribution' ? `قبول بمساهمة ${rule.contributionPercent}% من المستفيد` : rule.outcome === 'reject' ? 'رفض' : 'قبول';
-      throw new BadRequestException(`القاعدة بتقترح "${suggested}" (النتيجة ${rule.score}%) وقرارك مختلف. اكتب سبب الاختلاف في الملاحظات`);
+      throw new BadRequestException(`تقترح القاعدة "${suggested}" (النتيجة ${rule.score}%) وقرارك مختلف عنها. اكتب سبب الاختلاف في الملاحظات`);
     }
     r.ruleDeviation = differs;
     r.deviationReason = differs ? notes ?? null : null;
@@ -424,7 +424,7 @@ export class RequestsService {
       const next = stages[i];
       if (next.kind === 'contribution') {
         if (!(r.contributionPercent && r.contributionPercent > 0)) {
-          await this.log(em, actor, r.id, next, 'skipped', 'مفيش مساهمة مطلوبة من المستفيد');
+          await this.log(em, actor, r.id, next, 'skipped', 'لا توجد مساهمة مطلوبة من المستفيد');
           continue;
         }
         r.contributionStatus = 'awaiting';
@@ -448,7 +448,7 @@ export class RequestsService {
       const open = await em.findOne(BeneficiaryRequest, {
         where: { organizationId: org, beneficiaryId, projectId: project.id, status: In(OPEN) },
       });
-      if (open) return { canApply: false, reason: `يوجد طلب مفتوح على نفس المشروع (طلب رقم ${open.requestNo})`, nextDate: null };
+      if (open) return { canApply: false, reason: `يوجد طلب مفتوح على المشروع نفسه (طلب رقم ${open.requestNo})`, nextDate: null };
     }
     const last = await em.findOne(BeneficiaryRequest, {
       where: { organizationId: org, beneficiaryId, projectId: project.id, status: 'approved' },
@@ -456,12 +456,12 @@ export class RequestsService {
     });
     if (last?.closedAt) {
       if (project.recurrence === 'once') {
-        return { canApply: false, reason: 'استفدت من المشروع ده قبل كده، والدعم فيه مرة واحدة بس', nextDate: null };
+        return { canApply: false, reason: 'سبق أن استفدت من هذا المشروع، والدعم فيه لمرة واحدة فقط', nextDate: null };
       }
       const next = addPeriod(last.closedAt, project.recurrence);
       if (next > new Date()) {
         const d = next.toISOString().slice(0, 10);
-        return { canApply: false, reason: `الدعم في المشروع ده ${RECURRENCE_LABEL[project.recurrence]}، تقدر تقدم تاني من ${d}`, nextDate: d };
+        return { canApply: false, reason: `الدعم في هذا المشروع ${RECURRENCE_LABEL[project.recurrence]}، ويمكنك التقديم مرة أخرى بدءًا من ${d}`, nextDate: d };
       }
     }
     return { canApply: true, reason: null, nextDate: null };
@@ -473,10 +473,10 @@ export class RequestsService {
     if (!available.length) return { services: [], estimatedCost: null };
     const chosen = [...new Set((picked ?? []).map((x) => x.trim()).filter(Boolean))];
     if (!chosen.length) throw new BadRequestException('اختر الخدمة المطلوبة');
-    if (!project.multiServices && chosen.length > 1) throw new BadRequestException('المشروع ده بيسمح بخدمة واحدة في الطلب');
+    if (!project.multiServices && chosen.length > 1) throw new BadRequestException('يسمح هذا المشروع بخدمة واحدة فقط في الطلب');
     const items = chosen.map((name) => {
       const svc = available.find((x) => x.name === name);
-      if (!svc) throw new BadRequestException(`الخدمة "${name}" مش من خدمات المشروع`);
+      if (!svc) throw new BadRequestException(`الخدمة "${name}" ليست من خدمات المشروع`);
       return svc;
     });
     const costs = items.map((x) => x.cost);

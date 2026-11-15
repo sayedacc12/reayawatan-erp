@@ -155,18 +155,18 @@ async function resubmit() {
             <div v-if="isContribution" :class="['contrib', r.contribution.status]">
               <div class="c-grid">
                 <div><small>نسبة مساهمة المستفيد</small><b>{{ r.contribution.percent ?? 0 }}%</b></div>
-                <div><small>المبلغ المطلوب</small><b>{{ r.contribution.requiredAmount !== null ? `${money(r.contribution.requiredAmount)} ج` : 'حدد التكلفة' }}</b></div>
-                <div><small>اللي رفعه المستفيد</small><b>{{ r.contribution.amount !== null ? `${money(r.contribution.amount)} ج` : '—' }}</b></div>
+                <div><small>المبلغ المطلوب</small><b>{{ r.contribution.requiredAmount !== null ? `${money(r.contribution.requiredAmount)} ريال` : 'حدد التكلفة' }}</b></div>
+                <div><small>المبلغ الذي رفعه المستفيد</small><b>{{ r.contribution.amount !== null ? `${money(r.contribution.amount)} ريال` : '—' }}</b></div>
               </div>
               <p class="c-status"><span class="dot" />{{ label('contribution', r.contribution.status) }}<template v-if="r.contribution.submittedAt"> · {{ fmtDateTime(r.contribution.submittedAt) }}</template></p>
               <button v-if="r.contribution.documentId" type="button" class="btn btn-sm" @click="openProof">📎 عرض إثبات المساهمة</button>
             </div>
             <form v-if="r.canDecide" @submit.prevent="decide">
               <div v-if="decisionError" class="alert alert-error">{{ decisionError }}</div>
-              <div v-if="formDraft" class="alert draft-alert">⏳ نموذج "{{ stage.form?.name }}" في المرحلة دي لسه ماتعتمدش (بيعدّي على مراجعة الجودة واعتماد مدير الشاشة). القبول والرفض هيتفتحوا بعد الاعتماد، والإرجاع متاح.</div>
+              <div v-if="formDraft" class="alert draft-alert">⏳ نموذج "{{ stage.form?.name }}" في هذه المرحلة لم يُعتمد بعد (يمر بمراجعة الجودة ثم اعتماد مدير الشاشة). سيُتاح القبول والرفض بعد الاعتماد، أما الإرجاع فمتاح.</div>
               <div class="choices">
                 <button type="button" :disabled="formDraft" :class="['choice approve', { on: decision.decision === 'approve' }]" @click="choose('approve')">✓ {{ isContribution ? 'تأكيد المساهمة' : isLast ? 'اعتماد نهائي' : 'قبول وتحويل للمرحلة التالية' }}</button>
-                <button v-if="stage.canReturn" type="button" :class="['choice ret', { on: decision.decision === 'return' }]" @click="choose('return')">↩ {{ isContribution ? 'إرجاع للمستفيد يرفع من جديد' : isFirst ? 'إرجاع لمقدم الطلب' : 'إرجاع للمرحلة السابقة' }}</button>
+                <button v-if="stage.canReturn" type="button" :class="['choice ret', { on: decision.decision === 'return' }]" @click="choose('return')">↩ {{ isContribution ? 'إرجاع للمستفيد لإعادة الرفع' : isFirst ? 'إرجاع لمقدم الطلب' : 'إرجاع للمرحلة السابقة' }}</button>
                 <button v-if="stage.canReject" type="button" :disabled="formDraft" :class="['choice reject', { on: decision.decision === 'reject' }]" @click="choose('reject')">✕ رفض</button>
               </div>
               <Transition name="page">
@@ -178,27 +178,27 @@ async function resubmit() {
                       <div class="ring" :style="{ '--p': liveScore.score }"><b>{{ liveScore.score }}%</b></div>
                       <div>
                         <small class="muted">نتيجة التقييم الآلي · اقتراح استرشادي للباحث</small>
-                        <p class="lv">{{ liveScore.rule ? label('outcome', liveScore.rule.outcome) : 'مفيش قاعدة للنتيجة دي' }}</p>
-                        <p v-if="liveScore.rule?.contributionPercent" class="muted small">يتحمل المستفيد {{ liveScore.rule.contributionPercent }}%<template v-if="liveRequired"> = {{ money(liveRequired) }} جنيه</template></p>
+                        <p class="lv">{{ liveScore.rule ? label('outcome', liveScore.rule.outcome) : 'لا توجد قاعدة لهذه النتيجة' }}</p>
+                        <p v-if="liveScore.rule?.contributionPercent" class="muted small">يتحمل المستفيد {{ liveScore.rule.contributionPercent }}%<template v-if="liveRequired"> = {{ money(liveRequired) }} ريال</template></p>
 
                       </div>
                     </div>
                   </div>
                   <div v-if="decision.decision === 'approve' && (stage.form?.scored || r.estimatedCost === null)" class="field">
-                    <label>التكلفة التقديرية للحالة (جنيه)</label>
+                    <label>التكلفة التقديرية للحالة (ريال)</label>
                     <input v-model.number="decision.estimatedCost" type="number" min="0" class="input" :placeholder="r.estimatedCost !== null ? String(r.estimatedCost) : 'مثال: 25000'" />
-                    <small class="muted">بتتحسب منها قيمة مساهمة المستفيد</small>
+                    <small class="muted">تُحتسب منها قيمة مساهمة المستفيد</small>
                   </div>
                   <div v-if="decision.decision === 'approve' && isContribution" class="field">
-                    <label>المبلغ المحصّل {{ r.contribution.status === 'submitted' ? '(سيبه فاضي لو المبلغ اللي رفعه المستفيد صح)' : '(لو المستفيد دفع في مقر الجمعية)' }}</label>
+                    <label>المبلغ المحصّل {{ r.contribution.status === 'submitted' ? '(اتركه فارغًا إذا كان المبلغ الذي رفعه المستفيد صحيحًا)' : '(إذا دفع المستفيد في مقر الجمعية)' }}</label>
                     <input v-model.number="decision.contributionAmount" type="number" min="0" step="0.01" class="input" :placeholder="r.contribution.amount !== null ? String(r.contribution.amount) : ''" />
-                    <small class="muted">التأكيد بيجهّز القيد المحاسبي حسب التوجيه في الإعدادات</small>
+                    <small class="muted">يُجهّز التأكيدُ القيد المحاسبي حسب التوجيه في الإعدادات</small>
                   </div>
                   <div class="field">
-                    <div v-if="deviates" class="devwarn">⚑ قرارك مختلف عن اقتراح القاعدة. تقدر تكمل، بس لازم تكتب سبب الاختلاف، والحالة هتتعلّم للمعتمد النهائي.</div>
+                    <div v-if="deviates" class="devwarn">⚑ قرارك مختلف عن اقتراح القاعدة. يمكنك المتابعة، لكن يجب كتابة سبب الاختلاف، وستُميَّز الحالة بعلامة للمعتمد النهائي.</div>
                     <label>{{ deviates ? 'سبب الاختلاف عن القاعدة *' : decision.decision === 'approve' ? 'ملاحظات (اختياري)' : decision.decision === 'reject' ? 'سبب الرفض *' : 'سبب الإرجاع *' }}</label>
                     <textarea v-model="decision.notes" class="input" rows="3" :required="decision.decision !== 'approve' || deviates" />
-                    <small v-if="decision.decision !== 'approve'" class="muted">السبب هيظهر للمستفيد في البوابة</small>
+                    <small v-if="decision.decision !== 'approve'" class="muted">سيظهر السبب للمستفيد في البوابة</small>
                   </div>
                   <button class="btn btn-primary" :disabled="busy">{{ busy ? 'جارٍ الحفظ...' : 'تأكيد القرار' }}</button>
                 </div>
@@ -209,7 +209,7 @@ async function resubmit() {
 
           <section v-else-if="r.status === 'returned'" class="card decision returned">
             <h2>الطلب عند مقدمه لاستكمال البيانات</h2>
-            <p class="muted small">المستفيد يقدر يعدّل ويعيد التقديم من البوابة، أو تعيد تقديمه أنت بعد ما تستكمل البيانات معاه.</p>
+            <p class="muted small">يستطيع المستفيد التعديل وإعادة التقديم من البوابة، أو يمكنك إعادة تقديمه بنفسك بعد استكمال البيانات معه.</p>
             <button v-if="session.can('beneficiaries.requests.create')" class="btn btn-sm" @click="resubmit">إعادة التقديم الآن</button>
           </section>
 
@@ -226,7 +226,7 @@ async function resubmit() {
             <span class="flag">⚑</span>
             <div>
               <h2>قرار الباحث مختلف عن قاعدة التقييم</h2>
-              <p v-if="r.research.suggestion" class="small">القاعدة كانت بتقترح <b>{{ label('outcome', r.research.suggestion.outcome) }}<template v-if="r.research.suggestion.contributionPercent"> بمساهمة {{ r.research.suggestion.contributionPercent }}%</template></b> (النتيجة {{ r.research.suggestion.score }}%)، والباحث قرر <b>{{ label('outcome', r.research.outcome) }}<template v-if="r.research.contributionPercent"> بمساهمة {{ r.research.contributionPercent }}%</template></b>.</p>
+              <p v-if="r.research.suggestion" class="small">كانت القاعدة تقترح <b>{{ label('outcome', r.research.suggestion.outcome) }}<template v-if="r.research.suggestion.contributionPercent"> بمساهمة {{ r.research.suggestion.contributionPercent }}%</template></b> (النتيجة {{ r.research.suggestion.score }}%)، وقرر الباحث <b>{{ label('outcome', r.research.outcome) }}<template v-if="r.research.contributionPercent"> بمساهمة {{ r.research.contributionPercent }}%</template></b>.</p>
               <p v-if="r.research.deviationReason" class="reason"><b>سبب الباحث:</b> {{ r.research.deviationReason }}</p>
             </div>
           </section>
@@ -240,11 +240,11 @@ async function resubmit() {
               <small class="muted">قرار الباحث</small><p class="lv">{{ label('outcome', r.research.outcome) }}</p>
             </div>
             <div v-if="r.research?.supportPercent !== null && r.research?.supportPercent !== undefined" class="fact">
-              <small class="muted">دعم الجمعية</small><p class="lv">{{ r.research.supportPercent }}%<template v-if="r.research.supportAmount !== null"> · {{ money(r.research.supportAmount) }} ج</template></p>
+              <small class="muted">دعم الجمعية</small><p class="lv">{{ r.research.supportPercent }}%<template v-if="r.research.supportAmount !== null"> · {{ money(r.research.supportAmount) }} ريال</template></p>
               <small v-if="r.research.contributionPercent" class="muted">الباقي على المستفيد {{ r.research.contributionPercent }}%</small>
             </div>
             <div v-if="r.services.length" class="fact"><small class="muted">الخدمات المطلوبة</small><p class="chips"><span v-for="s in r.services" :key="s" class="chip">{{ s }}</span></p></div>
-            <div v-if="r.estimatedCost !== null" class="fact"><small class="muted">التكلفة التقديرية</small><p class="lv">{{ money(r.estimatedCost) }} ج</p></div>
+            <div v-if="r.estimatedCost !== null" class="fact"><small class="muted">التكلفة التقديرية</small><p class="lv">{{ money(r.estimatedCost) }} ريال</p></div>
           </section>
 
           <section v-if="r.contribution.journal" class="card block journal">

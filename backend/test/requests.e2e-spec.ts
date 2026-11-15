@@ -99,11 +99,21 @@ describe('Requests workflow + beneficiary portal', () => {
     ids.researchForm = research.body.id;
     const clerkToken = await login('c@test.org', 'Clerk12345', 'alkhair');
     await http.post(`${forms}/${app1.body.id}/approve`).set(as(clerkToken)).expect(403); // مش مدير الشاشة
+    // مراجع الجودة: يشوف النماذج ويراجعها من غير صلاحية الإعدادات، ومايعتمدش
+    const qRole = await http.post('/api/roles').set(as(admin)).send({ name: 'مراجع الجودة', permissions: ['beneficiaries.forms.review'] }).expect(201);
+    await http.post('/api/users').set(as(admin)).send({ fullName: 'مراجعة', email: 'q@test.org', password: 'Quality123', roleIds: [qRole.body.id] }).expect(201);
+    const quality = await login('q@test.org', 'Quality123', 'alkhair');
+    await http.get(forms).set(as(clerkToken)).expect(403);
+    const me = await http.get('/api/auth/me').set(as(quality)).expect(200);
+    expect(JSON.stringify(me.body.apps)).toContain('/beneficiaries/forms-approval');
     for (const f of [app1.body.id, research.body.id]) {
+      await http.post(`${forms}/${f}/submit`).set(as(quality)).expect(403);
       await http.post(`${forms}/${f}/submit`).set(as(admin)).expect(200);
-      await http.post(`${forms}/${f}/review`).set(as(admin)).expect(200);
+      expect((await http.get(forms).set(as(quality)).expect(200)).body.find((x: { id: string }) => x.id === f).status).toBe('review');
+      await http.post(`${forms}/${f}/review`).set(as(quality)).expect(200);
+      await http.post(`${forms}/${f}/approve`).set(as(quality)).expect(403);
       const ok = await http.post(`${forms}/${f}/approve`).set(as(admin)).expect(200);
-      expect(ok.body).toMatchObject({ status: 'approved', approvedByName: 'مدير' });
+      expect(ok.body).toMatchObject({ status: 'approved', reviewedByName: 'مراجعة', approvedByName: 'مدير' });
     }
     // مرحلة عليها نموذج معتمد مايتحذفش ونموذجها مايتغيرش
     const [st1, st2, st3] = wf.body.stages.map((s: { id: string }) => s.id);
