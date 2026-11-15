@@ -64,7 +64,7 @@ async function save() {
         <div class="types" :class="{ dim: locked }">
           <label v-for="t in FUNDING_TYPES" :key="t.value" :class="['type', { on: form.fundingType === t.value }]" :style="{ '--c': t.color }">
             <input v-model="form.fundingType" type="radio" :value="t.value" :disabled="locked" /><b>{{ t.label }}</b>
-            <small>{{ t.value === 'restricted' ? 'يُصرف فقط فيما حدده الداعم' : t.value === 'unrestricted' ? 'تتصرف فيه الجمعية حسب الحاجة' : 'للمصاريف التشغيلية والإدارية' }}</small>
+            <small>{{ t.value === 'restricted' ? 'يُصرف فقط فيما حدده الداعم' : t.value === 'unrestricted' ? 'تتصرف فيه الجمعية حسب الحاجة' : t.value === 'endowment' ? 'مشروع وقفي يستقبل تبرعات الأوقاف' : 'للمصاريف التشغيلية والإدارية' }}</small>
           </label>
         </div>
         <label class="check zakat" :class="{ dim: locked || form.fundingType !== 'restricted' }">
@@ -117,7 +117,7 @@ async function save() {
 .small { font-size: .8rem; margin: 0 0 8px; }
 textarea.input { resize: vertical; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
-.types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.types { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .type { border: 1.5px solid var(--border); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; transition: all .2s var(--ease); }
 .type input { display: none; }
 .type b { color: var(--c); }

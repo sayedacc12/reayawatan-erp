@@ -36,7 +36,7 @@ export const projectsManifest: ErpModuleManifest = {
   menu: [
     { label: 'لوحة المشاريع', path: '/projects', permission: PROJECT_PERMISSIONS.read },
     { label: 'إجمالي المشاريع', path: '/projects/list', permission: PROJECT_PERMISSIONS.read },
-    { label: 'اعتماد المشاريع', path: '/projects/approvals', permission: PROJECT_PERMISSIONS.approve },
+    { label: 'وثائق المشاريع واعتمادها', path: '/projects/approvals', permission: PROJECT_PERMISSIONS.approve, anyOf: [PROJECT_PERMISSIONS.manage] },
     { label: 'إدارة الدعم', path: '/projects/support', permission: PROJECT_PERMISSIONS.support },
     { label: 'الصرف المالي', path: '/projects/disbursements', permission: PROJECT_PERMISSIONS.disburse, anyOf: [PROJECT_PERMISSIONS.support] },
     { label: 'المناقلات', path: '/projects/transfers', permission: PROJECT_PERMISSIONS.transfers },

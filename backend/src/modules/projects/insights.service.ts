@@ -7,7 +7,7 @@ import { SupportService } from './support.service';
 import { TransfersService } from './transfers.service';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const FUNDING_AR: Record<string, string> = { restricted: 'مقيد', unrestricted: 'غير مقيد', operational: 'تشغيلي' };
+const FUNDING_AR: Record<string, string> = { restricted: 'مقيد', unrestricted: 'غير مقيد', operational: 'تشغيلي', endowment: 'وقف' };
 const MODE_AR: Record<string, string> = { beneficiaries: 'على المستفيدين', general: 'صرف عام' };
 const ALLOC_AR: Record<string, string> = { reserved: 'محجوز', partial: 'مصروف جزئيًا', spent: 'مخصوم', released: 'ملغى الحجز' };
 const PAY_AR: Record<string, string> = { pending: 'قيد التنفيذ', paid: 'مصروف', rejected: 'مرفوض' };

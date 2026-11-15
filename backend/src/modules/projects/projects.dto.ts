@@ -5,7 +5,55 @@ import {
 import { ServiceDto } from '../beneficiaries/settings.dto';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
-const FUNDING = ['restricted', 'unrestricted', 'operational'];
+const FUNDING = ['restricted', 'unrestricted', 'operational', 'endowment'];
+const optDate = (msg: string) => [IsOptional(), ValidateIf((_: unknown, v: unknown) => v !== null && v !== ''), IsDateString({}, { message: msg })];
+const OptDate = (msg: string): PropertyDecorator => (t, k) => optDate(msg).forEach((d) => d(t, k));
+const OptNum = (): PropertyDecorator => (t, k) => [IsOptional(), ValidateIf((_: unknown, v: unknown) => v !== null), IsNumber({}, { message: 'أدخل رقمًا صحيحًا' })].forEach((d) => d(t, k));
+
+export class PhaseDto {
+  @trim() @IsString({ message: 'اكتب اسم المرحلة' }) @MinLength(2, { message: 'اكتب اسم المرحلة' }) @MaxLength(200)
+  name!: string;
+
+  @OptDate('تاريخ بداية المرحلة غير صحيح')
+  startDate?: string | null;
+
+  @OptDate('تاريخ نهاية المرحلة غير صحيح')
+  endDate?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(1000)
+  deliverables?: string | null;
+}
+
+export class KpiDto {
+  @trim() @IsString({ message: 'اكتب اسم المؤشر' }) @MinLength(2, { message: 'اكتب اسم المؤشر' }) @MaxLength(200)
+  name!: string;
+
+  @OptNum()
+  baseline?: number | null;
+
+  @OptNum()
+  target?: number | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(40)
+  unit?: string | null;
+}
+
+export class BudgetLineDto {
+  @trim() @IsString({ message: 'اكتب بند الموازنة' }) @MinLength(2, { message: 'اكتب بند الموازنة' }) @MaxLength(200)
+  item!: string;
+
+  @OptNum()
+  quantity?: number | null;
+
+  @OptNum()
+  unitCost?: number | null;
+
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'مبلغ بند الموازنة يجب أن يكون رقمًا' }) @Min(0)
+  amount!: number;
+
+  @IsOptional() @trim() @IsString() @MaxLength(300)
+  notes?: string | null;
+}
 
 /** بيانات المشروع في نظام إدارة المشاريع (كلها اختيارية في التعديل) */
 export class ProjectFieldsDto {
@@ -15,8 +63,8 @@ export class ProjectFieldsDto {
   @IsOptional() @trim() @IsString() @MaxLength(1000)
   description?: string | null;
 
-  @IsOptional() @IsIn(FUNDING, { message: 'اختر نوع المشروع: مقيد أو غير مقيد أو تشغيلي' })
-  fundingType?: 'restricted' | 'unrestricted' | 'operational';
+  @IsOptional() @IsIn(FUNDING, { message: 'اختر نوع المشروع: مقيد أو غير مقيد أو تشغيلي أو وقف' })
+  fundingType?: 'restricted' | 'unrestricted' | 'operational' | 'endowment';
 
   @IsOptional() @IsBoolean()
   zakatEligible?: boolean;
@@ -44,6 +92,37 @@ export class ProjectFieldsDto {
 
   @IsOptional() @IsArray() @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => ServiceDto)
   services?: ServiceDto[];
+
+  // ---- وثيقة المشروع ----
+  @IsOptional() @IsIn(['annual', 'continuous'], { message: 'اختر مدة المشروع: سنوي أو مستمر' })
+  durationType?: 'annual' | 'continuous';
+
+  @IsOptional() @ValidateIf((_, v) => v !== null) @IsInt({ message: 'السنة المالية غير صحيحة' }) @Min(2000)
+  fiscalYear?: number | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(5000)
+  idea?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(2000)
+  targetGroups?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(300)
+  location?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(3000)
+  outcomes?: string | null;
+
+  @IsOptional() @trim() @IsString() @MaxLength(3000)
+  risks?: string | null;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => PhaseDto)
+  phases?: PhaseDto[];
+
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => KpiDto)
+  kpis?: KpiDto[];
+
+  @IsOptional() @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => BudgetLineDto)
+  budgetLines?: BudgetLineDto[];
 
   @IsOptional() @IsBoolean()
   multiServices?: boolean;

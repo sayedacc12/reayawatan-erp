@@ -6,6 +6,11 @@ export const FUNDING_TYPES: Opt[] = [
   { value: 'restricted', label: 'مقيد', color: '#0d9488' },
   { value: 'unrestricted', label: 'غير مقيد', color: '#6366f1' },
   { value: 'operational', label: 'تشغيلي', color: '#d97706' },
+  { value: 'endowment', label: 'وقف', color: '#7c3aed' },
+];
+export const DURATIONS: Opt[] = [
+  { value: 'annual', label: 'سنوي', color: '#0ea5e9' },
+  { value: 'continuous', label: 'مستمر', color: '#10b981' },
 ];
 export const APPROVAL: Opt[] = [
   { value: 'draft', label: 'مسودة', color: '#94a3b8' },
@@ -51,7 +56,7 @@ export const ACTIONS: Record<string, string> = {
 
 const maps = {
   funding: toMap(FUNDING_TYPES), approval: toMap(APPROVAL), mode: toMap(MODES), alloc: toMap(ALLOC_STATUS),
-  pay: toMap(PAY_STATUS), method: toMap(METHODS), residency: toMap(RESIDENCY), request: toMap(REQUEST_STATUS),
+  pay: toMap(PAY_STATUS), duration: toMap(DURATIONS), method: toMap(METHODS), residency: toMap(RESIDENCY), request: toMap(REQUEST_STATUS),
 };
 export type Kind = keyof typeof maps;
 export const label = (k: Kind, v?: string | null) => (v ? maps[k][v]?.label ?? v : '—');
@@ -77,4 +82,5 @@ export const links = {
   request: (id: string) => `/beneficiaries/requests/${id}`,
   beneficiary: (id: string) => `/beneficiaries/files/${id}`,
   project: (id: string) => `/projects/${id}`,
+  document: (id: string) => `/projects/${id}/document`,
 };
