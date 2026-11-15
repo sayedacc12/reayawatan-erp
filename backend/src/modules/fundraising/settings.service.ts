@@ -86,6 +86,10 @@ export class FundraisingSettingsService {
     return this.db.query('SELECT id, full_name AS "fullName" FROM users WHERE organization_id = $1 AND is_active ORDER BY full_name', [orgId]);
   }
 
+  roles(orgId: string): Promise<{ id: string; name: string }[]> {
+    return this.db.query('SELECT id, name FROM roles WHERE organization_id = $1 ORDER BY name', [orgId]);
+  }
+
   // ---------------- القوائم ----------------
 
   async all(actor: OrgUser) {

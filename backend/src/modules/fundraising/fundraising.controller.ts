@@ -49,6 +49,13 @@ export class FundraisingSettingsController {
     return this.settings.users(actor.organizationId);
   }
 
+  /** أدوار الجمعية لتحديد المسؤول عن كل مرحلة اعتماد */
+  @Get('roles')
+  @RequirePermissions(P.settings)
+  roles(@CurrentOrgUser() actor: OrgUser) {
+    return this.settings.roles(actor.organizationId);
+  }
+
   @Post('levels')
   @RequirePermissions(P.settings)
   createLevel(@CurrentOrgUser() a: OrgUser, @Body() dto: DonorLevelDto) {
