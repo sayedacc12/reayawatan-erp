@@ -692,7 +692,7 @@ export class FundraisingService {
       const a = this.positive(amount);
       if (src.status !== 'active') throw new BadRequestException(`الدفعة رقم ${src.batchNo} غير متاحة للمناقلة`);
       if (a > net(src)) throw new BadRequestException(`المبلغ أكبر من صافي الدفعة رقم ${src.batchNo} (${net(src).toLocaleString('en-US')} ريال)`);
-      if (src.activityId === targetActivityId) throw new BadRequestException('المشروع الجديد هو نفس مشروع الدفعة');
+      if (src.activityId === targetActivityId && !conditionsOverride) throw new BadRequestException('المشروع الجديد هو نفس مشروع الدفعة');
       const acts = await this.activities(em, orgId);
       const t = acts.find((x) => x.id === targetActivityId);
       if (!t || !t.isActive || t.approvalStatus !== 'approved' || t.level === 'axis') throw new BadRequestException('المشروع الجديد غير معتمد');
