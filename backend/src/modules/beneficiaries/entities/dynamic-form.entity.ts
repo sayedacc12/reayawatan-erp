@@ -3,6 +3,7 @@ import { Organization } from '../../../core/entities';
 
 /** support = تقييم الباحث: مستحق / مستحق بنسبة (مع نسبة دعم الجمعية) / غير مستحق */
 export type FieldType = 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'support';
+export type FormStatus = 'draft' | 'approved';
 export type SupportDecision = 'full' | 'partial' | 'none';
 export interface SupportAnswer { decision: SupportDecision; percent?: number }
 
@@ -61,6 +62,19 @@ export class DynamicForm {
   /** قواعد التعامل مع نتيجة التقييم */
   @Column({ type: 'jsonb', default: () => `'[]'` })
   rules!: ScoreRule[];
+
+  /** draft = مستني اعتماد مدير الشاشة، approved = معتمد ويشتغل في المرحلة */
+  @Column({ type: 'varchar', length: 10, default: 'draft' })
+  status!: FormStatus;
+
+  @Column({ name: 'created_by_name', type: 'varchar', length: 200, nullable: true })
+  createdByName!: string | null;
+
+  @Column({ name: 'approved_by_name', type: 'varchar', length: 200, nullable: true })
+  approvedByName!: string | null;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;

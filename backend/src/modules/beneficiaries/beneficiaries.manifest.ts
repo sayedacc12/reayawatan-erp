@@ -12,6 +12,7 @@ export const BENEFICIARY_PERMISSIONS = {
   requestsProcess: 'beneficiaries.requests.process',
   tickets: 'beneficiaries.tickets.manage',
   settings: 'beneficiaries.settings.manage',
+  formsApprove: 'beneficiaries.forms.approve',
 } as const;
 
 export const beneficiariesManifest: ErpModuleManifest = {
@@ -34,6 +35,7 @@ export const beneficiariesManifest: ErpModuleManifest = {
     { code: BENEFICIARY_PERMISSIONS.requestsProcess, name: 'اتخاذ القرارات في مراحل الطلبات' },
     { code: BENEFICIARY_PERMISSIONS.tickets, name: 'الرد على الشكاوى والمقترحات والاستفسارات' },
     { code: BENEFICIARY_PERMISSIONS.settings, name: 'إعدادات الأنشطة وسير العمل والنماذج' },
+    { code: BENEFICIARY_PERMISSIONS.formsApprove, name: 'اعتماد نماذج المراحل (مدير الشاشة)' },
   ],
   settingsPermission: BENEFICIARY_PERMISSIONS.settings,
   menu: [

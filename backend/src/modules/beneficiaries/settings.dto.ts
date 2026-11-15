@@ -104,6 +104,16 @@ export class FormDto {
   rules?: unknown[];
 }
 
+/** إنشاء نموذج: لازم يكون على مرحلة (أو على تقديم الطلب في سير عمل) */
+export class CreateFormDto extends FormDto {
+  @IsUUID('all', { message: 'اختر سير العمل' })
+  workflowId!: string;
+
+  /** فاضي = نموذج تقديم الطلب */
+  @IsOptional() @IsUUID('all', { message: 'اختر المرحلة' })
+  stageId?: string | null;
+}
+
 export class StageDto {
   /** موجود = تعديل مرحلة قائمة، فاضي = مرحلة جديدة */
   @IsOptional() @IsUUID()

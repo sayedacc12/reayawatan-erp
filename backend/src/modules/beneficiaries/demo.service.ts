@@ -64,7 +64,7 @@ export class DemoService {
     }));
     const managerRole = await em.save(em.create(Role, {
       organizationId: orgId, name: 'مدير الحالات', description: 'يراجع الطلبات ويعتمدها نهائيًا ويصرف المساعدات',
-      permissions: await perms([P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents]),
+      permissions: await perms([P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove]),
     }));
     const user = (fullName: string, email: string, extra: Partial<User>) => em.save(em.create(User, {
       organizationId: orgId, fullName, email, passwordHash: hash, ...extra,
@@ -74,7 +74,7 @@ export class DemoService {
     await user('خالد إبراهيم', 'demo-manager@sanabelerp.com', { roles: [managerRole] });
 
     const appForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, name: 'نموذج بيانات الطلب', description: 'يعبّيه المستفيد عند التقديم',
+      organizationId: orgId, status: 'approved', approvedByName: 'مدير الجمعية التجريبية', approvedAt: new Date(), name: 'نموذج بيانات الطلب', description: 'يعبّيه المستفيد عند التقديم',
       fields: normalizeFields([
         { key: 'reason', label: 'سبب الطلب', type: 'textarea', required: true, placeholder: 'اشرح ظروفك باختصار' },
         { key: 'members', label: 'عدد أفراد الأسرة', type: 'number', required: true },
@@ -83,7 +83,7 @@ export class DemoService {
       ]),
     }));
     const researchForm = await em.save(em.create(DynamicForm, {
-      organizationId: orgId, name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية، والنظام بيحسب نتيجة التقييم',
+      organizationId: orgId, status: 'approved', approvedByName: 'مدير الجمعية التجريبية', approvedAt: new Date(), name: 'نموذج البحث الاجتماعي', description: 'يعبّيه الباحث بعد الزيارة الميدانية، والنظام بيحسب نتيجة التقييم',
       scored: true,
       fields: normalizeFields([
         { key: 'visit_date', label: 'تاريخ الزيارة', type: 'date', required: true },

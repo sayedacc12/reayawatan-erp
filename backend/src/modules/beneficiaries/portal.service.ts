@@ -52,7 +52,8 @@ export class PortalService {
         const program = byId.get(p.parentId!)!;
         const axis = byId.get(program.parentId!)!;
         const wf = workflows.find((w) => w.id === p.workflowId) ?? def;
-        const form = wf?.applicationFormId ? forms.find((f) => f.id === wf.applicationFormId) : null;
+        // نموذج التقديم بيظهر للمستفيد بعد اعتماده بس
+        const form = wf?.applicationFormId ? forms.find((f) => f.id === wf.applicationFormId && f.status === 'approved') : null;
         return {
           id: p.id, name: p.name, description: p.description, program: program.name, axis: axis.name,
           applicationForm: form ? { name: form.name, fields: form.fields } : null,

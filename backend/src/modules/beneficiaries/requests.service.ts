@@ -173,7 +173,7 @@ export class RequestsService {
         stages: (workflow.stages ?? []).map((s) => ({
           id: s.id, name: s.name, instructions: s.instructions, sortOrder: s.sortOrder, canReject: s.canReject,
           canReturn: s.canReturn, roleId: s.roleId, roleName: s.role?.name ?? null, kind: s.kind,
-          form: s.form ? { id: s.form.id, name: s.form.name, fields: s.form.fields, scored: s.form.scored, rules: s.form.rules } : null,
+          form: s.form ? { id: s.form.id, name: s.form.name, fields: s.form.fields, scored: s.form.scored, rules: s.form.rules, status: s.form.status } : null,
         })),
       },
       actions: (r.actions ?? []).map((a) => ({
@@ -275,6 +275,9 @@ export class RequestsService {
       const stage = stages[idx];
 
       if (dto.estimatedCost !== undefined) r.estimatedCost = dto.estimatedCost;
+      if (stage.form && stage.form.status !== 'approved' && dto.decision !== 'return') {
+        throw new BadRequestException(`نموذج "${stage.form.name}" في المرحلة دي لسه مستني اعتماد مدير الشاشة`);
+      }
 
       if (dto.decision === 'approve') {
         const form = stage.form ? { form: stage.form, data: validateAnswers(stage.form.fields, dto.formData) } : null;
@@ -498,7 +501,7 @@ export class RequestsService {
 
   private async validateApplication(em: EntityManager, workflow: Workflow, data?: Record<string, unknown>) {
     if (!workflow.applicationFormId) return {};
-    const form = await em.findOne(DynamicForm, { where: { id: workflow.applicationFormId } });
+    const form = await em.findOne(DynamicForm, { where: { id: workflow.applicationFormId, status: 'approved' } });
     return form ? validateAnswers(form.fields, data) : {};
   }
 

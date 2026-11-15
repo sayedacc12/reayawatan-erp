@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { CurrentOrgUser, OrgUser, RequirePermissions } from '../../core/auth/decorators';
 import { BENEFICIARY_PERMISSIONS as P } from './beneficiaries.manifest';
-import { AccountingDto, ActivityDto, FormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
+import { AccountingDto, ActivityDto, CreateFormDto, FormDto, UpdateActivityDto, WorkflowDto } from './settings.dto';
 import { SettingsService } from './settings.service';
 
 const uuid = new ParseUUIDPipe();
@@ -44,8 +44,15 @@ export class SettingsController {
 
   @Post('forms')
   @RequirePermissions(P.settings)
-  createForm(@CurrentOrgUser() actor: OrgUser, @Body() dto: FormDto) {
+  createForm(@CurrentOrgUser() actor: OrgUser, @Body() dto: CreateFormDto) {
     return this.settings.createForm(actor, dto);
+  }
+
+  @Post('forms/:id/approve')
+  @HttpCode(200)
+  @RequirePermissions(P.formsApprove)
+  approveForm(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.settings.approveForm(actor, id);
   }
 
   @Put('forms/:id')
