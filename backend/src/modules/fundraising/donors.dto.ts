@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
-import { trim } from './settings.dto';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested } from 'class-validator';
+import { SupportManagerRefDto, trim } from './settings.dto';
 
 export class DonorDto {
   @trim() @IsString() @MinLength(2, { message: 'اسم الداعم قصير جدًا' }) @MaxLength(200)
@@ -26,6 +26,10 @@ export class DonorDto {
 
   @IsOptional() @ValidateIf((_, v) => v !== null) @IsUUID()
   supportManagerId?: string | null;
+
+  /** بديل supportManagerId: يُنشأ مدير الدعم تلقائيًا أو يُستخدم الموجود */
+  @IsOptional() @ValidateIf((_, v) => v !== null) @ValidateNested() @Type(() => SupportManagerRefDto)
+  supportManager?: SupportManagerRefDto | null;
 
   @IsOptional() @IsObject()
   customData?: Record<string, unknown>;

@@ -68,7 +68,7 @@ const w = (x: number, total: number) => (total ? `${(x / total) * 100}%` : '0%')
             <td class="fr-amount">{{ sar(b.amount) }}</td>
             <td class="use"><div class="fr-progress"><i :style="{ width: w(b.spentAmount, b.amount), background: '#0f766e' }" /><i :style="{ width: w(b.reservedAmount, b.amount), background: '#f59e0b' }" /><i :style="{ width: w(b.transferredAmount, b.amount), background: '#8b5cf6' }" /></div></td>
             <td><b>{{ sar(b.net) }}</b></td>
-            <td><span class="fr-badge" :style="{ '--c': color('batch', b.status) }">{{ label('batch', b.status) }}</span><span v-if="b.isPromised" class="muted"> · موعود</span></td>
+            <td><span class="fr-badge" :style="{ '--c': color('batch', b.status) }">{{ label('batch', b.status) }}</span><span v-if="b.isPromised" class="muted" title="وعد بالدفع: يُصرف قبل السداد ويبقى مستحقًا على الداعم"> · تبرع آجل</span></td>
           </tr>
         </tbody>
       </table>

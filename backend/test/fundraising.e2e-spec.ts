@@ -59,7 +59,8 @@ describe('Fundraising', () => {
     ids.level = (await http.post('/api/fundraising/settings/levels').set(as(admin)).send({ name: 'ماسي', color: '#60a5fa', minAmount: 100000 }).expect(201)).body.id;
     ids.manager = (await http.post('/api/fundraising/settings/managers').set(as(admin)).send({ name: 'شركة تنمية', kind: 'external', entityName: 'مؤسسة خارجية' }).expect(201)).body.id;
     await http.post('/api/fundraising/settings/managers').set(as(admin)).send({ name: 'بدون جهة', kind: 'external' }).expect(400);
-    ids.waqf = (await http.post('/api/fundraising/settings/waqf').set(as(admin)).send({ name: 'وقف العمارة السكنية' }).expect(201)).body.id;
+    // مشاريع الأوقاف تُنشأ في إدارة المشاريع وليس هنا
+    await http.post('/api/fundraising/settings/waqf').set(as(admin)).send({ name: 'وقف العمارة السكنية' }).expect(400);
 
     await http.put('/api/fundraising/settings/general').set(as(admin)).send({
       donorFields: [
@@ -109,9 +110,13 @@ describe('Fundraising', () => {
     // يملكها نظام إدارة المشاريع؛ هنا نضبطها مباشرة للاختبار
     await db.query('UPDATE activities SET zakat_eligible = true WHERE id = $1', [ids.zakatProject]);
     await db.query("UPDATE activities SET funding_type = 'operational' WHERE id = $1", [ids.opProject]);
+    ids.waqf = await mk({ level: 'project', name: 'وقف العمارة السكنية', parentId: ids.program });
+    await db.query("UPDATE activities SET funding_type = 'endowment' WHERE id = $1", [ids.waqf]);
     const t = await http.get('/api/fundraising/targets').set(as(admin)).expect(200);
     expect(t.body.programs.map((p: { name: string }) => p.name)).toEqual(expect.arrayContaining(['علاج المرضى', 'الغسيل الكلوي', 'التوعية الصحية']));
     expect(t.body.operational.map((p: { name: string }) => p.name)).toEqual(['رواتب الإدارة']);
+    expect(t.body.waqf.map((p: { name: string }) => p.name)).toEqual(['وقف العمارة السكنية']);
+    expect(t.body.programs.map((p: { name: string }) => p.name)).not.toContain('وقف العمارة السكنية');
     expect(t.body.programs.find((p: { id: string }) => p.id === ids.zakatProject).path).toBe('الرعاية الصحية ← علاج المرضى ← الغسيل الكلوي');
   });
 
@@ -139,7 +144,7 @@ describe('Fundraising', () => {
       ...base(), totalAmount: 100000, lines: [
         { targetKind: 'program', activityId: ids.plainProject, mode: 'percent', percent: 33.333 },
         { targetKind: 'operational', mode: 'percent', percent: 33.333 },
-        { targetKind: 'waqf', waqfProjectId: ids.waqf, mode: 'percent', percent: 33.334 },
+        { targetKind: 'waqf', activityId: ids.waqf, mode: 'percent', percent: 33.334 },
       ],
     }).expect(201);
     ids.opp = r.body.id;
@@ -201,6 +206,35 @@ describe('Fundraising', () => {
     expect(d.body.entries).toHaveLength(0);
   });
 
+  it('picks the support manager as a staff user or an external name, and drops national ID for individuals', async () => {
+    const [{ id: userId }] = await db.query("SELECT id FROM users WHERE email = 'ap@test.org'");
+    const users = await http.get('/api/fundraising/settings/users').set(as(admin)).expect(200);
+    expect(users.body.map((u: { id: string }) => u.id)).toContain(userId);
+    const d = await http.post('/api/fundraising/donors').set(as(admin)).send({
+      name: 'سارة الدوسري', type: 'individual', identifier: '1099999999', supportManager: { kind: 'employee', userId },
+      customData: { [(await http.get('/api/fundraising/settings').set(as(admin))).body.donorFields[0].key]: '0509999999' },
+    }).expect(201);
+    expect(d.body.identifier).toBeNull();
+    const detail = await http.get(`/api/fundraising/donors/${d.body.id}`).set(as(admin)).expect(200);
+    expect(detail.body).toMatchObject({ managerName: 'معتمد الفرص', managerKind: 'employee', managerUserId: userId });
+    await http.post('/api/fundraising/donors').set(as(admin)).send({ name: 'خطأ', type: 'individual', supportManager: { kind: 'employee', userId: '00000000-0000-0000-0000-000000000000' }, customData: {} }).expect(400);
+
+    const post = (supportManager: object) => http.post('/api/fundraising/opportunities').set(as(admin)).send({
+      ...base(), supportManagerId: undefined, supportManager, totalAmount: 1000, lines: [{ targetKind: 'operational', mode: 'amount', amount: 1000 }],
+    });
+    const o1 = await post({ kind: 'external', name: 'مكتب الإحسان للتسويق' }).expect(201);
+    const o2 = await post({ kind: 'external', name: 'مكتب الإحسان للتسويق' }).expect(201);
+    expect(o1.body.supportManager).toMatchObject({ kind: 'external', name: 'مكتب الإحسان للتسويق' });
+    expect(o2.body.supportManagerId).toBe(o1.body.supportManagerId); // لا يتكرر مدير الدعم الخارجي
+    const o3 = await post({ kind: 'employee', userId }).expect(201);
+    expect(o3.body.supportManagerId).toBe(detail.body.supportManagerId);
+    await post({ kind: 'external', name: '' }).expect(400);
+    // اكتفينا بالتحقق، ونرفض الفرص الثلاث كي لا تؤثر في أرقام التقارير
+    for (const o of [o1, o2, o3]) {
+      await http.post(`/api/fundraising/opportunities/${o.body.id}/decision`).set(as(admin)).send({ decision: 'reject', notes: 'اختبار' }).expect(200);
+    }
+  });
+
   it('records a pledge, posts receivable entries, and collects in parts', async () => {
     await db.query('DELETE FROM fundraising_approval_stages');
     const r = await http.post('/api/fundraising/opportunities').set(as(admin)).send({
@@ -216,10 +250,16 @@ describe('Fundraising', () => {
     await http.post(`/api/fundraising/opportunities/${ids.pledge}/collections`).set(as(admin)).send({ date: '2026-11-12', amount: 25000, bankAccountId: ids.bank }).expect(400);
     let c = await http.post(`/api/fundraising/opportunities/${ids.pledge}/collections`).set(as(admin)).send({ date: '2026-11-12', amount: 15000, bankAccountId: ids.bank }).expect(201);
     expect(c.body.collectedAmount).toBe(15000);
+    // حساب الداعم المدين: 20,000 مستحق ثم سداد 15,000
+    let donor = await http.get(`/api/fundraising/donors/${ids.donor}`).set(as(admin)).expect(200);
+    expect(donor.body.receivable).toBe(5000);
+    expect(donor.body.statement.map((x: { debit: number; credit: number }) => [x.debit, x.credit])).toEqual([[20000, 0], [0, 15000]]);
     expect(c.body.collections[0].receiptNo).toBe(2);
     c = await http.post(`/api/fundraising/opportunities/${ids.pledge}/collections`).set(as(admin)).send({ date: '2026-11-13', amount: 5000, bankAccountId: ids.bank }).expect(201);
     expect(c.body.batches[0].isPromised).toBe(false);
     expect(c.body.entries).toHaveLength(3);
+    donor = await http.get(`/api/fundraising/donors/${ids.donor}`).set(as(admin)).expect(200);
+    expect(donor.body.receivable).toBe(0);
     await http.get(`/api/fundraising/opportunities/${ids.pledge}/receipt?collection=${c.body.collections[1].id}`).set(as(admin)).expect(200);
   });
 

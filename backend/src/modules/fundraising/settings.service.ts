@@ -7,7 +7,7 @@ import { normalizeDonorFields } from './donor-fields';
 import {
   AccountRef, ApprovalStage, BankAccount, DEFAULT_ROUTING, DonorLevel, FundraisingSettings, JournalRouting, SupportManager, WaqfProject,
 } from './entities';
-import { BankAccountDto, DonorLevelDto, GeneralSettingsDto, StagesDto, SupportManagerDto, WaqfProjectDto } from './settings.dto';
+import { BankAccountDto, DonorLevelDto, GeneralSettingsDto, StagesDto, SupportManagerDto, SupportManagerRefDto, WaqfProjectDto } from './settings.dto';
 
 type ListEntity = typeof DonorLevel | typeof SupportManager | typeof BankAccount | typeof WaqfProject;
 const LISTS = { levels: DonorLevel, managers: SupportManager, banks: BankAccount, waqf: WaqfProject } as const;
@@ -80,6 +80,30 @@ export class FundraisingSettingsService {
     if (dto.journalRouting !== undefined) current.journalRouting = this.routing(dto.journalRouting as unknown as JournalRouting);
     await this.settings.save(current);
     return this.general(actor.organizationId);
+  }
+
+  /** يحوّل اختيار مدير الدعم (موظف أو جهة خارجية) إلى سجل مدير دعم، ويُنشئه إن لم يوجد */
+  async resolveManager(orgId: string, ref: SupportManagerRefDto, m?: EntityManager): Promise<string> {
+    const em = m ?? this.db.manager;
+    const repo = em.getRepository(SupportManager);
+    if (ref.kind === 'employee') {
+      const user = await em.findOne(User, { where: { id: ref.userId!, organizationId: orgId } });
+      if (!user || !user.isActive) throw new BadRequestException('الموظف المختار غير موجود أو موقوف');
+      const found = await repo.findOne({ where: { organizationId: orgId, userId: user.id } });
+      if (found) {
+        if (!found.isActive || found.name !== user.fullName) await repo.update(found.id, { isActive: true, name: user.fullName });
+        return found.id;
+      }
+      return (await repo.save(repo.create({ organizationId: orgId, name: user.fullName, kind: 'employee', userId: user.id, isActive: true }))).id;
+    }
+    const name = ref.name!.trim();
+    const found = await repo.createQueryBuilder('m')
+      .where('m.organization_id = :orgId AND m.kind = :k AND lower(m.name) = lower(:name)', { orgId, k: 'external', name }).getOne();
+    if (found) {
+      if (!found.isActive) await repo.update(found.id, { isActive: true });
+      return found.id;
+    }
+    return (await repo.save(repo.create({ organizationId: orgId, name, kind: 'external', entityName: name, isActive: true }))).id;
   }
 
   users(orgId: string): Promise<{ id: string; fullName: string }[]> {

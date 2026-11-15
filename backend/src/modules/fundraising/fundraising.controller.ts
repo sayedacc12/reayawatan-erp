@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -44,7 +45,7 @@ export class FundraisingSettingsController {
 
   /** موظفو الجمعية لاختيار مدير الدعم */
   @Get('users')
-  @RequirePermissions(P.settings)
+  @RequireAnyPermission(P.settings, P.donorsManage, P.create)
   users(@CurrentOrgUser() actor: OrgUser) {
     return this.settings.users(actor.organizationId);
   }
@@ -92,10 +93,11 @@ export class FundraisingSettingsController {
     return this.settings.updateItem(a, 'banks', id, dto);
   }
 
+  /** مشاريع الأوقاف أصبحت تُنشأ وتُعتمد في إدارة المشاريع؛ القائمة هنا للسجلات القديمة فقط */
   @Post('waqf')
   @RequirePermissions(P.settings)
-  createWaqf(@CurrentOrgUser() a: OrgUser, @Body() dto: WaqfProjectDto) {
-    return this.settings.createItem(a, 'waqf', dto);
+  createWaqf() {
+    throw new BadRequestException('مشاريع الأوقاف تُنشأ وتُعتمد من قائمة المشاريع في إدارة المشاريع');
   }
 
   @Patch('waqf/:id')

@@ -10,6 +10,7 @@ export interface LedgerLineInput {
   memo?: string | null;
   batchId?: string | null;
   activityId?: string | null;
+  donorId?: string | null;
 }
 
 export interface LedgerEntryInput {
@@ -56,7 +57,7 @@ export class LedgerService {
       await em.save(lines.map((l, i) => em.create(LedgerLine, {
         organizationId: orgId, entryId: entry.id, lineNo: i + 1, accountCode: l.accountCode ?? null,
         accountName: l.accountName, debit: l.debit, credit: l.credit, memo: l.memo ?? null,
-        batchId: l.batchId ?? null, activityId: l.activityId ?? null,
+        batchId: l.batchId ?? null, activityId: l.activityId ?? null, donorId: l.donorId ?? null,
       })));
       return entry;
     };
@@ -77,7 +78,7 @@ export class LedgerService {
         source: { module: orig.sourceModule, type: 'reversal', id: orig.sourceId },
         activityId: orig.activityId, batchId: orig.batchId, opportunityId: orig.opportunityId,
         lines: [...orig.lines!].sort((a, b) => a.lineNo - b.lineNo)
-          .map((l) => ({ accountCode: l.accountCode, accountName: l.accountName, debit: l.credit, credit: l.debit, memo: l.memo, batchId: l.batchId, activityId: l.activityId })),
+          .map((l) => ({ accountCode: l.accountCode, accountName: l.accountName, debit: l.credit, credit: l.debit, memo: l.memo, batchId: l.batchId, activityId: l.activityId, donorId: l.donorId })),
       }, em);
       rev.reversalOfId = orig.id;
       await em.update(LedgerEntry, { id: rev.id }, { reversalOfId: orig.id });

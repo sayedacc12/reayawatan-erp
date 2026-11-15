@@ -76,7 +76,7 @@ const cats = (c: string[]) => (c.length ? c.map((x) => label('category', x)).joi
           <div><dt>الجنسيات</dt><dd>{{ b.conditions.nationalities.length ? b.conditions.nationalities.join('، ') : 'كل الجنسيات' }}</dd></div>
           <div><dt>انتهاء المشروع</dt><dd>{{ b.conditions.endDate ? `${fmtDate(b.conditions.endDate)} (${hijri(b.conditions.endDate)})` : '—' }}</dd></div>
           <div><dt>طريقة التوزيع</dt><dd>{{ b.allocationMode === 'percent' ? `${b.percent}% من إجمالي الفرصة` : 'مبلغ محدد' }}</dd></div>
-          <div><dt>الحالة المالية</dt><dd>{{ b.isPromised ? 'وعد بالدفع لم يُسدَّد بالكامل' : 'مُحصَّلة' }}</dd></div>
+          <div><dt>الحالة المالية</dt><dd>{{ b.isPromised ? 'تبرع آجل (وعد بالدفع): يُصرف منه الآن، ويبقى المتبقي مستحقًا على الداعم' : 'مُحصَّلة' }}</dd></div>
           <div v-if="b.parentBatchId"><dt>ناتجة عن مناقلة من</dt><dd><RouterLink :to="`/fundraising/batches/${b.parentBatchId}`">{{ fmtNo('B', b.parentBatchNo) }}</RouterLink></dd></div>
           <div v-if="b.beneficiaryRequestId"><dt>مقيدة لحالة</dt><dd><RouterLink :to="`/beneficiaries/requests/${b.beneficiaryRequestId}`">عرض طلب المستفيد</RouterLink></dd></div>
         </dl>

@@ -47,7 +47,8 @@ export interface LedgerEntry {
 
 export interface Opportunity {
   id: string; opportunityNo: number; kind: 'cash' | 'in_kind' | 'pledge'; status: string; currentStageId: string | null; stageName: string | null;
-  donorId: string; supportManagerId: string | null; supportManagerName: string | null; date: string; totalAmount: number; bankAccountId: string | null;
+  donorId: string; supportManagerId: string | null; supportManagerName: string | null;
+  supportManager: { id: string; kind: 'employee' | 'external'; userId: string | null; name: string } | null; date: string; totalAmount: number; bankAccountId: string | null;
   transferReference: string | null; isZakat: boolean; conditions: Conditions; conditionsText: string | null; inKindDescription: string | null;
   receiptNo: number | null; journalEntryId: string | null; collectedAmount: number; createdByName: string | null; approvedAt: string | null; createdAt: string;
   donor: { id: string; donorNo: number; name: string; phone: string | null; email: string | null; identifier: string | null; levelName: string | null; levelColor: string | null } | null;
@@ -69,6 +70,6 @@ export interface OpportunityRow {
 export interface Targets {
   programs: { id: string; level: string; name: string; path: string; zakatEligible: boolean }[];
   operational: { id: string; level: string; name: string; path: string }[];
-  waqf: { id: string; name: string; description: string | null; targetAmount: number | null }[];
+  waqf: { id: string; level: string; name: string; path: string }[];
   cases: { id: string; requestNo: number; status: string; services: string[]; estimatedCost: number | null; beneficiaryName: string; fileNo: number; projectId: string; projectName: string; zakatEligible: boolean; funded: number }[];
 }

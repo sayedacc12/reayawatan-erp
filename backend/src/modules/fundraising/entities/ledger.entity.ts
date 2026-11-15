@@ -47,4 +47,6 @@ export class LedgerLine {
   /** الدفعة والمشروع الخاصين بالسطر (لتتبع القيود على مستوى المشروع) */
   @Index() @Column({ name: 'batch_id', type: 'uuid', nullable: true }) batchId!: string | null;
   @Index() @Column({ name: 'activity_id', type: 'uuid', nullable: true }) activityId!: string | null;
+  /** الطرف المدين/الدائن في الحساب الفرعي (ذمم الداعمين) */
+  @Index() @Column({ name: 'donor_id', type: 'uuid', nullable: true }) donorId!: string | null;
 }

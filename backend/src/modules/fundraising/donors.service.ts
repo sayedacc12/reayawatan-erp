@@ -87,11 +87,21 @@ export class DonorsService {
       ),
       this.settings.general(org),
     ]);
+    // كشف حساب الداعم المدين: مستحقات الوعود بالدفع وسدادها من دفتر القيود
+    const statement: { date: string; entryNo: number; description: string; debit: number; credit: number; balance?: number; opportunityId: string | null }[] = await this.db.query(
+      `SELECT e.entry_date AS date, e.entry_no AS "entryNo", e.description, l.debit::float AS debit, l.credit::float AS credit, e.opportunity_id AS "opportunityId"
+         FROM ledger_lines l JOIN ledger_entries e ON e.id = l.entry_id
+        WHERE l.organization_id = $1 AND l.donor_id = $2 ORDER BY e.entry_date, e.entry_no, l.line_no`,
+      [org, id],
+    );
+    let bal = 0;
+    for (const r of statement) r.balance = bal = Math.round((bal + r.debit - r.credit) * 100) / 100;
     const { level, supportManager, ...rest } = d;
     return {
       ...rest,
       levelName: level?.name ?? null, levelColor: level?.color ?? null, managerName: supportManager?.name ?? null,
-      fields: general.donorFields, opportunities, batches, totals,
+      managerKind: supportManager?.kind ?? null, managerUserId: supportManager?.userId ?? null,
+      fields: general.donorFields, opportunities, batches, totals, statement, receivable: bal,
     };
   }
 
@@ -130,6 +140,10 @@ export class DonorsService {
 
   private async checkRefs(actor: OrgUser, dto: DonorDto) {
     const org = actor.organizationId;
+    // الأفراد بلا رقم هوية؛ السجل التجاري أو الرقم الموحد للجهات فقط
+    if (dto.type === 'individual') dto.identifier = null;
+    if (dto.supportManager) dto.supportManagerId = await this.settings.resolveManager(org, dto.supportManager);
+    delete dto.supportManager;
     if (dto.levelId && !(await this.db.getRepository(DonorLevel).exists({ where: { id: dto.levelId, organizationId: org } }))) {
       throw new BadRequestException('المستوى غير موجود');
     }

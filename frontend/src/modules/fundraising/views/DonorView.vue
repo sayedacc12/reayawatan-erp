@@ -14,6 +14,8 @@ interface DonorDetail extends Donor {
   opportunities: { id: string; opportunityNo: number; kind: string; status: string; date: string; totalAmount: number; collectedAmount: number; isZakat: boolean; receiptNo: number | null }[];
   batches: { id: string; batchNo: number; targetKind: string; targetName: string; status: string; amount: number; reserved: number; spent: number; transferred: number; opportunityNo: number }[];
   totals: { approved: number; pledgeOutstanding: number; pending: number };
+  statement: { date: string; entryNo: number; description: string; debit: number; credit: number; balance: number; opportunityId: string | null }[];
+  receivable: number;
 }
 
 const route = useRoute();
@@ -24,7 +26,7 @@ const d = ref<DonorDetail | null>(null);
 const settings = ref<Settings | null>(null);
 const error = ref('');
 const editing = ref(false);
-const tab = ref<'opps' | 'batches' | 'data'>('opps');
+const tab = ref<'opps' | 'batches' | 'account'>('opps');
 
 async function load() {
   try {
@@ -82,14 +84,15 @@ const pct = (x: number) => (batchTotals.value.amount ? (x / batchTotals.value.am
 
     <div class="fr-kpis">
       <div class="fr-kpi" style="--a: #10b981; --i: 0"><span class="k-label">إجمالي التبرعات المعتمدة</span><strong>{{ sar(d.totals.approved) }}</strong><span class="k-foot">{{ d.opportunities.filter((o) => o.status === 'approved').length }} فرصة</span></div>
-      <div class="fr-kpi" style="--a: #8b5cf6; --i: 1"><span class="k-label">المتبقي من الوعود</span><strong>{{ sar(d.totals.pledgeOutstanding) }}</strong><span class="k-foot">لم يُسدَّد بعد</span></div>
+      <div class="fr-kpi fr-row-link" style="--a: #8b5cf6; --i: 1" @click="tab = 'account'"><span class="k-label">حساب الداعم المدين</span><strong>{{ sar(d.receivable) }}</strong><span class="k-foot">مستحقات وعود بالدفع لم تُسدَّد</span></div>
       <div class="fr-kpi" style="--a: #0ea5e9; --i: 2"><span class="k-label">صافي الدفعات المتاح</span><strong>{{ sar(batchTotals.net) }}</strong><span class="k-foot">بعد الحجز والصرف والمناقلات</span></div>
       <div class="fr-kpi" style="--a: #f59e0b; --i: 3"><span class="k-label">فرص قيد الاعتماد</span><strong>{{ d.totals.pending.toLocaleString('ar-SA') }}</strong><span class="k-foot">بانتظار القرار أو التعديل</span></div>
     </div>
 
     <section class="fr-panel info">
       <dl class="fr-kv">
-        <div><dt>{{ d.type === 'entity' ? 'السجل التجاري' : 'رقم الهوية' }}</dt><dd dir="ltr">{{ d.identifier ?? '—' }}</dd></div>
+        <div v-if="d.type === 'entity'"><dt>السجل التجاري أو الرقم الموحد</dt><dd dir="ltr">{{ d.identifier ?? '—' }}</dd></div>
+        <div><dt>مدير الدعم</dt><dd>{{ d.managerName ?? '—' }}</dd></div>
         <div><dt>الجوال</dt><dd dir="ltr">{{ d.phone ?? '—' }}</dd></div>
         <div><dt>البريد الإلكتروني</dt><dd dir="ltr">{{ d.email ?? '—' }}</dd></div>
         <div><dt>المدينة</dt><dd>{{ d.city ?? '—' }}</dd></div>
@@ -102,9 +105,25 @@ const pct = (x: number) => (batchTotals.value.amount ? (x / batchTotals.value.am
     <nav class="fr-tabs">
       <button :class="['fr-tab', { on: tab === 'opps' }]" @click="tab = 'opps'">فرص التبرع ({{ d.opportunities.length }})</button>
       <button :class="['fr-tab', { on: tab === 'batches' }]" @click="tab = 'batches'">الدفعات وأرصدتها ({{ d.batches.length }})</button>
+      <button :class="['fr-tab', { on: tab === 'account' }]" @click="tab = 'account'">كشف حساب الداعم ({{ d.statement.length }})</button>
     </nav>
 
-    <div v-if="tab === 'opps'" class="card table-wrap">
+    <div v-if="tab === 'account'" class="card table-wrap">
+      <p class="muted acc-hint">مستحقات الوعود بالدفع على الداعم وسدادها، من قيود اليومية. الرصيد المدين هو ما بقي على الداعم.</p>
+      <table class="table">
+        <thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>مدين (مستحق)</th><th>دائن (سداد)</th><th>الرصيد</th></tr></thead>
+        <tbody>
+          <tr v-for="(r, i) in d.statement" :key="i" :class="{ 'fr-row-link': !!r.opportunityId }" @click="r.opportunityId && router.push(`/fundraising/opportunities/${r.opportunityId}`)">
+            <td>{{ fmtDate(r.date) }}</td><td><span class="fr-no">{{ r.entryNo }}</span></td><td class="wrap">{{ r.description }}</td>
+            <td class="fr-amount">{{ r.debit ? sar(r.debit) : '—' }}</td><td class="fr-amount">{{ r.credit ? sar(r.credit) : '—' }}</td><td><b>{{ sar(r.balance) }}</b></td>
+          </tr>
+        </tbody>
+        <tfoot v-if="d.statement.length"><tr><td colspan="5"><b>الرصيد المستحق على الداعم</b></td><td><b>{{ sar(d.receivable) }}</b></td></tr></tfoot>
+      </table>
+      <p v-if="!d.statement.length" class="fr-empty">لا توجد مستحقات على هذا الداعم</p>
+    </div>
+
+    <div v-else-if="tab === 'opps'" class="card table-wrap">
       <table class="table">
         <thead><tr><th>رقم الفرصة</th><th>النوع</th><th>التاريخ</th><th>المبلغ</th><th>الحالة</th><th>سند القبض</th></tr></thead>
         <tbody>
@@ -163,4 +182,6 @@ const pct = (x: number) => (batchTotals.value.amount ? (x / batchTotals.value.am
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .82rem; margin: 10px 0; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.acc-hint { margin: 0 0 10px; font-size: .86rem; }
+.wrap { white-space: normal; min-width: 260px; }
 </style>
