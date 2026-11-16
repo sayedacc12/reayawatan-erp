@@ -17,7 +17,11 @@ export type AccountNature = (typeof NATURES)[number];
 export const ACCOUNT_KINDS = ['root', 'main', 'sub'] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
 export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment'] as const;
-export type VoucherType = (typeof VOUCHER_TYPES)[number];
+export type BuiltinVoucherType = (typeof VOUCHER_TYPES)[number];
+/** نوع المستند: أحد الأنواع الأساسية، أو نوع سند خاص بالجمعية يُعرَّف من الإعدادات (رمزه يبدأ بـ d_) */
+export type VoucherType = BuiltinVoucherType | `d_${string}`;
+/** صيغة رمز نوع السند الخاص بالجمعية */
+export const CUSTOM_TYPE_RE = /^d_[a-z0-9]{6,16}$/;
 export type EntryStatus = 'draft' | 'posted' | 'cancelled';
 export type FiscalYearStatus = 'open' | 'closed';
 
@@ -798,8 +802,41 @@ export class VoucherAction {
   createdAt!: Date;
 }
 
+/**
+ * أنواع سندات خاصة بالجمعية (مثل سند قيد عهدة، أو سند تسوية مخزون): تُعرَّف من الإعدادات وتظهر تحت «العمليات»،
+ * وتعمل مثل قيد اليومية بتسلسل أرقام مستقل يبدأ من 1 كل سنة، وتدخل في الترحيل ومحضر الجرد. لا تُحذف بعد استخدامها بل توقف.
+ */
+@Entity('acc_document_types')
+@Index('UQ_acc_document_types_code', ['organizationId', 'code'], { unique: true })
+@Index('UQ_acc_document_types_name', ['organizationId', 'name'], { unique: true })
+export class DocumentType {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ length: 20 })
+  code!: `d_${string}`;
+
+  @Column({ length: 80 })
+  name!: string;
+
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  description!: string | null;
+
+  @Column({ name: 'is_active', default: true })
+  isActive!: boolean;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
 export const ACCOUNTING_ENTITIES = [
-  VoucherStage, Voucher, VoucherAction,
+  DocumentType, VoucherStage, Voucher, VoucherAction,
   AccountingSettings, FiscalYear, PeriodLock, VoucherSequence, Account, AnalyticAccount, PartnerCategory, Partner,
   CashAccount, Warehouse, JournalEntry, JournalLine, VoucherInventory,
 ];

@@ -3,14 +3,15 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import { ENTRY_STATUS, P, VOUCHER_TYPES, sar } from '../lib';
+import { ENTRY_STATUS, P, allTypes, loadDocTypes, sar, typeLabel as labelOf } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
 interface Row { id: string; entryNo: number; voucherLabel: string; voucherNo: string; entryDate: string; documentDate: string; description: string; counterparty: string | null; status: string; source: string; total: number; createdByName: string; cancelReason: string | null }
 /** fixedType: شاشة لنوع مستند واحد (مثل قيود التسوية) ضمن مجموعة العمليات */
 const props = defineProps<{ fixedType?: string }>();
-const typeLabel = computed(() => VOUCHER_TYPES.find((t) => t.value === props.fixedType)?.label);
+const typeLabel = computed(() => (props.fixedType ? labelOf(props.fixedType) : ''));
+loadDocTypes();
 const session = useSession();
 const router = useRouter();
 const rows = ref<Row[]>([]);
@@ -38,7 +39,7 @@ const counts = computed(() => ({
     <section class="pm-hero ac-hero">
       <div>
         <p class="pm-kicker">النظام المالي</p>
-        <h1>{{ fixedType === 'adjustment' ? 'قيود التسوية' : 'قيود اليومية' }}</h1>
+        <h1>{{ fixedType === 'adjustment' ? 'قيود التسوية' : fixedType ? typeLabel : 'قيود اليومية' }}</h1>
         <p class="pm-sub">رقم القيد مسلسل لا يتكرر ولا يُحذف، والقيد الملغي يبقى برقمه ويظهر «ملغي». سندات القبض والصرف تبدأ أرقامها من محضر الجرد السابق، وباقي المستندات من 1 مع رقم السنة.</p>
       </div>
       <div class="pm-actions">
@@ -54,7 +55,7 @@ const counts = computed(() => ({
     <section class="card pm-panel">
       <div class="ac-toolbar">
         <input v-model="f.q" class="input grow" placeholder="ابحث بالبيان أو الجهة أو رقم القيد أو المستند..." />
-        <select v-if="!fixedType" v-model="f.type" class="input"><option value="">كل المستندات</option><option v-for="t in VOUCHER_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option></select>
+        <select v-if="!fixedType" v-model="f.type" class="input"><option value="">كل المستندات</option><option v-for="t in allTypes" :key="t.value" :value="t.value">{{ t.label }}</option></select>
         <label class="pm-muted">من <input v-model="f.from" type="date" class="input" /></label>
         <label class="pm-muted">إلى <input v-model="f.to" type="date" class="input" /></label>
       </div>

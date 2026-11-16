@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import { P, VOUCHER_STATUS, VOUCHER_TYPES, sar, todayStr } from '../lib';
+import { P, VOUCHER_STATUS, allTypes, loadDocTypes, sar, todayStr } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 import CloseFlow from '../components/CloseFlow.vue';
 
 interface PendingV { id: string; kind: string; voucherNo: string; voucherDate: string; partyName: string; amount: number; status: string; requestKind: string | null }
 /** كل أنواع المستندات ما عدا القيد الافتتاحي (لا يخضع للترحيل) */
-const TYPES = VOUCHER_TYPES.filter((x) => x.value !== 'opening');
+const TYPES = computed(() => allTypes.value.filter((x) => x.value !== 'opening'));
+loadDocTypes();
 interface Cand { id: string; entryNo: number; voucherLabel: string; voucherNo: string; documentDate: string; description: string; total: number }
 const session = useSession();
 const toast = useToast();

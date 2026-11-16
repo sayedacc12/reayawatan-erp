@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
 import SearchSelect from '../../fundraising/components/SearchSelect.vue';
-import { dt, useAccounts } from '../lib';
+import { docTypes, dt, loadDocTypes, useAccounts, type DocType } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -14,9 +14,9 @@ interface ChartInfo { name: string; accounts: number; postingAccounts: number; l
 interface Stage { id?: string | null; name: string; instructions: string | null; roleId: string | null; pending?: number }
 
 const toast = useToast();
-type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'categories' | 'warehouses' | 'permissions';
+type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'doctypes' | 'categories' | 'warehouses' | 'permissions';
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'general', label: 'عام' }, { key: 'chart', label: 'الدليل الموحد' }, { key: 'receipt', label: 'مراحل اعتماد القبض' }, { key: 'payment', label: 'مراحل اعتماد الصرف' },
+  { key: 'general', label: 'عام' }, { key: 'chart', label: 'الدليل الموحد' }, { key: 'receipt', label: 'مراحل اعتماد القبض' }, { key: 'payment', label: 'مراحل اعتماد الصرف' }, { key: 'doctypes', label: 'أنواع السندات' },
   { key: 'categories', label: 'تصنيفات العملاء والموردين' }, { key: 'warehouses', label: 'أنواع المستودعات' }, { key: 'permissions', label: 'الصلاحيات' },
 ];
 const tab = ref<Tab>('general');
@@ -89,6 +89,37 @@ async function saveStages(kind: 'receipt' | 'payment') {
 function move(list: Stage[], i: number, d: number) {
   const [x] = list.splice(i, 1);
   list.splice(i + d, 0, x);
+}
+
+// ---------------- أنواع السندات الخاصة بالجمعية ----------------
+loadDocTypes(true);
+const newType = ref({ name: '', description: '' });
+const editing = ref<{ id: string; name: string; description: string } | null>(null);
+async function typeCall(path: string, method: string, json?: object, msg?: string) {
+  busy.value = true;
+  try {
+    await api(path, { method, json });
+    await loadDocTypes(true);
+    if (msg) toast.success(msg);
+    return true;
+  } catch (e) {
+    toast.error((e as Error).message);
+    return false;
+  } finally {
+    busy.value = false;
+  }
+}
+async function addType() {
+  if (await typeCall('/accounting/document-types', 'POST', { name: newType.value.name, description: newType.value.description || null }, `أُضيف «${newType.value.name}» تحت العمليات`)) newType.value = { name: '', description: '' };
+}
+async function saveType() {
+  const e = editing.value!;
+  if (await typeCall(`/accounting/document-types/${e.id}`, 'PATCH', { name: e.name, description: e.description || null }, 'تم الحفظ')) editing.value = null;
+}
+const toggleType = (d: DocType) => typeCall(`/accounting/document-types/${d.id}`, 'PATCH', { name: d.name, description: d.description, isActive: !d.isActive }, d.isActive ? 'أُوقف النوع' : 'فُعّل النوع');
+async function removeType(d: DocType) {
+  if (!confirm(`حذف نوع السند «${d.name}»؟`)) return;
+  await typeCall(`/accounting/document-types/${d.id}`, 'DELETE', undefined, 'حُذف النوع');
 }
 
 // ---------------- التصنيفات ----------------
@@ -187,6 +218,40 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy" @click="saveStages(tab as 'receipt' | 'payment')">حفظ المراحل</button></div>
       </section>
 
+      <section v-if="tab === 'doctypes'" class="card pm-panel">
+        <h2>أنواع السندات الخاصة بالجمعية</h2>
+        <p class="pm-muted">أضف أنواع سندات خاصة بجمعيتكم (مثل: سند عهدة، سند صرف عيني، إشعار مدين). يظهر كل نوع مفعّل تلقائيًا في القائمة الجانبية تحت «العمليات»،
+          ويُسجَّل مثل قيد اليومية بتسلسل أرقام مستقل يبدأ من 1 كل سنة، ويدخل في الترحيل وإغلاق الفترات ومحضر جرد السندات. النوع المستخدم لا يُحذف بل يُوقف.</p>
+        <table class="table">
+          <thead><tr><th>النوع</th><th>الوصف</th><th>السندات</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>
+            <tr v-for="d in docTypes" :key="d.id">
+              <template v-if="editing?.id === d.id">
+                <td><input v-model="editing.name" class="input" /></td>
+                <td><input v-model="editing.description" class="input" /></td>
+                <td>{{ d.entries }}</td><td></td>
+                <td class="acts"><button class="btn btn-sm btn-primary" :disabled="busy || editing.name.length < 3" @click="saveType">حفظ</button><button class="btn btn-sm" @click="editing = null">إلغاء</button></td>
+              </template>
+              <template v-else>
+                <td><b>{{ d.name }}</b></td><td class="pm-muted">{{ d.description || '—' }}</td><td>{{ d.entries }}</td>
+                <td><span class="pm-pill" :style="{ '--c': d.isActive ? '#10b981' : '#94a3b8' }">{{ d.isActive ? 'مفعّل' : 'موقوف' }}</span></td>
+                <td class="acts">
+                  <button class="btn btn-sm" @click="editing = { id: d.id, name: d.name, description: d.description ?? '' }">تعديل</button>
+                  <button class="btn btn-sm" :disabled="busy" @click="toggleType(d)">{{ d.isActive ? 'إيقاف' : 'تفعيل' }}</button>
+                  <button v-if="!d.entries" class="btn btn-sm btn-danger" :disabled="busy" @click="removeType(d)">حذف</button>
+                </td>
+              </template>
+            </tr>
+            <tr v-if="!docTypes.length"><td colspan="5" class="pm-empty">لا توجد أنواع سندات خاصة بعد. الأنواع الأساسية (قيد يومية، قبض، صرف، تسوية، افتتاحي) موجودة دائمًا.</td></tr>
+          </tbody>
+        </table>
+        <div class="ac-toolbar" style="margin-top: 10px">
+          <input v-model="newType.name" class="input grow" placeholder="اسم نوع السند (مثل: سند عهدة)" />
+          <input v-model="newType.description" class="input grow" placeholder="وصف مختصر (اختياري)" />
+          <button class="btn btn-primary" :disabled="busy || newType.name.trim().length < 3" @click="addType">إضافة</button>
+        </div>
+      </section>
+
       <section v-if="tab === 'categories'" class="card pm-panel">
         <h2>تصنيفات العملاء والموردين</h2>
         <table class="table">
@@ -238,4 +303,5 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
 .stage .ops { display: flex; gap: 4px; }
 .list-move, .list-enter-active, .list-leave-active { transition: all .3s var(--ease); }
 .list-enter-from, .list-leave-to { opacity: 0; transform: translateX(-20px); }
+.acts { display: flex; gap: 6px; justify-content: flex-end; }
 </style>

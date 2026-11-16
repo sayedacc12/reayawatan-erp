@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { AccCore, cents, fromCents, monthsBetween, today, VOUCHER_LABEL, voucherNo } from './acc-core.service';
+import { AccCore, cents, fromCents, monthsBetween, today, voucherNo } from './acc-core.service';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { NATURE_AR } from './accounts.service';
 import { Account, Partner, VoucherType } from './entities/accounting.entity';
@@ -32,6 +32,7 @@ export class ReportsService {
   // ---------------- اللوحة ----------------
 
   async dashboard(actor: OrgUser) {
+    const labels = await this.core.typeLabels(actor.organizationId);
     const org = actor.organizationId;
     const [years, settings, accCount] = await Promise.all([
       this.core.years(org), this.core.settings(org), this.db.getRepository(Account).count({ where: { organizationId: org } }),
@@ -88,7 +89,7 @@ export class ReportsService {
       receipts: { approved: vcount('receipt', ['approved']), pending: vcount('receipt', ['draft', 'pending', 'returned']) },
       payments: { approved: vcount('payment', ['approved']), pending: vcount('payment', ['draft', 'pending', 'returned']) },
       recent: recent.map((e: { id: string; entry_no: number; voucher_type: VoucherType; voucher_serial: number; document_date: string; description: string; status: string; total: string }) => ({
-        id: e.id, entryNo: e.entry_no, voucherLabel: VOUCHER_LABEL[e.voucher_type], voucherNo: voucherNo(e.voucher_type, e.voucher_serial, year.name),
+        id: e.id, entryNo: e.entry_no, voucherLabel: labels[e.voucher_type] ?? e.voucher_type, voucherNo: voucherNo(e.voucher_type, e.voucher_serial, year.name),
         documentDate: e.document_date, description: e.description, status: e.status, total: num(e.total),
       })),
     };
@@ -151,6 +152,7 @@ export class ReportsService {
   // ---------------- كشف الحساب ----------------
 
   private async movements(org: string, yearId: string, from: string, to: string, where: string, params: unknown[]) {
+    const labels = await this.core.typeLabels(org);
     const [open] = await this.db.query(
       `SELECT COALESCE(SUM(l.debit - l.credit), 0) AS bal FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id
         WHERE e.fiscal_year_id = $1 AND e.status = 'posted' AND e.document_date < $2 AND ${where}`, [yearId, from, ...params]);
@@ -169,7 +171,7 @@ export class ReportsService {
       debit += cents(l.debit as string); credit += cents(l.credit as string);
       bal += cents(l.debit as string) - cents(l.credit as string);
       return {
-        entryId: l.entry_id, entryNo: l.entry_no, voucherLabel: VOUCHER_LABEL[l.voucher_type as VoucherType],
+        entryId: l.entry_id, entryNo: l.entry_no, voucherLabel: labels[l.voucher_type as string] ?? l.voucher_type,
         voucherNo: voucherNo(l.voucher_type as VoucherType, l.voucher_serial as number, l.year as number),
         documentDate: l.document_date, description: l.label || l.description, accountCode: l.account_code, accountName: l.account_name,
         partnerName: l.partner_name, debit: fromCents(cents(l.debit as string)), credit: fromCents(cents(l.credit as string)), balance: fromCents(bal),

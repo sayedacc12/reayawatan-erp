@@ -3,7 +3,7 @@ import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID,
   Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
 } from 'class-validator';
-import { ACCOUNT_KINDS, NATURES, VOUCHER_TYPES } from './entities/accounting.entity';
+import { ACCOUNT_KINDS, NATURES, VoucherType } from './entities/accounting.entity';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
 const Nullable = (): PropertyDecorator => (t, k) => [IsOptional(), ValidateIf((_: unknown, v: unknown) => v !== null && v !== '')].forEach((d) => d(t, k));
@@ -45,9 +45,12 @@ export class SetupUpdateDto {
   taxNumber?: string | null;
 }
 
+/** نوع المستند: أساسي، أو نوع سند خاص بالجمعية (يُتحقق من وجوده في الخدمة) */
+const TYPE_CODE = /^(journal|receipt|payment|opening|adjustment|d_[a-z0-9]{6,16})$/;
+
 export class SequenceDto {
-  @IsIn(VOUCHER_TYPES)
-  voucherType!: (typeof VOUCHER_TYPES)[number];
+  @IsString() @Matches(TYPE_CODE, { message: 'نوع السند غير صحيح' })
+  voucherType!: VoucherType;
 
   @Type(() => Number) @IsInt({ message: 'بداية المدى رقم صحيح' }) @Min(1)
   startSerial!: number;
@@ -89,6 +92,17 @@ export class SettingsDto {
 
   @IsOptional() @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(120, { each: true })
   warehouseTypes?: string[];
+}
+
+export class DocumentTypeDto {
+  @trim() @IsString({ message: 'اكتب اسم نوع السند' }) @MinLength(3, { message: 'اكتب اسم نوع السند' }) @MaxLength(80)
+  name!: string;
+
+  @Nullable() @trim() @IsString() @MaxLength(300)
+  description?: string | null;
+
+  @IsOptional() @IsBoolean()
+  isActive?: boolean;
 }
 
 export class CategoryDto {
@@ -307,8 +321,8 @@ export class LineDto {
 }
 
 export class EntryDto {
-  @IsIn(VOUCHER_TYPES, { message: 'اختر نوع السند' })
-  voucherType!: (typeof VOUCHER_TYPES)[number];
+  @IsString({ message: 'اختر نوع السند' }) @Matches(TYPE_CODE, { message: 'اختر نوع السند' })
+  voucherType!: VoucherType;
 
   @DateField('تاريخ المستند غير صحيح')
   documentDate!: string;
@@ -355,8 +369,8 @@ export class BatchPostDto {
   @DateField('تاريخ النهاية غير صحيح')
   dateTo!: string;
 
-  @Nullable() @IsIn(VOUCHER_TYPES)
-  voucherType?: (typeof VOUCHER_TYPES)[number] | null;
+  @Nullable() @IsString() @Matches(TYPE_CODE, { message: 'نوع السند غير صحيح' })
+  voucherType?: VoucherType | null;
 
   @Nullable() @Type(() => Number) @IsInt() @Min(1)
   serialFrom?: number | null;
