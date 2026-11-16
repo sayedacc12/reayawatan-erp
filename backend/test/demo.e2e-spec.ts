@@ -79,6 +79,25 @@ describe('Demo association across all modules', () => {
     expect(plans.totals.positions).toBe(2);
   });
 
+  it('hr: attendance, salary items with accounts, and payroll sheets linked to accounting', async () => {
+    const admin = await staff('admin');
+    const types = (await http.get('/api/hr/allowance-types').set(as(admin)).expect(200)).body;
+    expect(types.every((t: { expenseAccountId: string | null; cashAccountId: string | null }) => t.expenseAccountId && t.cashAccountId)).toBe(true);
+    const month = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 7);
+    const att = (await http.get(`/api/hr/attendance?month=${month}`).set(as(admin)).expect(200)).body;
+    expect(att.config.enabled).toBe(true);
+    const runs = (await http.get('/api/hr/payroll-runs').set(as(admin)).expect(200)).body;
+    expect(runs.find((r: { month: string }) => r.month === month).status).toBe('draft');
+    const approved = runs.find((r: { status: string }) => r.status === 'approved');
+    if (approved) {
+      const r = (await http.get(`/api/hr/payroll-runs/${approved.id}`).set(as(admin)).expect(200)).body;
+      expect(r.entry.status).toBe('posted');
+      expect(r.vouchers.length).toBeGreaterThanOrEqual(3);
+      expect(Math.round(r.vouchers.reduce((s: number, v: { amount: number }) => s + v.amount, 0) * 100) / 100).toBe(r.totals.net);
+      expect(r.lines.some((l: { attendance: { absentDays: number } }) => l.attendance.absentDays > 0)).toBe(true);
+    }
+  });
+
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
     const finance = await staff('finance');
     const accounts = await http.get('/api/accounting/accounts').set(as(finance)).expect(200);

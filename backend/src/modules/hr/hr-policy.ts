@@ -44,7 +44,13 @@ export interface HrPolicy {
   };
   leaveTypes: LeaveTypeRule[];
   performance: { objectivesWeight: number; maxAchievement: number; bands: { min: number; label: string }[] };
-  payroll: { dayBasis: number };
+  payroll: {
+    dayBasis: number;
+    /** خصم أيام الغياب بدون عذر من الراتب، وكم يومًا يُخصم عن كل يوم غياب */
+    deductAbsence: boolean; absenceFactor: number;
+    /** خصم دقائق التأخير والخروج المبكر بعد فترة السماح، بأجر الدقيقة مضروبًا في المعامل */
+    deductLate: boolean; lateGraceMinutes: number; lateFactor: number;
+  };
 }
 
 const lt = (code: string, name: string, days: number, accrual: LeaveAccrual, pay: LeavePay, extra: Partial<LeaveTypeRule> = {}): LeaveTypeRule => ({
@@ -86,7 +92,7 @@ export function defaultPolicy(): HrPolicy {
       objectivesWeight: 70, maxAchievement: 120,
       bands: [{ min: 90, label: 'ممتاز' }, { min: 80, label: 'جيد جدًا' }, { min: 70, label: 'جيد' }, { min: 60, label: 'مرضٍ' }, { min: 0, label: 'يحتاج إلى تحسين' }],
     },
-    payroll: { dayBasis: 30 },
+    payroll: { dayBasis: 30, deductAbsence: true, absenceFactor: 1, deductLate: true, lateGraceMinutes: 15, lateFactor: 1 },
   };
 }
 
@@ -195,7 +201,16 @@ export function normalizePolicy(input: unknown): HrPolicy {
     maxAchievement: numIn(pf.maxAchievement, 100, 200, 'أعلى نسبة إنجاز محسوبة'),
     bands,
   };
-  return { work, gosi, eos, leaveTypes, performance, payroll: { dayBasis: numIn(py.dayBasis, 28, 31, 'عدد أيام الشهر في احتساب الأجر اليومي') } };
+  const dp = defaultPolicy().payroll;
+  const payroll = {
+    dayBasis: numIn(py.dayBasis, 28, 31, 'عدد أيام الشهر في احتساب الأجر اليومي'),
+    deductAbsence: py.deductAbsence === undefined ? dp.deductAbsence : py.deductAbsence === true,
+    absenceFactor: numIn(py.absenceFactor ?? dp.absenceFactor, 0, 3, 'أيام الخصم عن كل يوم غياب'),
+    deductLate: py.deductLate === undefined ? dp.deductLate : py.deductLate === true,
+    lateGraceMinutes: numIn(py.lateGraceMinutes ?? dp.lateGraceMinutes, 0, 120, 'دقائق السماح في التأخير'),
+    lateFactor: numIn(py.lateFactor ?? dp.lateFactor, 0, 3, 'معامل خصم دقيقة التأخير'),
+  };
+  return { work, gosi, eos, leaveTypes, performance, payroll };
 }
 
 // ---------------- الحسابات ----------------

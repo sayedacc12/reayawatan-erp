@@ -74,7 +74,7 @@ export class OrgService {
       units: rows.map((u) => ({
         id: u.id, parentId: u.parentId, level: u.level, levelName: s.structureLevels[u.level] ?? `المستوى ${u.level + 1}`, code: u.code, name: u.name,
         managerEmployeeId: u.managerEmployeeId, managerName: u.managerEmployeeId ? managers.get(u.managerEmployeeId) ?? null : null,
-        costCenter: u.costCenter, description: u.description, sortOrder: u.sortOrder,
+        costCenter: u.costCenter, analyticAccountId: u.analyticAccountId, description: u.description, sortOrder: u.sortOrder,
         jobs: c.get(u.id)?.jobs ?? 0, headcount: c.get(u.id)?.headcount ?? 0, employees: e.get(u.id) ?? 0,
       })),
     };
@@ -104,6 +104,11 @@ export class OrgService {
     }
     if (dto.managerEmployeeId && !(await this.db.getRepository(HrEmployee).exist({ where: { id: dto.managerEmployeeId, organizationId: org } }))) {
       throw new BadRequestException('مدير الوحدة غير موجود');
+    }
+    if (dto.analyticAccountId) {
+      const [a] = await this.db.query('SELECT name, kind, is_active FROM acc_analytic_accounts WHERE id = $1 AND organization_id = $2', [dto.analyticAccountId, org]);
+      if (!a) throw new BadRequestException('الحساب التحليلي غير موجود في النظام المالي');
+      if (a.kind !== 'sub' || !a.is_active) throw new BadRequestException(`الحساب التحليلي «${a.name}» رئيسي أو موقوف، اختر حسابًا فرعيًا`);
     }
   }
 
@@ -155,21 +160,25 @@ export class OrgService {
     }));
   }
 
-  private checkGrade(dto: GradeDto) {
+  private async checkGrade(org: string, dto: GradeDto) {
     if (dto.maxSalary < dto.minSalary) throw new BadRequestException('الحد الأعلى للراتب أقل من الحد الأدنى');
     const codes = dto.allowances.map((a) => a.code);
     if (new Set(codes).size !== codes.length) throw new BadRequestException('رموز البدلات مكررة');
+    const types = await this.core.checkCodes(org, codes);
+    dto.allowances.forEach((a) => {
+      a.name = types.get(a.code)!.name;
+    });
   }
 
   async createGrade(actor: OrgUser, dto: GradeDto) {
-    this.checkGrade(dto);
+    await this.checkGrade(actor.organizationId, dto);
     if (await this.grades.exist({ where: { organizationId: actor.organizationId, code: dto.code } })) throw new ConflictException('رمز المرتبة مستخدم');
     const g = await this.grades.save(this.grades.create({ ...dto, organizationId: actor.organizationId, structureLevel: dto.structureLevel ?? null }));
     return { id: g.id };
   }
 
   async updateGrade(actor: OrgUser, id: string, dto: GradeDto) {
-    this.checkGrade(dto);
+    await this.checkGrade(actor.organizationId, dto);
     const g = await this.grade(actor.organizationId, id);
     if (dto.code !== g.code && (await this.grades.exist({ where: { organizationId: actor.organizationId, code: dto.code } }))) throw new ConflictException('رمز المرتبة مستخدم');
     Object.assign(g, { ...dto, structureLevel: dto.structureLevel ?? null });

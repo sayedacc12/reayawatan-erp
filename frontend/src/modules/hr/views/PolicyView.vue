@@ -69,6 +69,15 @@ const factorLabel = (f: number) => (f === 0 ? 'لا شيء' : Math.abs(f - 1 / 3
             <label class="field"><span>مهلة الإشعار من الموظف (يوم)</span><input v-model.number="policy.work.noticeDaysEmployee" type="number" class="input" /></label>
             <label class="field"><span>أيام الشهر في احتساب الأجر اليومي</span><input v-model.number="policy.payroll.dayBasis" type="number" class="input" /></label>
           </div>
+          <div class="hr-sec">خصم الغياب والتأخير (من بصمات الحضور)</div>
+          <div class="hr-fields">
+            <label class="field" style="flex-direction: row; gap: 8px; align-items: center"><input v-model="policy.payroll.deductAbsence" type="checkbox" /><span>خصم أيام الغياب بدون عذر</span></label>
+            <label class="field"><span>أيام الخصم عن كل يوم غياب</span><input v-model.number="policy.payroll.absenceFactor" type="number" step="0.5" min="0" class="input" /></label>
+            <label class="field" style="flex-direction: row; gap: 8px; align-items: center"><input v-model="policy.payroll.deductLate" type="checkbox" /><span>خصم دقائق التأخير والخروج المبكر</span></label>
+            <label class="field"><span>دقائق السماح في اليوم</span><input v-model.number="policy.payroll.lateGraceMinutes" type="number" min="0" class="input" /></label>
+            <label class="field"><span>معامل خصم دقيقة التأخير (1 = بأجرها)</span><input v-model.number="policy.payroll.lateFactor" type="number" step="0.25" min="0" class="input" /></label>
+          </div>
+          <p class="pm-muted">أجر الدقيقة = الأجر اليومي ÷ (ساعات العمل اليومية × 60). التأخير الذي لا يتجاوز دقائق السماح لا يُخصم.</p>
         </section>
 
         <section v-else-if="tab === 'gosi'" key="g" class="card pm-panel">

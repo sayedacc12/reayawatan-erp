@@ -90,6 +90,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
             <div><dt>البريد</dt><dd>{{ e.email ?? '—' }}</dd></div>
             <div><dt>المدير المباشر</dt><dd>{{ e.managerName ?? '—' }}</dd></div>
             <div><dt>رقم التأمينات</dt><dd class="hr-code">{{ e.gosiNumber ?? '—' }}</dd></div>
+            <div><dt>رقم البصمة</dt><dd><span class="hr-code">{{ e.attendanceCode || e.employeeNo }}</span><span v-if="e.attendanceExempt" class="pm-tag">معفى من البصمة</span></dd></div>
             <div><dt>انتهاء {{ e.isSaudi ? 'الهوية' : 'الإقامة' }}</dt><dd>{{ fmtDate(e.idExpiry) }}<span class="hr-hijri">{{ hijri(e.idExpiry) }}</span></dd></div>
             <div v-if="!e.isSaudi"><dt>انتهاء الجواز</dt><dd>{{ fmtDate(e.passportExpiry) }}</dd></div>
           </dl>

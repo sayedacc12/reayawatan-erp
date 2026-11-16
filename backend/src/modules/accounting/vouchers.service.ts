@@ -244,21 +244,27 @@ export class VouchersService {
 
   async create(actor: OrgUser, kind: VoucherKind, dto: VoucherDto) {
     this.assertManage(actor, kind);
-    const org = actor.organizationId;
-    const id = await this.db.transaction(async (em) => {
-      const year = await this.core.assertWritable(org, dto.voucherDate, em);
-      await this.entries.assertNoApprovedInventory(em, year);
-      const f = await this.fields(em, org, dto);
-      await this.buildLines(em, org, kind, f);
-      // الرقم يُحجز عند الإنشاء ولا يُعاد استخدامه أبدًا (يبقى ولو أُلغي السند)
-      const serial = await this.entries.reserveSerial(em, year, kind);
-      const v = await em.getRepository(Voucher).save(em.create(Voucher, {
-        organizationId: org, kind, fiscalYearId: year.id, serial, ...f, status: 'draft', createdById: actor.id, createdByName: actor.fullName,
-      }));
-      await this.log(em, actor, v, 'create');
-      return v.id;
-    });
+    const id = await this.db.transaction(async (em) => (await this.insertDraft(em, actor, kind, dto)).id);
     return this.get(actor, id);
+  }
+
+  /**
+   * سند مسودة تنشئه وحدة أخرى (مثل مسير الرواتب) داخل معاملتها. صلاحية الإنشاء تتحقق منها الوحدة المرسلة،
+   * ثم يمر السند بمراحل اعتماد سندات الصرف المعتادة في النظام المالي.
+   */
+  async insertDraft(em: EntityManager, actor: OrgUser, kind: VoucherKind, dto: VoucherDto) {
+    const org = actor.organizationId;
+    const year = await this.core.assertWritable(org, dto.voucherDate, em);
+    await this.entries.assertNoApprovedInventory(em, year);
+    const f = await this.fields(em, org, dto);
+    await this.buildLines(em, org, kind, f);
+    // الرقم يُحجز عند الإنشاء ولا يُعاد استخدامه أبدًا (يبقى ولو أُلغي السند)
+    const serial = await this.entries.reserveSerial(em, year, kind);
+    const v = await em.getRepository(Voucher).save(em.create(Voucher, {
+      organizationId: org, kind, fiscalYearId: year.id, serial, ...f, status: 'draft', createdById: actor.id, createdByName: actor.fullName,
+    }));
+    await this.log(em, actor, v, 'create');
+    return v;
   }
 
   async update(actor: OrgUser, id: string, dto: VoucherDto) {

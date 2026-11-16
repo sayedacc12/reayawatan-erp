@@ -15,12 +15,12 @@ import { partsOf } from './org.service';
 export const CONTRACT_AR: Record<ContractType, string> = { fixed: 'محدد المدة', indefinite: 'غير محدد المدة', part_time: 'دوام جزئي', temporary: 'مؤقت / موسمي' };
 export const QIWA_AR: Record<QiwaStatus, string> = { documented: 'موثّق في قوى', pending: 'بانتظار موافقة الموظف', not_documented: 'غير موثّق' };
 export const LEAVE_STATUS_AR: Record<LeaveStatus, string> = { pending: 'بانتظار الاعتماد', approved: 'معتمدة', rejected: 'مرفوضة', cancelled: 'ملغاة' };
-const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
-const lastDay = (month: string) => {
+export const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+export const lastDay = (month: string) => {
   const [y, m] = month.split('-').map(Number);
   return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 };
-const overlapDays = (a1: string, a2: string, b1: string, b2: string) => {
+export const overlapDays = (a1: string, a2: string, b1: string, b2: string) => {
   const s = a1 > b1 ? a1 : b1;
   const e = a2 < b2 ? a2 : b2;
   return e < s ? 0 : daysBetween(s, e) + 1;
@@ -146,6 +146,17 @@ export class PeopleService {
     }
     const codes = dto.allowances.map((a) => a.code);
     if (new Set(codes).size !== codes.length) throw new BadRequestException('بند مكرر في البدلات');
+    const types = await this.core.checkCodes(org, codes);
+    dto.allowances.forEach((a) => {
+      a.name = types.get(a.code)!.name;
+    });
+    if (dto.attendanceCode) {
+      const others: { id: string; full_name: string }[] = await this.db.query(
+        `SELECT id, full_name FROM hr_employees WHERE organization_id = $1 AND COALESCE(NULLIF(attendance_code, ''), employee_no::text) = $2 AND id <> COALESCE($3::uuid, '00000000-0000-0000-0000-000000000000')`,
+        [org, dto.attendanceCode, selfId ?? null],
+      );
+      if (others.length) throw new ConflictException(`رقم البصمة ${dto.attendanceCode} مستخدم للموظف ${others[0].full_name}`);
+    }
     let gradeId = job.gradeId;
     if (gradeId) {
       const grade = await this.db.getRepository(HrGrade).findOneOrFail({ where: { id: gradeId } });

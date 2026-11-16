@@ -55,6 +55,9 @@ export class UnitDto {
   @Nullable() @trim() @IsString() @MaxLength(200)
   costCenter?: string | null;
 
+  @Nullable() @IsUUID()
+  analyticAccountId?: string | null;
+
   @Nullable() @trim() @IsString() @MaxLength(1000)
   description?: string | null;
 
@@ -68,7 +71,8 @@ export class GradeAllowanceDto {
   @IsString() @Matches(/^[a-z][a-z0-9_]{1,29}$/, { message: 'رمز البدل حروف إنجليزية صغيرة' })
   code!: string;
 
-  @trim() @IsString() @MinLength(2) @MaxLength(100)
+  /** يؤخذ من تعريف البند في تبويب البدلات */
+  @IsOptional() @IsString() @MaxLength(100)
   name!: string;
 
   @IsIn(['percent', 'fixed'])
@@ -241,7 +245,8 @@ export class SalaryItemDto {
   @IsString() @Matches(/^[a-z][a-z0-9_]{1,29}$/)
   code!: string;
 
-  @trim() @IsString() @MinLength(2) @MaxLength(100)
+  /** يؤخذ من تعريف البند في تبويب البدلات */
+  @IsOptional() @IsString() @MaxLength(100)
   name!: string;
 
   @Money('مبلغ البدل غير صحيح')
@@ -314,6 +319,12 @@ export class EmployeeDto {
 
   @Nullable() @trim() @Matches(/^SA\d{22}$/, { message: 'رقم الآيبان يبدأ بـ SA ويتكون من 24 خانة' })
   iban?: string | null;
+
+  @Nullable() @trim() @Matches(/^[A-Za-z0-9_-]{1,30}$/, { message: 'رقم الموظف في جهاز البصمة حروف إنجليزية وأرقام فقط' })
+  attendanceCode?: string | null;
+
+  @IsOptional() @IsBoolean()
+  attendanceExempt?: boolean;
 
   @Nullable() @trim() @Matches(/^\d{6,15}$/, { message: 'رقم المشترك في التأمينات أرقام فقط' })
   gosiNumber?: string | null;
@@ -436,4 +447,178 @@ export class CardUpdateDto {
 export class CardActionDto {
   @IsIn(['agree', 'evaluate', 'approve', 'reopen'])
   action!: 'agree' | 'evaluate' | 'approve' | 'reopen';
+}
+
+// ---------------- بنود الراتب والربط المحاسبي ----------------
+
+export class AllowanceTypeDto {
+  @trim() @Matches(/^[a-z][a-z0-9_]{1,29}$/, { message: 'رمز البند حروف إنجليزية صغيرة وأرقام، مثل housing' })
+  code!: string;
+
+  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم البند' }) @MaxLength(120)
+  name!: string;
+
+  @IsIn(['percent', 'fixed'])
+  defaultKind!: 'percent' | 'fixed';
+
+  @Money('القيمة الافتراضية رقم موجب')
+  defaultValue!: number;
+
+  @Nullable() @IsUUID()
+  expenseAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  payableAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  cashAccountId?: string | null;
+
+  @IsOptional() @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional() @Type(() => Number) @IsInt()
+  sortOrder?: number;
+}
+
+export class PayrollStageDto {
+  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم المرحلة' }) @MaxLength(120)
+  name!: string;
+
+  @Nullable() @IsUUID()
+  roleId?: string | null;
+}
+
+export class PayrollConfigDto {
+  @Nullable() @IsUUID()
+  payableAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  gosiPayableAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  gosiExpenseAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  deductionsAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  defaultCashAccountId?: string | null;
+
+  @IsArray() @ArrayMaxSize(8, { message: 'ثماني مراحل على الأكثر' }) @ValidateNested({ each: true }) @Type(() => PayrollStageDto)
+  stages!: PayrollStageDto[];
+}
+
+// ---------------- كشف الرواتب ----------------
+
+export class RunCreateDto {
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'اختر الشهر' })
+  month!: string;
+}
+
+export class RunAdditionDto {
+  @trim() @IsString()
+  code!: string;
+
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }, { message: 'مبلغ الإضافة رقم' }) @Min(0.01, { message: 'مبلغ الإضافة أكبر من صفر' })
+  amount!: number;
+
+  @Nullable() @trim() @IsString() @MaxLength(300)
+  note?: string | null;
+}
+
+export class RunLineDto {
+  /** تعديل الحضور يدويًا (فارغ = كما حُسب من البصمات) */
+  @IsOptional() @IsBoolean()
+  overrideAttendance?: boolean;
+
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 1 }) @Min(0) @Max(31)
+  absentDays?: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(20000)
+  lateMinutes?: number;
+
+  @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => RunAdditionDto)
+  additions!: RunAdditionDto[];
+
+  @Money('الاستقطاع رقم موجب')
+  otherDeduction!: number;
+
+  @Nullable() @trim() @IsString() @MaxLength(300)
+  otherDeductionNote?: string | null;
+}
+
+export class RunDecisionDto {
+  @IsIn(['approve', 'return'])
+  decision!: 'approve' | 'return';
+
+  @Nullable() @trim() @IsString() @MaxLength(1000)
+  note?: string | null;
+}
+
+export class RunNoteDto {
+  @Nullable() @trim() @IsString() @MaxLength(1000)
+  note?: string | null;
+}
+
+export class RunVouchersDto {
+  @DateField('تاريخ الصرف غير صحيح')
+  voucherDate!: string;
+}
+
+// ---------------- الحضور والانصراف ----------------
+
+export class HolidayDto {
+  @DateField('تاريخ العطلة غير صحيح')
+  date!: string;
+
+  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم العطلة' }) @MaxLength(100)
+  name!: string;
+}
+
+export class AttendanceConfigDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsString()
+  workStart!: string;
+
+  @IsString()
+  workEnd!: string;
+
+  @IsArray() @ArrayMaxSize(7) @Type(() => Number) @IsInt({ each: true })
+  weekend!: number[];
+
+  @IsArray() @ArrayMaxSize(60) @ValidateNested({ each: true }) @Type(() => HolidayDto)
+  holidays!: HolidayDto[];
+}
+
+export class DeviceDto {
+  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم الجهاز' }) @MaxLength(120)
+  name!: string;
+
+  @Nullable() @trim() @IsString() @MaxLength(60)
+  brand?: string | null;
+
+  @trim() @Matches(/^[A-Za-z0-9_-]{4,60}$/, { message: 'الرقم التسلسلي للجهاز (SN) حروف إنجليزية وأرقام كما في شاشة الجهاز' })
+  serialNumber!: string;
+
+  @Nullable() @trim() @IsString() @MaxLength(200)
+  location?: string | null;
+
+  @IsOptional() @IsBoolean()
+  isActive?: boolean;
+}
+
+export class ManualPunchDto {
+  @IsUUID()
+  employeeId!: string;
+
+  @DateField('التاريخ غير صحيح')
+  date!: string;
+
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'الوقت غير صحيح' })
+  time!: string;
+
+  @trim() @IsString({ message: 'اكتب سبب الإدخال اليدوي' }) @MinLength(3, { message: 'اكتب سبب الإدخال اليدوي' }) @MaxLength(300)
+  note!: string;
 }
