@@ -106,6 +106,29 @@
 .hr-tab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; font: inherit; color: var(--muted); }
 .hr-tab.on { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; border-color: transparent; font-weight: 600; }
 
+/* المسير والحضور */
+.pm-row-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.pm-row-head h2 { margin: 0 0 4px; }
+.alert-warn { background: #fef3c7; color: #92400e; }
+.hr-steps div.cur { color: var(--text); font-weight: 700; }
+.hr-steps div.cur::before { background: #fff; color: #a78bfa; box-shadow: 0 0 0 2px #a78bfa; animation: hr-pulse 1.6s infinite; }
+.hr-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.hr-cal .h { font-size: .72rem; color: var(--muted); text-align: center; }
+.hr-day { border: 1px solid var(--border); border-radius: 10px; padding: 6px; min-height: 70px; font-size: .74rem; background: var(--surface); position: relative; }
+.hr-day b { font-size: .85rem; }
+.hr-day.present { border-color: #10b98155; background: #10b98110; }
+.hr-day.absent { border-color: #ef444466; background: #ef444412; }
+.hr-day.weekend, .hr-day.holiday, .hr-day.not_employed { background: var(--surface-2); color: var(--muted); }
+.hr-day.leave { border-color: #6366f155; background: #6366f110; }
+.hr-day .late { color: #d97706; font-weight: 600; }
+.hr-day.sel { outline: 2px solid #a78bfa; }
+.hr-drop { border: 2px dashed var(--border); border-radius: 14px; padding: 18px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+.hr-drop:hover, .hr-drop.over { border-color: #a78bfa; background: #a78bfa10; }
+.hr-line-edit { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.hr-tot td { font-weight: 700; background: var(--surface-2); }
+.hr-mini { font-size: .72rem; color: var(--muted); display: block; }
+@media print { .no-print { display: none !important; } }
+
 @keyframes hr-pulse { 50% { box-shadow: 0 0 0 8px transparent; } }
 @keyframes hr-grow { from { transform: scaleY(0); } }
 @keyframes hr-spin-in { from { transform: rotate(-90deg) scale(.7); opacity: 0; } }

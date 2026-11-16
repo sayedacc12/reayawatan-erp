@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { AttendanceService } from '../hr/attendance.service';
 import { HrCore, today } from '../hr/hr-core.service';
 import { defaultPolicy } from '../hr/hr-policy';
 import { OrgService } from '../hr/org.service';
+import { PayrollService } from '../hr/payroll.service';
+import { lastDay } from '../hr/people.service';
 import { PeopleService } from '../hr/people.service';
 import { PerformanceService } from '../hr/performance.service';
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
@@ -18,25 +21,52 @@ export class HrSeed {
     private readonly org: OrgService,
     private readonly people: PeopleService,
     private readonly perf: PerformanceService,
+    private readonly attendance: AttendanceService,
+    private readonly payroll: PayrollService,
   ) {}
 
   async run(team: DemoTeam) {
     const { admin } = team;
     const year = Number(today().slice(0, 4));
+    // قوائم النظام المالي (أُنشئت في مرحلة النظام المالي قبل الموارد البشرية)
+    const fin = await this.payroll.lookups(admin.organizationId);
+    const accId = (code: string) => (fin.accounts as { id: string; code: string }[]).find((a) => a.code === code)!.id;
+    const ccId = (code: string) => (fin.analytics as { id: string; code: string }[]).find((a) => a.code === code)!.id;
+    const bankId = (name: string) => (fin.cashAccounts as { id: string; name: string }[]).find((c) => c.name.startsWith(name))!.id;
     await this.core.savePolicy(admin, { policy: defaultPolicy() as unknown as Record<string, unknown>, effectiveDate: `${year}-01-01`, note: 'اعتماد مجلس الإدارة للائحة الموارد البشرية' });
     await this.core.saveSettings(admin, { structureLevels: ['المدير التنفيذي', 'إدارة', 'قسم'] });
 
     // ---- الهيكل: قسم الجودة يتبع المدير التنفيذي مباشرة (تسلسل مرن)
-    const unit = async (name: string, level: number, parentId: string | null, costCenter?: string) =>
-      (await this.org.createUnit(admin, { name, level, parentId, costCenter: costCenter ?? null })).id;
+    // كل وحدة إدارية مربوطة بحسابها التحليلي (مركز التكلفة)، والأقسام تأخذ حساب إدارتها إن لم يُحدد لها
+    const cc: Record<string, string> = { 'الإدارية والعمومية': ccId('CC01'), البرامج: ccId('CC02'), 'جمع الأموال': ccId('CC04'), الحوكمة: ccId('CC05') };
+    const unit = async (name: string, level: number, parentId: string | null, costCenter?: string, analytic = true) =>
+      (await this.org.createUnit(admin, { name, level, parentId, costCenter: costCenter ?? null, analyticAccountId: analytic && costCenter ? cc[costCenter] : null })).id;
     const exec = await unit('الإدارة التنفيذية', 0, null, 'الإدارية والعمومية');
     const programs = await unit('إدارة البرامج والخدمات', 1, exec, 'البرامج');
-    const social = await unit('قسم البحث الاجتماعي', 2, programs, 'البرامج');
-    const projects = await unit('قسم المشاريع', 2, programs, 'البرامج');
+    const social = await unit('قسم البحث الاجتماعي', 2, programs, 'البرامج', false);
+    const projects = await unit('قسم المشاريع', 2, programs, 'البرامج', false);
     const resources = await unit('إدارة تنمية الموارد', 1, exec, 'جمع الأموال');
     const finAdmin = await unit('إدارة الشؤون المالية والإدارية', 1, exec, 'الإدارية والعمومية');
-    const hrDept = await unit('قسم الموارد البشرية', 2, finAdmin, 'الإدارية والعمومية');
-    const quality = await unit('قسم الجودة', 2, exec, 'الإدارية والعمومية');
+    const hrDept = await unit('قسم الموارد البشرية', 2, finAdmin, 'الإدارية والعمومية', false);
+    const quality = await unit('قسم الجودة', 2, exec, 'الحوكمة');
+
+    // ---- بنود الراتب: لكل بند حساب مصروف وحساب استحقاق وبنك صرف مستقل
+    const types = await this.payroll.listAllowances(admin);
+    const item = async (code: string, name: string, expense: string, payable: string, bank: string, defaultKind: 'percent' | 'fixed', defaultValue: number) => {
+      const t = types.find((x) => x.code === code);
+      const dto = { code, name, defaultKind, defaultValue, expenseAccountId: accId(expense), payableAccountId: accId(payable), cashAccountId: bankId(bank) };
+      if (t) await this.payroll.saveAllowance(admin, dto, t.id);
+      else await this.payroll.saveAllowance(admin, dto);
+    };
+    await item('basic', 'الراتب الأساسي', '4110100101', '2140100101', 'مصرف الراجحي', 'fixed', 0);
+    await item('housing', 'بدل السكن', '4110100201', '2140100102', 'مصرف الراجحي', 'percent', 25);
+    await item('transport', 'بدل النقل', '4110100301', '2140100103', 'بنك الرياض', 'percent', 10);
+    await item('phone', 'بدل الاتصال', '4110100401', '2140100104', 'بنك الرياض', 'fixed', 300);
+    await this.payroll.saveConfig(admin, {
+      payableAccountId: accId('2140100101'), gosiPayableAccountId: accId('2140100108'), gosiExpenseAccountId: accId('4110100801'),
+      deductionsAccountId: accId('1140100401'), defaultCashAccountId: bankId('مصرف الراجحي'),
+      stages: [{ name: 'مراجعة الشؤون المالية', roleId: team.roles.finance }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
+    });
 
     // ---- سلم الرواتب
     const allowances = [
@@ -131,7 +161,7 @@ export class HrSeed {
         idExpiry: daysAhead(900), ...extra,
       } as never)).id;
     };
-    const ceoE = await emp(admin.fullName, ceo, 25000, 2900, { gender: 'male' });
+    const ceoE = await emp(admin.fullName, ceo, 25000, 2900, { gender: 'male', attendanceExempt: true, allowances: [...salary(25000), { code: 'phone', name: 'بدل الاتصال', amount: 500 }] });
     const programsE = await emp(team.caseManager.fullName, programsMgr, 16000, 1800, { managerId: ceoE });
     const researcherE = await emp(team.researcher.fullName, researcher, 7200, 700, { gender: 'female', managerId: programsE });
     await emp('هند سعد الدوسري', researcher, 6800, 75, {
@@ -139,7 +169,7 @@ export class HrSeed {
     });
     const projectsE = await emp(team.projectsManager.fullName, projectsMgr, 12500, 1200, { managerId: programsE });
     const fundraiserE = await emp(team.fundraiser.fullName, fundraiser, 9800, 1500, { managerId: ceoE, contractType: 'fixed', contractEnd: daysAhead(40) });
-    const financeE = await emp(team.finance.fullName, finMgr, 17000, 2200, { managerId: ceoE });
+    const financeE = await emp(team.finance.fullName, finMgr, 17000, 2200, { managerId: ceoE, allowances: [...salary(17000), { code: 'phone', name: 'بدل الاتصال', amount: 300 }] });
     await emp('أحمد محمود عبدالرحمن', accountant, 7000, 1000, { isSaudi: false, managerId: financeE, idExpiry: daysAhead(55), passportExpiry: daysAhead(400), gosiNumber: null });
     const hrE = await emp('ريم خالد الشهري', hrOfficer, 7500, 500, { gender: 'female', managerId: financeE });
     const qualityE = await emp(team.quality.fullName, qualityOfficer, 7800, 900, { managerId: ceoE });
@@ -195,5 +225,64 @@ export class HrSeed {
     await evaluate(qualityE, [90, 80], (r) => Math.max(r - 1, 1), false);
     const agreed = cards.find((c) => c.employeeId === projectsE);
     if (agreed) await this.perf.action(admin, agreed.id, { action: 'agree' });
+
+    await this.seedAttendanceAndPayroll(team, year);
+  }
+
+  /** الحضور: إعدادات الدوام وجهاز بصمة وملف حضور للشهر السابق والحالي، ثم كشف الشهر السابق معتمدًا بقيده وسنداته وكشف الشهر الحالي قيد الإعداد */
+  private async seedAttendanceAndPayroll(team: DemoTeam, year: number) {
+    const { admin } = team;
+    const org = admin.organizationId;
+    await this.attendance.saveConfig(admin, {
+      enabled: true, workStart: '08:00', workEnd: '15:00', weekend: [5, 6],
+      holidays: [{ date: `${year}-02-22`, name: 'يوم التأسيس' }, { date: `${year}-09-23`, name: 'اليوم الوطني' }],
+    });
+    await this.attendance.saveDevice(admin, { name: 'جهاز البصمة - المقر الرئيسي', brand: 'ZKTeco', serialNumber: `DEMO${org.replace(/-/g, '').slice(0, 10)}`, location: 'مدخل الموظفين' });
+
+    const t = today();
+    const cur = t.slice(0, 7);
+    const d = new Date(`${cur}-01T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    const prev = d.toISOString().slice(0, 7);
+    const employees = (await this.people.list(admin)).filter((e) => e.status === 'active');
+    // ملف حضور بصيغة أجهزة البصمة (رقم الموظف، التاريخ والوقت) من بداية الشهر السابق حتى أمس
+    const lines: string[] = ['No.,Name,Date/Time'];
+    const pad = (n: number) => String(n).padStart(2, '0');
+    for (let day = new Date(`${prev}-01T00:00:00Z`); day.toISOString().slice(0, 10) < t; day.setUTCDate(day.getUTCDate() + 1)) {
+      const ds = day.toISOString().slice(0, 10);
+      if ([5, 6].includes(day.getUTCDay())) continue;
+      const dn = day.getUTCDate();
+      employees.forEach((e, i) => {
+        if (e.employeeNo === 1) return; // المدير التنفيذي معفى من البصمة
+        if (e.hireDate > ds) return;
+        // غياب يومين لموظف واحد في الشهر السابق، وتأخير متكرر لآخر
+        if (e.employeeNo === 8 && ds.startsWith(prev) && (dn === 8 || dn === 21)) return;
+        const late = e.employeeNo === 5 && dn % 6 === 0;
+        const inMin = late ? 8 * 60 + 35 : 7 * 60 + 40 + ((dn * 7 + i * 3) % 25);
+        const outMin = 15 * 60 + ((dn * 5 + i) % 20);
+        lines.push(`${e.employeeNo},${e.fullName},${ds} ${pad(Math.floor(inMin / 60))}:${pad(inMin % 60)}`);
+        if (!(e.employeeNo === 3 && dn === 12)) lines.push(`${e.employeeNo},${e.fullName},${ds} ${pad(Math.floor(outMin / 60))}:${pad(outMin % 60)}`);
+      });
+    }
+    await this.attendance.importFile(admin, { originalname: Buffer.from(`حضور-${prev}.csv`).toString('latin1'), buffer: Buffer.from(lines.join('\n')) });
+
+    // كشف الشهر السابق: إعداد ثم اعتماد بمرحلتين (يصدر القيد) ثم سندات الصرف
+    if (prev.slice(0, 4) === String(year)) {
+      const run = await this.payroll.create(admin, prev);
+      const hind = run.lines.find((l) => l.employeeNo === 4);
+      if (hind) {
+        await this.payroll.updateLine(admin, run.id, hind.employeeId, {
+          additions: [{ code: 'transport', amount: 250, note: 'فرق بدل نقل عن الشهر الأول' }], otherDeduction: 0, otherDeductionNote: null,
+        });
+      }
+      const acc = run.lines.find((l) => l.employeeNo === 8);
+      if (acc) await this.payroll.updateLine(admin, run.id, acc.employeeId, { additions: [], otherDeduction: 500, otherDeductionNote: 'قسط سلفة شخصية (3 من 6)' });
+      await this.payroll.submit(admin, run.id);
+      await this.payroll.decide(admin, run.id, { decision: 'approve', note: 'روجعت البصمات والاستقطاعات' });
+      await this.payroll.decide(admin, run.id, { decision: 'approve', note: 'معتمد' });
+      await this.payroll.createVouchers(admin, run.id, { voucherDate: lastDay(prev) < t ? lastDay(prev) : t });
+    }
+    // كشف الشهر الحالي قيد الإعداد
+    await this.payroll.create(admin, cur);
   }
 }

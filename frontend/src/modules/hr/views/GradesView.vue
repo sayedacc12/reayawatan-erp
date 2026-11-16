@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import { P, sar, type Grade, type GradeAllowance } from '../lib';
+import { P, sar, type AllowanceType, type Grade, type GradeAllowance } from '../lib';
 import '../../projects/projects.css';
 import '../hr.css';
 
@@ -13,9 +13,13 @@ const rows = ref<Grade[]>([]);
 const levels = ref<string[]>([]);
 const error = ref('');
 const open = ref<string | null>(null);
+const types = ref<AllowanceType[]>([]);
 async function load() {
   try {
-    [rows.value, levels.value] = await Promise.all([api<Grade[]>('/hr/grades'), api<{ structureLevels: string[] }>('/hr/settings').then((s) => s.structureLevels)]);
+    [rows.value, levels.value, types.value] = await Promise.all([
+      api<Grade[]>('/hr/grades'), api<{ structureLevels: string[] }>('/hr/settings').then((s) => s.structureLevels),
+      api<AllowanceType[]>('/hr/allowance-types').then((t) => t.filter((x) => !x.isSystem)),
+    ]);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -24,10 +28,15 @@ onMounted(load);
 const top = computed(() => Math.max(1, ...rows.value.map((g) => g.maxSalary)));
 const editing = ref<Grade | null>(null);
 const form = reactive({ show: false, code: '', name: '', structureLevel: '' as number | '', minSalary: 0, maxSalary: 0, steps: 5, stepIncrement: 3, allowances: [] as GradeAllowance[], sortOrder: 0 });
-const DEFAULT_ALLOW: GradeAllowance[] = [{ code: 'housing', name: 'بدل السكن', kind: 'percent', value: 25 }, { code: 'transport', name: 'بدل النقل', kind: 'percent', value: 10 }];
+const defaults = (): GradeAllowance[] => types.value.filter((t) => t.isActive && ['housing', 'transport'].includes(t.code)).map((t) => ({ code: t.code, name: t.name, kind: t.defaultKind, value: t.defaultValue }));
+const choices = (code: string) => types.value.filter((t) => (t.isActive || t.code === code) && (t.code === code || !form.allowances.some((a) => a.code === t.code)));
+function addAllowance() {
+  const t = choices('')[0];
+  if (t) form.allowances.push({ code: t.code, name: t.name, kind: t.defaultKind, value: t.defaultValue });
+}
 function openNew() {
   editing.value = null;
-  Object.assign(form, { show: true, code: `G${rows.value.length + 1}`, name: '', structureLevel: '', minSalary: 0, maxSalary: 0, steps: 5, stepIncrement: 3, allowances: DEFAULT_ALLOW.map((a) => ({ ...a })), sortOrder: rows.value.length + 1 });
+  Object.assign(form, { show: true, code: `G${rows.value.length + 1}`, name: '', structureLevel: '', minSalary: 0, maxSalary: 0, steps: 5, stepIncrement: 3, allowances: defaults(), sortOrder: rows.value.length + 1 });
 }
 function openEdit(g: Grade) {
   editing.value = g;
@@ -116,12 +125,13 @@ async function remove() {
         </div>
         <div class="hr-sec">البدلات الافتراضية</div>
         <div v-for="(a, i) in form.allowances" :key="i" style="display: grid; grid-template-columns: 1fr 100px 90px auto; gap: 6px; margin-bottom: 6px">
-          <input v-model="a.name" class="input" placeholder="اسم البدل" />
+          <select v-model="a.code" class="input"><option v-for="t in choices(a.code)" :key="t.code" :value="t.code">{{ t.name }}</option></select>
           <select v-model="a.kind" class="input"><option value="percent">نسبة %</option><option value="fixed">مبلغ</option></select>
           <input v-model.number="a.value" type="number" min="0" class="input" />
-          <button type="button" class="btn btn-sm" :disabled="['housing', 'transport'].includes(a.code)" @click="form.allowances.splice(i, 1)">✕</button>
+          <button type="button" class="btn btn-sm" @click="form.allowances.splice(i, 1)">✕</button>
         </div>
-        <button type="button" class="btn btn-sm" @click="form.allowances.push({ code: `other${form.allowances.length + 1}`, name: '', kind: 'fixed', value: 0 })">+ بدل</button>
+        <button type="button" class="btn btn-sm" :disabled="!choices('').length" @click="addAllowance">+ بدل</button>
+        <span class="pm-muted" style="margin-inline-start: 8px">البدلات وحساباتها تُعرَّف في <RouterLink to="/hr/settings?tab=allowances" class="pm-link">الإعدادات</RouterLink></span>
         <div class="modal-actions"><button class="btn btn-primary">حفظ</button><button v-if="editing" type="button" class="btn btn-danger" @click="remove">حذف</button><button type="button" class="btn" @click="form.show = false">إلغاء</button></div>
       </form>
     </div>

@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { api } from '../../../api';
 import NationalitySelect from '../../../components/NationalitySelect.vue';
 import { useToast } from '../../../stores/toast';
-import { CONTRACT_TYPES, QIWA, sar, type EmpRow, type Grade, type JobRow, type Unit } from '../lib';
+import { CONTRACT_TYPES, QIWA, sar, type AllowanceType, type EmpRow, type Grade, type JobRow, type Unit } from '../lib';
 
 /** نموذج الموظف: البيانات الشخصية، الوظيفة والعقد، الراتب وبدلاته، التأمينات والمستندات */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,6 +14,7 @@ const jobs = ref<JobRow[]>([]);
 const units = ref<Unit[]>([]);
 const grades = ref<Grade[]>([]);
 const managers = ref<EmpRow[]>([]);
+const types = ref<AllowanceType[]>([]);
 const saving = ref(false);
 const e = props.employee;
 const form = reactive({
@@ -22,12 +23,16 @@ const form = reactive({
   step: e?.step ?? 1, hireDate: e?.hireDate ?? '', contractType: e?.contractType ?? 'fixed', contractStart: e?.contractStart ?? '', contractEnd: e?.contractEnd ?? '',
   probationEnd: e?.probationEnd ?? '', qiwaStatus: e?.qiwaStatus ?? 'pending', basicSalary: e?.basicSalary ?? 0,
   allowances: (e?.allowances ?? [{ code: 'housing', name: 'بدل السكن', amount: 0 }, { code: 'transport', name: 'بدل النقل', amount: 0 }]) as { code: string; name: string; amount: number }[],
+  attendanceCode: e?.attendanceCode ?? '', attendanceExempt: e?.attendanceExempt ?? false,
   salaryException: e?.salaryException ?? '', iban: e?.iban ?? '', gosiNumber: e?.gosiNumber ?? '', gosiFirstRegistration: e?.gosiFirstRegistration ?? '',
   idExpiry: e?.idExpiry ?? '', passportExpiry: e?.passportExpiry ?? '', leaveOpeningAnnual: e?.leaveOpening?.annual ?? '', leaveOpeningDate: e?.leaveOpeningDate ?? '',
 });
 onMounted(async () => {
   try {
-    const [j, s, g, m] = await Promise.all([api<JobRow[]>('/hr/jobs'), api<{ units: Unit[] }>('/hr/structure'), api<Grade[]>('/hr/grades'), api<EmpRow[]>('/hr/employees')]);
+    const [j, s, g, m, t] = await Promise.all([
+      api<JobRow[]>('/hr/jobs'), api<{ units: Unit[] }>('/hr/structure'), api<Grade[]>('/hr/grades'), api<EmpRow[]>('/hr/employees'), api<AllowanceType[]>('/hr/allowance-types'),
+    ]);
+    types.value = t.filter((x) => !x.isSystem);
     jobs.value = j.filter((x) => x.isActive || x.id === form.jobId);
     units.value = s.units;
     grades.value = g;
@@ -55,8 +60,10 @@ function applyGrade() {
   form.basicSalary = s.basic;
   form.allowances = s.allowances.map((a) => ({ ...a }));
 }
+const choices = (code: string) => types.value.filter((t) => (t.isActive || t.code === code) && (t.code === code || !form.allowances.some((a) => a.code === t.code)));
 function addAllowance() {
-  form.allowances.push({ code: `other${form.allowances.length + 1}`, name: '', amount: 0 });
+  const t = choices('')[0];
+  if (t) form.allowances.push({ code: t.code, name: t.name, amount: t.defaultKind === 'percent' ? Math.round((Number(form.basicSalary) * t.defaultValue) / 100) : t.defaultValue });
 }
 const nn = (v: string) => (v === '' ? null : v);
 async function save() {
@@ -66,7 +73,8 @@ async function save() {
       fullName: form.fullName, nationalId: form.nationalId, nationality: form.nationality, isSaudi: form.isSaudi, gender: form.gender, birthDate: nn(form.birthDate),
       phone: nn(form.phone), email: nn(form.email), jobId: form.jobId, unitId: nn(form.unitId), managerId: nn(form.managerId), step: Number(form.step), hireDate: form.hireDate,
       contractType: form.contractType, contractStart: form.contractStart || form.hireDate, contractEnd: nn(form.contractEnd), probationEnd: nn(form.probationEnd), qiwaStatus: form.qiwaStatus,
-      basicSalary: Number(form.basicSalary), allowances: form.allowances.filter((a) => a.name).map((a) => ({ ...a, amount: Number(a.amount) })),
+      basicSalary: Number(form.basicSalary), allowances: form.allowances.filter((a) => a.code).map((a) => ({ code: a.code, amount: Number(a.amount) })),
+      attendanceCode: nn(String(form.attendanceCode).trim()), attendanceExempt: form.attendanceExempt,
       salaryException: nn(form.salaryException), iban: nn(form.iban.replace(/\s/g, '').toUpperCase()), gosiNumber: nn(form.gosiNumber), gosiFirstRegistration: nn(form.gosiFirstRegistration),
       idExpiry: nn(form.idExpiry), passportExpiry: nn(form.passportExpiry),
       leaveOpening: form.leaveOpeningAnnual === '' ? {} : { annual: Number(form.leaveOpeningAnnual) }, leaveOpeningDate: nn(form.leaveOpeningDate),
@@ -133,11 +141,12 @@ async function save() {
       <div class="hr-fields">
         <label class="field"><span>الراتب الأساسي</span><input v-model.number="form.basicSalary" type="number" min="0" step="0.01" class="input" required /></label>
         <label v-for="(a, i) in form.allowances" :key="i" class="field">
-          <span style="display: flex; gap: 6px"><input v-model="a.name" class="input" style="padding: 2px 6px; font-size: .8rem" placeholder="اسم البدل" />
-            <button v-if="!['housing', 'transport'].includes(a.code)" type="button" class="btn btn-sm" @click="form.allowances.splice(i, 1)">✕</button></span>
+          <span style="display: flex; gap: 6px"><select v-model="a.code" class="input" style="padding: 2px 6px; font-size: .8rem"><option v-for="t in choices(a.code)" :key="t.code" :value="t.code">{{ t.name }}</option></select>
+            <button type="button" class="btn btn-sm" @click="form.allowances.splice(i, 1)">✕</button></span>
           <input v-model.number="a.amount" type="number" min="0" step="0.01" class="input" />
         </label>
-        <div class="field" style="align-self: end"><button type="button" class="btn btn-sm" @click="addAllowance">+ بدل آخر</button></div>
+        <div class="field" style="align-self: end"><button type="button" class="btn btn-sm" :disabled="!choices('').length" @click="addAllowance">+ بدل آخر</button>
+          <small class="pm-muted">البدلات تُعرَّف في إعدادات الموارد البشرية</small></div>
       </div>
       <p class="pm-muted">إجمالي الراتب الشهري: <b>{{ sar(gross) }}</b></p>
       <label v-if="outOfRange" class="field"><span style="color: var(--danger)">الراتب خارج حدود المرتبة، اكتب سبب الاستثناء</span><input v-model="form.salaryException" class="input" required /></label>
@@ -145,6 +154,8 @@ async function save() {
       <div class="hr-sec">البنك والتأمينات والمستندات</div>
       <div class="hr-fields">
         <label class="field"><span>رقم الآيبان</span><input v-model="form.iban" class="input hr-code" placeholder="SA..." /></label>
+        <label class="field"><span>رقمه في جهاز البصمة</span><input v-model="form.attendanceCode" class="input hr-code" :placeholder="e ? `الرقم الوظيفي ${e.employeeNo}` : 'الرقم الوظيفي'" /></label>
+        <label class="field" style="flex-direction: row; gap: 8px; align-items: center; align-self: end"><input v-model="form.attendanceExempt" type="checkbox" /><span>معفى من البصمة</span></label>
         <label class="field"><span>رقم المشترك في التأمينات</span><input v-model="form.gosiNumber" class="input hr-code" /></label>
         <label class="field"><span>تاريخ أول تسجيل في التأمينات</span><input v-model="form.gosiFirstRegistration" type="date" class="input" />
           <small class="pm-muted">يحدد نسبة المعاشات (النظام الجديد لمن سُجّل بعد 3 يوليو 2024)</small></label>

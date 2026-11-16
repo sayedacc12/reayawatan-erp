@@ -13,6 +13,7 @@ const toast = useToast();
 const levels = ref<string[]>([]);
 const units = ref<Unit[]>([]);
 const employees = ref<EmpRow[]>([]);
+const analytics = ref<{ id: string; code: string; name: string }[]>([]);
 const error = ref('');
 const view = ref<'chart' | 'list'>('chart');
 async function load() {
@@ -27,23 +28,25 @@ async function load() {
 onMounted(async () => {
   await load();
   employees.value = await api<EmpRow[]>('/hr/employees').catch(() => []);
+  if (session.can(P.structure) || session.can(P.settings)) analytics.value = (await api<{ analytics: typeof analytics.value }>('/hr/payroll-config').catch(() => ({ analytics: [] }))).analytics;
 });
+const analyticName = (id: string | null) => analytics.value.find((a) => a.id === id)?.code ?? '';
 const roots = computed(() => units.value.filter((u) => !u.parentId));
 const editing = ref<Unit | null>(null);
-const form = reactive({ show: false, name: '', code: '', level: 0, parentId: '' as string, managerEmployeeId: '', costCenter: '', description: '' });
+const form = reactive({ show: false, name: '', code: '', level: 0, parentId: '' as string, managerEmployeeId: '', costCenter: '', analyticAccountId: '', description: '' });
 function openNew(parent?: Unit) {
   editing.value = null;
-  Object.assign(form, { show: true, name: '', code: '', level: parent ? Math.min(parent.level + 1, levels.value.length - 1) : 0, parentId: parent?.id ?? '', managerEmployeeId: '', costCenter: parent?.costCenter ?? '', description: '' });
+  Object.assign(form, { show: true, name: '', code: '', level: parent ? Math.min(parent.level + 1, levels.value.length - 1) : 0, parentId: parent?.id ?? '', managerEmployeeId: '', costCenter: parent?.costCenter ?? '', analyticAccountId: '', description: '' });
 }
 function openEdit(u: Unit) {
   if (!session.can(P.structure)) return;
   editing.value = u;
-  Object.assign(form, { show: true, name: u.name, code: u.code ?? '', level: u.level, parentId: u.parentId ?? '', managerEmployeeId: u.managerEmployeeId ?? '', costCenter: u.costCenter ?? '', description: u.description ?? '' });
+  Object.assign(form, { show: true, name: u.name, code: u.code ?? '', level: u.level, parentId: u.parentId ?? '', managerEmployeeId: u.managerEmployeeId ?? '', costCenter: u.costCenter ?? '', analyticAccountId: u.analyticAccountId ?? '', description: u.description ?? '' });
 }
 const parents = computed(() => units.value.filter((u) => u.level < form.level && u.id !== editing.value?.id));
 async function save() {
   try {
-    const body = { name: form.name, code: form.code || null, level: form.level, parentId: form.parentId || null, managerEmployeeId: form.managerEmployeeId || null, costCenter: form.costCenter || null, description: form.description || null };
+    const body = { name: form.name, code: form.code || null, level: form.level, parentId: form.parentId || null, managerEmployeeId: form.managerEmployeeId || null, costCenter: form.costCenter || null, analyticAccountId: form.analyticAccountId || null, description: form.description || null };
     if (editing.value) await api(`/hr/units/${editing.value.id}`, { method: 'PATCH', json: body });
     else await api('/hr/units', { method: 'POST', json: body });
     toast.success('تم الحفظ');
@@ -103,7 +106,7 @@ const ordered = computed(() => {
           <tbody>
             <tr v-for="u in ordered" :key="u.id">
               <td :style="{ paddingInlineStart: 12 + indent(u) * 22 + 'px' }"><b>{{ u.name }}</b> <span v-if="u.code" class="hr-code pm-muted" style="display: inline">{{ u.code }}</span></td>
-              <td><span class="pm-tag">{{ u.levelName }}</span></td><td>{{ u.managerName ?? '—' }}</td><td>{{ u.costCenter ?? '—' }}</td><td>{{ u.jobs }}</td><td>{{ u.employees }}</td>
+              <td><span class="pm-tag">{{ u.levelName }}</span></td><td>{{ u.managerName ?? '—' }}</td><td>{{ u.costCenter ?? '—' }}<span v-if="u.analyticAccountId" class="pm-muted hr-code">{{ analyticName(u.analyticAccountId) }}</span></td><td>{{ u.jobs }}</td><td>{{ u.employees }}</td>
               <td style="white-space: nowrap"><template v-if="session.can(P.structure)"><button class="btn btn-sm" @click="openNew(u)">+ فرعية</button> <button class="btn btn-sm" @click="openEdit(u)">تعديل</button></template></td>
             </tr>
           </tbody>
@@ -123,7 +126,10 @@ const ordered = computed(() => {
           <label class="field"><span>مدير الوحدة</span>
             <select v-model="form.managerEmployeeId" class="input"><option value="">—</option><option v-for="e in employees" :key="e.id" :value="e.id">{{ e.fullName }}</option></select>
           </label>
-          <label class="field"><span>مركز التكلفة</span><input v-model="form.costCenter" class="input" placeholder="مثل: البرامج" /></label>
+          <label class="field"><span>مركز التكلفة (وصف)</span><input v-model="form.costCenter" class="input" placeholder="مثل: البرامج" /></label>
+          <label class="field"><span>الحساب التحليلي للرواتب في النظام المالي</span>
+            <select v-model="form.analyticAccountId" class="input"><option value="">حساب الوحدة الأعلى</option><option v-for="a in analytics" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select>
+          </label>
         </div>
         <label class="field"><span>الوصف</span><textarea v-model="form.description" class="input" rows="2" /></label>
         <div class="modal-actions">

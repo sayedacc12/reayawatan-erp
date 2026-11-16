@@ -5,6 +5,7 @@ export const P = {
   competencies: 'hr.competencies.manage', plans: 'hr.plans.manage', approvePlans: 'hr.plans.approve', employees: 'hr.employees.manage',
   salaries: 'hr.salaries.read', leaves: 'hr.leaves.manage', approveLeaves: 'hr.leaves.approve', performance: 'hr.performance.manage',
   approvePerformance: 'hr.performance.approve', policy: 'hr.policy.manage', settings: 'hr.settings.manage',
+  attendance: 'hr.attendance.manage', payroll: 'hr.payroll.manage', approvePayroll: 'hr.payroll.approve', payPayroll: 'hr.payroll.pay',
 } as const;
 
 export const sar = (n: number | null | undefined) => `${(n ?? 0).toLocaleString('ar-SA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ر.س`;
@@ -19,7 +20,7 @@ export const thisYear = () => Number(todayStr().slice(0, 4));
 export const errMsg = (e: unknown) => (e as Error).message;
 
 export const STATUS_COLOR: Record<string, string> = {
-  draft: '#94a3b8', submitted: '#f59e0b', approved: '#10b981', rejected: '#ef4444', pending: '#f59e0b', cancelled: '#94a3b8',
+  draft: '#94a3b8', submitted: '#f59e0b', returned: '#f97316', approved: '#10b981', rejected: '#ef4444', pending: '#f59e0b', cancelled: '#94a3b8',
   agreed: '#6366f1', evaluated: '#0ea5e9', active: '#10b981', terminated: '#ef4444',
 };
 export const CONTRACT_TYPES = [
@@ -32,8 +33,25 @@ export const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', '
 
 export interface Unit {
   id: string; parentId: string | null; level: number; levelName: string; code: string | null; name: string; managerEmployeeId: string | null; managerName: string | null;
-  costCenter: string | null; description: string | null; sortOrder: number; jobs: number; headcount: number; employees: number;
+  costCenter: string | null; analyticAccountId: string | null; description: string | null; sortOrder: number; jobs: number; headcount: number; employees: number;
 }
+/** بند من بنود الراتب (الأساسي والبدلات) معرّف في الإعدادات */
+export interface AllowanceType {
+  id: string; code: string; name: string; defaultKind: 'percent' | 'fixed'; defaultValue: number; expenseAccountId: string | null; payableAccountId: string | null;
+  cashAccountId: string | null; isSystem: boolean; isActive: boolean; sortOrder: number; employees: number;
+}
+/** قوائم الاختيار من النظام المالي */
+export interface AccLookups {
+  accounts: { id: string; code: string; name: string; nature: string; requiresAnalytic: boolean }[];
+  analytics: { id: string; code: string; name: string }[];
+  cashAccounts: { id: string; name: string; kind: string; bankName: string | null; iban: string | null }[];
+  roles: { id: string; name: string }[];
+}
+export const accLabel = (l: AccLookups | null, id: string | null | undefined) => {
+  const a = l?.accounts.find((x) => x.id === id);
+  return a ? `${a.code} ${a.name}` : '—';
+};
+export const monthLabel = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 export interface GradeAllowance { code: string; name: string; kind: 'percent' | 'fixed'; value: number }
 export interface Grade {
   id: string; code: string; name: string; structureLevel: number | null; structureLevelName: string | null; minSalary: number; maxSalary: number; steps: number; stepIncrement: number;

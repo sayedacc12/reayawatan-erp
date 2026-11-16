@@ -32,6 +32,30 @@ export interface CompetencyLevel { level: number; description: string }
 export interface CardObjective { title: string; weight: number; target: string; achievement: number | null; note?: string | null }
 export interface CardCompetency { competencyId: string; name: string; requiredLevel: number; rating: number | null }
 
+/** مرحلة اعتماد في مسير الرواتب (الدور فارغ = أي مستخدم معه صلاحية اعتماد المسير) */
+export interface PayrollStage { name: string; roleId: string | null }
+export interface PayrollConfig {
+  /** الرواتب المستحقة (الحساب الافتراضي لأي بند ليس له حساب استحقاق خاص) */
+  payableAccountId: string | null;
+  /** التأمينات الاجتماعية المستحقة (حصة الموظف والجمعية) */
+  gosiPayableAccountId: string | null;
+  /** مصروف التأمينات الاجتماعية (حصة الجمعية) */
+  gosiExpenseAccountId: string | null;
+  /** الاستقطاعات الأخرى (السلف والجزاءات) */
+  deductionsAccountId: string | null;
+  /** البنك الافتراضي لصرف أي بند ليس له بنك خاص */
+  defaultCashAccountId: string | null;
+  stages: PayrollStage[];
+}
+export interface AttendanceConfig {
+  enabled: boolean;
+  workStart: string;
+  workEnd: string;
+  /** أيام الراحة الأسبوعية (0 = الأحد ... 5 = الجمعة، 6 = السبت) */
+  weekend: number[];
+  holidays: { date: string; name: string }[];
+}
+
 /** إعدادات الموارد البشرية لكل جمعية: مستويات الهيكل والترقيم */
 @Entity('hr_settings')
 export class HrSettings {
@@ -47,6 +71,14 @@ export class HrSettings {
 
   @Column({ name: 'next_job_no', type: 'int', default: 1 })
   nextJobNo!: number;
+
+  /** الربط المحاسبي للرواتب ومراحل اعتماد المسير */
+  @Column({ name: 'payroll_config', type: 'jsonb', default: () => `'{}'` })
+  payrollConfig!: Partial<PayrollConfig>;
+
+  /** إعدادات الحضور والانصراف: الدوام والعطل وتفعيل الخصم */
+  @Column({ name: 'attendance_config', type: 'jsonb', default: () => `'{}'` })
+  attendanceConfig!: Partial<AttendanceConfig>;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
@@ -111,6 +143,10 @@ export class HrUnit {
   /** مركز التكلفة (اسم الحساب التحليلي) لتوجيه قيود الرواتب لاحقًا */
   @Column({ name: 'cost_center', type: 'varchar', length: 200, nullable: true })
   costCenter!: string | null;
+
+  /** الحساب التحليلي في النظام المالي الذي تُحمَّل عليه رواتب موظفي الوحدة (فارغ = حساب الوحدة الأعلى) */
+  @Column({ name: 'analytic_account_id', type: 'uuid', nullable: true })
+  analyticAccountId!: string | null;
 
   @Column({ type: 'varchar', length: 1000, nullable: true })
   description!: string | null;
@@ -408,6 +444,15 @@ export class HrEmployee {
   @Column({ type: 'varchar', length: 34, nullable: true })
   iban!: string | null;
 
+  // ---- الحضور ----
+  /** رقم الموظف في جهاز البصمة (فارغ = رقمه الوظيفي) */
+  @Column({ name: 'attendance_code', type: 'varchar', length: 30, nullable: true })
+  attendanceCode!: string | null;
+
+  /** معفى من البصمة (لا يُخصم عليه غياب أو تأخير) */
+  @Column({ name: 'attendance_exempt', default: false })
+  attendanceExempt!: boolean;
+
   // ---- التأمينات ----
   @Column({ name: 'gosi_number', type: 'varchar', length: 20, nullable: true })
   gosiNumber!: string | null;
@@ -568,6 +613,248 @@ export class HrPerformanceCard {
   createdAt!: Date;
 }
 
+/** بند من بنود الراتب (الأساسي والبدلات): يُعرَّف مرة واحدة، وله حساب مصروف وحساب استحقاق وبنك صرف */
+@Entity('hr_allowance_types')
+@Index('UQ_hr_allowance_types_code', ['organizationId', 'code'], { unique: true })
+export class HrAllowanceType {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ length: 30 })
+  code!: string;
+
+  @Column({ length: 120 })
+  name!: string;
+
+  /** القيمة الافتراضية عند إضافته لمرتبة: نسبة من الأساسي أو مبلغ ثابت */
+  @Column({ name: 'default_kind', type: 'varchar', length: 10, default: 'fixed' })
+  defaultKind!: 'percent' | 'fixed';
+
+  @Column({ name: 'default_value', type: 'numeric', precision: 12, scale: 2, transformer: num, default: 0 })
+  defaultValue!: number;
+
+  /** حساب المصروف في دليل الحسابات */
+  @Column({ name: 'expense_account_id', type: 'uuid', nullable: true })
+  expenseAccountId!: string | null;
+
+  /** حساب الاستحقاق (فارغ = حساب الرواتب المستحقة العام) */
+  @Column({ name: 'payable_account_id', type: 'uuid', nullable: true })
+  payableAccountId!: string | null;
+
+  /** البنك الذي يُصرف منه هذا البند (فارغ = البنك الافتراضي للرواتب) */
+  @Column({ name: 'cash_account_id', type: 'uuid', nullable: true })
+  cashAccountId!: string | null;
+
+  /** الأساسي بند نظامي لا يُحذف ولا يُضاف للمراتب كبدل */
+  @Column({ name: 'is_system', default: false })
+  isSystem!: boolean;
+
+  @Column({ name: 'is_active', default: true })
+  isActive!: boolean;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+}
+
+/** جهاز بصمة مسجل: يرسل البصمات مباشرة للنظام برقمه التسلسلي */
+@Entity('hr_attendance_devices')
+@Index('UQ_hr_attendance_devices_serial', ['serialNumber'], { unique: true })
+export class HrAttendanceDevice {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ length: 120 })
+  name!: string;
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  brand!: string | null;
+
+  @Column({ name: 'serial_number', length: 60 })
+  serialNumber!: string;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  location!: string | null;
+
+  @Column({ name: 'is_active', default: true })
+  isActive!: boolean;
+
+  @Column({ name: 'last_seen_at', type: 'timestamptz', nullable: true })
+  lastSeenAt!: Date | null;
+
+  @Column({ name: 'punch_count', type: 'int', default: 0 })
+  punchCount!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+export type PunchSource = 'device' | 'excel' | 'text' | 'manual';
+
+/** بصمة حضور أو انصراف: من الجهاز مباشرة، أو من ملف مرفوع، أو مدخلة يدويًا */
+@Entity('hr_attendance_punches')
+@Index('UQ_hr_attendance_punches', ['organizationId', 'attendanceCode', 'punchDate', 'punchTime'], { unique: true })
+@Index('IDX_hr_attendance_punches_emp', ['organizationId', 'employeeId', 'punchDate'])
+export class HrAttendancePunch {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  /** فارغ إذا لم يُعرف صاحب الرقم وقت الاستلام (يُربط عند تسجيل الرقم للموظف) */
+  @Column({ name: 'employee_id', type: 'uuid', nullable: true })
+  employeeId!: string | null;
+
+  @Column({ name: 'attendance_code', length: 30 })
+  attendanceCode!: string;
+
+  @Column({ name: 'punch_date', type: 'date' })
+  punchDate!: string;
+
+  /** الوقت HH:MM:SS بتوقيت الجمعية */
+  @Column({ name: 'punch_time', length: 8 })
+  punchTime!: string;
+
+  @Column({ type: 'varchar', length: 10 })
+  source!: PunchSource;
+
+  @Column({ name: 'device_id', type: 'uuid', nullable: true })
+  deviceId!: string | null;
+
+  @Column({ name: 'import_id', type: 'uuid', nullable: true })
+  importId!: string | null;
+
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  note!: string | null;
+
+  @Column({ name: 'created_by_name', type: 'varchar', length: 200, nullable: true })
+  createdByName!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+/** سجل ملف حضور مرفوع (Excel أو نصي) */
+@Entity('hr_attendance_imports')
+export class HrAttendanceImport {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'file_name', length: 250 })
+  fileName!: string;
+
+  @Column({ type: 'varchar', length: 10 })
+  format!: 'excel' | 'text';
+
+  @Column({ type: 'int' })
+  rows!: number;
+
+  @Column({ type: 'int' })
+  added!: number;
+
+  @Column({ type: 'int' })
+  duplicates!: number;
+
+  @Column({ type: 'int', default: 0 })
+  invalid!: number;
+
+  @Column({ name: 'unknown_codes', type: 'jsonb', default: () => `'[]'` })
+  unknownCodes!: string[];
+
+  @Column({ name: 'date_from', type: 'date', nullable: true })
+  dateFrom!: string | null;
+
+  @Column({ name: 'date_to', type: 'date', nullable: true })
+  dateTo!: string | null;
+
+  @Column({ name: 'created_by_name', length: 200 })
+  createdByName!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+export type PayrollRunStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'cancelled';
+/** مبلغ بند من بنود الراتب في سطر المسير */
+export interface RunItem { code: string; name: string; full: number; earned: number }
+/** سطر موظف في كشف الرواتب (لقطة ثابتة وقت الإعداد، تُعاد عند إعادة الاحتساب قبل الاعتماد) */
+export interface RunLine {
+  employeeId: string; employeeNo: number; fullName: string; isSaudi: boolean; unitId: string; unitName: string; jobTitle: string; iban: string | null;
+  items: RunItem[]; gross: number; workedDays: number; ratio: number; dailyWage: number;
+  unpaidDays: number; unpaidDeduction: number;
+  /** الحضور: محسوب من البصمات، ويمكن تعديله يدويًا قبل الرفع */
+  attendance: { tracked: boolean; absentDays: number; lateMinutes: number; missingOut: number; overridden: boolean };
+  absenceDeduction: number; lateDeduction: number;
+  additions: { code: string; amount: number; note: string | null }[];
+  otherDeduction: number; otherDeductionNote: string | null;
+  earned: number; gosiEmployee: number; gosiEmployer: number; totalDeductions: number; net: number; employerCost: number;
+}
+export interface RunHistory { action: string; stageName: string | null; note: string | null; actorName: string; at: string }
+
+/** كشف رواتب شهر: يُعد ثم يمر بمراحل الاعتماد، وعند الاعتماد النهائي يصدر قيده المحاسبي ثم سندات الصرف */
+@Entity('hr_payroll_runs')
+@Index('UQ_hr_payroll_runs_month', ['organizationId', 'month'], { unique: true, where: `status <> 'cancelled'` })
+export class HrPayrollRun {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  /** YYYY-MM */
+  @Column({ length: 7 })
+  month!: string;
+
+  @Column({ type: 'varchar', length: 12, default: 'draft' })
+  status!: PayrollRunStatus;
+
+  /** ترتيب المرحلة الحالية في مراحل الاعتماد (أثناء الانتظار) */
+  @Column({ name: 'stage_index', type: 'int', nullable: true })
+  stageIndex!: number | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  lines!: RunLine[];
+
+  @Column({ type: 'jsonb', default: () => `'{}'` })
+  totals!: Record<string, number>;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  warnings!: string[];
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  history!: RunHistory[];
+
+  /** قيد استحقاق الرواتب في النظام المالي */
+  @Column({ name: 'entry_id', type: 'uuid', nullable: true })
+  entryId!: string | null;
+
+  /** سندات الصرف المنشأة في النظام المالي */
+  @Column({ name: 'voucher_ids', type: 'jsonb', default: () => `'[]'` })
+  voucherIds!: string[];
+
+  @Column({ name: 'created_by_name', length: 200 })
+  createdByName!: string;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
 export const HR_ENTITIES = [
+  HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrPayrollRun,
   HrSettings, HrPolicyVersion, HrUnit, HrGrade, HrCompetency, HrJob, HrStaffingPlan, HrEmployee, HrLeaveRequest, HrPerformanceCard,
 ];

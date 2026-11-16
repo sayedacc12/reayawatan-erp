@@ -9,7 +9,7 @@ import { tafqeet } from '../tafqeet';
 import AnalyticPicker, { type Share } from './AnalyticPicker.vue';
 
 export interface VoucherInput {
-  id?: string; voucherDate: string; partyName: string; partnerId: string | null; amount: number | null; purpose: string; sourceType: 'manual' | 'opportunity' | 'store';
+  id?: string; voucherDate: string; partyName: string; partnerId: string | null; amount: number | null; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll';
   sourceRef: string | null; projectName: string | null; method: string; methodRef: string | null; cashAccountId: string | null; counterAccountId: string | null; analytic: Share[];
 }
 const props = defineProps<{ kind: 'receipt' | 'payment'; initial?: Partial<VoucherInput> & { counterAccountCode?: string; counterAccountName?: string }; orgName: string }>();
@@ -106,11 +106,12 @@ async function save() {
         <option value="manual">كتابة يدوية</option>
         <option value="opportunity">فرصة تبرع (يُربط لاحقًا)</option>
         <option value="store">مشروع المتجر (يُربط لاحقًا)</option>
+        <option v-if="f.sourceType === 'payroll'" value="payroll">مسير الرواتب</option>
       </select>
     </div>
     <div v-if="f.sourceType !== 'manual'" class="vline soft">
       <span class="lbl">مرجع المصدر</span>
-      <input v-model="f.sourceRef" class="input grow" :placeholder="f.sourceType === 'opportunity' ? 'رقم فرصة التبرع' : 'رقم طلب المتجر'" />
+      <input v-model="f.sourceRef" class="input grow" :placeholder="f.sourceType === 'opportunity' ? 'رقم فرصة التبرع' : f.sourceType === 'payroll' ? 'شهر المسير' : 'رقم طلب المتجر'" :readonly="f.sourceType === 'payroll'" />
       <span class="pm-muted">يُملأ آليًا عند ربط النظام المالي بالموارد المالية والمتجر.</span>
     </div>
 
