@@ -111,11 +111,11 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     expect(res.body.user.organizationName).toBe('جمعية البر');
     expect(res.body.user.permissions).toContain('core.roles.manage');
     expect(res.body.user.permissions).not.toContain('platform.organizations.manage');
-    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'core']);
+    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'core']);
     await http.get('/api/platform/organizations').set(as(adminToken)).expect(403);
 
     const mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'core']);
+    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'core']);
     await http.post('/api/roles').set(as(adminToken))
       .send({ name: 'تصعيد', permissions: ['platform.organizations.manage'] }).expect(400);
   });
@@ -126,7 +126,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
 
     // disabled by default: not in matrix, not grantable, not in admin perms
     let mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'core']);
+    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'core']);
     await http.post('/api/roles').set(as(adminToken))
       .send({ name: 'محرر الموقع', permissions: ['website.pages.manage'] }).expect(400);
 
@@ -139,7 +139,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     expect(upd.body.modules).toEqual(['website']);
 
     mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'beneficiaries', 'core', 'fundraising', 'projects', 'website']);
+    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'beneficiaries', 'core', 'fundraising', 'hr', 'projects', 'website']);
     const me = await http.get('/api/auth/me').set(as(adminToken)).expect(200);
     expect(me.body.user.permissions).toContain('website.pages.manage');
     await http.post('/api/roles').set(as(adminToken))

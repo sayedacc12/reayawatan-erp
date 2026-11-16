@@ -5,13 +5,14 @@ import { beneficiariesManifest } from '../modules/beneficiaries/beneficiaries.ma
 import { fundraisingManifest } from '../modules/fundraising/fundraising.manifest';
 import { projectsManifest } from '../modules/projects/projects.manifest';
 import { accountingManifest } from '../modules/accounting/accounting.manifest';
+import { hrManifest } from '../modules/hr/hr.manifest';
 
 /**
  * سجل الوحدات المثبتة.
  * لإضافة وحدة جديدة: أنشئ مجلدها تحت src/modules ثم أضف الـ manifest هنا
  * وأضف الـ Nest module الخاص بها في app.module.ts.
  */
-export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, supportManifest, coreManifest, beneficiariesManifest, fundraisingManifest, projectsManifest, accountingManifest];
+export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, supportManifest, coreManifest, beneficiariesManifest, fundraisingManifest, projectsManifest, accountingManifest, hrManifest];
 
 export function validateManifests(manifests: ErpModuleManifest[]): void {
   const codes = new Set<string>();

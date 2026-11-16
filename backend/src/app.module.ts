@@ -9,6 +9,7 @@ import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.modul
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
+import { HrModule } from './modules/hr/hr.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -24,6 +25,7 @@ import { HealthController } from './health.controller';
     FundraisingModule,
     ProjectsModule,
     AccountingModule,
+    HrModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],

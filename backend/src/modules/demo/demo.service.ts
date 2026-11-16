@@ -8,6 +8,7 @@ import { DEMO_SLUG } from './demo-context';
 import { AccountingSeed } from './seed-accounting';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
+import { HrSeed } from './seed-hr';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
 import { SupportSeed } from './seed-support';
@@ -29,6 +30,7 @@ export class DemoService {
     private readonly platform: PlatformSeed,
     private readonly accounting: AccountingSeed,
     private readonly support: SupportSeed,
+    private readonly hr: HrSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -44,6 +46,7 @@ export class DemoService {
       const cases = await this.beneficiaries.cases(org.id, team, tree, portalPassword);
       await this.finance.run(team, tree, extra, cases);
       await this.accounting.run(team);
+      await this.hr.run(team);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
       const supportTeam = await this.support.run(team, staffPassword);
