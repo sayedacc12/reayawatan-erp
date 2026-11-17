@@ -12,6 +12,7 @@ import { AccountingModule } from './modules/accounting/accounting.module';
 import { HrModule } from './modules/hr/hr.module';
 import { RiskModule } from './modules/risk/risk.module';
 import { VolunteersModule } from './modules/volunteers/volunteers.module';
+import { QualityModule } from './modules/quality/quality.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -30,6 +31,7 @@ import { HealthController } from './health.controller';
     HrModule,
     RiskModule,
     VolunteersModule,
+    QualityModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],
