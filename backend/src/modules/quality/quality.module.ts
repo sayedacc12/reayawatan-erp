@@ -8,6 +8,7 @@ import { PublicSurveyController, QualityController } from './quality.controller'
 import { QmsCore } from './quality-core.service';
 import { ReportsService } from './reports.service';
 import { ReviewsService } from './reviews.service';
+import { QualityReports } from './quality.reports';
 
 /**
  * إدارة الجودة ISO 9001: المرجع المركزي للتوثيق والترميز في كل الأنظمة.
@@ -17,7 +18,7 @@ import { ReviewsService } from './reviews.service';
 @Module({
   imports: [TypeOrmModule.forFeature(QUALITY_ENTITIES)],
   controllers: [QualityController, PublicSurveyController],
-  providers: [QmsCore, DocumentsService, ImprovementService, FeedbackService, ReportsService, ReviewsService],
+  providers: [QualityReports, QmsCore, DocumentsService, ImprovementService, FeedbackService, ReportsService, ReviewsService],
   exports: [QmsCore, DocumentsService, ImprovementService, FeedbackService, ReportsService, ReviewsService],
 })
 export class QualityModule {}

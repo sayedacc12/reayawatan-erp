@@ -8,6 +8,7 @@ import { EngagementService } from './engagement.service';
 import { AUDIT_ENTITIES } from './entities/audit.entity';
 import { InsightsService } from './insights.service';
 import { PlanningService } from './planning.service';
+import { AuditReports } from './audit.reports';
 
 /**
  * المراجعة الداخلية المبنية على المخاطر. تقرأ الهيكل التنظيمي من الموارد البشرية (الجهات المسؤولة)،
@@ -17,7 +18,7 @@ import { PlanningService } from './planning.service';
 @Module({
   imports: [TypeOrmModule.forFeature(AUDIT_ENTITIES), CoreModule],
   controllers: [AuditController],
-  providers: [AuditCore, PlanningService, EngagementService, ActionsService, InsightsService],
+  providers: [AuditReports, AuditCore, PlanningService, EngagementService, ActionsService, InsightsService],
   exports: [AuditCore, PlanningService, EngagementService, ActionsService, InsightsService],
 })
 export class AuditModule {}

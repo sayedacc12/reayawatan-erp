@@ -1,3 +1,4 @@
+import { defineAsyncComponent } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 import { P } from './lib';
 
@@ -14,6 +15,8 @@ export const auditRoutes: RouteRecordRaw[] = [
   // الجهات المسؤولة تصل لمتابعة توصياتها بصلاحية المتابعة فقط
   { path: '/audit/actions', component: () => import('./views/ActionsView.vue'), meta: { title: 'متابعة التوصيات', app: 'audit', anyPermission: [P.read, P.respond] } },
   { path: '/audit/actions/:id', component: () => import('./views/ActionView.vue'), props: true, meta: { title: 'مهمة متابعة', app: 'audit', anyPermission: [P.read, P.respond] } },
-  { path: '/audit/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير المراجعة الداخلية', P.reports) },
+  { path: '/audit/reports', component: () => import('../../components/reports/ReportsHub.vue'),
+    props: { module: 'audit', system: 'المراجعة الداخلية', overview: defineAsyncComponent(() => import('./views/ReportsView.vue')), overviewLabel: 'لوحة المراجعة' },
+    meta: meta('تقارير المراجعة الداخلية', P.reports) },
   { path: '/audit/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات المراجعة الداخلية', P.settings) },
 ];

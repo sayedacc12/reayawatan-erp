@@ -71,7 +71,7 @@ export class QualityReports implements OnModuleInit {
         return rows.map((r: any) => ({ ...r, status: ar(STATUS, r.status) }));
       },
     }];
-    for (const d of defs) this.registry.register(d);
+    this.registry.register(defs);
   }
 }
 ```
