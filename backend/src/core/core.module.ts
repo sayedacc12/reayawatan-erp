@@ -18,7 +18,9 @@ import { SUBSCRIPTION_ENTITIES } from './subscriptions/entities';
 import { OrgSupportController, SupportDeskController } from './support/support.controller';
 import { SupportDeskService } from './support/support-desk.service';
 import { SUPPORT_ENTITIES } from './support/support.entity';
+import { SupportReports } from './support/support.reports';
 import { SupportService } from './support/support.service';
+import { SubscriptionsReports } from './subscriptions/subscriptions.reports';
 import { RegistrationController } from './subscriptions/registration.controller';
 import { SubscriptionReportsService } from './subscriptions/reports.service';
 import { SubscriptionReportsController, SubscriptionsController } from './subscriptions/subscriptions.controller';
@@ -52,7 +54,7 @@ import { UsersService } from './users/users.service';
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService],

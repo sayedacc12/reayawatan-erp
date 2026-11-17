@@ -57,7 +57,7 @@ export class BeneficiariesSeed {
     const roleCodes = {
       researcher: [P.read, P.requestsRead, P.requestsProcess, P.research],
       quality: [P.formsReview],
-      caseManager: [P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove],
+      caseManager: [P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove, P.reports],
       fundraiser: [F.donorsRead, F.donorsManage, F.read, F.create, F.collect, F.reports],
       finance: [F.donorsRead, F.read, F.process, F.collect, F.journal, F.reports, PR.read, PR.disburse, PR.reports,
         A.read, A.receipts, A.payments, A.approveVouchers, A.entries, A.post, A.cancel, A.partners, A.banks, A.reports],

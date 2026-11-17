@@ -24,5 +24,6 @@ export const hrRoutes: RouteRecordRaw[] = [
   { path: '/hr/development', component: () => import('./views/DevelopmentView.vue'), meta: meta('التطوير والتدريب') },
   { path: '/hr/development/plans/:id', component: () => import('./views/DevPlanView.vue'), props: true, meta: meta('خطة التطوير') },
   { path: '/hr/policy', component: () => import('./views/PolicyView.vue'), meta: meta('لائحة الموارد البشرية') },
+  { path: '/hr/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'hr', system: 'الموارد البشرية' }, meta: meta('تقارير الموارد البشرية', 'hr.reports.read') },
   { path: '/hr/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الموارد البشرية', P.settings) },
 ];

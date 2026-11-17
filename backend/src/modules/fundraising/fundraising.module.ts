@@ -7,6 +7,7 @@ import { FUNDRAISING_ENTITIES } from './entities';
 import { DonorsController, FundraisingSettingsController, OpportunitiesController } from './fundraising.controller';
 import { FundraisingService } from './fundraising.service';
 import { LedgerService } from './ledger.service';
+import { FundraisingReports } from './fundraising.reports';
 import { FundraisingReportsService } from './reports.service';
 import { FundraisingSettingsService } from './settings.service';
 
@@ -17,7 +18,7 @@ import { FundraisingSettingsService } from './settings.service';
 @Module({
   imports: [TypeOrmModule.forFeature(FUNDRAISING_ENTITIES), CoreModule, BeneficiariesModule],
   controllers: [FundraisingSettingsController, DonorsController, OpportunitiesController],
-  providers: [FundraisingSettingsService, DonorsService, FundraisingService, LedgerService, FundraisingReportsService],
+  providers: [FundraisingSettingsService, DonorsService, FundraisingService, LedgerService, FundraisingReportsService, FundraisingReports],
   exports: [FundraisingService, LedgerService, DonorsService, FundraisingSettingsService],
 })
 export class FundraisingModule {}

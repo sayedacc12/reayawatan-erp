@@ -19,7 +19,7 @@ export const volunteersRoutes: RouteRecordRaw[] = [
   { path: '/volunteers/contracts/:id', component: () => import('./views/ContractView.vue'), props: true, meta: meta('عقد التطوع') },
   { path: '/volunteers/tickets', component: () => import('./views/TicketsView.vue'), meta: meta('الشكاوى والمقترحات') },
   { path: '/volunteers/policy', component: () => import('./views/PolicyView.vue'), meta: meta('لائحة التطوع وميثاقه') },
-  { path: '/volunteers/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير التطوع', P.reports) },
+  { path: '/volunteers/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'volunteers', system: 'التطوع' }, meta: meta('تقارير التطوع', P.reports) },
   { path: '/volunteers/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات التطوع', P.settings) },
 ];
 

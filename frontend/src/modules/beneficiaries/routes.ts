@@ -14,5 +14,6 @@ export const beneficiariesRoutes: RouteRecordRaw[] = [
     path: '/beneficiaries/forms-approval', component: () => import('./views/FormsApprovalView.vue'),
     meta: { ...meta('اعتماد النماذج'), permission: undefined, anyPermission: ['beneficiaries.forms.review', 'beneficiaries.forms.approve'] },
   },
+  { path: '/beneficiaries/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'beneficiaries', system: 'المستفيدون' }, meta: { ...meta('تقارير المستفيدين'), permission: 'beneficiaries.reports.read' } },
   { path: '/beneficiaries/settings', component: () => import('./views/SettingsView.vue'), meta: { ...meta('إعدادات المستفيدين'), permission: 'beneficiaries.settings.manage' } },
 ];
