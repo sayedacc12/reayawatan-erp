@@ -15,6 +15,7 @@ import { RiskModule } from './modules/risk/risk.module';
 import { VolunteersModule } from './modules/volunteers/volunteers.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { MembersModule } from './modules/members/members.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -36,6 +37,7 @@ import { HealthController } from './health.controller';
     VolunteersModule,
     QualityModule,
     AuditModule,
+    MembersModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],

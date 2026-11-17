@@ -202,6 +202,27 @@ describe('Demo association across all modules', () => {
     expect(gaps.map((c: { code: string }) => c.code)).toEqual([]);
   });
 
+  it('members: registry in every status, applications in every stage, payments as receipt vouchers', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/members/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.members.current).toBeGreaterThanOrEqual(10);
+    expect(d.members.grace).toBeGreaterThan(0);
+    expect(d.members.expired).toBeGreaterThan(0);
+    expect(d.members.suspended).toBe(1);
+    expect(d.applications.inReview).toBeGreaterThanOrEqual(3);
+    expect(d.applications.returned).toBe(1);
+    expect(d.applications.awaitingPayment).toBeGreaterThanOrEqual(2);
+    expect(d.invoices.review).toBeGreaterThanOrEqual(2);
+    const inv = (await http.get('/api/members/invoices?status=paid').set(as(admin)).expect(200)).body as { method: string; voucher: unknown; voucherError: string | null }[];
+    expect(new Set(inv.map((i) => i.method))).toEqual(new Set(['cash', 'online', 'transfer']));
+    expect(inv.every((i) => i.voucher && !i.voucherError)).toBe(true);
+    const ren = (await http.get('/api/members/renewals').set(as(admin)).expect(200)).body;
+    expect(ren.rows.some((r: { reminderDue: boolean }) => r.reminderDue)).toBe(true);
+    const asm = (await http.get('/api/members/assembly').set(as(admin)).expect(200)).body;
+    expect(asm.eligible).toBeGreaterThan(0);
+    expect(asm.pending.length).toBeGreaterThan(0);
+  });
+
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
     const finance = await staff('finance');
     const accounts = await http.get('/api/accounting/accounts').set(as(finance)).expect(200);
