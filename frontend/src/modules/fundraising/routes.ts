@@ -18,6 +18,6 @@ export const fundraisingRoutes: RouteRecordRaw[] = [
   { path: '/fundraising/batches', component: () => import('./views/BatchesView.vue'), meta: meta('الدفعات', P.read) },
   { path: '/fundraising/batches/:id', component: () => import('./views/BatchView.vue'), meta: meta('دفعة', P.read) },
   { path: '/fundraising/journal', component: () => import('./views/JournalView.vue'), meta: meta('قيود اليومية', P.journal) },
-  { path: '/fundraising/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير الموارد المالية', P.reports) },
+  { path: '/fundraising/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'fundraising', system: 'الموارد المالية' }, meta: meta('تقارير الموارد المالية', P.reports) },
   { path: '/fundraising/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الموارد المالية', P.settings) },
 ];

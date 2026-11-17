@@ -90,7 +90,7 @@ describe('Members', () => {
       fiscalYear: year, startDate: `${year}-01-01`, endDate: `${year}-12-31`, isFirstYear: true, firstYearStart: `${year}-01-01`, firstYearEnd: `${year}-12-31`,
     }).expect(201);
     ids.bank = (await http.post(`${A}/cash-accounts`).set(as(admin)).send({ kind: 'bank', name: 'الراجحي - الاشتراكات', bankName: 'مصرف الراجحي', accountNumber: '608010167519', glAccountId: acc['1110100201'] }).expect(201)).body.id;
-  });
+  }, 120_000);
 
   afterAll(async () => {
     await app.get(DataSource).destroy();

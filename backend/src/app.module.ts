@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { dataSourceOptions } from './config/data-source';
 import { CoreModule } from './core/core.module';
+import { ReportsModule } from './core/reports/reports.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -25,6 +26,7 @@ import { HealthController } from './health.controller';
       useFactory: () => ({ ...dataSourceOptions(), migrationsRun: true }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    ReportsModule,
     CoreModule,
     BeneficiariesModule,
     FundraisingModule,

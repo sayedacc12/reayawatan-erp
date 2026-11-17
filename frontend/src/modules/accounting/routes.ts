@@ -23,6 +23,6 @@ export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting/warehouses', component: () => import('./views/WarehousesView.vue'), meta: meta('المستودعات') },
   { path: '/accounting/setup', component: () => import('./views/SetupView.vue'), meta: meta('الافتتاحيات والسنوات المالية', P.setup, [P.setup, P.closePeriods, P.reopenPeriods, P.read]) },
   { path: '/accounting/inventory', component: () => import('./views/InventoryView.vue'), meta: meta('محضر جرد السندات') },
-  { path: '/accounting/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير النظام المالي', P.reports) },
+  { path: '/accounting/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'accounting', system: 'النظام المالي' }, meta: meta('تقارير النظام المالي', P.reports) },
   { path: '/accounting/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات النظام المالي', P.settings) },
 ];

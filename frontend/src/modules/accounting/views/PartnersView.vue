@@ -69,7 +69,7 @@ async function save() {
     toast.error((e as Error).message);
   }
 }
-const statement = (p: Partner) => router.push({ path: '/accounting/reports', query: { r: 'partner', id: p.id } });
+const statement = (p: Partner) => router.push({ path: '/accounting/reports', query: { r: 'accounting.partner-statement', f_partnerId: p.id } });
 </script>
 
 <template>

@@ -1,3 +1,4 @@
+import { defineAsyncComponent } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 import { P } from './lib';
 
@@ -23,6 +24,8 @@ export const qualityRoutes: RouteRecordRaw[] = [
   { path: '/quality/surveys', component: () => import('./views/SurveysView.vue'), meta: meta('قياس الرضا') },
   { path: '/quality/surveys/:id', component: () => import('./views/SurveyView.vue'), props: true, meta: meta('نتائج الاستبانة') },
   { path: '/quality/standard', component: () => import('./views/StandardView.vue'), meta: meta('متطلبات المواصفة') },
-  { path: '/quality/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير الجودة', P.reports) },
+  { path: '/quality/reports', component: () => import('../../components/reports/ReportsHub.vue'),
+    props: { module: 'quality', system: 'إدارة الجودة', overview: defineAsyncComponent(() => import('./views/ReportsView.vue')), overviewLabel: 'التقرير الدوري للجودة' },
+    meta: meta('تقارير الجودة', P.reports) },
   { path: '/quality/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الجودة', P.settings) },
 ];

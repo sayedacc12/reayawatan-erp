@@ -14,6 +14,7 @@ export const BENEFICIARY_PERMISSIONS = {
   settings: 'beneficiaries.settings.manage',
   formsReview: 'beneficiaries.forms.review',
   formsApprove: 'beneficiaries.forms.approve',
+  reports: 'beneficiaries.reports.read',
 } as const;
 
 export const beneficiariesManifest: ErpModuleManifest = {
@@ -38,6 +39,7 @@ export const beneficiariesManifest: ErpModuleManifest = {
     { code: BENEFICIARY_PERMISSIONS.settings, name: 'إعدادات الأنشطة وسير العمل والنماذج' },
     { code: BENEFICIARY_PERMISSIONS.formsReview, name: 'مراجعة نماذج المراحل (مراجع الجودة)' },
     { code: BENEFICIARY_PERMISSIONS.formsApprove, name: 'اعتماد نماذج المراحل (مدير الشاشة)' },
+    { code: BENEFICIARY_PERMISSIONS.reports, name: 'عرض تقارير المستفيدين وتصديرها' },
   ],
   settingsPermission: BENEFICIARY_PERMISSIONS.settings,
   menu: [
@@ -47,6 +49,7 @@ export const beneficiariesManifest: ErpModuleManifest = {
     { label: 'سجل المساعدات', path: '/beneficiaries/aid-log', permission: BENEFICIARY_PERMISSIONS.read },
     { label: 'الشكاوى والمقترحات', path: '/beneficiaries/tickets', permission: BENEFICIARY_PERMISSIONS.tickets },
     { label: 'اعتماد النماذج', path: '/beneficiaries/forms-approval', permission: BENEFICIARY_PERMISSIONS.formsReview, anyOf: [BENEFICIARY_PERMISSIONS.formsApprove] },
+    { label: 'التقارير', path: '/beneficiaries/reports', permission: BENEFICIARY_PERMISSIONS.reports },
     { label: 'الإعدادات', path: '/beneficiaries/settings', permission: BENEFICIARY_PERMISSIONS.settings },
   ],
 };

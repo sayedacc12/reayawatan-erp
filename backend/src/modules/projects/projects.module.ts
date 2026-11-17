@@ -1,3 +1,4 @@
+import { ProjectsReports } from './projects.reports';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BeneficiariesModule } from '../beneficiaries/beneficiaries.module';
@@ -20,7 +21,7 @@ import { TransfersService } from './transfers.service';
 @Module({
   imports: [TypeOrmModule.forFeature([...PROJECT_ENTITIES, ...BENEFICIARY_ENTITIES]), BeneficiariesModule, FundraisingModule],
   controllers: [SupportController, ProjectsController],
-  providers: [ProjectsService, SupportService, TransfersService, InsightsService, FundingGateway],
+  providers: [ProjectsService, SupportService, TransfersService, InsightsService, FundingGateway, ProjectsReports],
   exports: [ProjectsService, SupportService, TransfersService],
 })
 export class ProjectsModule {}

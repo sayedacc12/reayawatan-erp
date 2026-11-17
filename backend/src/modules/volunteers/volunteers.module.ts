@@ -1,3 +1,4 @@
+import { VolunteersReports } from './volunteers.reports';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { VOL_ENTITIES } from './entities/volunteers.entity';
@@ -14,7 +15,7 @@ import { VolReportsService } from './vol-reports.service';
 @Module({
   imports: [TypeOrmModule.forFeature(VOL_ENTITIES)],
   controllers: [VolunteersController, PublicVolunteersController],
-  providers: [VolCore, VolunteersService, EventsService, VolReportsService],
-  exports: [VolCore, VolunteersService, EventsService, VolReportsService],
+  providers: [VolCore, VolunteersService, EventsService, VolReportsService, VolunteersReports],
+  exports: [VolCore, VolunteersService, EventsService, VolReportsService, VolunteersReports],
 })
 export class VolunteersModule {}

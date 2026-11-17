@@ -49,7 +49,7 @@ async function save() {
     toast.error((e as Error).message);
   }
 }
-const ledger = (c: CashAccount) => c.glAccount && router.push({ path: '/accounting/reports', query: { r: 'ledger', id: c.glAccount.id } });
+const ledger = (c: CashAccount) => c.glAccount && router.push({ path: '/accounting/reports', query: { r: 'accounting.ledger', f_accountId: c.glAccount.id } });
 </script>
 
 <template>

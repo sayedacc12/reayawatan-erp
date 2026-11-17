@@ -1,3 +1,4 @@
+import { HrReports } from './hr.reports';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccountingModule } from '../accounting/accounting.module';
@@ -20,7 +21,7 @@ import { PerformanceService } from './performance.service';
 @Module({
   imports: [TypeOrmModule.forFeature(HR_ENTITIES), AccountingModule],
   controllers: [HrController, PayrollController, IclockController, DevelopmentController],
-  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService],
+  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, HrReports],
   exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService],
 })
 export class HrModule {}

@@ -9,6 +9,7 @@ import { MembersController, PublicMembersController } from './members.controller
 import { MembersService } from './members.service';
 import { MemCore } from './mem-core.service';
 import { MemReportsService } from './reports.service';
+import { MembersReports } from './members.reports';
 
 /**
  * عضوية الجمعية العمومية: طلبات العضوية من الموقع أو داخليًا ومراحل اعتمادها، سجل الأعضاء وهوياتهم،
@@ -18,7 +19,7 @@ import { MemReportsService } from './reports.service';
 @Module({
   imports: [TypeOrmModule.forFeature(MEMBERS_ENTITIES), CoreModule, AccountingModule],
   controllers: [MembersController, PublicMembersController],
-  providers: [MemCore, MembersService, BillingService, ApplicationsService, MemReportsService],
+  providers: [MembersReports, MemCore, MembersService, BillingService, ApplicationsService, MemReportsService],
   exports: [MemCore, MembersService, BillingService, ApplicationsService, MemReportsService],
 })
 export class MembersModule {}

@@ -1,3 +1,4 @@
+import { defineAsyncComponent } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 import { P } from './lib';
 
@@ -31,6 +32,8 @@ export const riskRoutes: RouteRecordRaw[] = [
   { path: '/risk/policy', component: () => import('./views/PolicyView.vue'), meta: meta('سياسة المخاطر') },
   { path: '/risk/methodologies', component: () => import('./views/MethodologiesView.vue'), meta: meta('سجل المنهجيات المعتمدة') },
   { path: '/risk/guide', component: () => import('./views/GuideView.vue'), meta: meta('دليل المصطلحات والمخاطر') },
-  { path: '/risk/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير المخاطر', P.reports) },
+  { path: '/risk/reports', component: () => import('../../components/reports/ReportsHub.vue'),
+    props: { module: 'risk', system: 'المخاطر والالتزام والتغيير', overview: defineAsyncComponent(() => import('./views/ReportsView.vue')), overviewLabel: 'لوحة المخاطر' },
+    meta: meta('تقارير المخاطر', P.reports) },
   { path: '/risk/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات المخاطر', P.settings) },
 ];

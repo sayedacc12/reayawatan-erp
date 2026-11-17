@@ -9,6 +9,7 @@ import { RegisterService } from './register.service';
 import { RiskAuditBridge, RiskReportsService } from './reports.service';
 import { RiskCore } from './risk-core.service';
 import { RiskController } from './risk.controller';
+import { RiskReports } from './risk.reports';
 
 /**
  * المخاطر والتغيير والالتزام. سجل المخاطر هنا هو المرجع المؤسسي الموحد:
@@ -19,7 +20,7 @@ import { RiskController } from './risk.controller';
 @Module({
   imports: [TypeOrmModule.forFeature(RISK_ENTITIES), CoreModule],
   controllers: [RiskController],
-  providers: [
+  providers: [RiskReports, 
     RiskCore, RegisterService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge,
     { provide: 'RISK_REGISTER_LOOKUP', useExisting: RiskAuditBridge },
   ],

@@ -23,6 +23,7 @@ export const HR_PERMISSIONS = {
   approveDevelopment: 'hr.development.approve',
   policy: 'hr.policy.manage',
   settings: 'hr.settings.manage',
+  reports: 'hr.reports.read',
 } as const;
 
 const P = HR_PERMISSIONS;
@@ -57,6 +58,7 @@ export const hrManifest: ErpModuleManifest = {
     { code: P.development, name: 'إعداد خطط التطوير والتدريب ومتابعتها، وإدارة الصف الثاني' },
     { code: P.approveDevelopment, name: 'اعتماد خطط التطوير والتدريب في مراحلها' },
     { code: P.policy, name: 'تعديل لائحة الموارد البشرية' },
+    { code: P.reports, name: 'عرض تقارير الموارد البشرية وتصديرها (تقارير الرواتب تحتاج أيضًا صلاحية عرض الرواتب)' },
     { code: P.settings, name: 'إعدادات الموارد البشرية وصلاحياتها' },
   ],
   settingsPermission: P.settings,
@@ -76,6 +78,7 @@ export const hrManifest: ErpModuleManifest = {
     { label: 'التطوير والتدريب', path: '/hr/development', permission: P.read, group: 'الأداء والتطوير' },
     { label: 'الصف الثاني', path: '/hr/development?tab=succession', permission: P.read, group: 'الأداء والتطوير' },
     { label: 'لائحة الموارد البشرية', path: '/hr/policy', permission: P.read },
+    { label: 'التقارير', path: '/hr/reports', permission: P.reports },
     { label: 'الإعدادات', path: '/hr/settings', permission: P.settings },
   ],
 };

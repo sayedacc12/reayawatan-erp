@@ -16,7 +16,7 @@ export const projectsRoutes: RouteRecordRaw[] = [
   },
   { path: '/projects/transfers', component: () => import('./views/TransfersView.vue'), meta: meta('المناقلات', 'projects.transfers.manage') },
   { path: '/projects/amendments', component: () => import('./views/AmendmentsView.vue'), meta: meta('تعديل فرص التبرع', 'projects.amendments.manage') },
-  { path: '/projects/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير المشاريع', 'projects.reports.read') },
+  { path: '/projects/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'projects', system: 'إدارة المشاريع' }, meta: meta('تقارير المشاريع', 'projects.reports.read') },
   { path: '/projects/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات المشاريع', 'projects.settings.manage') },
   { path: '/projects/:id/document', component: () => import('./views/DocumentView.vue'), meta: meta('وثيقة المشروع') },
   // آخر مسار: صفحة المشروع

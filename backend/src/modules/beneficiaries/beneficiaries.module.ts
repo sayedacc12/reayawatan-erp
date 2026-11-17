@@ -1,3 +1,4 @@
+import { BeneficiariesReports } from './beneficiaries.reports';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
@@ -34,7 +35,7 @@ import { TicketsService } from './tickets.service';
   ],
   // المسارات الأكثر تحديدًا أولًا: beneficiaries/settings و beneficiaries/requests قبل beneficiaries/:id
   controllers: [SettingsController, RequestsController, TicketsController, BeneficiariesController, PortalController],
-  providers: [BeneficiariesService, DocumentStorage, SettingsService, RequestsService, TicketsService, PortalService, PortalGuard],
+  providers: [BeneficiariesService, DocumentStorage, SettingsService, RequestsService, TicketsService, PortalService, PortalGuard, BeneficiariesReports],
   // للوحدات القادمة (مثل المالية) لربط الصرف بالقيود والمشاريع
   exports: [BeneficiariesService, RequestsService, SettingsService, DocumentStorage],
 })

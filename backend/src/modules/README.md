@@ -22,3 +22,9 @@ src/modules/donations/
 
 قواعد التكامل بين الوحدات: وحدة تستخدم وحدة أخرى عبر الـ service المُصدَّر منها
 (وليس بالكتابة مباشرة في جداولها)، وتذكرها في `depends`.
+
+## التقارير
+
+كل وحدة لها تبويب «التقارير» موحد. عرّف تقارير الوحدة في `<module>.reports.ts` وسجلها في `ReportsRegistry`،
+وأضف صلاحية `<module>.reports.read` ومسارًا يستخدم `ReportsHub.vue`. التصدير إلى PDF وExcel وCSV والطباعة جاهز.
+الشرح والمثال الكامل في [`src/core/reports/README.md`](../core/reports/README.md).
