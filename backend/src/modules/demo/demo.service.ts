@@ -10,6 +10,7 @@ import { AuditSeed } from './seed-audit';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
 import { HrSeed } from './seed-hr';
+import { MembersSeed } from './seed-members';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
 import { RiskSeed } from './seed-risk';
@@ -39,6 +40,7 @@ export class DemoService {
     private readonly volunteers: VolunteersSeed,
     private readonly quality: QualitySeed,
     private readonly audit: AuditSeed,
+    private readonly members: MembersSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -60,6 +62,7 @@ export class DemoService {
       await this.quality.run(team);
       // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
       const auditor = await this.audit.run(team, staffPassword);
+      await this.members.run(team);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
       const supportTeam = await this.support.run(team, staffPassword);

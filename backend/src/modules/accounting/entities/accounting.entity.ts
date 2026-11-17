@@ -611,7 +611,7 @@ export class VoucherInventory {
 export type VoucherKind = 'receipt' | 'payment';
 export type VoucherStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected' | 'cancelled';
 export type VoucherMethod = 'cash' | 'transfer' | 'cheque' | 'card';
-export type VoucherSource = 'manual' | 'opportunity' | 'store' | 'payroll';
+export type VoucherSource = 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership';
 
 /** مرحلة من مراحل اعتماد سندات القبض أو الصرف (مستقلة لكل نوع) */
 @Entity('acc_voucher_stages')

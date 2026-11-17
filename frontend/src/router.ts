@@ -4,6 +4,7 @@ import { loginPath, useSession } from './stores/session';
 import AppShell from './layouts/AppShell.vue';
 import { usePortal } from './portal/portal';
 import { volunteersPublicRoutes } from './modules/volunteers/routes';
+import { membersPublicRoutes } from './modules/members/routes';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -19,6 +20,8 @@ export const router = createRouter({
     ...volunteersPublicRoutes,
     // استبانة قياس الرضا العامة (نظام الجودة)
     { path: '/survey/:token', component: () => import('./views/PublicSurveyView.vue'), meta: { open: true, title: 'استبانة رضا' } },
+    // صفحات عضوية الجمعية العمومية العامة: التقديم والسداد والتحقق من البطاقة
+    ...membersPublicRoutes,
     // بوابة المستفيدين: مستقلة عن دخول الموظفين
     {
       path: '/portal/:slug',
