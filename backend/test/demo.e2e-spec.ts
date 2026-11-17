@@ -79,10 +79,26 @@ describe('Demo association across all modules', () => {
     expect(plans.totals.positions).toBe(2);
   });
 
+  it('hr: development plans in different stages, competency gaps and the second line', async () => {
+    const admin = await staff('admin');
+    const plans = (await http.get('/api/hr/dev-plans').set(as(admin)).expect(200)).body as { status: string; kind: string }[];
+    expect(new Set(plans.map((p) => p.status))).toEqual(new Set(['approved', 'pending', 'draft', 'completed']));
+    expect(plans.some((p) => p.kind === 'succession')).toBe(true);
+    const gaps = (await http.get('/api/hr/development/gaps').set(as(admin)).expect(200)).body;
+    expect(gaps.topGaps.length).toBeGreaterThan(0);
+    const s = (await http.get('/api/hr/succession').set(as(admin)).expect(200)).body;
+    expect(s.totals.none).toBeGreaterThan(0);
+    expect(s.totals.ready).toBeGreaterThan(0);
+    expect(s.rows.filter((r: { candidates: unknown[] }) => r.candidates.length).length).toBeGreaterThanOrEqual(4);
+  });
+
   it('hr: attendance, salary items with accounts, and payroll sheets linked to accounting', async () => {
     const admin = await staff('admin');
     const types = (await http.get('/api/hr/allowance-types').set(as(admin)).expect(200)).body;
-    expect(types.every((t: { expenseAccountId: string | null; cashAccountId: string | null }) => t.expenseAccountId && t.cashAccountId)).toBe(true);
+    expect(types.every((t: { payableAccountId: string | null; cashAccountId: string | null }) => t.payableAccountId && t.cashAccountId)).toBe(true);
+    const profiles = (await http.get('/api/hr/expense-profiles').set(as(admin)).expect(200)).body as { name: string; jobs: number }[];
+    expect(profiles.map((p) => p.name)).toEqual(expect.arrayContaining(['المصروفات الإدارية', 'البرامج والأنشطة', 'جمع الأموال']));
+    expect(profiles.every((p) => p.jobs > 0)).toBe(true);
     const month = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 7);
     const att = (await http.get(`/api/hr/attendance?month=${month}`).set(as(admin)).expect(200)).body;
     expect(att.config.enabled).toBe(true);

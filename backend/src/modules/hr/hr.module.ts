@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccountingModule } from '../accounting/accounting.module';
 import { AttendanceService } from './attendance.service';
+import { DevelopmentController } from './development.controller';
+import { DevelopmentService } from './development.service';
 import { HR_ENTITIES } from './entities/hr.entity';
 import { HrController } from './hr.controller';
 import { HrCore } from './hr-core.service';
@@ -17,8 +19,8 @@ import { PerformanceService } from './performance.service';
  */
 @Module({
   imports: [TypeOrmModule.forFeature(HR_ENTITIES), AccountingModule],
-  controllers: [HrController, PayrollController, IclockController],
-  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService],
-  exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService],
+  controllers: [HrController, PayrollController, IclockController, DevelopmentController],
+  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService],
+  exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService],
 })
 export class HrModule {}

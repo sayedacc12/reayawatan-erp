@@ -7,9 +7,9 @@ import { EntriesService } from '../accounting/entries.service';
 import { VouchersService, VOUCHER_STATUS_AR } from '../accounting/vouchers.service';
 import { AttendanceService } from './attendance.service';
 import {
-  HrAllowanceType, HrEmployee, HrJob, HrLeaveRequest, HrPayrollRun, HrSettings, HrUnit, PayrollConfig, PayrollRunStatus, RunHistory, RunLine,
+  HrAllowanceType, HrEmployee, HrExpenseProfile, HrJob, HrLeaveRequest, HrPayrollRun, HrSettings, HrUnit, PayrollConfig, PayrollRunStatus, RunHistory, RunLine,
 } from './entities/hr.entity';
-import { AllowanceTypeDto, PayrollConfigDto, RunDecisionDto, RunLineDto, RunVouchersDto } from './hr.dto';
+import { AllowanceTypeDto, ExpenseProfileDto, PayrollConfigDto, RunDecisionDto, RunLineDto, RunVouchersDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
 import { HR_PERMISSIONS as P } from './hr.manifest';
 import { daysBetween, gosi, HrPolicy, round2 } from './hr-policy';
@@ -27,7 +27,7 @@ const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ما
 export const monthLabel = (m: string) => `${MONTHS_AR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 
 const EMPTY_CONFIG: PayrollConfig = {
-  payableAccountId: null, gosiPayableAccountId: null, gosiExpenseAccountId: null, deductionsAccountId: null, defaultCashAccountId: null, stages: [],
+  payableAccountId: null, gosiPayableAccountId: null, deductionsAccountId: null, defaultCashAccountId: null, stages: [],
 };
 
 /** يخصم مبلغًا من بنود الراتب: من الأساسي أولًا ثم باقي البنود بالترتيب */
@@ -139,14 +139,11 @@ export class PayrollService {
     const org = actor.organizationId;
     const repo = this.db.getRepository(HrAllowanceType);
     await this.core.allowanceTypes(org);
-    await this.assertAccounts(org, [
-      { id: dto.expenseAccountId, label: 'حساب المصروف', nature: ['expenses'] },
-      { id: dto.payableAccountId, label: 'حساب الاستحقاق', nature: ['liabilities'] },
-    ]);
+    await this.assertAccounts(org, [{ id: dto.payableAccountId, label: 'حساب الاستحقاق', nature: ['liabilities'] }]);
     await this.assertCash(org, dto.cashAccountId, 'بنك الصرف');
     const dup = await repo.findOne({ where: { organizationId: org, code: dto.code } });
     const fields = {
-      name: dto.name, defaultKind: dto.defaultKind, defaultValue: dto.defaultValue, expenseAccountId: dto.expenseAccountId ?? null,
+      name: dto.name, defaultKind: dto.defaultKind, defaultValue: dto.defaultValue,
       payableAccountId: dto.payableAccountId ?? null, cashAccountId: dto.cashAccountId ?? null, isActive: dto.isActive ?? true,
       ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
     };
@@ -183,7 +180,8 @@ export class PayrollService {
   // ---------------- الربط المحاسبي ----------------
 
   async config(org: string, em: EntityManager = this.db.manager): Promise<PayrollConfig> {
-    return { ...EMPTY_CONFIG, ...((await this.core.settings(org, em)).payrollConfig ?? {}) };
+    const { gosiExpenseAccountId: _legacy, ...cfg } = (await this.core.settings(org, em)).payrollConfig ?? {};
+    return { ...EMPTY_CONFIG, ...cfg };
   }
 
   async getConfig(actor: OrgUser) {
@@ -195,7 +193,6 @@ export class PayrollService {
     await this.assertAccounts(org, [
       { id: dto.payableAccountId, label: 'الرواتب المستحقة', nature: ['liabilities'] },
       { id: dto.gosiPayableAccountId, label: 'التأمينات المستحقة', nature: ['liabilities'] },
-      { id: dto.gosiExpenseAccountId, label: 'مصروف التأمينات', nature: ['expenses'] },
       { id: dto.deductionsAccountId, label: 'حساب الاستقطاعات' },
     ]);
     await this.assertCash(org, dto.defaultCashAccountId, 'البنك الافتراضي');
@@ -205,13 +202,69 @@ export class PayrollService {
       if (roles.length !== new Set(roleIds).size) throw new BadRequestException('أحد الأدوار المختارة غير موجود');
     }
     const config: PayrollConfig = {
-      payableAccountId: dto.payableAccountId ?? null, gosiPayableAccountId: dto.gosiPayableAccountId ?? null, gosiExpenseAccountId: dto.gosiExpenseAccountId ?? null,
+      payableAccountId: dto.payableAccountId ?? null, gosiPayableAccountId: dto.gosiPayableAccountId ?? null,
       deductionsAccountId: dto.deductionsAccountId ?? null, defaultCashAccountId: dto.defaultCashAccountId ?? null,
       stages: dto.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? null })),
     };
     await this.core.settings(org);
     await this.db.getRepository(HrSettings).update({ organizationId: org }, { payrollConfig: config });
     return this.getConfig(actor);
+  }
+
+  // ---------------- فئات تحميل المصروف ----------------
+
+  async listProfiles(actor: OrgUser) {
+    const org = actor.organizationId;
+    const rows = await this.core.expenseProfiles(org);
+    const jobs: { p: string | null; n: number }[] = await this.db.query(
+      'SELECT expense_profile_id AS p, COUNT(*)::int AS n FROM hr_jobs WHERE organization_id = $1 AND is_active GROUP BY 1', [org],
+    );
+    const unassigned = jobs.find((j) => j.p === null)?.n ?? 0;
+    return rows.map((r) => ({
+      id: r.id, name: r.name, description: r.description, accounts: r.accounts, isDefault: r.isDefault, sortOrder: r.sortOrder,
+      jobs: (jobs.find((j) => j.p === r.id)?.n ?? 0) + (r.isDefault ? unassigned : 0),
+    }));
+  }
+
+  async saveProfile(actor: OrgUser, dto: ExpenseProfileDto, id?: string) {
+    const org = actor.organizationId;
+    const repo = this.db.getRepository(HrExpenseProfile);
+    const rows = await this.core.expenseProfiles(org);
+    const codes = new Set([...(await this.core.allowanceTypes(org)).map((t) => t.code), 'gosi']);
+    const accounts: Record<string, string> = {};
+    for (const a of dto.accounts) {
+      if (!codes.has(a.code)) throw new BadRequestException(`البند «${a.code}» غير معرّف`);
+      accounts[a.code] = a.accountId;
+    }
+    await this.assertAccounts(org, dto.accounts.map((a) => ({ id: a.accountId, label: `حساب مصروف «${a.code === 'gosi' ? 'التأمينات' : a.code}»`, nature: ['expenses'] })));
+    const dup = rows.find((r) => r.name === dto.name && r.id !== id);
+    if (dup) throw new ConflictException(`توجد فئة باسم «${dto.name}»`);
+    let saved: HrExpenseProfile;
+    if (id) {
+      const row = rows.find((r) => r.id === id);
+      if (!row) throw new NotFoundException('الفئة غير موجودة');
+      if (row.isDefault && dto.isDefault === false) throw new BadRequestException('اختر فئة أخرى افتراضية بدلًا منها');
+      await repo.update({ id }, { name: dto.name, description: dto.description ?? null, accounts });
+      saved = { ...row, name: dto.name };
+    } else {
+      saved = await repo.save(repo.create({ organizationId: org, name: dto.name, description: dto.description ?? null, accounts, isDefault: false, sortOrder: rows.length }));
+    }
+    if (dto.isDefault) {
+      await repo.update({ organizationId: org }, { isDefault: false });
+      await repo.update({ id: saved.id }, { isDefault: true });
+    }
+    return this.listProfiles(actor);
+  }
+
+  async removeProfile(actor: OrgUser, id: string) {
+    const org = actor.organizationId;
+    const row = (await this.core.expenseProfiles(org)).find((r) => r.id === id);
+    if (!row) throw new NotFoundException('الفئة غير موجودة');
+    if (row.isDefault) throw new BadRequestException('الفئة الافتراضية لا تُحذف. اجعل فئة أخرى افتراضية أولًا');
+    const [{ n }] = await this.db.query('SELECT COUNT(*)::int AS n FROM hr_jobs WHERE organization_id = $1 AND expense_profile_id = $2', [org, id]);
+    if (n) throw new ConflictException(`الفئة مستخدمة في ${n} من الوظائف. انقلها لفئة أخرى أولًا`);
+    await this.db.getRepository(HrExpenseProfile).delete({ id });
+    return this.listProfiles(actor);
   }
 
   /** قوائم الاختيار من النظام المالي: الحسابات الفرعية، الحسابات التحليلية، البنوك، والأدوار */
@@ -237,8 +290,10 @@ export class PayrollService {
     const types = new Map((await this.core.allowanceTypes(org)).map((t) => [t.code, t]));
     const [units, jobs] = await Promise.all([
       this.db.getRepository(HrUnit).find({ where: { organizationId: org } }),
-      this.db.getRepository(HrJob).find({ where: { organizationId: org }, select: ['id', 'title'] }),
+      this.db.getRepository(HrJob).find({ where: { organizationId: org }, select: ['id', 'title', 'expenseProfileId'] }),
     ]);
+    const profiles = await this.core.expenseProfiles(org);
+    const defaultProfile = profiles.find((p) => p.isDefault)!.id;
     const unpaidCodes = policy.leaveTypes.filter((t) => t.pay === 'unpaid').map((t) => t.code);
     const unpaid = unpaidCodes.length ? await this.db.getRepository(HrLeaveRequest).createQueryBuilder('l')
       .where('l.organization_id = :org AND l.status = :s', { org, s: 'approved' }).andWhere('l.leave_type IN (:...codes)', { codes: unpaidCodes })
@@ -267,6 +322,7 @@ export class PayrollService {
       return computeLine({
         employeeId: e.id, employeeNo: e.employeeNo, fullName: e.fullName, isSaudi: e.isSaudi, unitId: e.unitId,
         unitName: units.find((u) => u.id === e.unitId)?.name ?? '', jobTitle: jobs.find((j) => j.id === e.jobId)?.title ?? '', iban: e.iban,
+        expenseProfileId: jobs.find((j) => j.id === e.jobId)?.expenseProfileId ?? defaultProfile,
         items, gross, workedDays: Math.min(worked, monthDays), ratio, dailyWage, unpaidDays, unpaidDeduction: round2(unpaidDays * dailyWage),
         attendance, absenceDeduction: 0, lateDeduction: 0,
         additions: old?.additions ?? [], otherDeduction: old?.otherDeduction ?? 0, otherDeductionNote: old?.otherDeductionNote ?? null,
@@ -397,6 +453,8 @@ export class PayrollService {
     const cfg = await this.config(org, em);
     const types = new Map((await this.core.allowanceTypes(org, em)).map((t) => [t.code, t]));
     const units = await em.getRepository(HrUnit).find({ where: { organizationId: org } });
+    const profiles = await this.core.expenseProfiles(org, em);
+    const defaultProfile = profiles.find((p) => p.isDefault)!;
     const accounts: { id: string; code: string; name: string; requiresAnalytic: boolean }[] = await em.query(
       'SELECT id, code, name, requires_analytic AS "requiresAnalytic" FROM acc_accounts WHERE organization_id = $1', [org],
     );
@@ -405,7 +463,6 @@ export class PayrollService {
     if (!cfg.payableAccountId) problems.add('حساب الرواتب المستحقة');
     const totals = totalsOf(r.lines);
     if (totals.gosiEmployee + totals.gosiEmployer > 0 && !cfg.gosiPayableAccountId) problems.add('حساب التأمينات المستحقة');
-    if (totals.gosiEmployer > 0 && !cfg.gosiExpenseAccountId) problems.add('حساب مصروف التأمينات');
     if (totals.otherDeduction > 0 && !cfg.deductionsAccountId) problems.add('حساب الاستقطاعات');
     const lines = new Map<string, LineDto & { analyticId: string | null }>();
     const add = (side: 'debit' | 'credit', accountId: string, amount: number, analyticId: string | null, label: string) => {
@@ -421,17 +478,19 @@ export class PayrollService {
     const banks = new Map<string, Map<string, { employeeId: string; employeeNo: number; fullName: string; iban: string | null; amount: number }>>();
     for (const l of r.lines) {
       const analyticId = this.analyticOf(units, l.unitId);
+      const profile = profiles.find((p) => p.id === l.expenseProfileId) ?? defaultProfile;
       for (const part of allocateLine(l)) {
         const t = types.get(part.code);
         const name = t?.name ?? part.code;
-        if (!t?.expenseAccountId) {
-          problems.add(`حساب المصروف لبند «${name}»`);
+        const expenseId = profile.accounts[part.code];
+        if (!expenseId) {
+          problems.add(`حساب مصروف «${name}» في فئة «${profile.name}»`);
           continue;
         }
-        if (acc.get(t.expenseAccountId)?.requiresAnalytic && !analyticId) problems.add(`الحساب التحليلي للوحدة «${l.unitName}»`);
-        add('debit', t.expenseAccountId, part.expense, analyticId, name);
-        const payable = t.payableAccountId ?? cfg.payableAccountId;
-        const cash = t.cashAccountId ?? cfg.defaultCashAccountId;
+        if (acc.get(expenseId)?.requiresAnalytic && !analyticId) problems.add(`الحساب التحليلي للوحدة «${l.unitName}»`);
+        add('debit', expenseId, part.expense, analyticId, name);
+        const payable = t?.payableAccountId ?? cfg.payableAccountId;
+        const cash = t?.cashAccountId ?? cfg.defaultCashAccountId;
         if (!cash) problems.add(`بنك صرف بند «${name}» (أو البنك الافتراضي للرواتب)`);
         if (!payable || part.payable <= 0) continue;
         add('credit', payable, part.payable, analyticId, `${name} المستحق`);
@@ -447,9 +506,13 @@ export class PayrollService {
         sheet.set(l.employeeId, row);
         banks.set(cash, sheet);
       }
-      if (l.gosiEmployer > 0 && cfg.gosiExpenseAccountId) {
-        if (acc.get(cfg.gosiExpenseAccountId)?.requiresAnalytic && !analyticId) problems.add(`الحساب التحليلي للوحدة «${l.unitName}»`);
-        add('debit', cfg.gosiExpenseAccountId, l.gosiEmployer, analyticId, 'حصة الجمعية في التأمينات الاجتماعية');
+      if (l.gosiEmployer > 0) {
+        const gosiId = profile.accounts.gosi;
+        if (!gosiId) problems.add(`حساب مصروف التأمينات في فئة «${profile.name}»`);
+        else {
+          if (acc.get(gosiId)?.requiresAnalytic && !analyticId) problems.add(`الحساب التحليلي للوحدة «${l.unitName}»`);
+          add('debit', gosiId, l.gosiEmployer, analyticId, 'حصة الجمعية في التأمينات الاجتماعية');
+        }
       }
       if (cfg.gosiPayableAccountId) add('credit', cfg.gosiPayableAccountId, round2(l.gosiEmployee + l.gosiEmployer), analyticId, 'التأمينات الاجتماعية المستحقة');
       if (cfg.deductionsAccountId) add('credit', cfg.deductionsAccountId, l.otherDeduction, analyticId, 'استقطاعات من الرواتب');
