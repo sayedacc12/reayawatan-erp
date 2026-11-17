@@ -19,7 +19,7 @@ export const BENEFICIARY_PERMISSIONS = {
 
 export const beneficiariesManifest: ErpModuleManifest = {
   code: 'beneficiaries',
-  name: 'المستفيدون',
+  name: 'المساعدات الاجتماعية',
   description: 'ملفات الحالات والأسر والبحث الاجتماعي والمساعدات',
   icon: 'hand',
   version: '1.0.0',
@@ -43,7 +43,7 @@ export const beneficiariesManifest: ErpModuleManifest = {
   ],
   settingsPermission: BENEFICIARY_PERMISSIONS.settings,
   menu: [
-    { label: 'لوحة المستفيدين', path: '/beneficiaries', permission: BENEFICIARY_PERMISSIONS.read },
+    { label: 'لوحة المساعدات الاجتماعية', path: '/beneficiaries', permission: BENEFICIARY_PERMISSIONS.read },
     { label: 'ملفات المستفيدين', path: '/beneficiaries/files', permission: BENEFICIARY_PERMISSIONS.read },
     { label: 'الطلبات', path: '/beneficiaries/requests', permission: BENEFICIARY_PERMISSIONS.requestsRead },
     { label: 'سجل المساعدات', path: '/beneficiaries/aid-log', permission: BENEFICIARY_PERMISSIONS.read },

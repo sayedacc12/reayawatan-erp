@@ -234,7 +234,7 @@ describe('Beneficiaries module', () => {
     // لا يملك صلاحيات الأدوار العامة، لكن يدير صلاحيات وحدة المستفيدين
     await http.get('/api/roles').set(as(cfg)).expect(403);
     const mod = await http.get('/api/roles/module/beneficiaries').set(as(cfg)).expect(200);
-    expect(mod.body.module.name).toBe('المستفيدون');
+    expect(mod.body.module.name).toBe('المساعدات الاجتماعية');
     const mine = mod.body.roles.find((r: { id: string }) => r.id === role.body.id);
     expect(mine.permissions).toEqual(['beneficiaries.cases.read', 'beneficiaries.settings.manage']);
     await http.get('/api/roles/module/core').set(as(cfg)).expect(404);

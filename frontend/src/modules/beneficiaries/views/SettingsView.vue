@@ -42,7 +42,7 @@ async function copy(url: string) {
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات المستفيدين</h1><p class="muted sub">جهّز الأنشطة وسير العمل والنماذج مرة واحدة، وستسير الطلبات عليها تلقائيًا</p></div></div>
+    <div class="page-head"><div><h1>إعدادات المساعدات الاجتماعية</h1><p class="muted sub">جهّز الأنشطة وسير العمل والنماذج مرة واحدة، وستسير الطلبات عليها تلقائيًا</p></div></div>
     <nav class="stabs">
       <button v-for="(t, i) in tabs" :key="t.key" :class="['stab', { on: tab === t.key }]" :style="{ '--i': i }" @click="tab = t.key">
         <span class="n">{{ i + 1 }}</span><span><b>{{ t.label }}</b><small>{{ t.hint }}</small></span>

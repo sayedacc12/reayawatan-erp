@@ -34,7 +34,7 @@ const steps = [
     <section class="hero">
       <p class="kicker">انضم إلى سنابل</p>
       <h1>سجّل جمعيتك<br /><span class="shine">وابدأ رحلة التحول الرقمي</span></h1>
-      <p class="lead">نظام متكامل لإدارة المستفيدين والمشاريع والموارد المالية، بحساب مستقل وبيانات معزولة لكل جمعية.</p>
+      <p class="lead">نظام متكامل للمساعدات الاجتماعية والمشاريع والموارد المالية، بحساب مستقل وبيانات معزولة لكل جمعية.</p>
       <ol class="steps">
         <li v-for="(s, i) in steps" :key="s.t" :style="{ '--i': i }"><span class="n">{{ i + 1 }}</span><b>{{ s.t }}</b><small>{{ s.d }}</small></li>
       </ol>

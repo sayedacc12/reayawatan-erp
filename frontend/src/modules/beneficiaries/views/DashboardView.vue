@@ -58,7 +58,7 @@ function opened(b: Beneficiary) {
     <section class="hero">
       <div class="hero-glow" aria-hidden="true" />
       <div class="hero-text">
-        <p class="kicker">وحدة المستفيدين</p>
+        <p class="kicker">نظام المساعدات الاجتماعية</p>
         <h1>كل حالة لها قصة، وكل قصة لها ملف</h1>
         <p class="sub">تابع الأسر المستفيدة، نتائج البحث الاجتماعي، والمساعدات المصروفة من مكان واحد.</p>
       </div>
