@@ -1,5 +1,6 @@
 import { OrgUser } from '../../core/auth/decorators';
 import { ACC_PERMISSIONS } from '../accounting/accounting.manifest';
+import { AUDIT_PERMISSIONS } from '../audit/audit.manifest';
 import { BENEFICIARY_PERMISSIONS } from '../beneficiaries/beneficiaries.manifest';
 import { FUNDRAISING_PERMISSIONS } from '../fundraising/fundraising.manifest';
 import { HR_PERMISSIONS } from '../hr/hr.manifest';
@@ -18,7 +19,7 @@ export const daysAhead = (n: number) => daysAgo(-n);
 
 export const ALL_PERMISSIONS = [
   ...Object.values(BENEFICIARY_PERMISSIONS), ...Object.values(FUNDRAISING_PERMISSIONS), ...Object.values(PROJECT_PERMISSIONS),
-  ...Object.values(ACC_PERMISSIONS), ...Object.values(HR_PERMISSIONS), ...Object.values(RISK_PERMISSIONS), ...Object.values(VOL_PERMISSIONS), ...Object.values(QUALITY_PERMISSIONS), ...Object.values(MEMBER_PERMISSIONS),
+  ...Object.values(ACC_PERMISSIONS), ...Object.values(HR_PERMISSIONS), ...Object.values(RISK_PERMISSIONS), ...Object.values(VOL_PERMISSIONS), ...Object.values(QUALITY_PERMISSIONS), ...Object.values(AUDIT_PERMISSIONS), ...Object.values(MEMBER_PERMISSIONS),
 ];
 
 /** مستخدم تجريبي بصيغة المستخدم الحالي، لتنفيذ العمليات عبر خدمات الوحدات كما لو نفذها بنفسه */

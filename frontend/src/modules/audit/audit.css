@@ -1,0 +1,145 @@
+/* أنماط المراجعة الداخلية (بادئة au-)، وتستفيد من أنماط pm- المشتركة */
+.au-hero { background: linear-gradient(125deg, #0a1024, #14204a 45%, #3b0d1f); }
+.au-hero::before { background: radial-gradient(460px 220px at 92% -20%, rgba(251,146,60,.45), transparent 70%), radial-gradient(520px 260px at 0% 130%, rgba(99,102,241,.5), transparent 70%); }
+.au-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .16;
+  background-image: linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
+  background-size: 28px 28px; mask-image: radial-gradient(circle at 15% 50%, #000, transparent 70%); animation: au-scan 14s linear infinite; }
+.au-hero .pm-kicker { color: #fdba74; }
+.au-glow { background: linear-gradient(135deg, #fb923c, #e11d48); color: #fff; border: 0; font-weight: 700; box-shadow: 0 6px 22px rgba(225,29,72,.35); }
+.au-glow:hover { filter: brightness(1.07); }
+.au-ghost { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.22); }
+.au-ghost:hover { background: rgba(255,255,255,.16); }
+.au-hero select.input { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.25); }
+.au-hero select.input option { color: #111; }
+
+.au-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
+.au-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.au-grid > .wide, .au-grid3 > .wide { grid-column: 1 / -1; }
+.au-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.au-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; direction: ltr; unicode-bidi: isolate; font-size: .8rem; color: var(--muted); }
+.au-row { cursor: pointer; transition: background .15s; }
+.au-row:hover { background: var(--surface-2); }
+.au-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.au-toolbar .input { width: auto; min-width: 150px; }
+.au-toolbar .grow { flex: 1; }
+.au-sec { font-size: .82rem; font-weight: 700; color: var(--muted); margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; }
+.au-sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.au-text { white-space: pre-line; margin: 0; line-height: 1.7; }
+
+/* مستوى الخطر */
+.au-lvl { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap;
+  color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); }
+.au-score { display: inline-grid; place-items: center; min-width: 34px; height: 34px; border-radius: 10px; font-weight: 800; color: #fff; background: var(--c);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--c) 45%, transparent); font-variant-numeric: tabular-nums; }
+.au-risk { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--border); border-inline-start: 3px solid var(--c); border-radius: 8px;
+  padding: 2px 8px; font-size: .78rem; background: var(--surface); margin: 2px; }
+.au-risk .au-code { font-size: .72rem; }
+
+/* خريطة الحرارة */
+.au-heat { display: grid; grid-template-columns: 26px repeat(5, 1fr); gap: 4px; direction: ltr; }
+.au-heat .ax { display: grid; place-items: center; font-size: .72rem; color: var(--muted); font-weight: 700; }
+.au-heat .cell { position: relative; aspect-ratio: 1.35; border-radius: 10px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 1rem;
+  background: var(--c); opacity: .28; transition: transform .2s var(--ease), opacity .3s; animation: pm-rise .5s calc(var(--i) * 18ms) var(--ease) both; }
+.au-heat .cell.on { opacity: 1; box-shadow: 0 6px 18px color-mix(in srgb, var(--c) 45%, transparent); }
+.au-heat .cell.on:hover { transform: scale(1.06); z-index: 2; }
+.au-heat .cell.on::after { content: ''; position: absolute; inset: -3px; border-radius: 12px; border: 2px solid var(--c); opacity: .5; animation: au-ping 2.4s infinite; }
+.au-heat-x { display: flex; justify-content: space-between; direction: ltr; padding-left: 30px; font-size: .72rem; color: var(--muted); margin-top: 4px; }
+.au-heat-cap { display: flex; justify-content: space-between; font-size: .76rem; color: var(--muted); margin-top: 6px; }
+
+/* أشرطة */
+.au-bars { display: grid; gap: 10px; }
+.au-bars .r { display: grid; grid-template-columns: 120px 1fr 44px; gap: 10px; align-items: center; font-size: .84rem; }
+.au-bars .r i { display: block; height: 10px; border-radius: 10px; background: var(--c, linear-gradient(90deg, #fb923c, #e11d48)); animation: pm-fill .9s var(--ease) both; transform-origin: right; min-width: 4px; }
+.au-track { height: 8px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
+.au-track i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #6366f1, #0ea5e9); animation: pm-fill .9s var(--ease) both; transform-origin: right; }
+.au-track.warn i { background: linear-gradient(90deg, #f97316, #e11d48); }
+.au-track.ok i { background: linear-gradient(90deg, #10b981, #14b8a6); }
+
+/* حلقة النسبة */
+.au-ring { --v: 0; --c: #10b981; width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto;
+  background: conic-gradient(var(--c) calc(var(--v) * 1%), var(--surface-2) 0); position: relative; }
+.au-ring::after { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: var(--surface); }
+.au-ring b { position: relative; z-index: 1; font-size: 1.4rem; }
+
+/* مراحل المهمة */
+.au-steps { display: flex; gap: 0; margin: 4px 0 18px; overflow-x: auto; }
+.au-step { flex: 1; min-width: 110px; text-align: center; position: relative; padding-top: 30px; font-size: .8rem; color: var(--muted); }
+.au-step::before { content: attr(data-n); position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface-2); border: 2px solid var(--border); font-weight: 700; z-index: 1; color: var(--muted); }
+.au-step::after { content: ''; position: absolute; top: 12px; right: 50%; width: 100%; height: 2px; background: var(--border); }
+.au-step:first-child::after { display: none; }
+.au-step.done { color: var(--text); }
+.au-step.done::before { content: '✓'; background: #10b981; border-color: #10b981; color: #fff; }
+.au-step.done::after, .au-step.cur::after { background: #10b981; }
+.au-step.cur { color: var(--text); font-weight: 700; }
+.au-step.cur::before { background: linear-gradient(135deg, #fb923c, #e11d48); border-color: transparent; color: #fff; box-shadow: 0 0 0 5px rgba(251,146,60,.2); animation: au-pulse 2s infinite; }
+
+/* سلسلة الملاحظة: البند ← الملاحظة ← الأثر ← التوصية ← الجهة */
+.au-item { border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-bottom: 12px; background: var(--surface); animation: pm-rise .4s calc(var(--i, 0) * 40ms) var(--ease) both; }
+.au-item-head { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+.au-item-head .n { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); font-weight: 800; flex-shrink: 0; }
+.au-chain { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.au-chain > div { padding: 10px 12px; border-inline-start: 1px solid var(--border); position: relative; font-size: .86rem; min-width: 0; }
+.au-chain > div:first-child { border-inline-start: 0; }
+.au-chain > div > span { display: block; font-size: .72rem; font-weight: 700; color: var(--c); margin-bottom: 4px; }
+.au-chain > div::before { content: ''; position: absolute; top: 0; inset-inline: 0; height: 3px; background: var(--c); }
+.au-chain p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.au-finding { border-top: 1px dashed var(--border); margin-top: 12px; padding-top: 12px; }
+
+/* البطاقات والمتابعة */
+.au-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.au-card { padding: 16px; display: flex; flex-direction: column; gap: 8px; border-inline-start: 4px solid var(--c, var(--border)); cursor: pointer;
+  transition: transform .2s var(--ease), box-shadow .2s; animation: pm-rise .45s calc(var(--i, 0) * 40ms) var(--ease) both; }
+.au-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(20,32,74,.14); }
+.au-card h3 { margin: 0; font-size: .98rem; }
+.au-due { font-size: .8rem; font-weight: 700; }
+.au-due.late { color: var(--danger); }
+.au-due.soon { color: #c2410c; }
+.au-timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.au-timeline li { position: relative; padding: 0 22px 14px 0; border-inline-start: 2px solid var(--border); margin-inline-start: 7px; }
+.au-timeline li::before { content: ''; position: absolute; inset-inline-start: -7px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--c, #6366f1); }
+.au-timeline li:last-child { border-color: transparent; }
+.au-timeline b { font-size: .86rem; display: block; }
+.au-timeline .pm-muted { display: block; }
+
+.au-plan { padding: 18px; margin-bottom: 14px; }
+.au-plan .subs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
+.au-sub { border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; transition: border-color .2s, transform .2s var(--ease); background: var(--surface-2); }
+.au-sub:hover { border-color: #fb923c; transform: translateY(-2px); }
+.au-pick { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: grid; gap: 2px; }
+.au-pick label { display: flex; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 8px; cursor: pointer; font-size: .86rem; }
+.au-pick label:hover { background: var(--surface-2); }
+.au-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.au-seg button { border: 0; background: var(--surface); padding: 6px 12px; font: inherit; cursor: pointer; color: var(--muted); }
+.au-seg button.on { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.au-dots { display: flex; gap: 4px; }
+.au-dots button { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface); font: inherit; font-weight: 700; cursor: pointer; }
+.au-dots button.on { background: var(--c, var(--primary)); color: #fff; border-color: transparent; }
+
+/* تقرير المراجعة المطبوع */
+.au-report { max-width: 900px; margin: 0 auto; padding: 32px; background: #fff; color: #111; }
+.au-report h1 { font-size: 1.4rem; margin: 0 0 4px; }
+.au-report table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .88rem; }
+.au-report th, .au-report td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: start; vertical-align: top; }
+.au-report th { background: #f1f5f9; }
+.au-report .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 40px; }
+.au-report .sign div { border-top: 1px solid #94a3b8; padding-top: 6px; text-align: center; font-size: .86rem; }
+@media print {
+  .no-print, .app-header, .side-nav, header, nav { display: none !important; }
+  .au-report { padding: 0; box-shadow: none; }
+  body { background: #fff; }
+}
+
+@keyframes au-scan { to { background-position: 28px 28px; } }
+@keyframes au-ping { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(1.25); opacity: 0; } }
+@keyframes au-pulse { 50% { box-shadow: 0 0 0 9px rgba(251,146,60,0); } }
+@media (max-width: 900px) {
+  .au-grid, .au-grid3 { grid-template-columns: 1fr; }
+  .au-chain { grid-template-columns: 1fr; }
+  .au-chain > div { border-inline-start: 0; border-top: 1px solid var(--border); }
+  .au-chain > div:first-child { border-top: 0; }
+  .au-bars .r { grid-template-columns: 90px 1fr 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .au-hero::after, .au-heat .cell.on::after, .au-step.cur::before { animation: none; }
+}
