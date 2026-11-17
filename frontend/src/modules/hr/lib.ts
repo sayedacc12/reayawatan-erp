@@ -6,6 +6,7 @@ export const P = {
   salaries: 'hr.salaries.read', leaves: 'hr.leaves.manage', approveLeaves: 'hr.leaves.approve', performance: 'hr.performance.manage',
   approvePerformance: 'hr.performance.approve', policy: 'hr.policy.manage', settings: 'hr.settings.manage',
   attendance: 'hr.attendance.manage', payroll: 'hr.payroll.manage', approvePayroll: 'hr.payroll.approve', payPayroll: 'hr.payroll.pay',
+  development: 'hr.development.manage', approveDevelopment: 'hr.development.approve',
 } as const;
 
 export const sar = (n: number | null | undefined) => `${(n ?? 0).toLocaleString('ar-SA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ر.س`;
@@ -20,7 +21,7 @@ export const thisYear = () => Number(todayStr().slice(0, 4));
 export const errMsg = (e: unknown) => (e as Error).message;
 
 export const STATUS_COLOR: Record<string, string> = {
-  draft: '#94a3b8', submitted: '#f59e0b', returned: '#f97316', approved: '#10b981', rejected: '#ef4444', pending: '#f59e0b', cancelled: '#94a3b8',
+  draft: '#94a3b8', submitted: '#f59e0b', returned: '#f97316', approved: '#10b981', completed: '#6366f1', rejected: '#ef4444', pending: '#f59e0b', cancelled: '#94a3b8',
   agreed: '#6366f1', evaluated: '#0ea5e9', active: '#10b981', terminated: '#ef4444',
 };
 export const CONTRACT_TYPES = [
@@ -37,7 +38,7 @@ export interface Unit {
 }
 /** بند من بنود الراتب (الأساسي والبدلات) معرّف في الإعدادات */
 export interface AllowanceType {
-  id: string; code: string; name: string; defaultKind: 'percent' | 'fixed'; defaultValue: number; expenseAccountId: string | null; payableAccountId: string | null;
+  id: string; code: string; name: string; defaultKind: 'percent' | 'fixed'; defaultValue: number; payableAccountId: string | null;
   cashAccountId: string | null; isSystem: boolean; isActive: boolean; sortOrder: number; employees: number;
 }
 /** قوائم الاختيار من النظام المالي */
@@ -62,6 +63,7 @@ export interface Competency { id: string; name: string; kind: string; kindLabel:
 export interface JobRow {
   id: string; code: string; title: string; unitId: string; unitName: string; gradeId: string | null; gradeName: string | null; reportsToJobId: string | null; reportsToTitle: string | null;
   headcount: number; filled: number; vacancies: number; qualityCode: string | null; revision: number; status: 'draft' | 'approved'; isActive: boolean; kpis: number; competencies: number;
+  expenseProfileId?: string | null; expenseProfileName?: string | null; backupJobId?: string | null;
 }
 export interface EmpRow {
   id: string; employeeNo: number; fullName: string; nationalId: string; nationality: string; isSaudi: boolean; gender: string; unitName: string; jobTitle: string; gradeName: string | null;

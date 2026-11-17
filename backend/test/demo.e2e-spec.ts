@@ -60,6 +60,29 @@ describe('Demo association across all modules', () => {
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
+  it('volunteers: registry, events in every stage, survey results, certificates, contracts and tickets', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/volunteers/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.volunteers.active).toBeGreaterThanOrEqual(10);
+    expect(d.volunteers.pending).toBe(2);
+    expect(d.hours).toBeGreaterThan(0);
+    expect(d.events.in_review).toBe(1);
+    expect(d.satisfaction.beneficiary).toBeGreaterThan(0);
+    const events = (await http.get('/api/volunteers/events').set(as(admin)).expect(200)).body;
+    const statuses = new Set(events.map((e: { status: string }) => e.status));
+    ['closed', 'approved', 'in_review', 'returned', 'draft'].forEach((s) => expect(statuses.has(s)).toBe(true));
+    expect(events.some((e: { kind: string }) => e.kind === 'online')).toBe(true);
+    const certs = (await http.get('/api/volunteers/certificates').set(as(admin)).expect(200)).body;
+    expect(certs.length).toBe(4);
+    const contracts = (await http.get('/api/volunteers/contracts').set(as(admin)).expect(200)).body;
+    expect(contracts.filter((c: { status: string }) => c.status === 'signed')).toHaveLength(2);
+    const docs = (await http.get('/api/volunteers/documents').set(as(admin)).expect(200)).body;
+    expect(docs.policy.current.version).toBe(1);
+    expect(docs.charter.current.version).toBe(1);
+    const r = (await http.get('/api/volunteers/reports').set(as(admin)).expect(200)).body;
+    expect(r.volunteerHours.length).toBeGreaterThan(0);
+  });
+
   it('hr: structure, approved jobs, employees with salaries, leaves and performance cards', async () => {
     const admin = await staff('admin');
     const s = (await http.get('/api/hr/structure').set(as(admin)).expect(200)).body;
@@ -79,10 +102,26 @@ describe('Demo association across all modules', () => {
     expect(plans.totals.positions).toBe(2);
   });
 
+  it('hr: development plans in different stages, competency gaps and the second line', async () => {
+    const admin = await staff('admin');
+    const plans = (await http.get('/api/hr/dev-plans').set(as(admin)).expect(200)).body as { status: string; kind: string }[];
+    expect(new Set(plans.map((p) => p.status))).toEqual(new Set(['approved', 'pending', 'draft', 'completed']));
+    expect(plans.some((p) => p.kind === 'succession')).toBe(true);
+    const gaps = (await http.get('/api/hr/development/gaps').set(as(admin)).expect(200)).body;
+    expect(gaps.topGaps.length).toBeGreaterThan(0);
+    const s = (await http.get('/api/hr/succession').set(as(admin)).expect(200)).body;
+    expect(s.totals.none).toBeGreaterThan(0);
+    expect(s.totals.ready).toBeGreaterThan(0);
+    expect(s.rows.filter((r: { candidates: unknown[] }) => r.candidates.length).length).toBeGreaterThanOrEqual(4);
+  });
+
   it('hr: attendance, salary items with accounts, and payroll sheets linked to accounting', async () => {
     const admin = await staff('admin');
     const types = (await http.get('/api/hr/allowance-types').set(as(admin)).expect(200)).body;
-    expect(types.every((t: { expenseAccountId: string | null; cashAccountId: string | null }) => t.expenseAccountId && t.cashAccountId)).toBe(true);
+    expect(types.every((t: { payableAccountId: string | null; cashAccountId: string | null }) => t.payableAccountId && t.cashAccountId)).toBe(true);
+    const profiles = (await http.get('/api/hr/expense-profiles').set(as(admin)).expect(200)).body as { name: string; jobs: number }[];
+    expect(profiles.map((p) => p.name)).toEqual(expect.arrayContaining(['المصروفات الإدارية', 'البرامج والأنشطة', 'جمع الأموال']));
+    expect(profiles.every((p) => p.jobs > 0)).toBe(true);
     const month = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 7);
     const att = (await http.get(`/api/hr/attendance?month=${month}`).set(as(admin)).expect(200)).body;
     expect(att.config.enabled).toBe(true);
@@ -115,6 +154,34 @@ describe('Demo association across all modules', () => {
     const dash = (await http.get('/api/audit/dashboard').set(as(auditor)).expect(200)).body;
     expect(dash.risk.areas.total).toBe(9);
     expect(dash.actions.aging[0].n).toBe(1);
+  });
+
+  it('quality: documents of the QMS itself with maps, audits, nonconformities, complaints, surveys and reviews', async () => {
+    const q = await staff('quality');
+    const docs = (await http.get('/api/quality/documents').set(as(q)).expect(200)).body;
+    const codes = docs.rows.map((d: { code: string }) => d.code);
+    for (const c of ['QM-QMS-01', 'QP-QMS-01', 'QP-QMS-02', 'QP-QMS-03', 'QP-QMS-06', 'QF-BEN-01', 'QF-BEN-02']) expect(codes).toContain(c);
+    const p6 = docs.rows.find((d: { code: string }) => d.code === 'QP-QMS-06');
+    expect(p6.revisionLabel).toBe('Rev.01');
+    expect(docs.rows.some((d: { status: string }) => d.status === 'approval')).toBe(true);
+    expect(docs.rows.some((d: { status: string; source: string }) => d.status === 'draft' && d.source === 'quality')).toBe(true);
+    const maps = (await http.get('/api/quality/maps').set(as(q)).expect(200)).body;
+    expect(maps.length).toBeGreaterThanOrEqual(8);
+    expect(maps.every((m: { document: unknown }) => m.document)).toBe(true);
+    const ncrs = (await http.get('/api/quality/ncrs').set(as(q)).expect(200)).body;
+    for (const st of ['open', 'action', 'verification', 'closed']) expect(ncrs.some((n: { status: string }) => n.status === st)).toBe(true);
+    const complaints = (await http.get('/api/quality/complaints').set(as(q)).expect(200)).body;
+    expect(complaints.rows.some((c: { channel: string }) => c.channel === 'portal')).toBe(true);
+    expect(complaints.rows.some((c: { externalRef: string | null }) => c.externalRef?.startsWith('VOL-TKT:'))).toBe(true);
+    expect(complaints.pendingImports).toBe(0);
+    const dash = (await http.get('/api/quality/dashboard').set(as(q)).expect(200)).body;
+    expect(dash.kpis.satisfaction).toBeGreaterThan(50);
+    expect(dash.kpis.compliance).toBeGreaterThanOrEqual(80);
+    const reviews = (await http.get('/api/quality/reviews').set(as(q)).expect(200)).body;
+    expect(reviews.map((r: { status: string }) => r.status).sort()).toEqual(['approved', 'draft']);
+    const st = (await http.get('/api/quality/standard').set(as(q)).expect(200)).body;
+    const gaps = st.sections.flatMap((s: { clauses: { code: string; status: string }[] }) => s.clauses).filter((c: { status: string }) => c.status === 'gap');
+    expect(gaps.map((c: { code: string }) => c.code)).toEqual([]);
   });
 
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {

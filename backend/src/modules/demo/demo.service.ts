@@ -12,7 +12,9 @@ import { FinanceSeed } from './seed-finance';
 import { HrSeed } from './seed-hr';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
+import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
+import { VolunteersSeed } from './seed-volunteers';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -32,6 +34,8 @@ export class DemoService {
     private readonly accounting: AccountingSeed,
     private readonly support: SupportSeed,
     private readonly hr: HrSeed,
+    private readonly volunteers: VolunteersSeed,
+    private readonly quality: QualitySeed,
     private readonly audit: AuditSeed,
   ) {}
 
@@ -49,6 +53,8 @@ export class DemoService {
       await this.finance.run(team, tree, extra, cases);
       await this.accounting.run(team);
       await this.hr.run(team);
+      await this.volunteers.run(team);
+      await this.quality.run(team);
       // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
       const auditor = await this.audit.run(team, staffPassword);
       await this.platform.run(org, platformUser, origin);

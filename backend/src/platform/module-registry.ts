@@ -6,6 +6,8 @@ import { fundraisingManifest } from '../modules/fundraising/fundraising.manifest
 import { projectsManifest } from '../modules/projects/projects.manifest';
 import { accountingManifest } from '../modules/accounting/accounting.manifest';
 import { hrManifest } from '../modules/hr/hr.manifest';
+import { volunteersManifest } from '../modules/volunteers/volunteers.manifest';
+import { qualityManifest } from '../modules/quality/quality.manifest';
 import { auditManifest } from '../modules/audit/audit.manifest';
 
 /**
@@ -13,7 +15,7 @@ import { auditManifest } from '../modules/audit/audit.manifest';
  * لإضافة وحدة جديدة: أنشئ مجلدها تحت src/modules ثم أضف الـ manifest هنا
  * وأضف الـ Nest module الخاص بها في app.module.ts.
  */
-export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, supportManifest, coreManifest, beneficiariesManifest, fundraisingManifest, projectsManifest, accountingManifest, hrManifest, auditManifest];
+export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, supportManifest, coreManifest, beneficiariesManifest, fundraisingManifest, projectsManifest, accountingManifest, hrManifest, volunteersManifest, qualityManifest, auditManifest];
 
 export function validateManifests(manifests: ErpModuleManifest[]): void {
   const codes = new Set<string>();

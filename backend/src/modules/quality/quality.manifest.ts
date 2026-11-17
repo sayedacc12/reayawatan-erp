@@ -1,0 +1,67 @@
+import { ErpModuleManifest } from '../../platform/erp-module';
+
+export const QUALITY_PERMISSIONS = {
+  read: 'quality.dashboard.read',
+  context: 'quality.context.manage',
+  documents: 'quality.documents.manage',
+  reviewDocs: 'quality.documents.review',
+  approveDocs: 'quality.documents.approve',
+  audits: 'quality.audits.manage',
+  ncr: 'quality.ncr.manage',
+  closeNcr: 'quality.ncr.close',
+  risks: 'quality.risks.manage',
+  objectives: 'quality.objectives.manage',
+  reviews: 'quality.reviews.manage',
+  approveReviews: 'quality.reviews.approve',
+  feedback: 'quality.feedback.manage',
+  reports: 'quality.reports.read',
+  settings: 'quality.settings.manage',
+} as const;
+
+const P = QUALITY_PERMISSIONS;
+const G = { plan: 'السياق والتخطيط', docs: 'التوثيق والإجراءات', eval: 'التقييم والتحسين', voice: 'رضا المستفيدين والشكاوى' };
+
+export const qualityManifest: ErpModuleManifest = {
+  code: 'quality',
+  name: 'إدارة الجودة',
+  description: 'نظام إدارة الجودة وفق ISO 9001: الوثائق والترميز والإصدارات، خرائط الإجراءات، المراجعة الداخلية، عدم المطابقة والإجراءات التصحيحية، المخاطر والأهداف، مراجعة الإدارة، الشكاوى وقياس الرضا',
+  icon: 'award',
+  version: '1.0.0',
+  alwaysEnabled: true,
+  sequence: 80,
+  permissions: [
+    { code: P.read, name: 'عرض لوحة الجودة والوثائق المعتمدة وسجلات الجودة' },
+    { code: P.context, name: 'تحديث سياق الجمعية ونطاق النظام وسياسة الجودة' },
+    { code: P.documents, name: 'إنشاء الوثائق وخرائط الإجراءات وتعديلها وتوزيعها' },
+    { code: P.reviewDocs, name: 'مراجعة الوثائق (مراجع الجودة)' },
+    { code: P.approveDocs, name: 'اعتماد الوثائق وإلغاؤها' },
+    { code: P.audits, name: 'تخطيط المراجعات الداخلية وتنفيذها' },
+    { code: P.ncr, name: 'تسجيل حالات عدم المطابقة وتحليلها ومتابعة الإجراءات التصحيحية' },
+    { code: P.closeNcr, name: 'التحقق من فاعلية الإجراءات التصحيحية وإغلاق الحالات' },
+    { code: P.risks, name: 'إدارة سجل المخاطر والفرص' },
+    { code: P.objectives, name: 'إدارة أهداف الجودة وتسجيل قياساتها' },
+    { code: P.reviews, name: 'إعداد محاضر مراجعة الإدارة' },
+    { code: P.approveReviews, name: 'اعتماد مراجعة الإدارة' },
+    { code: P.feedback, name: 'إدارة الشكاوى واستبانات قياس الرضا' },
+    { code: P.reports, name: 'تقارير الجودة' },
+    { code: P.settings, name: 'إعدادات الجودة والترميز وصلاحياتها' },
+  ],
+  settingsPermission: P.settings,
+  menu: [
+    { label: 'لوحة الجودة', path: '/quality', permission: P.read },
+    { label: 'سياق الجمعية وسياسة الجودة', path: '/quality/context', permission: P.read, group: G.plan },
+    { label: 'المخاطر والفرص', path: '/quality/risks', permission: P.read, group: G.plan },
+    { label: 'أهداف الجودة ومؤشراتها', path: '/quality/objectives', permission: P.read, group: G.plan },
+    { label: 'سجل الوثائق المضبوطة', path: '/quality/documents', permission: P.read, group: G.docs },
+    { label: 'سجل الإجراءات', path: '/quality/procedures', permission: P.read, group: G.docs },
+    { label: 'خرائط الإجراءات', path: '/quality/maps', permission: P.read, group: G.docs },
+    { label: 'المراجعة الداخلية', path: '/quality/audits', permission: P.read, group: G.eval },
+    { label: 'عدم المطابقة والإجراءات التصحيحية', path: '/quality/ncr', permission: P.read, group: G.eval },
+    { label: 'مراجعة الإدارة', path: '/quality/reviews', permission: P.read, group: G.eval },
+    { label: 'الشكاوى', path: '/quality/complaints', permission: P.read, group: G.voice },
+    { label: 'قياس الرضا', path: '/quality/surveys', permission: P.read, group: G.voice },
+    { label: 'متطلبات المواصفة', path: '/quality/standard', permission: P.read },
+    { label: 'التقارير', path: '/quality/reports', permission: P.reports },
+    { label: 'الإعدادات', path: '/quality/settings', permission: P.settings },
+  ],
+};

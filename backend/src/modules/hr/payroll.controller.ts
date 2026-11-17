@@ -8,7 +8,7 @@ import { memoryStorage } from 'multer';
 import { CurrentOrgUser, OrgUser, Public, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { AttendanceService } from './attendance.service';
 import {
-  AllowanceTypeDto, AttendanceConfigDto, DeviceDto, ManualPunchDto, PayrollConfigDto, RunCreateDto, RunDecisionDto, RunLineDto, RunNoteDto, RunVouchersDto,
+  AllowanceTypeDto, AttendanceConfigDto, DeviceDto, ExpenseProfileDto, ManualPunchDto, PayrollConfigDto, RunCreateDto, RunDecisionDto, RunLineDto, RunNoteDto, RunVouchersDto,
 } from './hr.dto';
 import { today } from './hr-core.service';
 import { HR_PERMISSIONS as P } from './hr.manifest';
@@ -49,6 +49,30 @@ export class PayrollController {
   }
 
   // ---------------- الربط المحاسبي ومراحل الاعتماد ----------------
+
+  @Get('expense-profiles')
+  @RequirePermissions(P.read)
+  profiles(@CurrentOrgUser() actor: OrgUser) {
+    return this.payroll.listProfiles(actor);
+  }
+
+  @Post('expense-profiles')
+  @RequirePermissions(P.settings)
+  createProfile(@CurrentOrgUser() actor: OrgUser, @Body() dto: ExpenseProfileDto) {
+    return this.payroll.saveProfile(actor, dto);
+  }
+
+  @Put('expense-profiles/:id')
+  @RequirePermissions(P.settings)
+  updateProfile(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string, @Body() dto: ExpenseProfileDto) {
+    return this.payroll.saveProfile(actor, dto, id);
+  }
+
+  @Delete('expense-profiles/:id')
+  @RequirePermissions(P.settings)
+  removeProfile(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.payroll.removeProfile(actor, id);
+  }
 
   @Get('payroll-config')
   @RequireAnyPermission(P.settings, P.structure)
