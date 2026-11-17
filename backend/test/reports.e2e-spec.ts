@@ -8,7 +8,7 @@ import { configureApp } from '../src/main';
 
 /** بنية التقارير الموحدة: كل تقارير الأنظمة تعمل على بيانات الجمعية التجريبية وتُصدَّر، والصلاحيات تُحترم */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
-const ORG_MODULES = ['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'volunteers', 'quality', 'risk', 'audit'];
+const ORG_MODULES = ['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'volunteers', 'quality', 'risk', 'audit', 'members'];
 const PLATFORM_MODULES = ['platform', 'support'];
 
 describe('Unified reports', () => {

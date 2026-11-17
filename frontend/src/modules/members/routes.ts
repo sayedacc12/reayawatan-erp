@@ -1,3 +1,4 @@
+import { defineAsyncComponent } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 import { P } from './lib';
 
@@ -14,7 +15,9 @@ export const membersRoutes: RouteRecordRaw[] = [
   { path: '/members/assembly', component: () => import('./views/AssemblyView.vue'), meta: meta('الجمعية العمومية') },
   { path: '/members/invoices', component: () => import('./views/InvoicesView.vue'), meta: meta('المطالبات والمدفوعات') },
   { path: '/members/invoices/:id', component: () => import('./views/InvoiceView.vue'), props: true, meta: meta('المطالبة') },
-  { path: '/members/reports', component: () => import('./views/ReportsView.vue'), meta: meta('تقارير العضوية', P.reports) },
+  { path: '/members/reports', component: () => import('../../components/reports/ReportsHub.vue'),
+    props: { module: 'members', system: 'العضوية', overview: defineAsyncComponent(() => import('./views/ReportsView.vue')), overviewLabel: 'لوحة العضوية' },
+    meta: meta('تقارير العضوية', P.reports) },
   { path: '/members/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات العضوية', P.settings) },
 ];
 
