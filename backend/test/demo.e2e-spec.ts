@@ -137,6 +137,34 @@ describe('Demo association across all modules', () => {
     }
   });
 
+  it('quality: documents of the QMS itself with maps, audits, nonconformities, complaints, surveys and reviews', async () => {
+    const q = await staff('quality');
+    const docs = (await http.get('/api/quality/documents').set(as(q)).expect(200)).body;
+    const codes = docs.rows.map((d: { code: string }) => d.code);
+    for (const c of ['QM-QMS-01', 'QP-QMS-01', 'QP-QMS-02', 'QP-QMS-03', 'QP-QMS-06', 'QF-BEN-01', 'QF-BEN-02']) expect(codes).toContain(c);
+    const p6 = docs.rows.find((d: { code: string }) => d.code === 'QP-QMS-06');
+    expect(p6.revisionLabel).toBe('Rev.01');
+    expect(docs.rows.some((d: { status: string }) => d.status === 'approval')).toBe(true);
+    expect(docs.rows.some((d: { status: string; source: string }) => d.status === 'draft' && d.source === 'quality')).toBe(true);
+    const maps = (await http.get('/api/quality/maps').set(as(q)).expect(200)).body;
+    expect(maps.length).toBeGreaterThanOrEqual(8);
+    expect(maps.every((m: { document: unknown }) => m.document)).toBe(true);
+    const ncrs = (await http.get('/api/quality/ncrs').set(as(q)).expect(200)).body;
+    for (const st of ['open', 'action', 'verification', 'closed']) expect(ncrs.some((n: { status: string }) => n.status === st)).toBe(true);
+    const complaints = (await http.get('/api/quality/complaints').set(as(q)).expect(200)).body;
+    expect(complaints.rows.some((c: { channel: string }) => c.channel === 'portal')).toBe(true);
+    expect(complaints.rows.some((c: { externalRef: string | null }) => c.externalRef?.startsWith('VOL-TKT:'))).toBe(true);
+    expect(complaints.pendingImports).toBe(0);
+    const dash = (await http.get('/api/quality/dashboard').set(as(q)).expect(200)).body;
+    expect(dash.kpis.satisfaction).toBeGreaterThan(50);
+    expect(dash.kpis.compliance).toBeGreaterThanOrEqual(80);
+    const reviews = (await http.get('/api/quality/reviews').set(as(q)).expect(200)).body;
+    expect(reviews.map((r: { status: string }) => r.status).sort()).toEqual(['approved', 'draft']);
+    const st = (await http.get('/api/quality/standard').set(as(q)).expect(200)).body;
+    const gaps = st.sections.flatMap((s: { clauses: { code: string; status: string }[] }) => s.clauses).filter((c: { status: string }) => c.status === 'gap');
+    expect(gaps.map((c: { code: string }) => c.code)).toEqual([]);
+  });
+
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
     const finance = await staff('finance');
     const accounts = await http.get('/api/accounting/accounts').set(as(finance)).expect(200);

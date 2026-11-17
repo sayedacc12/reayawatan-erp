@@ -11,6 +11,7 @@ import { FinanceSeed } from './seed-finance';
 import { HrSeed } from './seed-hr';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
+import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
 import { VolunteersSeed } from './seed-volunteers';
 
@@ -33,6 +34,7 @@ export class DemoService {
     private readonly support: SupportSeed,
     private readonly hr: HrSeed,
     private readonly volunteers: VolunteersSeed,
+    private readonly quality: QualitySeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -50,6 +52,7 @@ export class DemoService {
       await this.accounting.run(team);
       await this.hr.run(team);
       await this.volunteers.run(team);
+      await this.quality.run(team);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
       const supportTeam = await this.support.run(team, staffPassword);
