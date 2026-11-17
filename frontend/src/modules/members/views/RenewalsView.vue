@@ -92,11 +92,11 @@ async function renew(r: Row) {
               <td><template v-if="r.lastNotice">{{ CHANNELS[r.lastNotice.channel] ?? r.lastNotice.channel }}<span class="pm-muted" style="display: block">{{ fmtDateTime(r.lastNotice.at) }}</span></template>
                 <span v-else class="pm-muted">لم يُنبَّه</span>
                 <span v-if="r.reminderDue" class="pm-tag" style="background: #fef3c7; color: #92400e; display: inline-block; margin-top: 2px">مستحق الآن</span></td>
-              <td class="acts">
+              <td><div class="acts">
                 <button class="btn btn-sm btn-primary" :disabled="!r.mobile" @click="whatsapp(r)">واتساب</button>
                 <button class="btn btn-sm" @click="copyMsg(r)">نسخ النص</button>
-                <button class="btn btn-sm" @click="log(r, 'call')">سُجل اتصال</button>
-              </td>
+                <button class="btn btn-sm" @click="log(r, 'call')">تسجيل اتصال</button>
+              </div></td>
             </tr>
             <tr v-if="!rows.length"><td colspan="5" class="pm-empty">{{ filter === 'due' ? 'لا توجد تنبيهات مستحقة الآن' : 'لا توجد عضويات في هذه القائمة' }}</td></tr>
           </tbody>

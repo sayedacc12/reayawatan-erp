@@ -53,7 +53,7 @@ function idImage(hue: [number, number, number], name: string, key = 'id_front'):
   const buffer = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
   return {
     fieldname: key, buffer, size: buffer.length, mimetype: 'image/png',
-    originalname: Buffer.from(`${key === 'id_front' ? 'هوية' : 'صورة'}-${name}.png`, 'utf8').toString('latin1'),
+    originalname: Buffer.from(`${key === 'id_front' ? 'هوية-' : ''}${name}.png`, 'utf8').toString('latin1'),
   } as Express.Multer.File;
 }
 const GREEN: [number, number, number] = [15, 118, 110];
@@ -134,7 +134,7 @@ export class MembersSeed {
     const fahdRow = (await this.billing.renewals(admin, 'https://sanabelerp.com')).rows.find((r) => r.id === ids[5]);
     await this.billing.notice(admin, ids[5], { channel: 'whatsapp', message: fahdRow?.message ?? 'تذكير بتجديد العضوية' });
     const khaled = await this.billing.issueRenewal(org, ids[3], finance.fullName);
-    if (khaled.invoice) await this.billing.submitTransfer(khaled.invoice.payToken, idImage(BLUE, 'إيصال'), 'TRX-88231');
+    if (khaled.invoice) await this.billing.submitTransfer(khaled.invoice.payToken, idImage(BLUE, 'إيصال تحويل', 'receipt'), 'TRX-88231');
 
     // ---- طلبات العضوية في كل المراحل
     const conditions = s.conditions.filter((c) => c.isActive).map((c) => c.key);
@@ -172,13 +172,13 @@ export class MembersSeed {
     const a7 = await apply({ fullName: 'غادة بنت ناصر البيشي', nationalId: '1212345670', mobile: '0552000208', gender: 'female', occupation: 'صيدلانية' }, 'public', 'affiliate');
     await approve(a7.id);
     const d7 = await approve(a7.id);
-    if (d7.invoice) await this.billing.submitTransfer(d7.invoice.payToken, idImage(BLUE, 'إيصال تحويل'), 'TRX-55410');
+    if (d7.invoice) await this.billing.submitTransfer(d7.invoice.payToken, idImage(BLUE, 'إيصال تحويل', 'receipt'), 'TRX-55410');
     // حوّل بنكيًا وأكدت المالية السداد
     const a8 = await apply({ fullName: 'حمد بن مسفر الشهري', nationalId: '1223456781', mobile: '0552000209', gender: 'male', occupation: 'موظف قطاع خاص' }, 'staff');
     await approve(a8.id);
     const d8 = await approve(a8.id);
     if (d8.invoice) {
-      await this.billing.submitTransfer(d8.invoice.payToken, idImage(BLUE, 'إيصال تحويل'), 'TRX-55602');
+      await this.billing.submitTransfer(d8.invoice.payToken, idImage(BLUE, 'إيصال تحويل', 'receipt'), 'TRX-55602');
       await this.billing.recordPayment(finance, d8.invoice.id, { method: 'transfer', paidOn: daysAgo(0), reference: 'TRX-55602' });
     }
   }
