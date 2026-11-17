@@ -14,6 +14,8 @@ export const router = createRouter({
     { path: '/register', component: () => import('./registration/RegisterView.vue'), meta: { open: true, title: 'تسجيل جمعية' } },
     { path: '/register/:token', component: () => import('./registration/RegisterTrackView.vue'), meta: { open: true, title: 'متابعة طلب الاشتراك' } },
     { path: '/contract/:token', component: () => import('./registration/ContractSignView.vue'), meta: { open: true, title: 'عقد الاشتراك' } },
+    // استبانة قياس الرضا العامة (نظام الجودة)
+    { path: '/survey/:token', component: () => import('./views/PublicSurveyView.vue'), meta: { open: true, title: 'استبانة رضا' } },
     // بوابة المستفيدين: مستقلة عن دخول الموظفين
     {
       path: '/portal/:slug',
