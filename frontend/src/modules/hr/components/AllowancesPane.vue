@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { accLabel, sar, type AccLookups, type AllowanceType } from '../lib';
 
-/** بنود الراتب: الأساسي والبدلات، ولكل بند حساب مصروف وحساب استحقاق وبنك صرف مستقل */
+/** بنود الراتب: الأساسي والبدلات، ولكل بند حساب استحقاق وبنك صرف مستقل. حسابات المصروف حسب فئة الوظيفة */
 const toast = useToast();
 const rows = ref<AllowanceType[]>([]);
 const lk = ref<AccLookups | null>(null);
@@ -18,26 +18,25 @@ async function load() {
   }
 }
 onMounted(load);
-const expenses = computed(() => lk.value?.accounts.filter((a) => a.nature === 'expenses') ?? []);
 const liabilities = computed(() => lk.value?.accounts.filter((a) => a.nature === 'liabilities') ?? []);
 const bankName = (id: string | null) => lk.value?.cashAccounts.find((c) => c.id === id)?.name ?? '';
 const editing = ref<AllowanceType | null>(null);
-const form = reactive({ show: false, code: '', name: '', defaultKind: 'fixed' as 'percent' | 'fixed', defaultValue: 0, expenseAccountId: '', payableAccountId: '', cashAccountId: '', isActive: true, sortOrder: 0 });
+const form = reactive({ show: false, code: '', name: '', defaultKind: 'fixed' as 'percent' | 'fixed', defaultValue: 0, payableAccountId: '', cashAccountId: '', isActive: true, sortOrder: 0 });
 function openNew() {
   editing.value = null;
-  Object.assign(form, { show: true, code: '', name: '', defaultKind: 'fixed', defaultValue: 0, expenseAccountId: '', payableAccountId: '', cashAccountId: '', isActive: true, sortOrder: rows.value.length });
+  Object.assign(form, { show: true, code: '', name: '', defaultKind: 'fixed', defaultValue: 0, payableAccountId: '', cashAccountId: '', isActive: true, sortOrder: rows.value.length });
 }
 function openEdit(t: AllowanceType) {
   editing.value = t;
   Object.assign(form, {
-    show: true, code: t.code, name: t.name, defaultKind: t.defaultKind, defaultValue: t.defaultValue, expenseAccountId: t.expenseAccountId ?? '',
+    show: true, code: t.code, name: t.name, defaultKind: t.defaultKind, defaultValue: t.defaultValue,
     payableAccountId: t.payableAccountId ?? '', cashAccountId: t.cashAccountId ?? '', isActive: t.isActive, sortOrder: t.sortOrder,
   });
 }
 async function save() {
   try {
     const body = {
-      code: form.code.trim(), name: form.name, defaultKind: form.defaultKind, defaultValue: Number(form.defaultValue), expenseAccountId: form.expenseAccountId || null,
+      code: form.code.trim(), name: form.name, defaultKind: form.defaultKind, defaultValue: Number(form.defaultValue),
       payableAccountId: form.payableAccountId || null, cashAccountId: form.cashAccountId || null, isActive: form.isActive, sortOrder: Number(form.sortOrder),
     };
     rows.value = editing.value
@@ -65,19 +64,18 @@ async function remove() {
     <div class="pm-row-head">
       <div>
         <h2>البدلات وبنود الراتب</h2>
-        <p class="pm-muted">عرّف كل بند مرة واحدة هنا، ثم اختره في سلم الرواتب وملف الموظف. لكل بند حساب مصروف في دليل الحسابات، وحساب استحقاق، وبنك يُصرف منه، فيصدر لكل بنك سند صرف مستقل.</p>
+        <p class="pm-muted">عرّف كل بند مرة واحدة هنا، ثم اختره في سلم الرواتب وملف الموظف. لكل بند حساب استحقاق وبنك يُصرف منه، فيصدر لكل بنك سند صرف مستقل. أما حساب المصروف فيتحدد حسب طبيعة الوظيفة من تبويب <b>حسابات المصروف للوظائف</b>.</p>
       </div>
       <button class="btn hr-glow" @click="openNew">+ بدل جديد</button>
     </div>
     <p v-if="lk && !lk.accounts.length" class="alert alert-error">لم يُنصَّب دليل الحسابات في النظام المالي بعد، فلا يمكن ربط البنود بالحسابات.</p>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>البند</th><th>القيمة الافتراضية</th><th>حساب المصروف</th><th>حساب الاستحقاق</th><th>بنك الصرف</th><th>الموظفون</th><th></th></tr></thead>
+        <thead><tr><th>البند</th><th>القيمة الافتراضية</th><th>حساب الاستحقاق</th><th>بنك الصرف</th><th>الموظفون</th><th></th></tr></thead>
         <tbody>
           <tr v-for="t in rows" :key="t.id" :style="{ opacity: t.isActive ? 1 : 0.5 }">
             <td><b>{{ t.name }}</b><span class="pm-muted hr-code">{{ t.code }}</span><span v-if="!t.isActive" class="pm-tag">موقوف</span></td>
             <td>{{ t.isSystem ? 'حسب المرتبة والدرجة' : t.defaultKind === 'percent' ? `${t.defaultValue}% من الأساسي` : sar(t.defaultValue) }}</td>
-            <td :style="{ color: t.expenseAccountId ? '' : 'var(--danger)' }">{{ t.expenseAccountId ? accLabel(lk, t.expenseAccountId) : 'لم يُحدد' }}</td>
             <td>{{ t.payableAccountId ? accLabel(lk, t.payableAccountId) : 'الرواتب المستحقة (العام)' }}</td>
             <td>{{ t.cashAccountId ? bankName(t.cashAccountId) : 'البنك الافتراضي للرواتب' }}</td>
             <td class="hr-num">{{ t.employees }}</td>
@@ -98,9 +96,6 @@ async function remove() {
           </template>
         </div>
         <div class="hr-sec">الربط المحاسبي</div>
-        <label class="field"><span>حساب المصروف</span>
-          <select v-model="form.expenseAccountId" class="input"><option value="">—</option><option v-for="a in expenses" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select>
-        </label>
         <label class="field"><span>حساب الاستحقاق (اختياري)</span>
           <select v-model="form.payableAccountId" class="input"><option value="">الرواتب المستحقة (من تبويب الربط المحاسبي)</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select>
         </label>

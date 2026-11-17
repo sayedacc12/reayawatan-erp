@@ -12,7 +12,10 @@ import { HrSeed } from './seed-hr';
 import { MembersSeed } from './seed-members';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
+import { RiskSeed } from './seed-risk';
+import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
+import { VolunteersSeed } from './seed-volunteers';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -32,6 +35,9 @@ export class DemoService {
     private readonly accounting: AccountingSeed,
     private readonly support: SupportSeed,
     private readonly hr: HrSeed,
+    private readonly risk: RiskSeed,
+    private readonly volunteers: VolunteersSeed,
+    private readonly quality: QualitySeed,
     private readonly members: MembersSeed,
   ) {}
 
@@ -49,6 +55,9 @@ export class DemoService {
       await this.finance.run(team, tree, extra, cases);
       await this.accounting.run(team);
       await this.hr.run(team);
+      await this.risk.run(team);
+      await this.volunteers.run(team);
+      await this.quality.run(team);
       await this.members.run(team);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين

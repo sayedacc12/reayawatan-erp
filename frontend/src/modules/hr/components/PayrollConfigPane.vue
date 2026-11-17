@@ -5,15 +5,15 @@ import { useToast } from '../../../stores/toast';
 import type { AccLookups } from '../lib';
 
 /** الربط المحاسبي لمسير الرواتب ومراحل اعتماده */
-interface Config { payableAccountId: string | null; gosiPayableAccountId: string | null; gosiExpenseAccountId: string | null; deductionsAccountId: string | null; defaultCashAccountId: string | null; stages: { name: string; roleId: string | null }[] }
+interface Config { payableAccountId: string | null; gosiPayableAccountId: string | null; deductionsAccountId: string | null; defaultCashAccountId: string | null; stages: { name: string; roleId: string | null }[] }
 const toast = useToast();
 const lk = ref<AccLookups | null>(null);
-const f = reactive({ payableAccountId: '', gosiPayableAccountId: '', gosiExpenseAccountId: '', deductionsAccountId: '', defaultCashAccountId: '', stages: [] as { name: string; roleId: string }[] });
+const f = reactive({ payableAccountId: '', gosiPayableAccountId: '', deductionsAccountId: '', defaultCashAccountId: '', stages: [] as { name: string; roleId: string }[] });
 function fill(r: AccLookups & { config: Config }) {
   lk.value = r;
   const c = r.config;
   Object.assign(f, {
-    payableAccountId: c.payableAccountId ?? '', gosiPayableAccountId: c.gosiPayableAccountId ?? '', gosiExpenseAccountId: c.gosiExpenseAccountId ?? '',
+    payableAccountId: c.payableAccountId ?? '', gosiPayableAccountId: c.gosiPayableAccountId ?? '',
     deductionsAccountId: c.deductionsAccountId ?? '', defaultCashAccountId: c.defaultCashAccountId ?? '', stages: c.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? '' })),
   });
 }
@@ -26,14 +26,13 @@ onMounted(async () => {
 });
 const by = (n: string) => computed(() => lk.value?.accounts.filter((a) => a.nature === n) ?? []);
 const liabilities = by('liabilities');
-const expenses = by('expenses');
 async function save() {
   try {
     const n = (v: string) => v || null;
     fill(await api('/hr/payroll-config', {
       method: 'PUT',
       json: {
-        payableAccountId: n(f.payableAccountId), gosiPayableAccountId: n(f.gosiPayableAccountId), gosiExpenseAccountId: n(f.gosiExpenseAccountId),
+        payableAccountId: n(f.payableAccountId), gosiPayableAccountId: n(f.gosiPayableAccountId),
         deductionsAccountId: n(f.deductionsAccountId), defaultCashAccountId: n(f.defaultCashAccountId),
         stages: f.stages.filter((s) => s.name.trim()).map((s) => ({ name: s.name.trim(), roleId: s.roleId || null })),
       },
@@ -54,13 +53,11 @@ function move(i: number, d: number) {
   <div class="hr-grid">
     <section class="card pm-panel">
       <h2>الربط المحاسبي للرواتب</h2>
-      <p class="pm-muted">عند الاعتماد النهائي لكشف الرواتب يصدر قيد في النظام المالي: مصروف كل بند على حسابه (محمّلًا على الحساب التحليلي لوحدة الموظف)، مقابل الرواتب المستحقة والتأمينات والاستقطاعات. حسابات المصروف وبنوك الصرف لكل بند في تبويب البدلات.</p>
+      <p class="pm-muted">عند الاعتماد النهائي لكشف الرواتب يصدر قيد في النظام المالي: مصروف كل بند على الحساب المحدد لفئة وظيفة الموظف (تبويب حسابات المصروف للوظائف)، محمّلًا على الحساب التحليلي لوحدته، مقابل الرواتب المستحقة والتأمينات والاستقطاعات. بنوك الصرف وحسابات الاستحقاق لكل بند في تبويب البدلات.</p>
       <label class="field"><span>الرواتب المستحقة (لكل بند ليس له حساب استحقاق خاص)</span>
         <select v-model="f.payableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
       <label class="field"><span>التأمينات الاجتماعية المستحقة (حصة الموظف والجمعية)</span>
         <select v-model="f.gosiPayableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
-      <label class="field"><span>مصروف التأمينات الاجتماعية (حصة الجمعية)</span>
-        <select v-model="f.gosiExpenseAccountId" class="input"><option value="">—</option><option v-for="a in expenses" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
       <label class="field"><span>الاستقطاعات الأخرى (أقساط السلف والجزاءات)</span>
         <select v-model="f.deductionsAccountId" class="input"><option value="">—</option><option v-for="a in lk?.accounts ?? []" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
       <label class="field"><span>البنك الافتراضي لصرف الرواتب</span>
