@@ -60,6 +60,29 @@ describe('Demo association across all modules', () => {
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
+  it('volunteers: registry, events in every stage, survey results, certificates, contracts and tickets', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/volunteers/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.volunteers.active).toBeGreaterThanOrEqual(10);
+    expect(d.volunteers.pending).toBe(2);
+    expect(d.hours).toBeGreaterThan(0);
+    expect(d.events.in_review).toBe(1);
+    expect(d.satisfaction.beneficiary).toBeGreaterThan(0);
+    const events = (await http.get('/api/volunteers/events').set(as(admin)).expect(200)).body;
+    const statuses = new Set(events.map((e: { status: string }) => e.status));
+    ['closed', 'approved', 'in_review', 'returned', 'draft'].forEach((s) => expect(statuses.has(s)).toBe(true));
+    expect(events.some((e: { kind: string }) => e.kind === 'online')).toBe(true);
+    const certs = (await http.get('/api/volunteers/certificates').set(as(admin)).expect(200)).body;
+    expect(certs.length).toBe(4);
+    const contracts = (await http.get('/api/volunteers/contracts').set(as(admin)).expect(200)).body;
+    expect(contracts.filter((c: { status: string }) => c.status === 'signed')).toHaveLength(2);
+    const docs = (await http.get('/api/volunteers/documents').set(as(admin)).expect(200)).body;
+    expect(docs.policy.current.version).toBe(1);
+    expect(docs.charter.current.version).toBe(1);
+    const r = (await http.get('/api/volunteers/reports').set(as(admin)).expect(200)).body;
+    expect(r.volunteerHours.length).toBeGreaterThan(0);
+  });
+
   it('hr: structure, approved jobs, employees with salaries, leaves and performance cards', async () => {
     const admin = await staff('admin');
     const s = (await http.get('/api/hr/structure').set(as(admin)).expect(200)).body;
