@@ -56,7 +56,7 @@ describe('Demo association across all modules', () => {
     const res = await http.post('/api/platform/demo-organization').set(as(platform)).expect(201);
     demo = res.body;
     expect(res.body.organization.slug).toBe('demo');
-    expect(demo.staff).toHaveLength(7);
+    expect(demo.staff).toHaveLength(8);
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
@@ -96,6 +96,25 @@ describe('Demo association across all modules', () => {
       expect(Math.round(r.vouchers.reduce((s: number, v: { amount: number }) => s + v.amount, 0) * 100) / 100).toBe(r.totals.net);
       expect(r.lines.some((l: { attendance: { absentDays: number } }) => l.attendance.absentDays > 0)).toBe(true);
     }
+  });
+
+  it('internal audit: risk-based plans, engagements in every stage and timed recommendations', async () => {
+    const auditor = await staff('auditor');
+    const plans = (await http.get('/api/audit/plans').set(as(auditor)).expect(200)).body;
+    expect(plans).toHaveLength(1);
+    expect(plans[0].status).toBe('approved');
+    expect(plans[0].subs.map((p: { status: string }) => p.status).sort()).toEqual(['approved', 'approved', 'submitted']);
+    const engs = (await http.get('/api/audit/engagements').set(as(auditor)).expect(200)).body as { status: string }[];
+    expect(new Set(engs.map((e) => e.status))).toEqual(new Set(['issued', 'closed', 'fieldwork', 'planned']));
+    const acts = (await http.get('/api/audit/actions').set(as(auditor)).expect(200)).body;
+    expect(acts.counts).toEqual({ active: 4, overdue: 1, submitted: 1, closed: 1 });
+    // المدير المالي يرى التوصيات المسندة إليه وغير المسندة لشخص فقط
+    const fin = (await http.get('/api/audit/actions').set(as(await staff('finance'))).expect(200)).body;
+    expect(fin.items.length).toBeGreaterThanOrEqual(3);
+    expect(fin.items.some((a: { assigneeName: string | null }) => a.assigneeName === 'سارة القحطاني')).toBe(false);
+    const dash = (await http.get('/api/audit/dashboard').set(as(auditor)).expect(200)).body;
+    expect(dash.risk.areas.total).toBe(9);
+    expect(dash.actions.aging[0].n).toBe(1);
   });
 
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
