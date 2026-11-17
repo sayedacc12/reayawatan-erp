@@ -135,7 +135,7 @@ export class QmsCore {
     return [
       ...forms.map((f) => ({
         id: f.id, code: f.code, title: f.title, docType: 'form' as const, revision: f.revision, status: formStatus[f.status] ?? f.status,
-        source: 'beneficiaries', sourceLabel: 'المستفيدون', path: '/beneficiaries/settings?tab=forms', updatedAt: f.updated_at,
+        source: 'beneficiaries', sourceLabel: 'المساعدات الاجتماعية', path: '/beneficiaries/settings?tab=forms', updatedAt: f.updated_at,
       })),
       ...jobs.map((j) => ({
         id: j.id, code: j.code, title: `الوصف الوظيفي: ${j.title}`, docType: 'form' as const, revision: j.revision, status: j.is_active ? j.status : 'obsolete',
