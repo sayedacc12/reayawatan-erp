@@ -234,6 +234,10 @@ describe('Risk, change and compliance', () => {
     await http.post(`${R}/crisis-events/${ev.body.id}/log`).set(as(clerk)).send({ text: 'تم تحويل الصرف لليدوي' }).expect(201);
     await http.post(`${R}/crisis-events/${ev.body.id}/close`).set(as(admin)).send({ lessons: 'نسخ احتياطي أسرع' }).expect(201);
     await http.post(`${R}/obligations`).set(as(clerk)).send({ title: 'متطلب', authority: 'جهة', frequency: 'annual' }).expect(403);
+    // بعد انتهاء الأزمة يمكن تفعيل الفريق مجددًا، ولا يُفعّل مرتين في وقت واحد
+    const ev2 = await http.post(`${R}/crisis-teams/${ids.team}/activate`).set(as(admin)).send({ title: 'أزمة ثانية', severity: 'minor' }).expect(201);
+    await http.post(`${R}/crisis-teams/${ids.team}/activate`).set(as(admin)).send({ title: 'مكررة', severity: 'minor' }).expect(409);
+    await http.post(`${R}/crisis-events/${ev2.body.id}/close`).set(as(admin)).send({ lessons: 'لا شيء' }).expect(201);
   });
 
   it('policy versions record changed sections, and methodologies keep dated versions', async () => {

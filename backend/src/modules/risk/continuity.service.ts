@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, EntityManager, In } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { ModuleCatalogService } from '../../core/modules/module-catalog.service';
 import { RiskContinuity, RiskCrisisEvent, RiskCrisisTeam, RiskItem, RiskTask } from './entities/risk.entity';
@@ -168,7 +168,7 @@ export class ContinuityService {
         const t = await repo.findOne({ where: { id, organizationId: org }, lock: { mode: 'pessimistic_write' } });
         if (!t) throw new NotFoundException('الفريق غير موجود');
         assertEditable(t);
-        if (await em.getRepository(RiskCrisisEvent).exists({ where: { teamId: id, closedAt: null as never } })) throw new ConflictException('الفريق مفعّل في أزمة قائمة، ولا يُعدّل حتى تنتهي');
+        if (await em.getRepository(RiskCrisisEvent).exists({ where: { teamId: id, closedAt: IsNull() } })) throw new ConflictException('الفريق مفعّل في أزمة قائمة، ولا يُعدّل حتى تنتهي');
         markEdited(t, actor.fullName);
         Object.assign(t, data);
         await repo.save(t);
@@ -228,7 +228,7 @@ export class ContinuityService {
       const t = await em.getRepository(RiskCrisisTeam).findOne({ where: { id: teamId, organizationId: org }, lock: { mode: 'pessimistic_write' } });
       if (!t) throw new NotFoundException('الفريق غير موجود');
       if (t.status !== 'approved') throw new ConflictException('لا يُفعّل إلا فريق معتمد التشكيل والصلاحيات');
-      if (await em.getRepository(RiskCrisisEvent).exists({ where: { teamId, closedAt: null as never } })) throw new ConflictException('الفريق مفعّل بالفعل في أزمة قائمة');
+      if (await em.getRepository(RiskCrisisEvent).exists({ where: { teamId, closedAt: IsNull() } })) throw new ConflictException('الفريق مفعّل بالفعل في أزمة قائمة');
       if (dto.riskId && !(await em.getRepository(RiskItem).exists({ where: { id: dto.riskId, organizationId: org } }))) throw new BadRequestException('الخطر المرتبط غير موجود');
       const roleId = await this.syncRole(em, t);
       const memberIds = t.members.map((m) => m.userId).filter((x): x is string => !!x);
