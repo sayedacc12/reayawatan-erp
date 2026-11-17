@@ -20,7 +20,7 @@ export const auditManifest: ErpModuleManifest = {
   code: 'audit',
   name: 'المراجعة الداخلية',
   description: 'مراجعة داخلية مبنية على المخاطر: مجالات المراجعة وتقييمها، الخطة الرئيسية والخطط الفرعية، توزيع المهام وبرامج العمل، الملاحظات والتوصيات، ومتابعة تنفيذها مع الجهات المسؤولة حتى إغلاقها بتقرير موثق',
-  icon: 'shield',
+  icon: 'shieldCheck',
   version: '1.0.0',
   alwaysEnabled: true,
   sequence: 80,

@@ -60,6 +60,24 @@ describe('Demo association across all modules', () => {
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
+  it('risk: register with reviews, changes with tasks, compliance, continuity and an active crisis', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/risk/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.risks.total).toBeGreaterThanOrEqual(10);
+    const rep = (await http.get('/api/risk/reports').set(as(admin)).expect(200)).body;
+    expect(rep.risks.trend.filter((t: { avg: number | null }) => t.avg != null).length).toBeGreaterThan(6);
+    expect(rep.compliance.openGaps.length).toBeGreaterThanOrEqual(2);
+    expect(rep.changes.tasks.total).toBeGreaterThanOrEqual(5);
+    expect((await http.get('/api/risk/approvals').set(as(admin)).expect(200)).body.length).toBeGreaterThanOrEqual(2);
+    const teams = (await http.get('/api/risk/crisis-teams').set(as(admin)).expect(200)).body;
+    expect(teams.find((t: { activeEvent: unknown }) => t.activeEvent)).toBeTruthy();
+    const policy = (await http.get('/api/risk/policy').set(as(admin)).expect(200)).body;
+    expect(policy.history).toHaveLength(2);
+    const m = (await http.get('/api/risk/methodologies').set(as(admin)).expect(200)).body;
+    expect(m.items.find((x: { code: string }) => x.code === 'MTH-RSK').history).toHaveLength(2);
+    expect((await http.get('/api/risk/procedures').set(as(admin)).expect(200)).body.some((p: { status: string }) => p.status === 'approved')).toBe(true);
+  });
+
   it('volunteers: registry, events in every stage, survey results, certificates, contracts and tickets', async () => {
     const admin = await staff('admin');
     const d = (await http.get('/api/volunteers/dashboard').set(as(admin)).expect(200)).body;

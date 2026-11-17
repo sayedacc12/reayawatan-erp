@@ -12,6 +12,7 @@ import { FinanceSeed } from './seed-finance';
 import { HrSeed } from './seed-hr';
 import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
+import { RiskSeed } from './seed-risk';
 import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
 import { VolunteersSeed } from './seed-volunteers';
@@ -34,6 +35,7 @@ export class DemoService {
     private readonly accounting: AccountingSeed,
     private readonly support: SupportSeed,
     private readonly hr: HrSeed,
+    private readonly risk: RiskSeed,
     private readonly volunteers: VolunteersSeed,
     private readonly quality: QualitySeed,
     private readonly audit: AuditSeed,
@@ -53,6 +55,7 @@ export class DemoService {
       await this.finance.run(team, tree, extra, cases);
       await this.accounting.run(team);
       await this.hr.run(team);
+      await this.risk.run(team);
       await this.volunteers.run(team);
       await this.quality.run(team);
       // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)

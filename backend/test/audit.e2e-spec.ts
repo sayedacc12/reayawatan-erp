@@ -49,7 +49,7 @@ describe('Internal audit', () => {
       ],
       listControls: async () => [{ id: 'c1', code: 'CTL-001', name: 'المطابقة الشهرية', riskIds: ['r1'] }],
     };
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule], providers: [{ provide: 'RISK_REGISTER_LOOKUP', useValue: register }] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).overrideProvider('RISK_REGISTER_LOOKUP').useValue(register).compile();
     app = configureApp(moduleRef.createNestApplication<NestExpressApplication>());
     await app.init();
     http = request(app.getHttpServer());
