@@ -60,6 +60,24 @@ describe('Demo association across all modules', () => {
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
+  it('risk: register with reviews, changes with tasks, compliance, continuity and an active crisis', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/risk/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.risks.total).toBeGreaterThanOrEqual(10);
+    const rep = (await http.get('/api/risk/reports').set(as(admin)).expect(200)).body;
+    expect(rep.risks.trend.filter((t: { avg: number | null }) => t.avg != null).length).toBeGreaterThan(6);
+    expect(rep.compliance.openGaps.length).toBeGreaterThanOrEqual(2);
+    expect(rep.changes.tasks.total).toBeGreaterThanOrEqual(5);
+    expect((await http.get('/api/risk/approvals').set(as(admin)).expect(200)).body.length).toBeGreaterThanOrEqual(2);
+    const teams = (await http.get('/api/risk/crisis-teams').set(as(admin)).expect(200)).body;
+    expect(teams.find((t: { activeEvent: unknown }) => t.activeEvent)).toBeTruthy();
+    const policy = (await http.get('/api/risk/policy').set(as(admin)).expect(200)).body;
+    expect(policy.history).toHaveLength(2);
+    const m = (await http.get('/api/risk/methodologies').set(as(admin)).expect(200)).body;
+    expect(m.items.find((x: { code: string }) => x.code === 'MTH-RSK').history).toHaveLength(2);
+    expect((await http.get('/api/risk/procedures').set(as(admin)).expect(200)).body.some((p: { status: string }) => p.status === 'approved')).toBe(true);
+  });
+
   it('volunteers: registry, events in every stage, survey results, certificates, contracts and tickets', async () => {
     const admin = await staff('admin');
     const d = (await http.get('/api/volunteers/dashboard').set(as(admin)).expect(200)).body;
@@ -135,6 +153,34 @@ describe('Demo association across all modules', () => {
       expect(Math.round(r.vouchers.reduce((s: number, v: { amount: number }) => s + v.amount, 0) * 100) / 100).toBe(r.totals.net);
       expect(r.lines.some((l: { attendance: { absentDays: number } }) => l.attendance.absentDays > 0)).toBe(true);
     }
+  });
+
+  it('quality: documents of the QMS itself with maps, audits, nonconformities, complaints, surveys and reviews', async () => {
+    const q = await staff('quality');
+    const docs = (await http.get('/api/quality/documents').set(as(q)).expect(200)).body;
+    const codes = docs.rows.map((d: { code: string }) => d.code);
+    for (const c of ['QM-QMS-01', 'QP-QMS-01', 'QP-QMS-02', 'QP-QMS-03', 'QP-QMS-06', 'QF-BEN-01', 'QF-BEN-02']) expect(codes).toContain(c);
+    const p6 = docs.rows.find((d: { code: string }) => d.code === 'QP-QMS-06');
+    expect(p6.revisionLabel).toBe('Rev.01');
+    expect(docs.rows.some((d: { status: string }) => d.status === 'approval')).toBe(true);
+    expect(docs.rows.some((d: { status: string; source: string }) => d.status === 'draft' && d.source === 'quality')).toBe(true);
+    const maps = (await http.get('/api/quality/maps').set(as(q)).expect(200)).body;
+    expect(maps.length).toBeGreaterThanOrEqual(8);
+    expect(maps.every((m: { document: unknown }) => m.document)).toBe(true);
+    const ncrs = (await http.get('/api/quality/ncrs').set(as(q)).expect(200)).body;
+    for (const st of ['open', 'action', 'verification', 'closed']) expect(ncrs.some((n: { status: string }) => n.status === st)).toBe(true);
+    const complaints = (await http.get('/api/quality/complaints').set(as(q)).expect(200)).body;
+    expect(complaints.rows.some((c: { channel: string }) => c.channel === 'portal')).toBe(true);
+    expect(complaints.rows.some((c: { externalRef: string | null }) => c.externalRef?.startsWith('VOL-TKT:'))).toBe(true);
+    expect(complaints.pendingImports).toBe(0);
+    const dash = (await http.get('/api/quality/dashboard').set(as(q)).expect(200)).body;
+    expect(dash.kpis.satisfaction).toBeGreaterThan(50);
+    expect(dash.kpis.compliance).toBeGreaterThanOrEqual(80);
+    const reviews = (await http.get('/api/quality/reviews').set(as(q)).expect(200)).body;
+    expect(reviews.map((r: { status: string }) => r.status).sort()).toEqual(['approved', 'draft']);
+    const st = (await http.get('/api/quality/standard').set(as(q)).expect(200)).body;
+    const gaps = st.sections.flatMap((s: { clauses: { code: string; status: string }[] }) => s.clauses).filter((c: { status: string }) => c.status === 'gap');
+    expect(gaps.map((c: { code: string }) => c.code)).toEqual([]);
   });
 
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {

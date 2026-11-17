@@ -9,6 +9,7 @@ import { Activity, Beneficiary, BeneficiarySettings, DynamicForm, FamilyMember, 
 import { RequestsService } from '../beneficiaries/requests.service';
 import { FUNDRAISING_PERMISSIONS as F } from '../fundraising/fundraising.manifest';
 import { PROJECT_PERMISSIONS as PR } from '../projects/projects.manifest';
+import { QUALITY_PERMISSIONS as Q } from '../quality/quality.manifest';
 import { ALL_PERMISSIONS, DEMO_EMAIL, DemoTeam, DemoTree, actorOf, daysAgo } from './demo-context';
 
 /** نموذج تجريبي عدّى على مسار الاعتماد كله (إنشاء ← مراجعة الجودة ← اعتماد مدير الشاشة) */
@@ -56,15 +57,15 @@ export class BeneficiariesSeed {
 
     const roleCodes = {
       researcher: [P.read, P.requestsRead, P.requestsProcess, P.research],
-      quality: [P.formsReview],
-      caseManager: [P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove, P.reports],
+      quality: [P.formsReview, Q.read, Q.context, Q.documents, Q.reviewDocs, Q.audits, Q.ncr, Q.closeNcr, Q.risks, Q.objectives, Q.reviews, Q.feedback, Q.reports],
+      caseManager: [P.read, P.manage, P.requestsRead, P.requestsCreate, P.requestsProcess, P.aid, P.tickets, P.documents, P.formsApprove, P.reports, Q.read, Q.feedback],
       fundraiser: [F.donorsRead, F.donorsManage, F.read, F.create, F.collect, F.reports],
       finance: [F.donorsRead, F.read, F.process, F.collect, F.journal, F.reports, PR.read, PR.disburse, PR.reports,
         A.read, A.receipts, A.payments, A.approveVouchers, A.entries, A.post, A.cancel, A.partners, A.banks, A.reports],
       projectsManager: [PR.read, PR.manage, PR.approve, PR.support, PR.transfers, PR.amendments, PR.reports, PR.settings, F.read, F.donorsRead, P.read, P.requestsRead],
     };
     const researcherRole = await role('باحث اجتماعي', 'يجري البحث الميداني ويعبّئ نموذج البحث', roleCodes.researcher);
-    const qualityRole = await role('مراجع الجودة', 'يراجع نماذج المراحل وأكوادها حسب دليل الجودة ISO 9001', roleCodes.quality);
+    const qualityRole = await role('مراجع الجودة', 'يدير نظام الجودة ISO 9001: الوثائق والمراجعات وعدم المطابقة والشكاوى، ويراجع نماذج المراحل وأكوادها', roleCodes.quality);
     const managerRole = await role('مدير الحالات', 'يراجع الطلبات ويعتمدها نهائيًا', roleCodes.caseManager);
     const fundraiserRole = await role('مسؤول تنمية الموارد', 'يسجل الداعمين وفرص التبرع ويتابع سداد الوعود', roleCodes.fundraiser);
     const financeRole = await role('المدير المالي', 'يدقق فرص التبرع وينفذ طلبات الصرف ويتابع القيود', roleCodes.finance);

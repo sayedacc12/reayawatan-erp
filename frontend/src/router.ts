@@ -17,6 +17,8 @@ export const router = createRouter({
     { path: '/contract/:token', component: () => import('./registration/ContractSignView.vue'), meta: { open: true, title: 'عقد الاشتراك' } },
     // صفحات التطوع العامة: تسجيل المتطوعين والشكاوى، استبانة الرضا، توقيع عقد التطوع، التحقق من الشهادة
     ...volunteersPublicRoutes,
+    // استبانة قياس الرضا العامة (نظام الجودة)
+    { path: '/survey/:token', component: () => import('./views/PublicSurveyView.vue'), meta: { open: true, title: 'استبانة رضا' } },
     // بوابة المستفيدين: مستقلة عن دخول الموظفين
     {
       path: '/portal/:slug',
