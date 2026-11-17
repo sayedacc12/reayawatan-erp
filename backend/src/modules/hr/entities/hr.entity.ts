@@ -39,13 +39,18 @@ export interface PayrollConfig {
   payableAccountId: string | null;
   /** التأمينات الاجتماعية المستحقة (حصة الموظف والجمعية) */
   gosiPayableAccountId: string | null;
-  /** مصروف التأمينات الاجتماعية (حصة الجمعية) */
-  gosiExpenseAccountId: string | null;
+  /** قديم: انتقل مصروف التأمينات إلى فئات تحميل المصروف (المفتاح gosi) */
+  gosiExpenseAccountId?: string | null;
   /** الاستقطاعات الأخرى (السلف والجزاءات) */
   deductionsAccountId: string | null;
   /** البنك الافتراضي لصرف أي بند ليس له بنك خاص */
   defaultCashAccountId: string | null;
   stages: PayrollStage[];
+}
+export interface DevelopmentConfig {
+  stages: PayrollStage[];
+  /** أنواع الأنشطة التطويرية المتاحة (تدريب، دورة، إرشاد ...) */
+  activityTypes: { code: string; name: string }[];
 }
 export interface AttendanceConfig {
   enabled: boolean;
@@ -79,6 +84,10 @@ export class HrSettings {
   /** إعدادات الحضور والانصراف: الدوام والعطل وتفعيل الخصم */
   @Column({ name: 'attendance_config', type: 'jsonb', default: () => `'{}'` })
   attendanceConfig!: Partial<AttendanceConfig>;
+
+  /** إعدادات خطط التطوير والتدريب: مراحل الاعتماد وأنواع الأنشطة التطويرية */
+  @Column({ name: 'development_config', type: 'jsonb', default: () => `'{}'` })
+  developmentConfig!: Partial<DevelopmentConfig>;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
@@ -249,6 +258,14 @@ export class HrJob {
 
   @Column({ name: 'reports_to_job_id', type: 'uuid', nullable: true })
   reportsToJobId!: string | null;
+
+  /** فئة تحميل المصروف (إداري، برامج وأنشطة ...): تحدد حسابات مصروف رواتب شاغليها. فارغ = الفئة الافتراضية */
+  @Column({ name: 'expense_profile_id', type: 'uuid', nullable: true })
+  expenseProfileId!: string | null;
+
+  /** الوظيفة البديلة (الصف الثاني): الوظيفة التي يُعد شاغلها لتولي هذه الوظيفة */
+  @Column({ name: 'backup_job_id', type: 'uuid', nullable: true })
+  backupJobId!: string | null;
 
   /** عدد الشواغر المعتمدة لهذه الوظيفة */
   @Column({ type: 'int', default: 1 })
@@ -613,7 +630,7 @@ export class HrPerformanceCard {
   createdAt!: Date;
 }
 
-/** بند من بنود الراتب (الأساسي والبدلات): يُعرَّف مرة واحدة، وله حساب مصروف وحساب استحقاق وبنك صرف */
+/** بند من بنود الراتب (الأساسي والبدلات): يُعرَّف مرة واحدة، وله حساب استحقاق وبنك صرف. حساب المصروف في فئة تحميل المصروف للوظيفة */
 @Entity('hr_allowance_types')
 @Index('UQ_hr_allowance_types_code', ['organizationId', 'code'], { unique: true })
 export class HrAllowanceType {
@@ -636,10 +653,6 @@ export class HrAllowanceType {
   @Column({ name: 'default_value', type: 'numeric', precision: 12, scale: 2, transformer: num, default: 0 })
   defaultValue!: number;
 
-  /** حساب المصروف في دليل الحسابات */
-  @Column({ name: 'expense_account_id', type: 'uuid', nullable: true })
-  expenseAccountId!: string | null;
-
   /** حساب الاستحقاق (فارغ = حساب الرواتب المستحقة العام) */
   @Column({ name: 'payable_account_id', type: 'uuid', nullable: true })
   payableAccountId!: string | null;
@@ -654,6 +667,37 @@ export class HrAllowanceType {
 
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+}
+
+/**
+ * فئة تحميل المصروف: مجموعة حسابات مصروف لبنود الراتب (والمفتاح gosi لحصة الجمعية في التأمينات).
+ * تُختار في الوصف الوظيفي، فموظفو الإدارة يُحمَّلون على المصاريف الإدارية وموظفو الأنشطة على مصاريف البرامج.
+ */
+@Entity('hr_expense_profiles')
+@Index('UQ_hr_expense_profiles_name', ['organizationId', 'name'], { unique: true })
+export class HrExpenseProfile {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ length: 100 })
+  name!: string;
+
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  description!: string | null;
+
+  /** رمز البند ← حساب المصروف */
+  @Column({ type: 'jsonb', default: () => `'{}'` })
+  accounts!: Record<string, string>;
+
+  /** الفئة الافتراضية للوظائف التي لم تُحدد لها فئة */
+  @Column({ name: 'is_default', default: false })
+  isDefault!: boolean;
 
   @Column({ name: 'sort_order', type: 'int', default: 0 })
   sortOrder!: number;
@@ -789,6 +833,8 @@ export interface RunItem { code: string; name: string; full: number; earned: num
 /** سطر موظف في كشف الرواتب (لقطة ثابتة وقت الإعداد، تُعاد عند إعادة الاحتساب قبل الاعتماد) */
 export interface RunLine {
   employeeId: string; employeeNo: number; fullName: string; isSaudi: boolean; unitId: string; unitName: string; jobTitle: string; iban: string | null;
+  /** فئة تحميل المصروف من وظيفة الموظف (فارغ في الكشوف القديمة = الفئة الافتراضية) */
+  expenseProfileId?: string | null;
   items: RunItem[]; gross: number; workedDays: number; ratio: number; dailyWage: number;
   unpaidDays: number; unpaidDeduction: number;
   /** الحضور: محسوب من البصمات، ويمكن تعديله يدويًا قبل الرفع */
@@ -854,7 +900,114 @@ export class HrPayrollRun {
   updatedAt!: Date;
 }
 
+// ---------------- التطوير والتدريب والصف الثاني ----------------
+
+export type DevPlanStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'completed' | 'cancelled';
+export type DevItemStatus = 'planned' | 'in_progress' | 'done' | 'cancelled';
+/** بند في خطة التطوير: جدارة فيها فجوة (أو مهارة إضافية) ونشاط لسدها بمستهدف وموعد */
+export interface DevItem {
+  id: string; competencyId: string | null; name: string;
+  /** المستوى المطلوب في الوصف الوظيفي، والمستوى الفعلي من آخر تقييم (أو يُعدل يدويًا)، والمستوى المستهدف */
+  requiredLevel: number | null; currentLevel: number | null; targetLevel: number | null;
+  activityType: string; activity: string; provider: string | null; dueDate: string | null; cost: number; hours: number;
+  status: DevItemStatus; achievedLevel: number | null; note: string | null;
+}
+export interface DevHistory { action: string; stageName: string | null; note: string | null; actorName: string; at: string }
+
+/** خطة تطوير وتدريب لموظف: فردية لسد فجوة جدارات وظيفته، أو للصف الثاني لإعداده لوظيفة أخرى */
+@Entity('hr_dev_plans')
+export class HrDevPlan {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ type: 'int' })
+  serial!: number;
+
+  @Column({ name: 'employee_id', type: 'uuid' })
+  employeeId!: string;
+
+  /** وظيفة الموظف وقت إعداد الخطة */
+  @Column({ name: 'job_id', type: 'uuid', nullable: true })
+  jobId!: string | null;
+
+  @Column({ type: 'varchar', length: 12, default: 'individual' })
+  kind!: 'individual' | 'succession';
+
+  /** في خطط الصف الثاني: الوظيفة التي يُعد لها الموظف */
+  @Column({ name: 'target_job_id', type: 'uuid', nullable: true })
+  targetJobId!: string | null;
+
+  @Column({ type: 'int' })
+  year!: number;
+
+  @Column({ length: 200 })
+  title!: string;
+
+  /** مستهدفات الخطة العامة */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  goals!: string[];
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  items!: DevItem[];
+
+  @Column({ type: 'varchar', length: 12, default: 'draft' })
+  status!: DevPlanStatus;
+
+  @Column({ name: 'stage_index', type: 'int', nullable: true })
+  stageIndex!: number | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  history!: DevHistory[];
+
+  @Column({ name: 'created_by_name', length: 200 })
+  createdByName!: string;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
+
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt!: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+export const READINESS = ['now', '1y', '2y'] as const;
+export type Readiness = (typeof READINESS)[number];
+
+/** موظف مرشح في الصف الثاني لوظيفة، مع جاهزيته وخطة إعداده */
+@Entity('hr_succession_candidates')
+@Index('UQ_hr_succession_candidates', ['organizationId', 'jobId', 'employeeId'], { unique: true })
+export class HrSuccessionCandidate {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'job_id', type: 'uuid' })
+  jobId!: string;
+
+  @Column({ name: 'employee_id', type: 'uuid' })
+  employeeId!: string;
+
+  @Column({ type: 'varchar', length: 4, default: '1y' })
+  readiness!: Readiness;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  note!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
 export const HR_ENTITIES = [
-  HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrPayrollRun,
+  HrExpenseProfile, HrDevPlan, HrSuccessionCandidate, HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrPayrollRun,
   HrSettings, HrPolicyVersion, HrUnit, HrGrade, HrCompetency, HrJob, HrStaffingPlan, HrEmployee, HrLeaveRequest, HrPerformanceCard,
 ];

@@ -1,0 +1,96 @@
+/* أنماط نظام التطوع (بادئة vt-)، وتستفيد من أنماط pm- المشتركة */
+.vt-hero { background: linear-gradient(125deg, #052e1c, #0b3d2a 45%, #143b52); }
+.vt-hero::before { background: radial-gradient(460px 220px at 88% -20%, rgba(250,204,21,.38), transparent 70%), radial-gradient(520px 260px at 0% 130%, rgba(52,211,153,.5), transparent 70%); }
+.vt-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: radial-gradient(circle at 20% 30%, rgba(167,243,208,.9) 1.4px, transparent 2px), radial-gradient(circle at 70% 60%, rgba(253,224,71,.8) 1.2px, transparent 2px),
+    radial-gradient(circle at 45% 80%, rgba(255,255,255,.7) 1px, transparent 2px);
+  background-size: 180px 120px, 220px 160px, 140px 110px; animation: vt-float 14s linear infinite; mask-image: linear-gradient(270deg, transparent, #000 75%); }
+.vt-hero .pm-kicker { color: #86efac; }
+.vt-glow { background: linear-gradient(135deg, #34d399, #facc15); color: #052e1c; border: 0; font-weight: 700; box-shadow: 0 6px 22px rgba(52,211,153,.4); }
+.vt-glow:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.vt-ghost { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.22); }
+.vt-ghost:hover { background: rgba(255,255,255,.16); }
+
+.vt-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.vt-grid > .wide { grid-column: 1 / -1; }
+.vt-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.vt-row { cursor: pointer; transition: background .15s; }
+.vt-row:hover { background: var(--surface-2); }
+.vt-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vt-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; direction: ltr; unicode-bidi: isolate; font-size: .82rem; }
+.vt-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.vt-toolbar .input { width: auto; min-width: 150px; }
+.vt-toolbar .grow { flex: 1; min-width: 200px; }
+.vt-sec { font-size: .82rem; font-weight: 700; color: var(--muted); margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; }
+.vt-sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.vt-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0 14px; }
+.vt-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.vt-chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; font-size: .8rem; background: var(--surface); }
+.vt-chip.on { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
+button.vt-chip { cursor: pointer; font: inherit; font-size: .8rem; }
+.vt-wrap { white-space: normal !important; }
+.vt-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.vt-tab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; font: inherit; color: var(--muted); transition: all .2s; }
+.vt-tab:hover { color: var(--text); }
+.vt-tab.on { background: linear-gradient(135deg, #059669, #0f766e); border-color: transparent; color: #fff; box-shadow: 0 6px 16px rgba(5,150,105,.3); }
+.vt-kind { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: .74rem; font-weight: 600; }
+.vt-kind.field { background: #fef3c7; color: #92400e; }
+.vt-kind.online { background: #e0e7ff; color: #3730a3; }
+.vt-empty { text-align: center; padding: 26px 0; color: var(--muted); }
+.vt-pre { white-space: pre-line; line-height: 1.9; margin: 0; }
+
+/* مسار الاعتماد */
+.vt-steps { display: flex; gap: 0; margin: 6px 0 4px; flex-wrap: wrap; }
+.vt-step { flex: 1; min-width: 120px; position: relative; text-align: center; padding-top: 30px; font-size: .8rem; color: var(--muted); }
+.vt-step::before { content: ''; position: absolute; top: 11px; inset-inline: 0; height: 3px; background: var(--border); }
+.vt-step:first-child::before { inset-inline-start: 50%; }
+.vt-step:last-child::before { inset-inline-end: 50%; }
+.vt-step i { position: absolute; top: 2px; inset-inline-start: calc(50% - 11px); width: 22px; height: 22px; border-radius: 50%; background: var(--surface); border: 3px solid var(--border); z-index: 1; }
+.vt-step.done { color: #047857; }
+.vt-step.done::before, .vt-step.done i { background: #10b981; border-color: #10b981; }
+.vt-step.cur { color: #b45309; font-weight: 700; }
+.vt-step.cur i { border-color: #f59e0b; box-shadow: 0 0 0 6px rgba(245,158,11,.18); animation: vt-pulse 1.6s infinite; }
+.vt-log { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vt-log li { padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border-inline-start: 3px solid var(--c, var(--border)); font-size: .86rem; }
+
+/* شريط التقدم */
+.vt-bar { height: 8px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
+.vt-bar i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #34d399, #facc15); animation: pm-fill .9s var(--ease) both; transform-origin: right; }
+.vt-bars { display: grid; gap: 8px; }
+.vt-bars .r { display: grid; grid-template-columns: 130px 1fr 44px; gap: 8px; align-items: center; font-size: .82rem; }
+.vt-cols { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 10px; }
+.vt-cols div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; font-size: .68rem; color: var(--muted); }
+.vt-cols i { width: 100%; max-width: 26px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #34d399, #0f766e); animation: vt-grow .8s var(--ease) both; transform-origin: bottom; min-height: 2px; }
+.vt-gauge { width: 118px; height: 118px; border-radius: 50%; margin: 4px auto; display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--c, #10b981) calc(var(--v) * 1%), var(--surface-2) 0); animation: vt-spin .9s var(--ease) both; }
+.vt-gauge::after { content: ''; position: absolute; inset: 14px; background: var(--surface); border-radius: 50%; }
+.vt-gauge b { position: relative; z-index: 1; font-size: 1.25rem; }
+.vt-stars { color: #f59e0b; letter-spacing: 1px; }
+
+/* بطاقة الفعالية */
+.vt-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.vt-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; box-shadow: var(--shadow); cursor: pointer;
+  transition: transform .2s var(--ease), box-shadow .2s; animation: pm-rise .45s calc(var(--i, 0) * 40ms) var(--ease) both; overflow: hidden; }
+.vt-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(5,46,28,.14); }
+.vt-card::before { content: ''; position: absolute; inset-inline: 0; top: 0; height: 3px; background: var(--c, #10b981); }
+.vt-card h3 { font-size: .98rem; margin: 6px 0 4px; }
+.vt-card .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: .78rem; color: var(--muted); }
+
+/* الاستبانة: التقييم بالنجوم */
+.vt-rate { display: flex; gap: 6px; flex-wrap: wrap; }
+.vt-rate button { font: inherit; width: 44px; height: 44px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; font-size: 1.05rem; transition: all .2s; }
+.vt-rate button.on { background: linear-gradient(135deg, #34d399, #facc15); border-color: transparent; color: #052e1c; font-weight: 700; transform: scale(1.06); }
+
+/* الطباعة: تظهر منطقة الطباعة فقط */
+@media print {
+  body * { visibility: hidden !important; }
+  .vt-print, .vt-print * { visibility: visible !important; }
+  .vt-print { position: absolute; inset: 0; margin: 0; box-shadow: none !important; }
+  .no-print { display: none !important; }
+}
+
+@keyframes vt-pulse { 50% { box-shadow: 0 0 0 10px transparent; } }
+@keyframes vt-grow { from { transform: scaleY(0); } }
+@keyframes vt-spin { from { transform: rotate(-90deg) scale(.7); opacity: 0; } }
+@keyframes vt-float { to { background-position: 180px -120px, -220px 160px, 140px 110px; } }
+@media (max-width: 900px) { .vt-grid, .vt-grid3 { grid-template-columns: 1fr; } .vt-bars .r { grid-template-columns: 100px 1fr 40px; } }

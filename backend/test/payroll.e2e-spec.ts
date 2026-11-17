@@ -205,27 +205,50 @@ describe('Payroll', () => {
     await http.post(`${H}/units`).set(as(admin)).send({ name: 'خطأ', level: 1, parentId: ids.top, analyticAccountId: acc.CC }).expect(400);
   });
 
-  it('salary items are defined once, each with its own expense, payable and bank accounts', async () => {
+  it('salary items are defined once, each with its own payable account and bank', async () => {
     const list = (await http.get(`${H}/allowance-types`).set(as(admin)).expect(200)).body as { id: string; code: string; isSystem: boolean }[];
     expect(list.map((x) => x.code)).toEqual(['basic', 'housing', 'transport']);
     const byCode = Object.fromEntries(list.map((x) => [x.code, x.id]));
-    const save = (code: string, name: string, expense: string, payable: string, bank: string, extra = {}) =>
+    const save = (code: string, name: string, payable: string, bank: string, extra = {}) =>
       http.put(`${H}/allowance-types/${byCode[code]}`).set(as(admin)).send({
-        code, name, defaultKind: 'percent', defaultValue: 0, expenseAccountId: acc[expense], payableAccountId: acc[payable], cashAccountId: bank, ...extra,
+        code, name, defaultKind: 'percent', defaultValue: 0, payableAccountId: acc[payable], cashAccountId: bank, ...extra,
       });
-    await save('basic', 'الراتب الأساسي', '4110100101', '2140100101', ids.bank1).expect(200);
-    await save('housing', 'بدل السكن', '4110100201', '2140100102', ids.bank1, { defaultValue: 25 }).expect(200);
-    await save('transport', 'بدل النقل', '4110100301', '2140100103', ids.bank2, { defaultValue: 10 }).expect(200);
-    await save('transport', 'بدل النقل', '2140100103', '2140100103', ids.bank2).expect(400);
-    await http.post(`${H}/allowance-types`).set(as(admin)).send({ code: 'phone', name: 'بدل الاتصال', defaultKind: 'fixed', defaultValue: 300, expenseAccountId: acc['4110100401'] }).expect(201);
+    await save('basic', 'الراتب الأساسي', '2140100101', ids.bank1).expect(200);
+    await save('housing', 'بدل السكن', '2140100102', ids.bank1, { defaultValue: 25 }).expect(200);
+    await save('transport', 'بدل النقل', '2140100103', ids.bank2, { defaultValue: 10 }).expect(200);
+    await save('transport', 'بدل النقل', '4110100301', ids.bank2).expect(400);
+    // حساب المصروف لم يعد على البند (انتقل لفئة الوظيفة)
+    await save('transport', 'بدل النقل', '2140100103', ids.bank2, { expenseAccountId: acc['4110100301'] }).expect(400);
+    await http.post(`${H}/allowance-types`).set(as(admin)).send({ code: 'phone', name: 'بدل الاتصال', defaultKind: 'fixed', defaultValue: 300 }).expect(201);
     await http.post(`${H}/allowance-types`).set(as(clerk)).send({ code: 'food', name: 'بدل إعاشة', defaultKind: 'fixed', defaultValue: 0 }).expect(403);
     // البدل غير المعرّف لا يُقبل في المرتبة
     await http.post(`${H}/grades`).set(as(admin)).send({ code: 'G1', name: 'أخصائي', minSalary: 5000, maxSalary: 12000, steps: 3, stepIncrement: 5, allowances: [{ code: 'other', name: 'أخرى', kind: 'fixed', value: 1 }] }).expect(400);
   });
 
+  it('expense accounts are set per job through expense profiles (administrative or activities)', async () => {
+    const list = (await http.get(`${H}/expense-profiles`).set(as(admin)).expect(200)).body as { id: string; name: string; isDefault: boolean }[];
+    expect(list).toHaveLength(1);
+    expect(list[0].isDefault).toBe(true);
+    const accounts = (m: Record<string, string>) => Object.entries(m).map(([code, a]) => ({ code, accountId: acc[a] }));
+    await http.put(`${H}/expense-profiles/${list[0].id}`).set(as(admin)).send({
+      name: 'المصروفات الإدارية', accounts: accounts({ basic: '4110100101', housing: '4110100201', transport: '4110100301', phone: '4110100401', gosi: '4110100801' }),
+    }).expect(200);
+    const program = { name: 'البرامج والأنشطة', accounts: accounts({ basic: '4410100101', housing: '4410100101', transport: '4410100101', gosi: '4410100101' }) };
+    await http.post(`${H}/expense-profiles`).set(as(clerk)).send(program).expect(403);
+    await http.post(`${H}/expense-profiles`).set(as(admin)).send({ ...program, accounts: accounts({ basic: '2140100101' }) }).expect(400);
+    await http.post(`${H}/expense-profiles`).set(as(admin)).send({ ...program, accounts: [{ code: 'nothing', accountId: acc['4410100101'] }] }).expect(400);
+    const after = (await http.post(`${H}/expense-profiles`).set(as(admin)).send(program).expect(201)).body as { id: string; name: string }[];
+    ids.programProfile = after.find((p) => p.name === program.name)!.id;
+    await http.post(`${H}/expense-profiles`).set(as(admin)).send(program).expect(409);
+    await http.delete(`${H}/expense-profiles/${list[0].id}`).set(as(admin)).expect(400);
+  });
+
   it('attendance from uploaded files and the fingerprint device', async () => {
     const job = { title: 'أخصائي', unitId: ids.programs, headcount: 3, purpose: 'عمل', responsibilities: ['مهمة'], experienceYears: 0, competencies: [], kpis: [] };
-    ids.job = (await http.post(`${H}/jobs`).set(as(admin)).send(job).expect(201)).body.id;
+    ids.job = (await http.post(`${H}/jobs`).set(as(admin)).send({ ...job, expenseProfileId: ids.programProfile }).expect(201)).body.id;
+    const jobs = (await http.get(`${H}/jobs`).set(as(admin)).expect(200)).body as { id: string; expenseProfileName: string }[];
+    expect(jobs.find((j) => j.id === ids.job)!.expenseProfileName).toBe('البرامج والأنشطة');
+    await http.delete(`${H}/expense-profiles/${ids.programProfile}`).set(as(admin)).expect(409);
     ids.jobFin = (await http.post(`${H}/jobs`).set(as(admin)).send({ ...job, title: 'محاسب', unitId: ids.finance }).expect(201)).body.id;
     const hire = `${year - 1}-01-01`;
     const emp = {
@@ -311,7 +334,7 @@ describe('Payroll', () => {
     // لا يُرفع قبل اكتمال الربط المحاسبي
     await http.post(`${H}/payroll-runs/${ids.run}/submit`).set(as(clerk)).expect(400);
     const cfg = {
-      payableAccountId: acc['2140100101'], gosiPayableAccountId: acc['2140100108'], gosiExpenseAccountId: acc['4110100801'], deductionsAccountId: acc['1140400101'],
+      payableAccountId: acc['2140100101'], gosiPayableAccountId: acc['2140100108'], deductionsAccountId: acc['1140400101'],
       defaultCashAccountId: ids.bank1, stages: [{ name: 'مراجعة المدير المالي', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
     };
     await http.put(`${H}/payroll-config`).set(as(admin)).send({ ...cfg, payableAccountId: acc['4110100101'] }).expect(400);
@@ -340,9 +363,13 @@ describe('Payroll', () => {
     expect(sum('debit')).toBe(sum('credit'));
     const run = (await http.get(`${H}/payroll-runs/${ids.run}`).set(as(admin)).expect(200)).body;
     expect(sum('debit')).toBe(Math.round((run.totals.gross - run.totals.absenceDeduction - run.totals.lateDeduction - run.totals.unpaidDeduction + run.totals.gosiEmployer) * 100) / 100);
-    // سارة في إدارة البرامج (CC02)، وعلي في الشؤون المالية بلا حساب فيأخذ حساب الإدارة العامة (CC01)
+    // علي (وظيفة إدارية بالفئة الافتراضية) في الشؤون المالية بلا حساب تحليلي فيأخذ حساب الإدارة العامة (CC01)
     const basic = lines.filter((l) => l.accountCode === '4110100101');
-    expect(basic.map((l) => l.analytic[0].code).sort()).toEqual(['CC01', 'CC02']);
+    expect(basic.map((l) => l.analytic[0].code)).toEqual(['CC01']);
+    // سارة على وظيفة من فئة البرامج والأنشطة: كل مصروفها على حساب الفئة ومحمّل على تحليلي إدارة البرامج (CC02)
+    const program = lines.filter((l) => l.accountCode === '4410100101');
+    expect(program.length).toBeGreaterThan(0);
+    expect(program.every((l) => l.analytic[0].code === 'CC02')).toBe(true);
     expect(lines.find((l) => l.accountCode === '2140100108')!.credit).toBe(run.totals.gosiEmployee + run.totals.gosiEmployer);
     expect(lines.find((l) => l.accountCode === '1140400101')!.credit).toBe(300);
     expect(run.bankSheets.map((b: { cashAccountName: string }) => b.cashAccountName).sort()).toEqual(['الراجحي - الرواتب', 'الرياض - البدلات']);

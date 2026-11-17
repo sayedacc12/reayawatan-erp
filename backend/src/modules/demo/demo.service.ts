@@ -13,6 +13,7 @@ import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
 import { RiskSeed } from './seed-risk';
 import { SupportSeed } from './seed-support';
+import { VolunteersSeed } from './seed-volunteers';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -33,6 +34,7 @@ export class DemoService {
     private readonly support: SupportSeed,
     private readonly hr: HrSeed,
     private readonly risk: RiskSeed,
+    private readonly volunteers: VolunteersSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -50,6 +52,7 @@ export class DemoService {
       await this.accounting.run(team);
       await this.hr.run(team);
       await this.risk.run(team);
+      await this.volunteers.run(team);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
       const supportTeam = await this.support.run(team, staffPassword);

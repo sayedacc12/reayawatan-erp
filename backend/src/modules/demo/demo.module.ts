@@ -6,6 +6,7 @@ import { FundraisingModule } from '../fundraising/fundraising.module';
 import { HrModule } from '../hr/hr.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { RiskModule } from '../risk/risk.module';
+import { VolunteersModule } from '../volunteers/volunteers.module';
 import { DemoController } from './demo.controller';
 import { DemoService } from './demo.service';
 import { AccountingSeed } from './seed-accounting';
@@ -16,11 +17,12 @@ import { PlatformSeed } from './seed-platform';
 import { ProjectsSeed } from './seed-projects';
 import { RiskSeed } from './seed-risk';
 import { SupportSeed } from './seed-support';
+import { VolunteersSeed } from './seed-volunteers';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule],
+  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule],
   controllers: [DemoController],
-  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed],
+  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed],
 })
 export class DemoModule {}

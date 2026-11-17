@@ -16,15 +16,20 @@ const units = ref<Unit[]>([]);
 const grades = ref<Grade[]>([]);
 const comps = ref<Competency[]>([]);
 const jobs = ref<JobRow[]>([]);
+const profiles = ref<{ id: string; name: string; isDefault: boolean }[]>([]);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const job = ref<any>(null);
 const canEdit = computed(() => session.can(P.jobs));
 const form = reactive({
-  title: '', unitId: '', gradeId: '', reportsToJobId: '', headcount: 1, purpose: '', responsibilities: [''] as string[], qualifications: '', experienceYears: 0,
+  title: '', unitId: '', gradeId: '', reportsToJobId: '', expenseProfileId: '', headcount: 1, purpose: '', responsibilities: [''] as string[], qualifications: '', experienceYears: 0,
   competencies: [] as { competencyId: string; level: number }[], kpis: [] as { title: string; weight: number; target: string; unit: string }[], qualityCode: '', isActive: true,
 });
 async function load() {
-  const [s, g, c, j] = await Promise.all([api<{ units: Unit[] }>('/hr/structure'), api<Grade[]>('/hr/grades'), api<Competency[]>('/hr/competencies'), api<JobRow[]>('/hr/jobs')]);
+  const [s, g, c, j, pr] = await Promise.all([
+    api<{ units: Unit[] }>('/hr/structure'), api<Grade[]>('/hr/grades'), api<Competency[]>('/hr/competencies'), api<JobRow[]>('/hr/jobs'),
+    api<{ id: string; name: string; isDefault: boolean }[]>('/hr/expense-profiles'),
+  ]);
+  profiles.value = pr;
   units.value = s.units;
   grades.value = g;
   comps.value = c;
@@ -33,7 +38,7 @@ async function load() {
     job.value = await api(`/hr/jobs/${props.id}`);
     const v = job.value;
     Object.assign(form, {
-      title: v.title, unitId: v.unitId, gradeId: v.gradeId ?? '', reportsToJobId: v.reportsToJobId ?? '', headcount: v.headcount, purpose: v.purpose ?? '',
+      title: v.title, unitId: v.unitId, gradeId: v.gradeId ?? '', reportsToJobId: v.reportsToJobId ?? '', expenseProfileId: v.expenseProfileId ?? '', headcount: v.headcount, purpose: v.purpose ?? '',
       responsibilities: v.responsibilities.length ? [...v.responsibilities] : [''], qualifications: v.qualifications ?? '', experienceYears: v.experienceYears,
       competencies: v.competencies.map((x: { competencyId: string; level: number }) => ({ competencyId: x.competencyId, level: x.level })),
       kpis: v.kpis.map((k: { title: string; weight: number; target: string; unit: string | null }) => ({ ...k, unit: k.unit ?? '' })), qualityCode: v.qualityCode ?? '', isActive: v.isActive,
@@ -47,7 +52,7 @@ const comp = (id: string) => comps.value.find((c) => c.id === id);
 async function save() {
   try {
     const body = {
-      title: form.title, unitId: form.unitId, gradeId: form.gradeId || null, reportsToJobId: form.reportsToJobId || null, headcount: Number(form.headcount), purpose: form.purpose || null,
+      title: form.title, unitId: form.unitId, gradeId: form.gradeId || null, reportsToJobId: form.reportsToJobId || null, expenseProfileId: form.expenseProfileId || null, headcount: Number(form.headcount), purpose: form.purpose || null,
       responsibilities: form.responsibilities.filter((r) => r.trim()), qualifications: form.qualifications || null, experienceYears: Number(form.experienceYears),
       competencies: form.competencies.filter((c) => c.competencyId), kpis: form.kpis.filter((k) => k.title).map((k) => ({ ...k, weight: Number(k.weight), unit: k.unit || null })),
       qualityCode: form.qualityCode || null, isActive: form.isActive,
@@ -109,6 +114,9 @@ async function remove() {
             <label class="field"><span>الوحدة التنظيمية</span><select v-model="form.unitId" class="input" required><option value="" disabled>اختر</option><option v-for="u in units" :key="u.id" :value="u.id">{{ u.levelName }}: {{ u.name }}</option></select></label>
             <label class="field"><span>ترتبط إداريًا بـ</span><select v-model="form.reportsToJobId" class="input"><option value="">—</option><option v-for="j in jobs" :key="j.id" :value="j.id">{{ j.title }}</option></select></label>
             <label class="field"><span>المرتبة في سلم الرواتب</span><select v-model="form.gradeId" class="input"><option value="">—</option><option v-for="g in grades" :key="g.id" :value="g.id">{{ g.code }} {{ g.name }}</option></select></label>
+            <label class="field"><span>تحميل مصروف الرواتب على</span><select v-model="form.expenseProfileId" class="input">
+              <option value="">{{ profiles.find((p) => p.isDefault)?.name ?? 'الفئة الافتراضية' }} (الافتراضية)</option>
+              <option v-for="p in profiles.filter((x) => !x.isDefault)" :key="p.id" :value="p.id">{{ p.name }}</option></select></label>
             <label class="field"><span>عدد الشواغر المعتمدة</span><input v-model.number="form.headcount" type="number" min="0" class="input" /></label>
             <label class="field"><span>سنوات الخبرة</span><input v-model.number="form.experienceYears" type="number" min="0" class="input" /></label>
             <label class="field"><span>كود الجودة</span><input v-model="form.qualityCode" class="input hr-code" placeholder="يُولَّد تلقائيًا" /></label>
