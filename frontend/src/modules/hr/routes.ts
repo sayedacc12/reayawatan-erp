@@ -21,6 +21,8 @@ export const hrRoutes: RouteRecordRaw[] = [
   { path: '/hr/plans', component: () => import('./views/PlansView.vue'), meta: meta('خطط التعيين') },
   { path: '/hr/performance', component: () => import('./views/PerformanceView.vue'), meta: meta('بطاقات الأداء والتقييم') },
   { path: '/hr/performance/:id', component: () => import('./views/CardView.vue'), props: true, meta: meta('بطاقة الأداء') },
+  { path: '/hr/development', component: () => import('./views/DevelopmentView.vue'), meta: meta('التطوير والتدريب') },
+  { path: '/hr/development/plans/:id', component: () => import('./views/DevPlanView.vue'), props: true, meta: meta('خطة التطوير') },
   { path: '/hr/policy', component: () => import('./views/PolicyView.vue'), meta: meta('لائحة الموارد البشرية') },
   { path: '/hr/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الموارد البشرية', P.settings) },
 ];

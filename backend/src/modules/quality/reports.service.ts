@@ -111,7 +111,7 @@ export class ReportsService {
     for (const a of s.audits.list.filter((x) => x.overdue)) alerts.push({ level: 'danger', text: `المراجعة الداخلية "${a.title}" متأخرة عن موعدها`, path: `/quality/audits/${a.id}` });
     for (const a of s.audits.upcoming) alerts.push({ level: 'info', text: `مراجعة داخلية "${a.title}" بتاريخ ${a.plannedDate}`, path: `/quality/audits/${a.id}` });
     if (s.complaints.late) alerts.push({ level: 'warning', text: `${s.complaints.late} شكوى تجاوزت مدة المعالجة المستهدفة`, path: '/quality/complaints' });
-    if (s.complaints.pendingImports) alerts.push({ level: 'info', text: `${s.complaints.pendingImports} شكوى من بوابة المستفيدين بانتظار تسجيلها في سجل الشكاوى`, path: '/quality/complaints' });
+    if (s.complaints.pendingImports) alerts.push({ level: 'info', text: `${s.complaints.pendingImports} شكوى واردة من البوابات بانتظار تسجيلها في سجل الشكاوى`, path: '/quality/complaints' });
     if (s.risks.high) alerts.push({ level: 'warning', text: `${s.risks.high} خطر مرتفع لم يُغلق بعد`, path: '/quality/risks' });
     if (s.documents.pending) alerts.push({ level: 'info', text: `${s.documents.pending} وثيقة بانتظار المراجعة أو الاعتماد`, path: '/quality/documents?status=review' });
     const matrix = await this.standard(actor, s);

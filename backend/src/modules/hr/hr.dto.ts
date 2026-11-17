@@ -175,6 +175,10 @@ export class JobDto {
   @Nullable() @IsUUID()
   reportsToJobId?: string | null;
 
+  /** فئة تحميل المصروف (فارغ = الفئة الافتراضية) */
+  @Nullable() @IsUUID('4', { message: 'اختر فئة تحميل المصروف' })
+  expenseProfileId?: string | null;
+
   @Type(() => Number) @IsInt() @Min(0) @Max(1000)
   headcount!: number;
 
@@ -465,9 +469,6 @@ export class AllowanceTypeDto {
   defaultValue!: number;
 
   @Nullable() @IsUUID()
-  expenseAccountId?: string | null;
-
-  @Nullable() @IsUUID()
   payableAccountId?: string | null;
 
   @Nullable() @IsUUID()
@@ -494,9 +495,6 @@ export class PayrollConfigDto {
 
   @Nullable() @IsUUID()
   gosiPayableAccountId?: string | null;
-
-  @Nullable() @IsUUID()
-  gosiExpenseAccountId?: string | null;
 
   @Nullable() @IsUUID()
   deductionsAccountId?: string | null;
@@ -621,4 +619,155 @@ export class ManualPunchDto {
 
   @trim() @IsString({ message: 'اكتب سبب الإدخال اليدوي' }) @MinLength(3, { message: 'اكتب سبب الإدخال اليدوي' }) @MaxLength(300)
   note!: string;
+}
+
+// ---------------- فئات تحميل المصروف ----------------
+
+export class ProfileAccountDto {
+  @trim() @IsString()
+  code!: string;
+
+  @IsUUID('4', { message: 'اختر حساب المصروف' })
+  accountId!: string;
+}
+
+export class ExpenseProfileDto {
+  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم الفئة' }) @MaxLength(100)
+  name!: string;
+
+  @Nullable() @trim() @IsString() @MaxLength(300)
+  description?: string | null;
+
+  @IsArray() @ArrayMaxSize(60) @ValidateNested({ each: true }) @Type(() => ProfileAccountDto)
+  accounts!: ProfileAccountDto[];
+
+  @IsOptional() @IsBoolean()
+  isDefault?: boolean;
+}
+
+// ---------------- التطوير والتدريب والصف الثاني ----------------
+
+export class DevConfigDto {
+  @IsArray() @ArrayMaxSize(8, { message: 'ثماني مراحل على الأكثر' }) @ValidateNested({ each: true }) @Type(() => PayrollStageDto)
+  stages!: PayrollStageDto[];
+
+  @IsArray() @ArrayMinSize(1, { message: 'أضف نوعًا واحدًا على الأقل من الأنشطة التطويرية' }) @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => DevActivityTypeDto)
+  activityTypes!: DevActivityTypeDto[];
+}
+
+export class DevActivityTypeDto {
+  @trim() @Matches(/^[a-z][a-z0-9_]{1,29}$/, { message: 'رمز النوع حروف إنجليزية صغيرة، مثل course' })
+  code!: string;
+
+  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم النوع' }) @MaxLength(80)
+  name!: string;
+}
+
+export class DevPlanCreateDto {
+  @IsUUID('4', { message: 'اختر الموظف' })
+  employeeId!: string;
+
+  @IsIn(['individual', 'succession'])
+  kind!: 'individual' | 'succession';
+
+  /** خطط الصف الثاني: الوظيفة التي يُعد لها الموظف */
+  @Nullable() @IsUUID('4', { message: 'اختر الوظيفة المستهدفة' })
+  targetJobId?: string | null;
+
+  @Type(() => Number) @IsInt() @Min(2000) @Max(2100)
+  year!: number;
+}
+
+export class DevItemDto {
+  @IsOptional() @IsString() @MaxLength(40)
+  id?: string;
+
+  @Nullable() @IsUUID()
+  competencyId?: string | null;
+
+  @trim() @IsString() @MinLength(2, { message: 'اكتب الجدارة أو المهارة' }) @MaxLength(200)
+  name!: string;
+
+  @Nullable() @Type(() => Number) @IsInt() @Min(1) @Max(5)
+  requiredLevel?: number | null;
+
+  @Nullable() @Type(() => Number) @IsInt() @Min(0) @Max(5)
+  currentLevel?: number | null;
+
+  @Nullable() @Type(() => Number) @IsInt({ message: 'المستوى المستهدف من 1 إلى 5' }) @Min(1) @Max(5)
+  targetLevel?: number | null;
+
+  @trim() @IsString() @MinLength(1, { message: 'اختر نوع النشاط' }) @MaxLength(30)
+  activityType!: string;
+
+  @trim() @IsString() @MinLength(2, { message: 'اكتب النشاط التطويري (مثل اسم الدورة)' }) @MaxLength(300)
+  activity!: string;
+
+  @Nullable() @trim() @IsString() @MaxLength(200)
+  provider?: string | null;
+
+  @Nullable() @DateField('تاريخ الإنجاز غير صحيح')
+  dueDate?: string | null;
+
+  @Money('التكلفة رقم موجب')
+  cost!: number;
+
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 1 }, { message: 'الساعات رقم' }) @Min(0) @Max(2000)
+  hours!: number;
+
+  @IsOptional() @IsIn(['planned', 'in_progress', 'done', 'cancelled'])
+  status?: 'planned' | 'in_progress' | 'done' | 'cancelled';
+
+  @Nullable() @Type(() => Number) @IsInt() @Min(0) @Max(5)
+  achievedLevel?: number | null;
+
+  @Nullable() @trim() @IsString() @MaxLength(500)
+  note?: string | null;
+}
+
+export class DevPlanDto {
+  @trim() @IsString() @MinLength(3, { message: 'اكتب عنوان الخطة' }) @MaxLength(200)
+  title!: string;
+
+  @IsArray() @ArrayMaxSize(15) @IsString({ each: true }) @MaxLength(300, { each: true })
+  goals!: string[];
+
+  @IsArray() @ArrayMaxSize(40) @ValidateNested({ each: true }) @Type(() => DevItemDto)
+  items!: DevItemDto[];
+}
+
+/** متابعة التنفيذ بعد الاعتماد: حالة كل نشاط والمستوى المحقق */
+export class DevProgressItemDto {
+  @IsString() @MaxLength(40)
+  id!: string;
+
+  @IsIn(['planned', 'in_progress', 'done', 'cancelled'])
+  status!: 'planned' | 'in_progress' | 'done' | 'cancelled';
+
+  @Nullable() @Type(() => Number) @IsInt() @Min(0) @Max(5)
+  achievedLevel?: number | null;
+
+  @Nullable() @trim() @IsString() @MaxLength(500)
+  note?: string | null;
+}
+
+export class DevProgressDto {
+  @IsArray() @ArrayMaxSize(40) @ValidateNested({ each: true }) @Type(() => DevProgressItemDto)
+  items!: DevProgressItemDto[];
+}
+
+export class SuccessionJobDto {
+  @Nullable() @IsUUID('4', { message: 'اختر الوظيفة البديلة' })
+  backupJobId?: string | null;
+}
+
+export class CandidateDto {
+  @IsUUID('4', { message: 'اختر الموظف' })
+  employeeId!: string;
+
+  @IsIn(['now', '1y', '2y'], { message: 'اختر الجاهزية' })
+  readiness!: 'now' | '1y' | '2y';
+
+  @Nullable() @trim() @IsString() @MaxLength(500)
+  note?: string | null;
 }

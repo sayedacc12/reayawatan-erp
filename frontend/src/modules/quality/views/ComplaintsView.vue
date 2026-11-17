@@ -15,7 +15,7 @@ interface Complaint {
   ncrId: string | null; externalRef: string | null; days: number; late: boolean; targetDays: number;
   history: { action: string; byName: string; at: string; note?: string | null }[];
 }
-interface Portal { id: string; ticketNo: number; subject: string; message: string; createdAt: string; beneficiaryName: string; phone: string | null }
+interface Portal { id: string; source: string; sourceLabel: string; ticketNo: string; subject: string; message: string; createdAt: string; name: string; phone: string | null }
 const session = useSession();
 const toast = useToast();
 const route = useRoute();
@@ -108,11 +108,11 @@ const can = computed(() => session.can(P.feedback));
       <div><p class="pm-kicker">البنود 8.2.1 و9.1.2 و10.2</p><h1>سجل الشكاوى</h1>
         <p class="pm-sub">استلام ← دراسة ← رد ومعالجة ← إغلاق مع قياس رضا صاحب الشكوى. المدة المستهدفة للمعالجة {{ targetDays }} يوم، والشكوى المتكررة أو الجسيمة تتحول لحالة عدم مطابقة.</p></div>
       <div class="pm-actions">
-        <button v-if="can && pending" class="btn q-ghost" @click="openPortal">شكاوى البوابة ({{ pending }})</button>
+        <button v-if="can && pending" class="btn q-ghost" @click="openPortal">الشكاوى الواردة ({{ pending }})</button>
         <button v-if="can" class="btn q-glow" @click="form.show = true">تسجيل شكوى</button>
       </div>
     </section>
-    <div v-if="pending && can" class="q-info">{{ pending }} شكوى من بوابة المستفيدين لم تُسجل بعد في سجل الجودة. <a href="#" class="pm-link" @click.prevent="openPortal">راجعها وسجلها</a></div>
+    <div v-if="pending && can" class="q-info">{{ pending }} شكوى واردة من بوابة المستفيدين أو صفحة التطوع لم تُسجل بعد في سجل الجودة. <a href="#" class="pm-link" @click.prevent="openPortal">راجعها وسجلها</a></div>
     <section class="card pm-panel">
       <div class="q-tabs"><button v-for="t in TABS" :key="t.v" :class="['q-tab', { on: status === t.v }]" @click="status = t.v">{{ t.l }}</button></div>
       <div class="table-wrap"><table class="table">
@@ -154,11 +154,11 @@ const can = computed(() => session.can(P.feedback));
 
     <div v-if="portal" class="modal-backdrop" @click.self="portal = null">
       <div class="card modal" style="max-width: 720px">
-        <h2>شكاوى بوابة المستفيدين</h2>
-        <p class="pm-muted">شكاوى أرسلها المستفيدون من البوابة. سجّلها في سجل الجودة لتُدرس ويُرد عليها وتدخل في المؤشرات.</p>
+        <h2>الشكاوى الواردة من البوابات</h2>
+        <p class="pm-muted">شكاوى أرسلها المستفيدون من بوابتهم، أو المتطوعون وغيرهم من صفحة التطوع العامة. سجّلها في سجل الجودة لتُدرس ويُرد عليها وتدخل في المؤشرات.</p>
         <div v-for="p in portal" :key="p.id" class="card" style="padding: 12px; margin-bottom: 8px">
           <div style="display: flex; justify-content: space-between; gap: 8px"><b>{{ p.subject }}</b><span class="pm-muted q-num">{{ fmtDate(p.createdAt) }}</span></div>
-          <p class="pm-muted" style="margin: 4px 0">{{ p.beneficiaryName }} · تذكرة رقم {{ p.ticketNo }}</p>
+          <p class="pm-muted" style="margin: 4px 0">{{ p.name }} · {{ p.sourceLabel }} · تذكرة رقم {{ p.ticketNo }}</p>
           <p class="q-pre">{{ p.message }}</p>
           <button class="btn btn-sm btn-primary" style="margin-top: 6px" @click="importOne(p)">تسجيل في سجل الشكاوى</button>
         </div>

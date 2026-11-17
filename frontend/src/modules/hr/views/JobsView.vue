@@ -46,16 +46,16 @@ const totals = computed(() => ({ headcount: rows.value.reduce((s, r) => s + r.he
       </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>الكود</th><th>المسمى</th><th>الوحدة</th><th>المرتبة</th><th>ترتبط بـ</th><th>الشواغر</th><th>الجودة</th><th>الحالة</th></tr></thead>
+          <thead><tr><th>الكود</th><th>المسمى</th><th>الوحدة</th><th>المرتبة</th><th>ترتبط بـ</th><th>تحميل الراتب</th><th>الشواغر</th><th>الجودة</th><th>الحالة</th></tr></thead>
           <tbody>
             <tr v-for="r in shown" :key="r.id" class="hr-row-click" :style="{ opacity: r.isActive ? 1 : .55 }" @click="router.push(`/hr/jobs/${r.id}`)">
               <td class="hr-code">{{ r.code }}</td><td><b>{{ r.title }}</b><span class="pm-muted">{{ r.kpis }} مؤشرات · {{ r.competencies }} جدارات</span></td>
-              <td>{{ r.unitName }}</td><td>{{ r.gradeName ?? '—' }}</td><td>{{ r.reportsToTitle ?? '—' }}</td>
+              <td>{{ r.unitName }}</td><td>{{ r.gradeName ?? '—' }}</td><td>{{ r.reportsToTitle ?? '—' }}</td><td>{{ r.expenseProfileName ?? '—' }}</td>
               <td class="hr-num">{{ r.filled }} / {{ r.headcount }}<span v-if="r.vacancies" class="pm-muted">{{ r.vacancies }} شاغر</span></td>
               <td><span class="hr-code">{{ r.qualityCode }}</span><span class="pm-muted">Rev.{{ String(r.revision).padStart(2, '0') }}</span></td>
               <td><span class="pm-pill" :style="{ '--c': STATUS_COLOR[r.status] }">{{ r.status === 'approved' ? 'معتمد' : 'مسودة' }}</span></td>
             </tr>
-            <tr v-if="!shown.length"><td colspan="8" class="pm-empty">لا توجد وظائف</td></tr>
+            <tr v-if="!shown.length"><td colspan="9" class="pm-empty">لا توجد وظائف</td></tr>
           </tbody>
         </table>
       </div>

@@ -107,27 +107,43 @@ export class FeedbackService {
     return this.complaint(actor, c.id);
   }
 
-  /** شكاوى المستفيدين الواردة من البوابة ولم تُسجَّل بعد في سجل الجودة (قراءة فقط من وحدة المستفيدين) */
+  /**
+   * الشكاوى الواردة من بوابة المستفيدين وصفحة التطوع العامة ولم تُسجَّل بعد في سجل الجودة
+   * (قراءة فقط من وحدتي المستفيدين والتطوع)
+   */
   async portalComplaints(org: string) {
-    const rows: { id: string; ticket_no: number; subject: string; message: string; status: string; created_at: Date; full_name: string; phone: string | null }[] = await this.db.query(
-      `SELECT t.id, t.ticket_no, t.subject, t.message, t.status, t.created_at, b.full_name, b.phone
+    const ben: { id: string; ticket_no: number; subject: string; message: string; created_at: Date; full_name: string; phone: string | null }[] = await this.db.query(
+      `SELECT t.id, t.ticket_no, t.subject, t.message, t.created_at, b.full_name, b.phone
          FROM beneficiary_tickets t JOIN beneficiaries b ON b.id = t.beneficiary_id
         WHERE t.organization_id = $1 AND t.type = 'complaint'
-          AND NOT EXISTS (SELECT 1 FROM quality_complaints q WHERE q.organization_id = $1 AND q.external_ref = 'BEN-TKT:' || t.id::text)
-        ORDER BY t.created_at DESC`, [org]);
-    return rows.map((r) => ({
-      id: r.id, ticketNo: r.ticket_no, subject: r.subject, message: r.message, status: r.status, createdAt: r.created_at, beneficiaryName: r.full_name, phone: r.phone,
-    }));
+          AND NOT EXISTS (SELECT 1 FROM quality_complaints q WHERE q.organization_id = $1 AND q.external_ref = 'BEN-TKT:' || t.id::text)`, [org]);
+    const vol: { id: string; ticket_no: string; subject: string; body: string; created_at: Date; sender_name: string; sender_mobile: string | null; sender_type: string }[] = await this.db.query(
+      `SELECT t.id, t.ticket_no, t.subject, t.body, t.created_at, t.sender_name, t.sender_mobile, t.sender_type
+         FROM vol_tickets t
+        WHERE t.organization_id = $1 AND t.kind = 'complaint'
+          AND NOT EXISTS (SELECT 1 FROM quality_complaints q WHERE q.organization_id = $1 AND q.external_ref = 'VOL-TKT:' || t.id::text)`, [org]).catch(() => []);
+    return [
+      ...ben.map((r) => ({
+        id: r.id, source: 'beneficiaries' as const, sourceLabel: 'بوابة المستفيدين', ticketNo: String(r.ticket_no), subject: r.subject, message: r.message, createdAt: r.created_at,
+        name: r.full_name, phone: r.phone, partyType: 'beneficiary',
+      })),
+      ...vol.map((r) => ({
+        id: r.id, source: 'volunteers' as const, sourceLabel: 'صفحة التطوع', ticketNo: r.ticket_no, subject: r.subject, message: r.body, createdAt: r.created_at,
+        name: r.sender_name, phone: r.sender_mobile, partyType: r.sender_type === 'beneficiary' ? 'beneficiary' : r.sender_type === 'volunteer' ? 'volunteer' : 'community',
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async importPortal(actor: OrgUser, ticketId: string) {
     const t = (await this.portalComplaints(actor.organizationId)).find((x) => x.id === ticketId);
     if (!t) throw new NotFoundException('الشكوى غير موجودة أو سُجلت من قبل');
+    const depts = (await this.core.settings(actor.organizationId)).departments;
+    const want = t.source === 'volunteers' ? 'VOL' : 'BEN';
     return this.createComplaint(actor, {
-      channel: 'portal', partyType: 'beneficiary', complainantName: t.beneficiaryName, contact: t.phone, subject: t.subject, details: t.message,
-      category: 'خدمات المستفيدين', department: (await this.core.settings(actor.organizationId)).departments.find((d) => d.code === 'BEN') ? 'BEN' : (await this.core.settings(actor.organizationId)).departments[0].code,
+      channel: t.source === 'volunteers' ? 'other' : 'portal', partyType: t.partyType, complainantName: t.name, contact: t.phone, subject: t.subject, details: t.message,
+      category: t.source === 'volunteers' ? 'التطوع' : 'خدمات المستفيدين', department: depts.find((d) => d.code === want) ? want : depts[0].code,
       receivedDate: new Date(new Date(t.createdAt).getTime() + 3 * 3600000).toISOString().slice(0, 10),
-    }, `BEN-TKT:${t.id}`);
+    }, `${t.source === 'volunteers' ? 'VOL' : 'BEN'}-TKT:${t.id}`);
   }
 
   // ---------------- استبانات قياس الرضا ----------------

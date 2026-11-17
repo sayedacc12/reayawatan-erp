@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { HrAllowanceType, HrPolicyVersion, HrSettings, HrUnit } from './entities/hr.entity';
+import { HrAllowanceType, HrExpenseProfile, HrPolicyVersion, HrSettings, HrUnit } from './entities/hr.entity';
 import { PolicyDto, SettingsDto } from './hr.dto';
 import { defaultPolicy, HrPolicy, normalizePolicy } from './hr-policy';
 
@@ -125,5 +125,20 @@ export class HrCore {
       if (!t || t.isSystem) throw new BadRequestException(`البدل «${c}» غير معرّف. عرّفه أولًا في تبويب البدلات بالإعدادات`);
     }
     return map;
+  }
+
+  /** فئات تحميل المصروف، مع إنشاء الفئة الافتراضية «المصروفات الإدارية» إن لم توجد */
+  async expenseProfiles(org: string, em: EntityManager = this.db.manager) {
+    const repo = em.getRepository(HrExpenseProfile);
+    let rows = await repo.find({ where: { organizationId: org }, order: { sortOrder: 'ASC', name: 'ASC' } });
+    if (!rows.length) {
+      await repo.createQueryBuilder().insert().values({ organizationId: org, name: 'المصروفات الإدارية', isDefault: true, sortOrder: 0, accounts: {} }).orIgnore().execute();
+      rows = await repo.find({ where: { organizationId: org }, order: { sortOrder: 'ASC', name: 'ASC' } });
+    }
+    if (!rows.some((r) => r.isDefault)) {
+      await repo.update({ id: rows[0].id }, { isDefault: true });
+      rows[0].isDefault = true;
+    }
+    return rows;
   }
 }

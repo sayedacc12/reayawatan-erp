@@ -239,12 +239,15 @@ export class OrgService {
 
   async listJobs(actor: OrgUser) {
     const org = actor.organizationId;
-    const [rows, units, grades, staff] = await Promise.all([
+    const [rows, units, grades, staff, profiles] = await Promise.all([
       this.jobs.find({ where: { organizationId: org }, order: { code: 'ASC' } }),
       this.units.find({ where: { organizationId: org } }),
       this.grades.find({ where: { organizationId: org } }),
       this.db.query(`SELECT job_id, COUNT(*)::int AS n FROM hr_employees WHERE organization_id = $1 AND status = 'active' GROUP BY 1`, [org]) as Promise<{ job_id: string; n: number }[]>,
+      this.core.expenseProfiles(org),
     ]);
+    const def = profiles.find((p) => p.isDefault)!;
+    const pn = new Map(profiles.map((p) => [p.id, p.name]));
     const u = new Map(units.map((x) => [x.id, x.name]));
     const g = new Map(grades.map((x) => [x.id, x]));
     const t = new Map(rows.map((x) => [x.id, x.title]));
@@ -255,6 +258,8 @@ export class OrgService {
       reportsToJobId: j.reportsToJobId, reportsToTitle: j.reportsToJobId ? t.get(j.reportsToJobId) ?? null : null,
       headcount: j.headcount, filled: st.get(j.id) ?? 0, vacancies: Math.max(j.headcount - (st.get(j.id) ?? 0), 0),
       qualityCode: j.qualityCode, revision: j.revision, status: j.status, isActive: j.isActive, kpis: j.kpis.length, competencies: j.competencies.length,
+      expenseProfileId: j.expenseProfileId, expenseProfileName: j.expenseProfileId ? pn.get(j.expenseProfileId) ?? def.name : def.name,
+      backupJobId: j.backupJobId,
     }));
   }
 
@@ -290,6 +295,9 @@ export class OrgService {
       if (dto.reportsToJobId === selfId) throw new BadRequestException('لا يمكن أن ترتبط الوظيفة بنفسها');
       await this.jobRow(org, dto.reportsToJobId);
     }
+    if (dto.expenseProfileId && !(await this.core.expenseProfiles(org)).some((p) => p.id === dto.expenseProfileId)) {
+      throw new BadRequestException('فئة تحميل المصروف غير موجودة');
+    }
     const ids = dto.competencies.map((c) => c.competencyId);
     if (new Set(ids).size !== ids.length) throw new BadRequestException('جدارة مكررة في الوصف الوظيفي');
     if (ids.length && (await this.comps.count({ where: { organizationId: org, id: In(ids) } })) !== ids.length) throw new BadRequestException('جدارة غير موجودة');
@@ -310,6 +318,7 @@ export class OrgService {
       const no = await this.core.nextNo(em, org, 'nextJobNo');
       const j = await em.getRepository(HrJob).save(em.getRepository(HrJob).create({
         ...dto, organizationId: org, code: `JOB-${String(no).padStart(3, '0')}`, gradeId: dto.gradeId ?? null, reportsToJobId: dto.reportsToJobId ?? null,
+        expenseProfileId: dto.expenseProfileId ?? null,
         responsibilities: dto.responsibilities.map((r) => r.trim()).filter(Boolean), qualityCode: dto.qualityCode ?? `QF-HR-JD-${String(no).padStart(3, '0')}`,
       }));
       return j.id;
@@ -323,6 +332,7 @@ export class OrgService {
     await this.checkJob(actor.organizationId, dto, id);
     Object.assign(j, {
       ...dto, gradeId: dto.gradeId ?? null, reportsToJobId: dto.reportsToJobId ?? null, qualityCode: dto.qualityCode ?? j.qualityCode,
+      expenseProfileId: dto.expenseProfileId ?? null,
       responsibilities: dto.responsibilities.map((r) => r.trim()).filter(Boolean), status: 'draft',
     });
     await this.jobs.save(j);

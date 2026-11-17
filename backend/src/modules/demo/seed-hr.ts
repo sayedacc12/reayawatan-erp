@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { AccountsService } from '../accounting/accounts.service';
 import { AttendanceService } from '../hr/attendance.service';
+import { DevelopmentService } from '../hr/development.service';
 import { HrCore, today } from '../hr/hr-core.service';
 import { defaultPolicy } from '../hr/hr-policy';
 import { OrgService } from '../hr/org.service';
@@ -23,6 +26,9 @@ export class HrSeed {
     private readonly perf: PerformanceService,
     private readonly attendance: AttendanceService,
     private readonly payroll: PayrollService,
+    private readonly dev: DevelopmentService,
+    private readonly accounts: AccountsService,
+    private readonly db: DataSource,
   ) {}
 
   async run(team: DemoTeam) {
@@ -50,20 +56,37 @@ export class HrSeed {
     const hrDept = await unit('قسم الموارد البشرية', 2, finAdmin, 'الإدارية والعمومية', false);
     const quality = await unit('قسم الجودة', 2, exec, 'الحوكمة');
 
-    // ---- بنود الراتب: لكل بند حساب مصروف وحساب استحقاق وبنك صرف مستقل
+    // ---- بنود الراتب: لكل بند حساب استحقاق وبنك صرف مستقل
     const types = await this.payroll.listAllowances(admin);
-    const item = async (code: string, name: string, expense: string, payable: string, bank: string, defaultKind: 'percent' | 'fixed', defaultValue: number) => {
+    const item = async (code: string, name: string, payable: string, bank: string, defaultKind: 'percent' | 'fixed', defaultValue: number) => {
       const t = types.find((x) => x.code === code);
-      const dto = { code, name, defaultKind, defaultValue, expenseAccountId: accId(expense), payableAccountId: accId(payable), cashAccountId: bankId(bank) };
+      const dto = { code, name, defaultKind, defaultValue, payableAccountId: accId(payable), cashAccountId: bankId(bank) };
       if (t) await this.payroll.saveAllowance(admin, dto, t.id);
       else await this.payroll.saveAllowance(admin, dto);
     };
-    await item('basic', 'الراتب الأساسي', '4110100101', '2140100101', 'مصرف الراجحي', 'fixed', 0);
-    await item('housing', 'بدل السكن', '4110100201', '2140100102', 'مصرف الراجحي', 'percent', 25);
-    await item('transport', 'بدل النقل', '4110100301', '2140100103', 'بنك الرياض', 'percent', 10);
-    await item('phone', 'بدل الاتصال', '4110100401', '2140100104', 'بنك الرياض', 'fixed', 300);
+    await item('basic', 'الراتب الأساسي', '2140100101', 'مصرف الراجحي', 'fixed', 0);
+    await item('housing', 'بدل السكن', '2140100102', 'مصرف الراجحي', 'percent', 25);
+    await item('transport', 'بدل النقل', '2140100103', 'بنك الرياض', 'percent', 10);
+    await item('phone', 'بدل الاتصال', '2140100104', 'بنك الرياض', 'fixed', 300);
+    // ---- فئات تحميل المصروف: حسابات مصروف الرواتب حسب طبيعة الوظيفة (إدارية، برامج وأنشطة، جمع أموال)
+    const programAcc = await this.programSalaryAccounts(admin);
+    const profiles = await this.payroll.listProfiles(admin);
+    const profileAccounts = (m: Record<string, string>) => Object.entries(m).map(([code, accountId]) => ({ code, accountId }));
+    await this.payroll.saveProfile(admin, {
+      name: 'المصروفات الإدارية', description: 'الإدارة التنفيذية والشؤون المالية والإدارية والجودة', isDefault: true,
+      accounts: profileAccounts({ basic: accId('4110100101'), housing: accId('4110100201'), transport: accId('4110100301'), phone: accId('4110100401'), gosi: accId('4110100801') }),
+    }, profiles.find((x) => x.isDefault)!.id);
+    const programProfile = (await this.payroll.saveProfile(admin, {
+      name: 'البرامج والأنشطة', description: 'الموظفون العاملون مباشرة على البرامج والمشاريع وخدمة المستفيدين',
+      accounts: profileAccounts(programAcc),
+    })).find((x) => x.name === 'البرامج والأنشطة')!.id;
+    const frAcc = accId('4410100101');
+    const fundraisingProfile = (await this.payroll.saveProfile(admin, {
+      name: 'جمع الأموال', description: 'موظفو تنمية الموارد',
+      accounts: profileAccounts({ basic: frAcc, housing: frAcc, transport: frAcc, phone: frAcc, gosi: frAcc }),
+    })).find((x) => x.name === 'جمع الأموال')!.id;
     await this.payroll.saveConfig(admin, {
-      payableAccountId: accId('2140100101'), gosiPayableAccountId: accId('2140100108'), gosiExpenseAccountId: accId('4110100801'),
+      payableAccountId: accId('2140100101'), gosiPayableAccountId: accId('2140100108'),
       deductionsAccountId: accId('1140100401'), defaultCashAccountId: bankId('مصرف الراجحي'),
       stages: [{ name: 'مراجعة الشؤون المالية', roleId: team.roles.finance }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
     });
@@ -111,10 +134,11 @@ export class HrSeed {
     // ---- الأوصاف الوظيفية
     const core3 = (level: number) => [{ competencyId: integrity, level }, { competencyId: communication, level }, { competencyId: teamwork, level }];
     const job = async (title: string, unitId: string, gradeId: string, headcount: number, purpose: string, responsibilities: string[],
-      kpis: { title: string; weight: number; target: string; unit?: string }[], competencies: { competencyId: string; level: number }[], reportsToJobId: string | null = null, approve = true) => {
+      kpis: { title: string; weight: number; target: string; unit?: string }[], competencies: { competencyId: string; level: number }[], reportsToJobId: string | null = null, approve = true,
+      expenseProfileId: string | null = null) => {
       const id = (await this.org.createJob(admin, {
         title, unitId, gradeId, headcount, purpose, responsibilities, qualifications: 'بكالوريوس في التخصص المناسب', experienceYears: 2,
-        competencies, kpis, reportsToJobId,
+        competencies, kpis, reportsToJobId, expenseProfileId,
       })).id;
       if (approve) await this.org.approveJob(admin, id);
       return id;
@@ -124,16 +148,16 @@ export class HrSeed {
       [...core3(5), { competencyId: planning, level: 5 }, { competencyId: decision, level: 5 }]);
     const programsMgr = await job('مدير البرامج والخدمات', programs, g5, 1, 'إدارة برامج الجمعية وخدمات المستفيدين', ['اعتماد الحالات', 'متابعة جودة الخدمات', 'إعداد تقارير الأثر'],
       [{ title: 'متوسط مدة إنجاز الطلب', weight: 40, target: '10', unit: 'أيام' }, { title: 'نسبة رضا المستفيدين', weight: 30, target: '85%' }, { title: 'تنفيذ البرامج في موعدها', weight: 30, target: '95%' }],
-      [...core3(4), { competencyId: planning, level: 4 }, { competencyId: decision, level: 4 }], ceo);
+      [...core3(4), { competencyId: planning, level: 4 }, { competencyId: decision, level: 4 }], ceo, true, programProfile);
     const researcher = await job('أخصائي اجتماعي', social, g2, 4, 'دراسة حالات المستفيدين وتقدير احتياجهم بعدالة', ['إجراء الزيارات الميدانية', 'إعداد البحث الاجتماعي', 'متابعة الحالات بعد الدعم'],
       [{ title: 'عدد الحالات المدروسة', weight: 50, target: '40', unit: 'حالة' }, { title: 'دقة البحث (حالات غير مُرجعة)', weight: 30, target: '90%' }, { title: 'الالتزام بمدة الدراسة', weight: 20, target: '7', unit: 'أيام' }],
-      [...core3(3), { competencyId: caseStudy, level: 4 }], programsMgr);
+      [...core3(3), { competencyId: caseStudy, level: 4 }], programsMgr, true, programProfile);
     const projectsMgr = await job('رئيس قسم المشاريع', projects, g4, 1, 'إدارة مشاريع الجمعية من الإعداد حتى الإغلاق', ['إعداد وثائق المشاريع', 'متابعة الصرف', 'تقارير المانحين'],
       [{ title: 'المشاريع المنفذة في موعدها', weight: 60, target: '90%' }, { title: 'الالتزام بالميزانية', weight: 40, target: '100%' }],
-      [...core3(4), { competencyId: planning, level: 4 }], programsMgr);
+      [...core3(4), { competencyId: planning, level: 4 }], programsMgr, true, programProfile);
     const fundraiser = await job('أخصائي تنمية موارد', resources, g3, 2, 'استقطاب التبرعات والمنح', ['متابعة المتبرعين', 'كتابة مقترحات المنح', 'تنظيم الحملات'],
       [{ title: 'التبرعات المحصّلة', weight: 60, target: '1,500,000', unit: 'ريال' }, { title: 'متبرعون جدد', weight: 40, target: '120', unit: 'متبرع' }],
-      [...core3(3), { competencyId: fundraising, level: 4 }], ceo);
+      [...core3(3), { competencyId: fundraising, level: 4 }], ceo, true, fundraisingProfile);
     const finMgr = await job('مدير الشؤون المالية والإدارية', finAdmin, g5, 1, 'إدارة الشؤون المالية والإدارية للجمعية', ['إعداد القوائم المالية', 'الرقابة على الصرف', 'إدارة الموارد البشرية'],
       [{ title: 'إقفال الشهر في موعده', weight: 50, target: '5', unit: 'أيام' }, { title: 'ملاحظات المراجع الخارجي', weight: 50, target: '0', unit: 'ملاحظة جوهرية' }],
       [...core3(4), { competencyId: planning, level: 4 }, { competencyId: decision, level: 4 }], ceo);
@@ -143,7 +167,7 @@ export class HrSeed {
       [{ title: 'توثيق العقود في قوى', weight: 50, target: '100%' }, { title: 'شغل الشواغر في موعدها', weight: 50, target: '90%' }], core3(3), finMgr);
     const qualityOfficer = await job('أخصائي جودة', quality, g2, 1, 'متابعة نظام إدارة الجودة ISO 9001', ['مراجعة النماذج', 'التدقيق الداخلي'],
       [{ title: 'تنفيذ خطة التدقيق الداخلي', weight: 60, target: '100%' }, { title: 'إغلاق حالات عدم المطابقة', weight: 40, target: '30', unit: 'يومًا' }], core3(3), ceo);
-    await job('منسق متطوعين', programs, g1, 1, 'تنسيق المتطوعين وفرص التطوع', ['استقطاب المتطوعين', 'متابعة الساعات'], [], core3(2), programsMgr, false);
+    await job('منسق متطوعين', programs, g1, 1, 'تنسيق المتطوعين وفرص التطوع', ['استقطاب المتطوعين', 'متابعة الساعات'], [], core3(2), programsMgr, false, programProfile);
 
     // ---- الموظفون (فريق الجمعية التجريبية نفسه)
     const salary = (basic: number) => [
@@ -164,13 +188,13 @@ export class HrSeed {
     const ceoE = await emp(admin.fullName, ceo, 25000, 2900, { gender: 'male', attendanceExempt: true, allowances: [...salary(25000), { code: 'phone', name: 'بدل الاتصال', amount: 500 }] });
     const programsE = await emp(team.caseManager.fullName, programsMgr, 16000, 1800, { managerId: ceoE });
     const researcherE = await emp(team.researcher.fullName, researcher, 7200, 700, { gender: 'female', managerId: programsE });
-    await emp('هند سعد الدوسري', researcher, 6800, 75, {
+    const hindE = await emp('هند سعد الدوسري', researcher, 6800, 75, {
       gender: 'female', managerId: programsE, contractType: 'fixed', contractEnd: daysAhead(290), probationEnd: daysAhead(15), gosiFirstRegistration: daysAgo(75), qiwaStatus: 'pending',
     });
     const projectsE = await emp(team.projectsManager.fullName, projectsMgr, 12500, 1200, { managerId: programsE });
     const fundraiserE = await emp(team.fundraiser.fullName, fundraiser, 9800, 1500, { managerId: ceoE, contractType: 'fixed', contractEnd: daysAhead(40) });
     const financeE = await emp(team.finance.fullName, finMgr, 17000, 2200, { managerId: ceoE, allowances: [...salary(17000), { code: 'phone', name: 'بدل الاتصال', amount: 300 }] });
-    await emp('أحمد محمود عبدالرحمن', accountant, 7000, 1000, { isSaudi: false, managerId: financeE, idExpiry: daysAhead(55), passportExpiry: daysAhead(400), gosiNumber: null });
+    const accountantE = await emp('أحمد محمود عبدالرحمن', accountant, 7000, 1000, { isSaudi: false, managerId: financeE, idExpiry: daysAhead(55), passportExpiry: daysAhead(400), gosiNumber: null });
     const hrE = await emp('ريم خالد الشهري', hrOfficer, 7500, 500, { gender: 'female', managerId: financeE });
     const qualityE = await emp(team.quality.fullName, qualityOfficer, 7800, 900, { managerId: ceoE });
 
@@ -223,8 +247,15 @@ export class HrSeed {
     };
     await evaluate(researcherE, [110, 95, 100], (r) => r, true);
     await evaluate(qualityE, [90, 80], (r) => Math.max(r - 1, 1), false);
+    await evaluate(fundraiserE, [85, 70], (r) => (r >= 4 ? r - 2 : r - 1), true);
+    await evaluate(hrE, [100, 95], (r) => r, true);
     const agreed = cards.find((c) => c.employeeId === projectsE);
     if (agreed) await this.perf.action(admin, agreed.id, { action: 'agree' });
+
+    await this.seedDevelopment(team, year, {
+      jobs: { ceo, programsMgr, projectsMgr, finMgr, accountant, researcher },
+      emps: { programsE, projectsE, researcherE, financeE, accountantE, fundraiserE, qualityE, hrE, hindE },
+    });
 
     await this.seedAttendanceAndPayroll(team, year);
   }
@@ -284,5 +315,114 @@ export class HrSeed {
     }
     // كشف الشهر الحالي قيد الإعداد
     await this.payroll.create(admin, cur);
+  }
+
+  /** حسابات مصروف رواتب العاملين على البرامج والأنشطة (لا يتضمنها الدليل الموحد، فتُفتح تحت مصاريف البرامج) */
+  private async programSalaryAccounts(admin: DemoTeam['admin']) {
+    const org = admin.organizationId;
+    const [parent] = await this.db.query(`SELECT id FROM acc_accounts WHERE organization_id = $1 AND code = '422'`, [org]);
+    const main = await this.accounts.create(admin, { code: '42204', name: 'رواتب ومزايا العاملين على البرامج والأنشطة', kind: 'main', nature: 'expenses', parentId: parent.id });
+    const group = await this.accounts.create(admin, { code: '42204001', name: 'الرواتب والأجور النقدية ــ البرامج والأنشطة', kind: 'main', nature: 'expenses', parentId: main.id });
+    const sub = async (code: string, name: string) => (await this.accounts.create(admin, { code, name, kind: 'sub', nature: 'expenses', parentId: group.id })).id;
+    return {
+      basic: await sub('4220400101', 'الرواتب الأساسية ــ البرامج والأنشطة'), housing: await sub('4220400102', 'بدل السكن ــ البرامج والأنشطة'),
+      transport: await sub('4220400103', 'بدل المواصلات ــ البرامج والأنشطة'), phone: await sub('4220400104', 'بدل اتصال ــ البرامج والأنشطة'),
+      gosi: await sub('4220400108', 'تأمينات اجتماعية ــ البرامج والأنشطة'),
+    };
+  }
+
+  /**
+   * التطوير والتدريب والصف الثاني: مراحل الاعتماد، خطط تطوير بمراحل مختلفة (من فجوة الجدارات في تقييمات الأداء)،
+   * وظائف بديلة ومرشحون للصف الثاني، مع وظائف بلا بديل تظهر بعلامة حمراء.
+   */
+  private async seedDevelopment(team: DemoTeam, year: number, x: {
+    jobs: Record<'ceo' | 'programsMgr' | 'projectsMgr' | 'finMgr' | 'accountant' | 'researcher', string>;
+    emps: Record<'programsE' | 'projectsE' | 'researcherE' | 'financeE' | 'accountantE' | 'fundraiserE' | 'qualityE' | 'hrE' | 'hindE', string>;
+  }) {
+    const { admin } = team;
+    const cfg = (await this.dev.getConfig(admin)).config;
+    await this.dev.saveConfig(admin, {
+      stages: [{ name: 'مراجعة الموارد البشرية', roleId: team.roles.finance }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
+      activityTypes: cfg.activityTypes,
+    });
+    const items = (p: Awaited<ReturnType<DevelopmentService['get']>>, f: (i: (typeof p.items)[number], k: number) => Partial<(typeof p.items)[number]>) =>
+      p.items.map((i, k) => {
+        const v = { ...i, ...f(i, k) };
+        return {
+          id: v.id, competencyId: v.competencyId, name: v.name, requiredLevel: v.requiredLevel, currentLevel: v.currentLevel, targetLevel: v.targetLevel,
+          activityType: v.activityType, activity: v.activity, provider: v.provider, dueDate: v.dueDate, cost: v.cost, hours: v.hours, note: v.note,
+        };
+      });
+    const approve = async (id: string) => {
+      await this.dev.submit(admin, id);
+      await this.dev.decide(admin, id, { decision: 'approve', note: 'تتوافق مع احتياج القسم' });
+      await this.dev.decide(admin, id, { decision: 'approve', note: 'معتمدة' });
+    };
+
+    // 1) أخصائي الجودة: خطة معتمدة وقيد التنفيذ (نشاط منجز وآخر جارٍ)
+    let p = await this.dev.create(admin, { employeeId: x.emps.qualityE, kind: 'individual', year });
+    const quality = [
+      { activityType: 'course', activity: 'دورة مهارات التواصل والعرض الفعّال', provider: 'معهد الإدارة العامة', cost: 1800, hours: 24, dueDate: `${year}-04-30` },
+      { activityType: 'workshop', activity: 'ورشة بناء فرق العمل', provider: 'مركز التدريب الأهلي', cost: 900, hours: 12, dueDate: `${year}-06-30` },
+      { activityType: 'mentoring', activity: 'إرشاد شهري مع المدير التنفيذي في قيم النزاهة والامتثال', provider: null, cost: 0, hours: 10, dueDate: `${year}-12-31` },
+    ];
+    p = await this.dev.update(admin, p.id, {
+      title: p.title, goals: ['رفع جدارات التواصل والعمل الجماعي للمستوى المطلوب', 'تحسين نتيجة الجدارات في تقييم العام القادم إلى 90%'],
+      items: items(p, (_, k) => quality[k % quality.length]),
+    });
+    await approve(p.id);
+    p = await this.dev.get(admin, p.id);
+    await this.dev.progress(admin, p.id, {
+      items: p.items.map((i, k) => ({ id: i.id, status: k === 0 ? 'done' : k === 1 ? 'in_progress' : 'planned', achievedLevel: k === 0 ? i.targetLevel : null, note: k === 0 ? 'اجتاز الدورة بتقدير ممتاز' : null })),
+    });
+
+    // 2) أخصائي تنمية الموارد: خطة بانتظار المرحلة الأولى
+    p = await this.dev.create(admin, { employeeId: x.emps.fundraiserE, kind: 'individual', year });
+    p = await this.dev.update(admin, p.id, {
+      title: p.title, goals: ['الفوز بمنحتين من جهات مانحة جديدة', 'سد فجوة جدارة تنمية الموارد المالية بمستويين'],
+      items: items(p, (i) => i.name.includes('تنمية') ? { activityType: 'certificate', activity: 'شهادة أخصائي جمع تبرعات معتمد (CFRE)', provider: 'جهة دولية معتمدة', cost: 6500, hours: 60 }
+        : { activityType: 'workshop', activity: `ورشة ${i.name}`, provider: 'مركز التدريب الأهلي', cost: 700, hours: 8 }),
+    });
+    await this.dev.submit(admin, p.id);
+
+    // 3) الموظفة الجديدة: خطة قيد الإعداد (جداراتها لم تُقيَّم بعد)
+    p = await this.dev.create(admin, { employeeId: x.emps.hindE, kind: 'individual', year });
+    await this.dev.update(admin, p.id, {
+      title: p.title, goals: ['اجتياز فترة التجربة بإتقان أدوات البحث الاجتماعي'],
+      items: items(p, (i) => ({ currentLevel: i.requiredLevel ? Math.max(i.requiredLevel - 2, 1) : null, activityType: 'ojt', activity: `تدريب على رأس العمل في ${i.name} مع أخصائي أول`, hours: 20 })),
+    });
+
+    // 4) أخصائية الموارد البشرية: خطة العام الماضي مكتملة ومغلقة
+    p = await this.dev.create(admin, { employeeId: x.emps.hrE, kind: 'individual', year: year - 1 });
+    p = await this.dev.update(admin, p.id, {
+      title: p.title, goals: ['إتقان نظام قوى والتأمينات الاجتماعية'],
+      items: [{ competencyId: null, name: 'أنظمة العمل والتأمينات', requiredLevel: null, currentLevel: 2, targetLevel: 4, activityType: 'course', activity: 'دورة نظام العمل السعودي ولائحته التنفيذية', provider: 'الغرفة التجارية', dueDate: `${year - 1}-10-31`, cost: 1200, hours: 18, note: null }],
+    });
+    await approve(p.id);
+    p = await this.dev.get(admin, p.id);
+    await this.dev.progress(admin, p.id, { items: p.items.map((i) => ({ id: i.id, status: 'done', achievedLevel: 4, note: 'حصلت على الشهادة' })) });
+    await this.dev.complete(admin, p.id, 'حققت الخطة مستهدفاتها');
+
+    // ---- الصف الثاني: وظائف بديلة ومرشحون، والباقي بلا بديل (علامة حمراء)
+    const j = x.jobs;
+    await this.dev.setBackup(admin, j.ceo, { backupJobId: j.programsMgr });
+    await this.dev.setBackup(admin, j.programsMgr, { backupJobId: j.projectsMgr });
+    await this.dev.setBackup(admin, j.projectsMgr, { backupJobId: j.researcher });
+    await this.dev.setBackup(admin, j.finMgr, { backupJobId: j.accountant });
+    await this.dev.addCandidate(admin, j.ceo, { employeeId: x.emps.programsE, readiness: '1y', note: 'يحتاج خبرة في الشؤون المالية والعلاقات مع المانحين' });
+    await this.dev.addCandidate(admin, j.ceo, { employeeId: x.emps.financeE, readiness: '2y', note: null });
+    await this.dev.addCandidate(admin, j.programsMgr, { employeeId: x.emps.projectsE, readiness: 'now', note: 'أدار البرامج بالإنابة خلال الإجازات' });
+    await this.dev.addCandidate(admin, j.projectsMgr, { employeeId: x.emps.researcherE, readiness: '1y', note: null });
+    await this.dev.addCandidate(admin, j.finMgr, { employeeId: x.emps.accountantE, readiness: '2y', note: null });
+    // خطة إعداد الباحثة الاجتماعية لرئاسة قسم المشاريع: معتمدة
+    p = await this.dev.create(admin, { employeeId: x.emps.researcherE, kind: 'succession', targetJobId: j.projectsMgr, year });
+    p = await this.dev.update(admin, p.id, {
+      title: p.title, goals: [...p.goals, 'إدارة مشروع واحد كاملًا تحت إشراف رئيس القسم'],
+      items: [
+        ...items(p, (i) => ({ activityType: i.name.includes('التخطيط') ? 'course' : 'project', activity: i.name.includes('التخطيط') ? 'دورة إدارة المشاريع الاحترافية (PMP)' : `قيادة مهمة تطويرية في ${i.name}`, cost: i.name.includes('التخطيط') ? 4500 : 0, hours: i.name.includes('التخطيط') ? 35 : 15 })),
+        { competencyId: null, name: 'إدارة ميزانيات المشاريع', requiredLevel: null, currentLevel: 1, targetLevel: 3, activityType: 'rotation', activity: 'تكليف مؤقت في قسم المشاريع لمدة شهرين', provider: null, dueDate: `${year}-12-31`, cost: 0, hours: 160, note: null },
+      ],
+    });
+    await approve(p.id);
   }
 }
