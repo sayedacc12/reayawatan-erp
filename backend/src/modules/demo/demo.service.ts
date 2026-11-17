@@ -6,6 +6,7 @@ import { Organization } from '../../core/entities';
 import { FileStore } from '../../core/files/file-store.service';
 import { DEMO_SLUG } from './demo-context';
 import { AccountingSeed } from './seed-accounting';
+import { AuditSeed } from './seed-audit';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
 import { HrSeed } from './seed-hr';
@@ -37,6 +38,7 @@ export class DemoService {
     private readonly risk: RiskSeed,
     private readonly volunteers: VolunteersSeed,
     private readonly quality: QualitySeed,
+    private readonly audit: AuditSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -56,13 +58,15 @@ export class DemoService {
       await this.risk.run(team);
       await this.volunteers.run(team);
       await this.quality.run(team);
+      // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
+      const auditor = await this.audit.run(team, staffPassword);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
       const supportTeam = await this.support.run(team, staffPassword);
       return {
         organization: { name: org.name, slug: org.slug },
         staffPassword,
-        staff: accounts,
+        staff: [...accounts, auditor],
         portalPassword,
         portalUsers: cases.portalUsers,
         supportTeam,
