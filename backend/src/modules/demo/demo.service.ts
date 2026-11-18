@@ -19,6 +19,7 @@ import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
 import { VolunteersSeed } from './seed-volunteers';
 import { WebsiteSeed } from './seed-website';
+import { PartnershipsSeed } from './seed-partnerships';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -45,6 +46,7 @@ export class DemoService {
     private readonly members: MembersSeed,
     private readonly website: WebsiteSeed,
     private readonly governance: GovernanceSeed,
+    private readonly partnerships: PartnershipsSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -67,6 +69,8 @@ export class DemoService {
       // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
       const auditor = await this.audit.run(team, staffPassword);
       await this.members.run(team);
+      // الشراكات قبل الموقع: الشركاء المعتمدون يظهرون في صفحة الشركاء
+      await this.partnerships.run(team);
       // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
       await this.website.run(team, tree, origin);
       // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة

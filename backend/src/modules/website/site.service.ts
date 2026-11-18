@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { KnowledgeService } from '../knowledge/knowledge.service';
+import { PartnershipsService } from '../partnerships/partnerships.service';
 import {
   AboutContent, GovernanceContent, HomeContent, MessageStatus, Partner, SITE_GATEWAYS, SiteAccounting, SitePayment, SiteSections, StoreConfig,
   WebMessage, WebNews, WebProgram, WebSettings,
@@ -39,7 +40,7 @@ const link = (v: unknown) => {
 /** إعدادات الموقع وصفحاته الثابتة، ورسائل الزوار، والبيانات العامة التي يعرضها الموقع */
 @Injectable()
 export class SiteService {
-  constructor(private readonly db: DataSource, private readonly core: WebCore, private readonly store: StoreService, private readonly knowledge: KnowledgeService) {}
+  constructor(private readonly db: DataSource, private readonly core: WebCore, private readonly store: StoreService, private readonly knowledge: KnowledgeService, private readonly partnerships: PartnershipsService) {}
 
   // ---------------- الإعدادات ----------------
 
@@ -274,7 +275,11 @@ export class SiteService {
       identity, published: s.published, sections: s.sections, seo: s.seo, footerText: s.footerText,
       home: { ...s.home, imageUrl: url(s.home.imageId), imageId: undefined },
       about: { story: s.about.story, imageUrl: url(s.about.imageId), showStructure: s.about.showStructure },
-      partners: s.sections.partners ? s.partners.map((p) => ({ name: p.name, url: p.url, kind: p.kind, logoUrl: url(p.logoId) })) : [],
+      // الشركاء المضافون يدويًا في الموقع، ثم الشركاء المعتمدون في نظام الشراكات المختارون للظهور (بلا تكرار بالاسم)
+      partners: s.sections.partners ? [
+        ...s.partners.map((p) => ({ name: p.name, url: p.url, kind: p.kind, logoUrl: url(p.logoId) })),
+        ...(await this.partnerships.websitePartners(org.id)).filter((p) => !s.partners.some((m) => m.name.trim() === p.name)).map((p) => ({ ...p, logoUrl: null })),
+      ] : [],
       programs: s.sections.programs ? programs.map((p) => this.publicProgram(p, org.slug, s)) : [],
       news: news.map((n) => ({ id: n.id, title: n.title, summary: n.summary, date: n.newsDate, ticker: n.ticker, imageUrl: url(n.imageId) })),
       store: {
