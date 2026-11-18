@@ -94,7 +94,7 @@ export class GovSignals {
     const out: Record<string, Signal> = {};
     const set = (k: string, status: SignalStatus, text: string, source: string) => { out[k] = { status, text, source }; };
     const t = await this.tables(['acc_settings', 'acc_entries', 'hr_units', 'hr_jobs', 'hr_employees', 'audit_plans', 'audit_engagements', 'mem_members', 'mem_settings',
-      'quality_complaints', 'quality_surveys', 'quality_documents', 'risk_register', 'beneficiaries', 'beneficiary_aids', 'acc_vouchers', 'hr_policy_versions']);
+      'quality_complaints', 'quality_surveys', 'quality_documents', 'risk_register', 'beneficiaries', 'beneficiary_aids', 'acc_vouchers', 'hr_policy_versions', 'mtg_meetings']);
 
     // ---- النظام المالي
     if (t.has('acc_settings')) {
@@ -197,6 +197,22 @@ export class GovSignals {
       const need = Math.min(def.need, due.length);
       const status: SignalStatus = done.length >= need && !late.length ? 'met' : done.length ? 'partial' : 'missing';
       set(key, status, `${def.title}: أُنجز ${done.length} من ${due.length} موعداً مستحقاً${late.length ? `، منها ${late.length} بعد الموعد` : ''}`, 'تقويم الالتزامات');
+    }
+
+    // ---- نظام الاجتماعات: الاجتماعات المنعقدة فعلًا خلال السنة الأخيرة (حين لا يكفي تقويم الالتزامات)
+    if (t.has('mtg_meetings')) {
+      const [mt] = await this.db.query(
+        `SELECT COUNT(*) FILTER (WHERE kind = 'board')::int AS board, COUNT(*) FILTER (WHERE kind = 'board' AND status = 'adopted')::int AS board_adopted,
+                COUNT(*) FILTER (WHERE kind = 'general_assembly' AND meeting_type = 'ordinary')::int AS ga
+           FROM mtg_meetings WHERE organization_id = $1 AND status IN ('held','signing','adopted') AND meeting_date > $2 AND meeting_date <= $3`, [org, addDays(at, -365), at]);
+      const fromMeetings = (key: string, n: number, need: number, text: string) => {
+        if (out[key] && out[key].status === 'met') return;
+        if (n) set(key, n >= need ? 'met' : 'partial', text, 'الاجتماعات واللجان');
+      };
+      for (const k of ['gov.board_meetings', 'gov.board_regular']) {
+        fromMeetings(k, mt.board, 4, `انعقد ${mt.board} اجتماعًا لمجلس الإدارة خلال السنة الأخيرة (${mt.board_adopted} بمحضر معتمد)`);
+      }
+      for (const k of ['members.ga_ordinary', 'members.ga_meeting']) fromMeetings(k, mt.ga, 1, `انعقد ${mt.ga} اجتماع عادي للجمعية العمومية خلال السنة الأخيرة`);
     }
 
     // ---- البيانات النظامية للجمعية (من الإعدادات)
