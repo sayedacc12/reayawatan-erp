@@ -264,6 +264,28 @@ describe('Demo association across all modules', () => {
     expect(asm.pending.length).toBeGreaterThan(0);
   });
 
+  it('governance: approved mock assessment, a quarterly draft, ledger-based financial indicators, alerts and an improvement plan', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/governance/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.current.status).toBe('draft');
+    expect(d.score.coverage).toBeGreaterThan(80);
+    expect(d.score.coverage).toBeLessThan(100);
+    expect(d.score.overall).toBeGreaterThan(50);
+    expect(d.history.filter((h: { status: string }) => h.status === 'approved')).toHaveLength(1);
+    expect(d.finance.forecast).toBeGreaterThan(40);
+    expect(d.finance.indicators).toHaveLength(5);
+    expect(d.opportunities.length).toBeGreaterThan(0);
+    expect(d.actions.done).toBe(1);
+    expect(d.actions.overdue).toBe(1);
+    const al = (await http.get('/api/governance/alerts').set(as(admin)).expect(200)).body as { items: { key: string; level: string }[] };
+    expect(al.items.some((x) => x.key === 'fact:license')).toBe(true);
+    expect(al.items.some((x) => x.key.startsWith('obl:') && x.level === 'critical')).toBe(true);
+    const all = (await http.get('/api/governance/alerts?all=1').set(as(admin)).expect(200)).body as { items: { acked?: unknown }[] };
+    expect(all.items.length).toBeGreaterThan(al.items.length);
+    const obl = (await http.get('/api/governance/obligations').set(as(admin)).expect(200)).body as { doneDate: string | null }[];
+    expect(obl.length).toBe(34);
+  });
+
   it('accounting: unified chart, approved and pending vouchers, a balanced trial balance', async () => {
     const finance = await staff('finance');
     const accounts = await http.get('/api/accounting/accounts').set(as(finance)).expect(200);

@@ -9,6 +9,7 @@ import { AccountingSeed } from './seed-accounting';
 import { AuditSeed } from './seed-audit';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
+import { GovernanceSeed } from './seed-governance';
 import { HrSeed } from './seed-hr';
 import { MembersSeed } from './seed-members';
 import { PlatformSeed } from './seed-platform';
@@ -45,6 +46,7 @@ export class DemoService {
     private readonly audit: AuditSeed,
     private readonly members: MembersSeed,
     private readonly website: WebsiteSeed,
+    private readonly governance: GovernanceSeed,
     private readonly comms: CommsSeed,
     private readonly meetings: MeetingsSeed,
   ) {}
@@ -75,6 +77,8 @@ export class DemoService {
       await this.meetings.run(commsTeam, staffPassword, origin);
       // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
       await this.website.run(team, tree, origin);
+      // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
+      await this.governance.run(team);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
       const supportTeam = await this.support.run(team, staffPassword);
