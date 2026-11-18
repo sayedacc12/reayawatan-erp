@@ -12,6 +12,7 @@ import { QUALITY_PERMISSIONS } from '../quality/quality.manifest';
 import { GOV_PERMISSIONS } from '../governance/governance.manifest';
 import { KNOWLEDGE_PERMISSIONS } from '../knowledge/knowledge.manifest';
 import { WEBSITE_PERMISSIONS } from '../website/website.manifest';
+import { PARTNERSHIP_PERMISSIONS } from '../partnerships/partnerships.manifest';
 import { COMMS_PERMISSIONS } from '../comms/comms.manifest';
 import { MEETINGS_PERMISSIONS } from '../meetings/meetings.manifest';
 
@@ -26,7 +27,7 @@ export const ALL_PERMISSIONS = [
   ...Object.values(BENEFICIARY_PERMISSIONS), ...Object.values(FUNDRAISING_PERMISSIONS), ...Object.values(PROJECT_PERMISSIONS),
   ...Object.values(ACC_PERMISSIONS), ...Object.values(HR_PERMISSIONS), ...Object.values(RISK_PERMISSIONS), ...Object.values(VOL_PERMISSIONS), ...Object.values(QUALITY_PERMISSIONS), ...Object.values(AUDIT_PERMISSIONS), ...Object.values(MEMBER_PERMISSIONS),
   ...Object.values(GOV_PERMISSIONS),
-  ...Object.values(KNOWLEDGE_PERMISSIONS), ...Object.values(WEBSITE_PERMISSIONS), ...Object.values(COMMS_PERMISSIONS), ...Object.values(MEETINGS_PERMISSIONS),
+  ...Object.values(KNOWLEDGE_PERMISSIONS), ...Object.values(WEBSITE_PERMISSIONS), ...Object.values(COMMS_PERMISSIONS), ...Object.values(MEETINGS_PERMISSIONS), ...Object.values(PARTNERSHIP_PERMISSIONS),
 ];
 
 /** مستخدم تجريبي بصيغة المستخدم الحالي، لتنفيذ العمليات عبر خدمات الوحدات كما لو نفذها بنفسه */

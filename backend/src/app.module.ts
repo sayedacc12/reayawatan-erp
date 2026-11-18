@@ -20,6 +20,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { MembersModule } from './modules/members/members.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { WebsiteModule } from './modules/website/website.module';
+import { PartnershipsModule } from './modules/partnerships/partnerships.module';
 import { CommsModule } from './modules/comms/comms.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { DemoModule } from './modules/demo/demo.module';
@@ -47,6 +48,7 @@ import { HealthController } from './health.controller';
     AuditModule,
     MembersModule,
     KnowledgeModule,
+    PartnershipsModule,
     WebsiteModule,
     CommsModule,
     MeetingsModule,

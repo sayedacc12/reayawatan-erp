@@ -19,6 +19,7 @@ import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
 import { VolunteersSeed } from './seed-volunteers';
 import { WebsiteSeed } from './seed-website';
+import { PartnershipsSeed } from './seed-partnerships';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
 
@@ -47,6 +48,7 @@ export class DemoService {
     private readonly members: MembersSeed,
     private readonly website: WebsiteSeed,
     private readonly governance: GovernanceSeed,
+    private readonly partnerships: PartnershipsSeed,
     private readonly comms: CommsSeed,
     private readonly meetings: MeetingsSeed,
   ) {}
@@ -71,6 +73,8 @@ export class DemoService {
       // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
       const auditor = await this.audit.run(team, staffPassword);
       await this.members.run(team);
+      // الشراكات قبل الموقع: الشركاء المعتمدون يظهرون في صفحة الشركاء
+      await this.partnerships.run(team);
       // الاتصالات الإدارية والمهام، ثم الاجتماعات (الجمعية العمومية من أعضاء العضوية، والتوصيات تتحول إلى مهام)
       const commsTeam = await this.comms.grant(team);
       await this.comms.run(commsTeam);
