@@ -2,8 +2,12 @@
 /** عرض نص العقد النهائي: بنود مرقمة بالترتيب العربي وفقرات مرقمة داخل كل بند */
 defineProps<{
   number: string;
-  rendered: { title: string; paragraphs: string[] }[];
+  rendered: { title: string; paragraphs: string[]; category?: string }[];
   hash?: string | null;
+  /** عنوان الوثيقة (الافتراضي: عقد الاشتراك في المنصة) */
+  heading?: string;
+  /** سطر تحت رقم العقد (مثل الإصدار والأطراف) */
+  sub?: string | null;
   signature?: { name: string | null; title: string | null; at: string | null } | null;
 }>();
 const ORD = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر',
@@ -18,10 +22,12 @@ const at = (d: string | null) => (d ? new Date(d).toLocaleString('ar-SA-u-ca-gre
       <div class="seal" aria-hidden="true">
         <svg viewBox="0 0 48 48"><path d="M24 4c3 6 3 12 0 18-3-6-3-12 0-18Zm0 18c5-4 11-5 16-3-4 5-10 7-16 3Zm0 0c-5-4-11-5-16-3 4 5 10 7 16 3Zm0 6c5-4 11-5 16-3-4 5-10 7-16 3Zm0 0c-5-4-11-5-16-3 4 5 10 7 16 3Zm0 0v16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </div>
-      <h1>عقد اشتراك في منصة سنابل</h1>
+      <h1>{{ heading ?? 'عقد اشتراك في منصة سنابل' }}</h1>
       <p>رقم العقد <b dir="ltr">{{ number }}</b></p>
+      <p v-if="sub" class="sub">{{ sub }}</p>
     </header>
     <section v-for="(c, i) in rendered" :key="i" class="clause" :style="{ '--i': i }">
+      <h3 v-if="c.category && c.category !== rendered[i - 1]?.category" class="cat">{{ c.category }}</h3>
       <h2><span class="ord">البند {{ ord(i) }}</span> {{ c.title }}</h2>
       <ol v-if="c.paragraphs.length > 1">
         <li v-for="(p, j) in c.paragraphs" :key="j"><span class="pn">{{ i + 1 }}.{{ j + 1 }}</span> {{ p }}</li>
@@ -49,6 +55,9 @@ const at = (d: string | null) => (d ? new Date(d).toLocaleString('ar-SA-u-ca-gre
 .doc-head p { margin: 4px 0 0; color: #7a6a48; }
 .clause { margin-bottom: 14px; animation: c-in .4s ease both; animation-delay: calc(min(var(--i), 12) * 35ms); }
 @keyframes c-in { from { opacity: 0; transform: translateY(6px); } }
+.sub { font-size: .9rem; }
+.cat { font-size: .82rem; color: #b07d1e; letter-spacing: .3px; margin: 18px 0 8px; display: flex; align-items: center; gap: 10px; }
+.cat::before, .cat::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #e2d3b0, transparent); }
 .clause h2 { font-size: 1.02rem; color: #0f5c55; margin-bottom: 4px; }
 .ord { color: #b07d1e; margin-inline-end: 6px; }
 .clause ol { list-style: none; padding: 0; margin: 0; }
