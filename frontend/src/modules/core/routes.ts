@@ -2,6 +2,11 @@ import type { RouteRecordRaw } from 'vue-router';
 
 export const coreRoutes: RouteRecordRaw[] = [
   {
+    path: '/settings/identity',
+    component: () => import('./views/IdentityView.vue'),
+    meta: { permission: 'core.identity.manage', title: 'هوية الجمعية', app: 'core' },
+  },
+  {
     path: '/settings/users',
     component: () => import('./views/UsersView.vue'),
     meta: { permission: 'core.users.read', title: 'المستخدمون', app: 'core' },

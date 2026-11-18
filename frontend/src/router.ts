@@ -8,6 +8,7 @@ import { membersPublicRoutes } from './modules/members/routes';
 
 export const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior: (to, from, saved) => saved ?? (to.path !== from.path ? { top: 0 } : undefined),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
     // صفحة دخول موظفي كل جمعية
@@ -22,6 +23,29 @@ export const router = createRouter({
     { path: '/survey/:token', component: () => import('./views/PublicSurveyView.vue'), meta: { open: true, title: 'استبانة رضا' } },
     // صفحات عضوية الجمعية العمومية العامة: التقديم والسداد والتحقق من البطاقة
     ...membersPublicRoutes,
+    // الموقع الإلكتروني العام لكل جمعية بهويتها، مع المتجر والإيصالات
+    {
+      path: '/w/:slug',
+      component: () => import('./site/SiteShell.vue'),
+      meta: { open: true },
+      children: [
+        { path: '', component: () => import('./site/pages/SiteHome.vue'), meta: { open: true } },
+        { path: 'about', component: () => import('./site/pages/SiteAbout.vue'), meta: { open: true, title: 'من نحن' } },
+        { path: 'programs', component: () => import('./site/pages/SitePrograms.vue'), meta: { open: true, title: 'برامجنا' } },
+        { path: 'programs/:pslug', component: () => import('./site/pages/SiteProgram.vue'), meta: { open: true, title: 'برنامج' } },
+        { path: 'news', component: () => import('./site/pages/SiteNews.vue'), meta: { open: true, title: 'الأخبار' } },
+        { path: 'news/:id', component: () => import('./site/pages/SiteNewsItem.vue'), meta: { open: true, title: 'خبر' } },
+        { path: 'governance', component: () => import('./site/pages/SiteGovernance.vue'), meta: { open: true, title: 'الحوكمة والشفافية' } },
+        { path: 'partners', component: () => import('./site/pages/SitePartners.vue'), meta: { open: true, title: 'شركاؤنا' } },
+        { path: 'contact', component: () => import('./site/pages/SiteContact.vue'), meta: { open: true, title: 'تواصل معنا' } },
+        { path: 'donate', component: () => import('./site/pages/SiteDonate.vue'), meta: { open: true, title: 'تبرع الآن' } },
+        { path: 'pay/:token', component: () => import('./site/pages/SitePay.vue'), meta: { open: true, title: 'إتمام الدفع' } },
+        { path: 'receipt/:token', component: () => import('./site/pages/SiteReceipt.vue'), meta: { open: true, title: 'إيصال التبرع' } },
+        { path: 'verify', component: () => import('./site/pages/SiteVerify.vue'), meta: { open: true, title: 'التحقق من إيصال' } },
+        { path: 'search', component: () => import('./site/pages/SiteSearch.vue'), meta: { open: true, title: 'البحث' } },
+        { path: 'documents/:id', component: () => import('./site/pages/SiteDocument.vue'), meta: { open: true, title: 'وثيقة' } },
+      ],
+    },
     // بوابة المستفيدين: مستقلة عن دخول الموظفين
     {
       path: '/portal/:slug',
@@ -70,5 +94,7 @@ router.beforeEach(async (to) => {
 });
 
 router.afterEach((to) => {
+  // الموقع العام يضبط عنوانه باسم الجمعية
+  if (to.path.startsWith('/w/')) return;
   document.title = to.meta.title ? `${to.meta.title} · سنابل` : 'سنابل · منصة إدارة الجمعيات';
 });

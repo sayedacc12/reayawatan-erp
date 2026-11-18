@@ -8,11 +8,11 @@ import { INSTALLED_MODULES } from '../src/platform/module-registry';
 
 // وحدة اختيارية وهمية لاختبار التفعيل لكل جمعية (مثل بوابة الموقع والتبرعات مستقبلًا)
 INSTALLED_MODULES.push({
-  code: 'website',
-  name: 'الموقع الإلكتروني',
+  code: 'sampleopt',
+  name: 'وحدة اختيارية تجريبية',
   version: '0.0.1',
-  permissions: [{ code: 'website.pages.manage', name: 'إدارة الصفحات' }],
-  menu: [{ label: 'الصفحات', path: '/website/pages', permission: 'website.pages.manage' }],
+  permissions: [{ code: 'sampleopt.pages.manage', name: 'إدارة الصفحات' }],
+  menu: [{ label: 'الصفحات', path: '/sampleopt/pages', permission: 'sampleopt.pages.manage' }],
 });
 
 /**
@@ -111,50 +111,50 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     expect(res.body.user.organizationName).toBe('جمعية البر');
     expect(res.body.user.permissions).toContain('core.roles.manage');
     expect(res.body.user.permissions).not.toContain('platform.organizations.manage');
-    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'risk', 'volunteers', 'quality', 'audit', 'members', 'core']);
+    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'risk', 'volunteers', 'quality', 'audit', 'members', 'knowledge', 'website', 'core']);
     await http.get('/api/platform/organizations').set(as(adminToken)).expect(403);
 
     const mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'risk', 'volunteers', 'quality', 'audit', 'members', 'core']);
+    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'risk', 'volunteers', 'quality', 'audit', 'members', 'knowledge', 'website', 'core']);
     await http.post('/api/roles').set(as(adminToken))
       .send({ name: 'تصعيد', permissions: ['platform.organizations.manage'] }).expect(400);
   });
 
   it('enables optional modules per association', async () => {
     const opt = await http.get('/api/platform/modules').set(as(platformToken)).expect(200);
-    expect(opt.body.map((m: { code: string }) => m.code)).toEqual(['website']);
+    expect(opt.body.map((m: { code: string }) => m.code)).toEqual(['sampleopt']);
 
     // disabled by default: not in matrix, not grantable, not in admin perms
     let mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'risk', 'volunteers', 'quality', 'audit', 'members', 'core']);
+    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'risk', 'volunteers', 'quality', 'audit', 'members', 'knowledge', 'website', 'core']);
     await http.post('/api/roles').set(as(adminToken))
-      .send({ name: 'محرر الموقع', permissions: ['website.pages.manage'] }).expect(400);
+      .send({ name: 'محرر الموقع', permissions: ['sampleopt.pages.manage'] }).expect(400);
 
     const orgA = (await http.get('/api/platform/organizations').set(as(platformToken))).body
       .find((o: { slug: string }) => o.slug === 'al-bir');
     await http.put(`/api/platform/organizations/${orgA.id}/modules`).set(as(platformToken))
       .send({ modules: ['core'] }).expect(400);
     const upd = await http.put(`/api/platform/organizations/${orgA.id}/modules`).set(as(platformToken))
-      .send({ modules: ['website'] }).expect(200);
-    expect(upd.body.modules).toEqual(['website']);
+      .send({ modules: ['sampleopt'] }).expect(200);
+    expect(upd.body.modules).toEqual(['sampleopt']);
 
     mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'audit', 'beneficiaries', 'core', 'fundraising', 'hr', 'members', 'projects', 'quality', 'risk', 'volunteers', 'website']);
+    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'audit', 'beneficiaries', 'core', 'fundraising', 'hr', 'members', 'projects', 'knowledge', 'quality', 'risk', 'sampleopt', 'volunteers', 'website']);
     const me = await http.get('/api/auth/me').set(as(adminToken)).expect(200);
-    expect(me.body.user.permissions).toContain('website.pages.manage');
+    expect(me.body.user.permissions).toContain('sampleopt.pages.manage');
     await http.post('/api/roles').set(as(adminToken))
-      .send({ name: 'محرر الموقع', permissions: ['website.pages.manage'] }).expect(201);
+      .send({ name: 'محرر الموقع', permissions: ['sampleopt.pages.manage'] }).expect(201);
 
     // the other association does not get it
     const bToken = (await login('admin@b.org', 'AdminB1234', 'al-khair').expect(200)).body.accessToken;
     const bMe = await http.get('/api/auth/me').set(as(bToken)).expect(200);
-    expect(bMe.body.user.permissions).not.toContain('website.pages.manage');
+    expect(bMe.body.user.permissions).not.toContain('sampleopt.pages.manage');
 
     // disabling removes the permission immediately even though the role still lists it
     await http.put(`/api/platform/organizations/${orgA.id}/modules`).set(as(platformToken))
       .send({ modules: [] }).expect(200);
     const after = await http.get('/api/auth/me').set(as(adminToken)).expect(200);
-    expect(after.body.user.permissions).not.toContain('website.pages.manage');
+    expect(after.body.user.permissions).not.toContain('sampleopt.pages.manage');
   });
 
   it('isolates data between associations', async () => {
