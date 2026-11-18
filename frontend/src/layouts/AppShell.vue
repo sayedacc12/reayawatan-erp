@@ -7,6 +7,7 @@ import TasksBell from '../components/TasksBell.vue';
 import { ess, loadSummary, resetEss } from '../modules/hr/self/ess';
 import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
 import { loginPath, useSession } from '../stores/session';
+import { clearIdentity, loadIdentity, orgLogo } from '../site/identity';
 
 const session = useSession();
 const route = useRoute();
@@ -34,6 +35,9 @@ const menu = computed(() => {
 });
 watch(() => currentApp.value?.code, (c) => { if (c === 'accounting' && session.can(ACC.read)) loadDocTypes(); }, { immediate: true });
 
+// هوية الجمعية (الشعار والألوان) إن اختارت تطبيقها داخل النظام
+watch(() => session.user?.organizationId, (o) => (o ? loadIdentity() : clearIdentity()), { immediate: true });
+
 /** الخدمة الذاتية: تظهر لمستخدمي الجمعيات المربوطين بملف موظف */
 const isOrgUser = computed(() => !!session.user?.organizationId);
 watch(() => session.user?.id, (id) => {
@@ -43,6 +47,7 @@ watch(() => session.user?.id, (id) => {
 const inSelf = computed(() => route.path === '/me' || route.path.startsWith('/me/'));
 
 function logout() {
+  clearIdentity();
   resetEss();
   session.logout();
   router.push(loginPath());
@@ -54,7 +59,8 @@ function logout() {
     <header class="topbar">
       <div class="topbar-start">
         <RouterLink to="/" class="home-link" title="كل التطبيقات">
-          <BrandMark :size="32" />
+          <img v-if="orgLogo" :src="orgLogo" class="org-logo" alt="" />
+          <BrandMark v-else :size="32" />
           <span class="product">سنابل</span>
           <span class="org-name">{{ session.user?.organizationName ?? 'إدارة المنصة' }}</span>
         </RouterLink>
@@ -122,6 +128,7 @@ function logout() {
 @keyframes line { to { background-position: 200% 0; } }
 .topbar-start { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .home-link { color: #fff; display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
+.org-logo { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; background: rgba(255,255,255,.08); padding: 2px; }
 .product { font-size: 1.15rem; background: linear-gradient(90deg, #fff, #a7f3e9 60%, #f5c66b); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .org-name { font-weight: 500; color: rgba(255,255,255,.75); border-inline-start: 1px solid rgba(255,255,255,.25); padding-inline-start: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 .apps-btn { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.85); padding: 6px 12px; border-radius: 10px;

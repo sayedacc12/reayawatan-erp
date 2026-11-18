@@ -10,6 +10,8 @@ import { PermissionResolver } from './auth/permission-resolver.service';
 import { BootstrapService } from './bootstrap.service';
 import { CORE_ENTITIES } from './entities';
 import { FileStore } from './files/file-store.service';
+import { IdentityController, PublicIdentityController } from './identity/identity.controller';
+import { IdentityService } from './identity/identity.service';
 import { LookupsController } from './lookups/lookups.controller';
 import { LookupsService } from './lookups/lookups.service';
 import { ApplicationsService } from './subscriptions/applications.service';
@@ -50,13 +52,13 @@ import { UsersService } from './users/users.service';
   ],
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
-    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController,
+    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService],
+  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],
 })
 export class CoreModule {}
