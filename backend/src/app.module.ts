@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { dataSourceOptions } from './config/data-source';
 import { CoreModule } from './core/core.module';
 import { ReportsModule } from './core/reports/reports.module';
+import { TasksModule } from './core/tasks/tasks.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -27,6 +28,7 @@ import { HealthController } from './health.controller';
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
     ReportsModule,
+    TasksModule,
     CoreModule,
     BeneficiariesModule,
     FundraisingModule,

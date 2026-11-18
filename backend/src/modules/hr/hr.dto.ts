@@ -291,6 +291,10 @@ export class EmployeeDto {
   @Nullable() @IsUUID()
   managerId?: string | null;
 
+  /** حساب الدخول المربوط (للخدمة الذاتية). غير مرسل = يبقى كما هو، null = فك الربط */
+  @Nullable() @IsUUID('4', { message: 'حساب الدخول غير صحيح' })
+  userId?: string | null;
+
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(30)
   step?: number;
 
@@ -498,6 +502,9 @@ export class PayrollConfigDto {
 
   @Nullable() @IsUUID()
   deductionsAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  advancesAccountId?: string | null;
 
   @Nullable() @IsUUID()
   defaultCashAccountId?: string | null;

@@ -3,7 +3,27 @@ import { P } from './lib';
 
 const meta = (title: string, permission: string = P.read) => ({ permission, title, app: 'hr' });
 
+const ess = (title: string) => ({ title, layoutKey: 'ess' });
+
 export const hrRoutes: RouteRecordRaw[] = [
+  // الخدمة الذاتية: متاحة لكل موظف مربوط حسابه بملفه، بلا صلاحية خاصة
+  {
+    path: '/me',
+    component: () => import('./self/SelfLayout.vue'),
+    children: [
+      { path: '', component: () => import('./self/MyDashboard.vue'), meta: ess('لوحتي') },
+      { path: 'new', component: () => import('./self/NewRequest.vue'), meta: ess('طلب جديد') },
+      { path: 'new/:typeId', component: () => import('./self/NewRequest.vue'), props: true, meta: ess('طلب جديد') },
+      { path: 'requests', component: () => import('./self/RequestsList.vue'), meta: ess('طلباتي') },
+      { path: 'requests/:id', component: () => import('./self/RequestDetail.vue'), props: true, meta: ess('تفاصيل الطلب') },
+      { path: 'requests/:id/letter', component: () => import('./self/LetterView.vue'), props: true, meta: ess('الخطاب') },
+      { path: 'approvals', component: () => import('./self/ApprovalsView.vue'), meta: ess('بانتظار اعتمادي') },
+      { path: 'manager', component: () => import('./self/ManagerDashboard.vue'), meta: ess('لوحة المدير') },
+      { path: 'team', component: () => import('./self/TeamView.vue'), meta: ess('فريقي') },
+      { path: 'team/:id', component: () => import('./self/MemberView.vue'), props: true, meta: ess('موظف من فريقي') },
+    ],
+  },
+  { path: '/hr/requests', component: () => import('./views/RequestsAdminView.vue'), meta: meta('طلبات الموظفين', P.requests) },
   { path: '/hr', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة الموارد البشرية') },
   { path: '/hr/employees', component: () => import('./views/EmployeesView.vue'), meta: meta('الموظفون') },
   { path: '/hr/employees/:id', component: () => import('./views/EmployeeView.vue'), props: true, meta: meta('ملف الموظف') },

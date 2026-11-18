@@ -7,7 +7,7 @@ import { EntriesService } from '../accounting/entries.service';
 import { VouchersService, VOUCHER_STATUS_AR } from '../accounting/vouchers.service';
 import { AttendanceService } from './attendance.service';
 import {
-  HrAllowanceType, HrEmployee, HrExpenseProfile, HrJob, HrLeaveRequest, HrPayrollRun, HrSettings, HrUnit, PayrollConfig, PayrollRunStatus, RunHistory, RunLine,
+  HrAdvanceRepayment, HrAllowanceType, HrEmployee, HrExpenseProfile, HrJob, HrLeaveRequest, HrPayrollRun, HrSettings, HrUnit, PayrollConfig, PayrollRunStatus, RunHistory, RunLine,
 } from './entities/hr.entity';
 import { AllowanceTypeDto, ExpenseProfileDto, PayrollConfigDto, RunDecisionDto, RunLineDto, RunVouchersDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
@@ -15,6 +15,7 @@ import { HR_PERMISSIONS as P } from './hr.manifest';
 import { daysBetween, gosi, HrPolicy, round2 } from './hr-policy';
 import { partsOf } from './org.service';
 import { lastDay, MONTH, overlapDays } from './people.service';
+import { RequestsService } from './requests.service';
 
 export const RUN_STATUS_AR: Record<PayrollRunStatus, string> = {
   draft: 'قيد الإعداد', pending: 'قيد الاعتماد', returned: 'معاد للتعديل', approved: 'معتمد', cancelled: 'ملغي',
@@ -27,7 +28,7 @@ const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ما
 export const monthLabel = (m: string) => `${MONTHS_AR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 
 const EMPTY_CONFIG: PayrollConfig = {
-  payableAccountId: null, gosiPayableAccountId: null, deductionsAccountId: null, defaultCashAccountId: null, stages: [],
+  payableAccountId: null, gosiPayableAccountId: null, deductionsAccountId: null, advancesAccountId: null, defaultCashAccountId: null, stages: [],
 };
 
 /** يخصم مبلغًا من بنود الراتب: من الأساسي أولًا ثم باقي البنود بالترتيب */
@@ -53,7 +54,7 @@ export function allocateLine(l: RunLine) {
   const parts = [...merged].map(([code, amount]) => ({ code, amount }));
   const attendance = round2(l.unpaidDeduction + l.absenceDeduction + l.lateDeduction);
   const expense = deductFrom(parts, attendance);
-  const payable = deductFrom(expense, round2(l.gosiEmployee + l.otherDeduction));
+  const payable = deductFrom(expense, round2(l.gosiEmployee + l.otherDeduction + (l.advanceDeduction ?? 0)));
   return expense.map((e, i) => ({ code: e.code, expense: e.amount, payable: payable[i].amount }));
 }
 
@@ -70,7 +71,15 @@ export function computeLine(l: RunLine, policy: HrPolicy): RunLine {
   const scale = raw > earned && raw > 0 ? earned / raw : 1;
   const out = { ...l, earned, unpaidDeduction: round2(unpaidDeduction * scale), absenceDeduction: round2(absenceDeduction * scale), lateDeduction: round2(lateDeduction * scale) };
   const attendance = round2(out.unpaidDeduction + out.absenceDeduction + out.lateDeduction);
-  out.totalDeductions = round2(attendance + l.gosiEmployee + l.otherDeduction);
+  // أقساط السلف لا تتجاوز ما يتبقى من الراتب بعد الاستقطاعات الأخرى، ويُرحَّل الباقي للأشهر التالية
+  let room = Math.max(0, round2(earned - attendance - l.gosiEmployee - l.otherDeduction));
+  out.advances = (l.advances ?? []).map((a) => {
+    const amount = round2(Math.min(a.amount, room));
+    room = round2(room - amount);
+    return { advanceId: a.advanceId, amount };
+  }).filter((a) => a.amount > 0);
+  out.advanceDeduction = round2(out.advances.reduce((s, a) => s + a.amount, 0));
+  out.totalDeductions = round2(attendance + l.gosiEmployee + l.otherDeduction + out.advanceDeduction);
   out.net = round2(earned - out.totalDeductions);
   out.employerCost = round2(earned - attendance + l.gosiEmployer);
   return out;
@@ -81,7 +90,7 @@ function totalsOf(lines: RunLine[]) {
   return {
     employees: lines.length, gross: sum((l) => l.earned), additions: sum((l) => l.additions.reduce((s, a) => s + a.amount, 0)),
     unpaidDeduction: sum((l) => l.unpaidDeduction), absenceDeduction: sum((l) => l.absenceDeduction), lateDeduction: sum((l) => l.lateDeduction),
-    gosiEmployee: sum((l) => l.gosiEmployee), gosiEmployer: sum((l) => l.gosiEmployer), otherDeduction: sum((l) => l.otherDeduction),
+    gosiEmployee: sum((l) => l.gosiEmployee), gosiEmployer: sum((l) => l.gosiEmployer), otherDeduction: sum((l) => l.otherDeduction), advanceDeduction: sum((l) => l.advanceDeduction ?? 0),
     totalDeductions: sum((l) => l.totalDeductions), net: sum((l) => l.net), employerCost: sum((l) => l.employerCost),
     missingIban: lines.filter((l) => !l.iban && l.net > 0).length,
   };
@@ -103,6 +112,7 @@ export class PayrollService {
     private readonly accCore: AccCore,
     private readonly entries: EntriesService,
     private readonly vouchers: VouchersService,
+    private readonly requests: RequestsService,
   ) {}
 
   // ---------------- بنود الراتب ----------------
@@ -194,6 +204,7 @@ export class PayrollService {
       { id: dto.payableAccountId, label: 'الرواتب المستحقة', nature: ['liabilities'] },
       { id: dto.gosiPayableAccountId, label: 'التأمينات المستحقة', nature: ['liabilities'] },
       { id: dto.deductionsAccountId, label: 'حساب الاستقطاعات' },
+      { id: dto.advancesAccountId, label: 'حساب سلف الموظفين' },
     ]);
     await this.assertCash(org, dto.defaultCashAccountId, 'البنك الافتراضي');
     if (dto.stages.length) {
@@ -203,7 +214,7 @@ export class PayrollService {
     }
     const config: PayrollConfig = {
       payableAccountId: dto.payableAccountId ?? null, gosiPayableAccountId: dto.gosiPayableAccountId ?? null,
-      deductionsAccountId: dto.deductionsAccountId ?? null, defaultCashAccountId: dto.defaultCashAccountId ?? null,
+      deductionsAccountId: dto.deductionsAccountId ?? null, advancesAccountId: dto.advancesAccountId ?? null, defaultCashAccountId: dto.defaultCashAccountId ?? null,
       stages: dto.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? null })),
     };
     await this.core.settings(org);
@@ -299,6 +310,7 @@ export class PayrollService {
       .where('l.organization_id = :org AND l.status = :s', { org, s: 'approved' }).andWhere('l.leave_type IN (:...codes)', { codes: unpaidCodes })
       .andWhere('l.start_date <= :end AND l.end_date >= :start', { start, end }).getMany() : [];
     const att = await this.attendance.compute(org, month, employees);
+    const due = await this.requests.dueInstallments(org, month);
     const warnings: string[] = [];
     if (att.cfg.enabled && !att.coverageEnd) warnings.push('لا توجد بصمات حضور لهذا الشهر، فلم يُخصم غياب أو تأخير');
     else if (att.cfg.enabled && att.coverageEnd && att.coverageEnd < end) warnings.push(`بيانات الحضور واصلة حتى ${att.coverageEnd}، وما بعده لا يُحتسب غيابًا`);
@@ -326,6 +338,7 @@ export class PayrollService {
         items, gross, workedDays: Math.min(worked, monthDays), ratio, dailyWage, unpaidDays, unpaidDeduction: round2(unpaidDays * dailyWage),
         attendance, absenceDeduction: 0, lateDeduction: 0,
         additions: old?.additions ?? [], otherDeduction: old?.otherDeduction ?? 0, otherDeductionNote: old?.otherDeductionNote ?? null,
+        advances: e.terminationDate && e.terminationDate < start ? [] : due.get(e.id) ?? [], advanceDeduction: 0,
         earned: 0, gosiEmployee: round2(g.employee.total * Math.min(ratio, 1)), gosiEmployer: round2(g.employer.total * Math.min(ratio, 1)),
         totalDeductions: 0, net: 0, employerCost: 0,
       }, policy);
@@ -464,6 +477,8 @@ export class PayrollService {
     const totals = totalsOf(r.lines);
     if (totals.gosiEmployee + totals.gosiEmployer > 0 && !cfg.gosiPayableAccountId) problems.add('حساب التأمينات المستحقة');
     if (totals.otherDeduction > 0 && !cfg.deductionsAccountId) problems.add('حساب الاستقطاعات');
+    const advancesAccount = cfg.advancesAccountId ?? cfg.deductionsAccountId;
+    if (totals.advanceDeduction > 0 && !advancesAccount) problems.add('حساب سلف الموظفين (أو حساب الاستقطاعات)');
     const lines = new Map<string, LineDto & { analyticId: string | null }>();
     const add = (side: 'debit' | 'credit', accountId: string, amount: number, analyticId: string | null, label: string) => {
       if (amount <= 0) return;
@@ -516,6 +531,7 @@ export class PayrollService {
       }
       if (cfg.gosiPayableAccountId) add('credit', cfg.gosiPayableAccountId, round2(l.gosiEmployee + l.gosiEmployer), analyticId, 'التأمينات الاجتماعية المستحقة');
       if (cfg.deductionsAccountId) add('credit', cfg.deductionsAccountId, l.otherDeduction, analyticId, 'استقطاعات من الرواتب');
+      if (advancesAccount) add('credit', advancesAccount, l.advanceDeduction ?? 0, analyticId, 'أقساط سلف الموظفين');
     }
     vouchers.forEach((v) => {
       v.employees = banks.get(v.cashAccountId)?.size ?? 0;
@@ -605,6 +621,9 @@ export class PayrollService {
     const entry = await this.entries.createSystemEntry(em, actor, year, 'journal', {
       documentDate: date, description: `استحقاق رواتب شهر ${monthLabel(r.month)} (${r.lines.length} موظفًا) من مسير الرواتب`,
     }, clean);
+    // أقساط السلف المستردة بهذا الكشف
+    const reps = r.lines.flatMap((l) => (l.advances ?? []).filter((a) => a.amount > 0).map((a) => ({ organizationId: org, advanceId: a.advanceId, runId: r.id, month: r.month, amount: a.amount })));
+    if (reps.length) await em.getRepository(HrAdvanceRepayment).insert(reps);
     await em.getRepository(HrPayrollRun).update({ id: r.id }, {
       status: 'approved', stageIndex: null, entryId: entry.id, approvedAt: new Date(),
       history: [...history, this.history(actor, 'final', `القيد رقم ${entry.entryNo}`, stageName)],
@@ -633,6 +652,7 @@ export class PayrollService {
       const live = (await this.voucherRows(r.voucherIds, em)).filter((v) => v.status !== 'cancelled' && v.status !== 'rejected');
       if (live.length) throw new ConflictException('أُنشئت سندات صرف لهذا الكشف. ألغِ السندات من النظام المالي أولًا، ثم ألغِ اعتماد الكشف');
       if (r.entryId) await this.entries.reverseVoucherEntry(em, actor, r.entryId, `إلغاء اعتماد مسير رواتب ${monthLabel(r.month)}: ${note}`);
+      await em.getRepository(HrAdvanceRepayment).delete({ runId: r.id });
       await em.getRepository(HrPayrollRun).update({ id }, {
         status: 'returned', entryId: null, voucherIds: [], approvedAt: null, history: [...r.history, this.history(actor, 'reopen', note)],
       });

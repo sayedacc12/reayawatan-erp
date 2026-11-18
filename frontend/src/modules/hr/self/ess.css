@@ -1,0 +1,207 @@
+/* الخدمة الذاتية للموظفين (بادئة ess-) */
+.ess-shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; align-items: start; }
+.ess-side { position: sticky; top: 78px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 14px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 100px); overflow: auto; animation: ess-in .45s var(--ease) both; }
+.ess-me { display: flex; gap: 10px; align-items: center; padding: 6px 4px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.ess-me strong { display: block; font-size: .95rem; }
+.ess-avatar { width: 44px; height: 44px; flex-shrink: 0; border-radius: 14px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: .85rem;
+  background: linear-gradient(135deg, #f472b6, #a78bfa 55%, #2dd4bf); box-shadow: 0 8px 18px rgba(167,139,250,.35); }
+.ess-switch { position: relative; display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 3px; margin-bottom: 6px; }
+.ess-switch button { position: relative; z-index: 1; border: 0; background: none; font: inherit; font-weight: 600; padding: 7px 0; cursor: pointer; color: var(--muted); transition: color .25s; }
+.ess-switch button.on { color: #fff; }
+.ess-switch i { position: absolute; top: 3px; bottom: 3px; inset-inline-start: 3px; width: calc(50% - 3px); border-radius: 9px; background: linear-gradient(135deg, #a78bfa, #ec4899);
+  box-shadow: 0 6px 16px rgba(236,72,153,.35); transition: transform .35s var(--ease); }
+.ess-side-title { font-size: .74rem; color: var(--muted); font-weight: 700; margin: 10px 8px 2px; letter-spacing: .2px; }
+.ess-nav { display: flex; flex-direction: column; gap: 2px; }
+.ess-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: var(--text); position: relative; transition: background .2s, padding .2s var(--ease); }
+.ess-link:hover { background: var(--surface-2); padding-inline-start: 14px; }
+.ess-link.on { background: linear-gradient(90deg, rgba(167,139,250,.14), rgba(236,72,153,.08)); color: #7c3aed; font-weight: 600; }
+.ess-link.on::before { content: ''; position: absolute; inset-inline-start: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: linear-gradient(#a78bfa, #ec4899); }
+.ess-link span { flex: 1; }
+.ess-apps .ess-link { font-size: .9rem; color: var(--muted); }
+.ess-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; font-size: .74rem; color: #fff; background: linear-gradient(135deg, #f43f5e, #f97316);
+  box-shadow: 0 0 0 3px rgba(244,63,94,.15); animation: ess-pulse 2s infinite; }
+.ess-main { min-width: 0; }
+.ess-unlinked { padding: 26px; display: grid; gap: 10px; justify-items: start; }
+.ess-skeleton { display: grid; gap: 14px; }
+.ess-skeleton i { display: block; height: 120px; border-radius: 18px; background: linear-gradient(90deg, var(--surface-2), #eef2f5, var(--surface-2)); background-size: 200% 100%; animation: ess-shimmer 1.2s infinite; }
+
+/* البطل والعداد */
+.ess-hero { position: relative; overflow: hidden; border-radius: 22px; padding: 24px 26px; color: #fff; margin-bottom: 18px;
+  background: linear-gradient(125deg, #160b33, #2a1458 45%, #0b3b46); box-shadow: 0 18px 44px rgba(42,20,88,.25); }
+.ess-hero::before { content: ''; position: absolute; inset: -40%; pointer-events: none;
+  background: conic-gradient(from 0deg at 70% 40%, rgba(236,72,153,.0), rgba(236,72,153,.35), rgba(45,212,191,.3), rgba(167,139,250,.0) 60%); animation: ess-spin 18s linear infinite; filter: blur(30px); }
+.ess-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .12; background-image: radial-gradient(rgba(255,255,255,.9) 1px, transparent 1.4px); background-size: 20px 20px;
+  mask-image: linear-gradient(270deg, transparent, #000 70%); }
+.ess-hero > * { position: relative; }
+.ess-hero-top { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+.ess-hero h1 { font-size: 1.45rem; margin: 2px 0 4px; }
+.ess-kicker { color: #f9a8d4; font-weight: 600; font-size: .85rem; margin: 0; }
+.ess-hero .sub { color: rgba(255,255,255,.75); margin: 0; }
+.ess-hero .btn-ghost { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.25); }
+.ess-hero .btn-ghost:hover { background: rgba(255,255,255,.18); }
+.ess-cta { background: linear-gradient(135deg, #f472b6, #a78bfa); color: #fff; border: 0; font-weight: 700; box-shadow: 0 8px 24px rgba(244,114,182,.4); }
+.ess-counter { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.ess-counter .u { min-width: 74px; padding: 10px 12px; border-radius: 14px; text-align: center; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16);
+  backdrop-filter: blur(6px); animation: ess-in .5s calc(var(--i) * 70ms) var(--ease) both; }
+.ess-counter .u b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, #fff, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ess-counter .u span { font-size: .74rem; color: rgba(255,255,255,.7); }
+.ess-counter .u.tick b { animation: ess-tick 1s steps(1) infinite; }
+.ess-counter .cap { align-self: center; color: rgba(255,255,255,.7); font-size: .85rem; }
+
+/* البطاقات */
+.ess-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.ess-kpi { position: relative; overflow: hidden; padding: 16px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text);
+  display: flex; flex-direction: column; gap: 4px; animation: ess-in .5s calc(var(--i) * 60ms) var(--ease) both; transition: transform .25s var(--ease), box-shadow .25s; }
+.ess-kpi:hover { transform: translateY(-3px); box-shadow: 0 14px 30px color-mix(in srgb, var(--a) 22%, transparent); }
+.ess-kpi::after { content: ''; position: absolute; width: 140px; height: 140px; inset-inline-end: -60px; top: -70px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--a) 30%, transparent), transparent 70%); }
+.ess-kpi .ic { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-size: 1.1rem; background: color-mix(in srgb, var(--a) 14%, transparent); }
+.ess-kpi > span { color: var(--muted); font-size: .82rem; }
+.ess-kpi strong { font-size: 1.4rem; }
+.ess-kpi small { color: var(--muted); font-size: .76rem; }
+.ess-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.ess-grid > .wide { grid-column: 1 / -1; }
+.ess-card { padding: 18px; min-width: 0; animation: ess-in .5s .1s var(--ease) both; }
+.ess-card h2 { font-size: .98rem; margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ess-card h2 a { font-size: .8rem; font-weight: 500; color: var(--primary); }
+
+/* أرصدة الإجازات */
+.ess-bal { display: grid; gap: 12px; }
+.ess-bal .r { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.ess-bal .bar { grid-column: 1 / -1; height: 9px; border-radius: 99px; background: var(--surface-2); overflow: hidden; display: flex; }
+.ess-bal .bar i { display: block; height: 100%; transform-origin: right; animation: ess-grow .9s var(--ease) both; }
+.ess-bal .bar .t { background: linear-gradient(90deg, #a78bfa, #ec4899); }
+.ess-bal .bar .p { background: #fbbf24; }
+.ess-ring { --v: 0; width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 8px;
+  background: conic-gradient(#ec4899 calc(var(--v) * 1%), #a78bfa calc(var(--v) * 1%), var(--surface-2) 0); position: relative; }
+.ess-ring::before { content: ''; position: absolute; inset: 12px; border-radius: 50%; background: var(--surface); }
+.ess-ring b { position: relative; font-size: 1.2rem; text-align: center; line-height: 1.2; }
+.ess-ring b small { display: block; font-size: .7rem; color: var(--muted); font-weight: 500; }
+
+/* الحضور */
+.ess-today { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.ess-today div { padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); text-align: center; }
+.ess-today b { display: block; font-size: 1.25rem; direction: ltr; }
+.ess-days { display: flex; gap: 5px; flex-wrap: wrap; }
+.ess-day { width: 34px; height: 40px; border-radius: 9px; display: grid; place-items: center; font-size: .72rem; color: #fff; background: var(--c); cursor: default;
+  animation: ess-pop .35s calc(var(--i) * 30ms) var(--ease) both; }
+
+/* الطلبات والنشاط */
+.ess-list { display: grid; gap: 8px; }
+.ess-item { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  transition: transform .2s var(--ease), box-shadow .2s, border-color .2s; animation: ess-in .4s calc(var(--i, 0) * 40ms) var(--ease) both; }
+.ess-item:hover { transform: translateX(-3px); border-color: color-mix(in srgb, var(--c, #a78bfa) 40%, var(--border)); box-shadow: 0 8px 20px rgba(15,23,42,.06); }
+.ess-item .em { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-size: 1.1rem; flex-shrink: 0; background: color-mix(in srgb, var(--c, #a78bfa) 14%, transparent); }
+.ess-item .tx { flex: 1; min-width: 0; }
+.ess-item .tx b { display: block; font-size: .92rem; }
+.ess-item .tx span { display: block; color: var(--muted); font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ess-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; font-size: .76rem; font-weight: 600; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 80%, #000); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.ess-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.ess-timeline { list-style: none; margin: 0; padding: 0; position: relative; }
+.ess-timeline::before { content: ''; position: absolute; inset-inline-start: 7px; top: 6px; bottom: 6px; width: 2px; background: linear-gradient(#a78bfa, #ec4899, transparent); border-radius: 2px; }
+.ess-timeline li { position: relative; padding: 0 26px 14px 0; animation: ess-in .4s calc(var(--i) * 40ms) var(--ease) both; }
+.ess-timeline li::before { content: ''; position: absolute; inset-inline-start: 2px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 3px solid var(--c, #a78bfa); }
+.ess-timeline li span { display: block; font-size: .78rem; color: var(--muted); }
+
+/* كتالوج الطلبات */
+.ess-cat { margin-bottom: 18px; }
+.ess-cat h3 { font-size: .85rem; color: var(--muted); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.ess-cat h3::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.ess-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.ess-type { position: relative; overflow: hidden; text-align: right; font: inherit; cursor: pointer; padding: 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  display: flex; flex-direction: column; gap: 6px; transition: transform .25s var(--ease), box-shadow .25s, border-color .25s; animation: ess-in .45s calc(var(--i) * 50ms) var(--ease) both; }
+.ess-type:hover, .ess-type.on { transform: translateY(-4px); border-color: var(--c); box-shadow: 0 16px 34px color-mix(in srgb, var(--c) 25%, transparent); }
+.ess-type .em { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-size: 1.35rem; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 25%, transparent), color-mix(in srgb, var(--c) 8%, transparent)); }
+.ess-type b { font-size: 1rem; }
+.ess-type small { color: var(--muted); font-size: .8rem; }
+.ess-hints { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
+.ess-hints span { font-size: .76rem; padding: 3px 10px; border-radius: 999px; background: #f5f3ff; color: #6d28d9; border: 1px solid #ede9fe; }
+.ess-drop { border: 2px dashed var(--border); border-radius: 14px; padding: 16px; text-align: center; color: var(--muted); cursor: pointer; transition: border-color .2s, background .2s; display: block; }
+.ess-drop:hover, .ess-drop.over { border-color: #a78bfa; background: #faf5ff; }
+.ess-drop input { display: none; }
+.ess-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ess-file { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); font-size: .82rem; cursor: pointer; font: inherit; }
+.ess-file:hover { border-color: #a78bfa; }
+
+/* مسار الاعتماد */
+.ess-steps { display: grid; gap: 0; }
+.ess-step { display: grid; grid-template-columns: 34px 1fr; gap: 10px; position: relative; padding-bottom: 16px; animation: ess-in .4s calc(var(--i) * 60ms) var(--ease) both; }
+.ess-step:not(:last-child)::before { content: ''; position: absolute; inset-inline-start: 16px; top: 32px; bottom: 0; width: 2px; background: var(--border); }
+.ess-step .dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: .85rem; background: var(--c); }
+.ess-step.cur .dot { box-shadow: 0 0 0 5px color-mix(in srgb, #f59e0b 25%, transparent); background: #f59e0b; animation: ess-pulse 1.8s infinite; }
+.ess-step b { display: block; }
+.ess-step span { display: block; color: var(--muted); font-size: .8rem; }
+.ess-step .note { margin-top: 4px; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); font-size: .84rem; color: var(--text); }
+.ess-decide { border: 1px solid #fde68a; background: linear-gradient(135deg, #fffbeb, #fff); }
+
+/* الفريق */
+.ess-team { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.ess-member { position: relative; padding: 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); color: var(--text); display: grid; gap: 4px;
+  transition: transform .25s var(--ease), box-shadow .25s; animation: ess-in .45s calc(var(--i) * 40ms) var(--ease) both; }
+.ess-member:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(124,58,237,.12); }
+.ess-member .head { display: flex; gap: 10px; align-items: center; }
+.ess-member .av { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 700; background: linear-gradient(135deg, var(--c1, #a78bfa), var(--c2, #2dd4bf)); }
+.ess-member .st { position: absolute; top: 12px; inset-inline-end: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 20%, transparent); }
+.ess-position { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.ess-badge-mgr { display: inline-flex; gap: 6px; align-items: center; padding: 4px 12px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); font-size: .82rem; }
+
+/* الخطاب للطباعة */
+.ess-letter { max-width: 800px; margin: 0 auto; background: #fff; color: #111; padding: 48px 56px; border-radius: 6px; box-shadow: 0 20px 50px rgba(15,23,42,.15); min-height: 1000px; position: relative; }
+.ess-letter header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px double #0f766e; padding-bottom: 14px; margin-bottom: 26px; }
+.ess-letter header h2 { margin: 0; color: #0f766e; font-size: 1.3rem; }
+.ess-letter .meta { font-size: .9rem; line-height: 1.9; }
+.ess-letter .body { white-space: pre-line; font-size: 1.05rem; line-height: 2.1; }
+.ess-letter footer { margin-top: 60px; display: flex; justify-content: flex-start; }
+.ess-letter footer div { text-align: center; min-width: 220px; line-height: 2; }
+.ess-letter .seal { position: absolute; inset-inline-start: 70px; bottom: 120px; width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(15,118,110,.35); color: rgba(15,118,110,.55);
+  display: grid; place-items: center; text-align: center; font-size: .75rem; font-weight: 700; transform: rotate(-14deg); }
+@media print {
+  .topbar, .ess-side, .no-print { display: none !important; }
+  .content { padding: 0 !important; }
+  .ess-shell { display: block; }
+  .ess-letter { box-shadow: none; padding: 20px 30px; min-height: auto; }
+}
+
+@keyframes ess-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes ess-pop { from { opacity: 0; transform: scale(.6); } }
+@keyframes ess-grow { from { transform: scaleX(0); } }
+@keyframes ess-spin { to { transform: rotate(360deg); } }
+@keyframes ess-shimmer { to { background-position: -200% 0; } }
+@keyframes ess-tick { 50% { opacity: .55; } }
+@keyframes ess-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,.35); } 50% { box-shadow: 0 0 0 6px rgba(244,63,94,0); } }
+@media (prefers-reduced-motion: reduce) { .ess-hero::before, .ess-count, .ess-step.cur .dot { animation: none; } }
+@media (max-width: 900px) {
+  .ess-shell { grid-template-columns: 1fr; }
+  .ess-side { position: static; max-height: none; }
+  .ess-nav { flex-direction: row; flex-wrap: wrap; }
+  .ess-grid { grid-template-columns: 1fr; }
+  .ess-letter { padding: 24px 18px; }
+}
+
+/* إضافات القوائم والتفاصيل */
+.ess-req-end { display: grid; justify-items: end; gap: 4px; flex-shrink: 0; }
+.ess-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.ess-head h1 { margin: 0; font-size: 1.45rem; }
+.ess-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.ess-filters button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; color: var(--text); display: inline-flex; gap: 6px; align-items: center; transition: all .2s var(--ease); }
+.ess-filters button b { font-size: .75rem; background: var(--surface-2); border-radius: 99px; padding: 0 7px; }
+.ess-filters button.on { background: var(--c, var(--primary)); border-color: transparent; color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--c, #0d9488) 35%, transparent); }
+.ess-filters button.on b { background: rgba(255,255,255,.25); }
+.ess-banner { position: relative; overflow: hidden; border-radius: 20px; padding: 22px 24px; color: #fff; margin-bottom: 16px;
+  background: linear-gradient(125deg, var(--c, #6366f1), color-mix(in srgb, var(--c, #6366f1) 45%, #0f172a)); box-shadow: 0 16px 40px color-mix(in srgb, var(--c, #6366f1) 30%, transparent); }
+.ess-banner::after { content: ''; position: absolute; inset-inline-end: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.22), transparent 70%); }
+.ess-banner h1 { margin: 4px 0; font-size: 1.4rem; }
+.ess-banner .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; position: relative; z-index: 1; }
+.ess-banner .ess-pill { background: rgba(255,255,255,.18); color: #fff; }
+.ess-banner .ess-pill::before { background: #fff; }
+.ess-kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.ess-kv div { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.ess-kv span { display: block; color: var(--muted); font-size: .78rem; }
+.ess-kv b { display: block; margin-top: 2px; }
+.ess-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ess-decide .choice { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.ess-decide .choice button { flex: 1; min-width: 110px; border: 2px solid var(--border); background: var(--surface); border-radius: 12px; padding: 10px; font: inherit; cursor: pointer; font-weight: 600; transition: all .2s var(--ease); }
+.ess-decide .choice button.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, var(--surface)); color: var(--c); }
+.ess-hero-mgr { background: linear-gradient(125deg, #0b1f3a, #1e3a8a 45%, #3b0764); }
+.ess-hero-mgr .ess-position { margin-top: 10px; }

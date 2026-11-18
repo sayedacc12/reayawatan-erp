@@ -226,6 +226,13 @@ export class HrController {
     return this.people.list(actor, status);
   }
 
+  /** حسابات الدخول في الجمعية لربط الموظف بحسابه (الخدمة الذاتية) */
+  @Get('users')
+  @RequirePermissions(P.employees)
+  users(@CurrentOrgUser() actor: OrgUser) {
+    return this.people.users(actor);
+  }
+
   @Get('employees/:id')
   @RequirePermissions(P.read)
   employee(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {

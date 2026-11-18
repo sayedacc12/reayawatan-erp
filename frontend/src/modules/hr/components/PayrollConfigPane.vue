@@ -5,16 +5,16 @@ import { useToast } from '../../../stores/toast';
 import type { AccLookups } from '../lib';
 
 /** الربط المحاسبي لمسير الرواتب ومراحل اعتماده */
-interface Config { payableAccountId: string | null; gosiPayableAccountId: string | null; deductionsAccountId: string | null; defaultCashAccountId: string | null; stages: { name: string; roleId: string | null }[] }
+interface Config { payableAccountId: string | null; gosiPayableAccountId: string | null; deductionsAccountId: string | null; advancesAccountId?: string | null; defaultCashAccountId: string | null; stages: { name: string; roleId: string | null }[] }
 const toast = useToast();
 const lk = ref<AccLookups | null>(null);
-const f = reactive({ payableAccountId: '', gosiPayableAccountId: '', deductionsAccountId: '', defaultCashAccountId: '', stages: [] as { name: string; roleId: string }[] });
+const f = reactive({ payableAccountId: '', gosiPayableAccountId: '', deductionsAccountId: '', advancesAccountId: '', defaultCashAccountId: '', stages: [] as { name: string; roleId: string }[] });
 function fill(r: AccLookups & { config: Config }) {
   lk.value = r;
   const c = r.config;
   Object.assign(f, {
     payableAccountId: c.payableAccountId ?? '', gosiPayableAccountId: c.gosiPayableAccountId ?? '',
-    deductionsAccountId: c.deductionsAccountId ?? '', defaultCashAccountId: c.defaultCashAccountId ?? '', stages: c.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? '' })),
+    deductionsAccountId: c.deductionsAccountId ?? '', advancesAccountId: c.advancesAccountId ?? '', defaultCashAccountId: c.defaultCashAccountId ?? '', stages: c.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? '' })),
   });
 }
 onMounted(async () => {
@@ -33,7 +33,7 @@ async function save() {
       method: 'PUT',
       json: {
         payableAccountId: n(f.payableAccountId), gosiPayableAccountId: n(f.gosiPayableAccountId),
-        deductionsAccountId: n(f.deductionsAccountId), defaultCashAccountId: n(f.defaultCashAccountId),
+        deductionsAccountId: n(f.deductionsAccountId), advancesAccountId: n(f.advancesAccountId), defaultCashAccountId: n(f.defaultCashAccountId),
         stages: f.stages.filter((s) => s.name.trim()).map((s) => ({ name: s.name.trim(), roleId: s.roleId || null })),
       },
     }));
@@ -58,8 +58,10 @@ function move(i: number, d: number) {
         <select v-model="f.payableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
       <label class="field"><span>التأمينات الاجتماعية المستحقة (حصة الموظف والجمعية)</span>
         <select v-model="f.gosiPayableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
-      <label class="field"><span>الاستقطاعات الأخرى (أقساط السلف والجزاءات)</span>
+      <label class="field"><span>الاستقطاعات الأخرى (الجزاءات وغيرها)</span>
         <select v-model="f.deductionsAccountId" class="input"><option value="">—</option><option v-for="a in lk?.accounts ?? []" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
+      <label class="field"><span>سلف الموظفين (يُقيد فيه سداد الأقساط، وإن تُرك فارغًا يُستخدم حساب الاستقطاعات)</span>
+        <select v-model="f.advancesAccountId" class="input"><option value="">—</option><option v-for="a in lk?.accounts ?? []" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
       <label class="field"><span>البنك الافتراضي لصرف الرواتب</span>
         <select v-model="f.defaultCashAccountId" class="input"><option value="">—</option><option v-for="c in lk?.cashAccounts ?? []" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
     </section>

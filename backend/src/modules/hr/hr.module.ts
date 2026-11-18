@@ -1,7 +1,12 @@
 import { HrReports } from './hr.reports';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CoreModule } from '../../core/core.module';
 import { AccountingModule } from '../accounting/accounting.module';
+import { HrTasks } from './hr.tasks';
+import { RequestsService } from './requests.service';
+import { SelfServiceController } from './self-service.controller';
+import { SelfServiceService } from './self-service.service';
 import { AttendanceService } from './attendance.service';
 import { DevelopmentController } from './development.controller';
 import { DevelopmentService } from './development.service';
@@ -19,9 +24,9 @@ import { PerformanceService } from './performance.service';
  * وسندات صرف مسودة تمر بمراحل اعتماد سندات الصرف. الربط مع المشاريع (تمويل الرواتب) في مرحلة لاحقة.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature(HR_ENTITIES), AccountingModule],
-  controllers: [HrController, PayrollController, IclockController, DevelopmentController],
-  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, HrReports],
-  exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService],
+  imports: [TypeOrmModule.forFeature(HR_ENTITIES), AccountingModule, CoreModule],
+  controllers: [HrController, PayrollController, IclockController, DevelopmentController, SelfServiceController],
+  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, HrReports, RequestsService, SelfServiceService, HrTasks],
+  exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, RequestsService, SelfServiceService],
 })
 export class HrModule {}
