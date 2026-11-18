@@ -9,7 +9,7 @@ import {
  */
 
 export const KIND_AR: Record<RequestKind, string> = {
-  leave: 'إجازة', permission: 'استئذان', exit_reentry: 'خروج وعودة', letter: 'خطاب', advance: 'سلفة', general: 'طلب عام',
+  leave: 'إجازة', permission: 'استئذان', exit_reentry: 'خروج وعودة', letter: 'خطاب', advance: 'سلفة', resignation: 'استقالة', general: 'طلب عام',
 };
 export const REQUEST_STATUS_AR = { pending: 'قيد الاعتماد', returned: 'معاد للتعديل', approved: 'معتمد', rejected: 'مرفوض', cancelled: 'ملغي' } as const;
 export const APPROVER_AR: Record<(typeof APPROVER_KINDS)[number], string> = {
@@ -366,6 +366,12 @@ export function defaultRequestTypes(): DefaultType[] {
       description: 'سلفة على الراتب تُسترد بأقساط شهرية من مسير الرواتب',
       approval: [step('direct_manager'), step('hr'), step('top_manager', 'المدير التنفيذي')],
       rules: { minServiceMonths: 6, maxSalaryMultiple: 2, maxInstallments: 10, oneOpen: true, attachment: 'none' },
+    },
+    {
+      code: 'resignation', name: 'طلب استقالة', kind: 'resignation', category: 'نهاية الخدمة', color: '#ef4444',
+      description: 'تقديم الاستقالة بإشعار مسبق. بعد اعتمادها يُفتح ملف إخلاء الطرف وتُحسب مستحقاتك',
+      approval: [step('direct_manager'), step('top_manager', 'المدير التنفيذي'), step('hr')],
+      rules: { minNoticeDays: 30, oneOpen: true, attachment: 'optional', attachmentHint: 'خطاب الاستقالة الموقع (اختياري)' },
     },
     {
       code: 'general', name: 'طلب عام', kind: 'general', category: 'أخرى', color: '#64748b',

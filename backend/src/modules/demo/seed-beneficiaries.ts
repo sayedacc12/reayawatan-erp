@@ -63,7 +63,7 @@ export class BeneficiariesSeed {
       finance: [F.donorsRead, F.read, F.process, F.collect, F.journal, F.reports, PR.read, PR.disburse, PR.reports,
         A.read, A.receipts, A.payments, A.approveVouchers, A.entries, A.post, A.cancel, A.partners, A.banks, A.reports,
         // شؤون الموظفين تتبع الإدارة المالية والإدارية: خطوة «شؤون الموظفين» في طلبات الخدمة الذاتية
-        'hr.requests.read', 'hr.requests.approve'],
+        'hr.requests.read', 'hr.requests.approve', 'hr.separations.approve'],
       projectsManager: [PR.read, PR.manage, PR.approve, PR.support, PR.transfers, PR.amendments, PR.reports, PR.settings, F.read, F.donorsRead, P.read, P.requestsRead],
     };
     const researcherRole = await role('باحث اجتماعي', 'يجري البحث الميداني ويعبّئ نموذج البحث', roleCodes.researcher);

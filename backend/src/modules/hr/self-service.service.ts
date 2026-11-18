@@ -119,6 +119,14 @@ export class SelfServiceService {
     if (within(e.contractEnd, 60)) alerts.push({ level: 'warning', text: `عقدك ينتهي في ${e.contractEnd}` });
     if (within(e.probationEnd, 30)) alerts.push({ level: 'info', text: `فترة التجربة تنتهي في ${e.probationEnd}` });
     const returned = reqs.filter((r) => r.status === 'returned');
+    // ملف إنهاء الخدمة المفتوح: يتابع الموظف إخلاء طرفه ومستحقاته
+    const [sep]: { id: string; separation_no: number; status: string; last_working_day: string; total: number; cleared: number }[] = await this.db.query(
+      `SELECT id, separation_no, status, last_working_day::text, jsonb_array_length(items) AS total,
+              (SELECT COUNT(*)::int FROM jsonb_array_elements(items) x WHERE x->>'status' = 'cleared') AS cleared
+         FROM hr_separations WHERE organization_id = $1 AND employee_id = $2 AND status <> 'cancelled' ORDER BY created_at DESC LIMIT 1`, [org, e.id],
+    );
+    const separation = sep ? { id: sep.id, separationNo: sep.separation_no, status: sep.status, lastWorkingDay: sep.last_working_day, items: sep.total, cleared: sep.cleared } : null;
+    if (separation && separation.status !== 'paid') alerts.push({ level: 'info', text: `ملف إنهاء خدمتك مفتوح: أُخلي ${separation.cleared} من ${separation.items} بنود، وآخر يوم عمل ${separation.lastWorkingDay}` });
     if (returned.length) alerts.push({ level: 'warning', text: `لديك ${returned.length} ${returned.length > 1 ? 'طلبات معادة' : 'طلب معاد'} للتعديل` });
 
     const adv = advances.filter((a) => a.status === 'active');
@@ -141,7 +149,7 @@ export class SelfServiceService {
         approvedThisYear: reqs.filter((r) => r.status === 'approved' && String(r.decidedAt?.toISOString() ?? '').startsWith(t.slice(0, 4))).length,
         recent: reqs.slice(0, 6).map((r) => this.requests.row(r)),
       },
-      upcoming, alerts, activity: activity.slice(0, 12), types,
+      upcoming, alerts, activity: activity.slice(0, 12), types, separation,
       manager: { isManager: team.length > 0, direct: line.direct(e.id).length, team: team.length, awaiting: awaiting.length },
     };
   }

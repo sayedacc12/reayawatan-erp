@@ -227,6 +227,8 @@ export class PeopleService {
     const org = actor.organizationId;
     const e = await this.employee(org, id);
     if (e.status === 'terminated') throw new BadRequestException('خدمة الموظف منتهية بالفعل');
+    const [{ n }] = await this.db.query(`SELECT COUNT(*)::int AS n FROM hr_separations WHERE organization_id = $1 AND employee_id = $2 AND status IN ('clearance', 'settlement')`, [org, id]);
+    if (n) throw new ConflictException('للموظف ملف إنهاء خدمة مفتوح، تُنهى خدمته باعتماد مستحقاته من الملف');
     if (dto.terminationDate < e.hireDate) throw new BadRequestException('تاريخ انتهاء الخدمة قبل المباشرة');
     const policy = await this.core.policy(org);
     const settlement = await this.settlement(org, e, policy, dto.terminationDate, dto.reason);

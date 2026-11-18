@@ -28,6 +28,7 @@ interface Dash {
   activity: { at: string; text: string; kind: string; link?: string }[];
   types: ReqType[];
   manager: { isManager: boolean; direct: number; team: number; awaiting: number };
+  separation: { id: string; separationNo: number; status: string; lastWorkingDay: string; items: number; cleared: number } | null;
 }
 const data = ref<Dash | null>(null);
 const error = ref('');
@@ -111,6 +112,7 @@ const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
       </section>
 
       <div v-for="(a, i) in data.alerts" :key="i" :class="['alert', a.level === 'danger' ? 'alert-error' : '']" :style="a.level !== 'danger' ? { background: '#fff7ed', color: '#9a3412' } : {}">{{ a.text }}</div>
+      <RouterLink v-if="data.separation && data.separation.status !== 'paid'" :to="`/hr/separations/${data.separation.id}`" class="btn btn-sm" style="margin-bottom: 12px">🚪 متابعة ملف إنهاء خدمتي (إخلاء الطرف {{ data.separation.cleared }} / {{ data.separation.items }}) ←</RouterLink>
 
       <div class="ess-kpis">
         <div class="ess-kpi" style="--a: #ec4899; --i: 0"><span class="ic">🌴</span><span>رصيد الإجازة السنوية</span><strong><CountUp :value="annual?.available ?? 0" :decimals="1" /> <small>يوم</small></strong><small>المأخوذ {{ annual?.taken ?? 0 }} · بانتظار الاعتماد {{ annual?.pending ?? 0 }}</small></div>

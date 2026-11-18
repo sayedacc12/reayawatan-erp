@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
@@ -25,6 +26,7 @@ async function load() {
 }
 onMounted(load);
 const reasons = ref<{ value: string; label: string }[]>([]);
+const router = useRouter();
 const term = reactive({ show: false, terminationDate: todayStr(), reason: 'contract_end', note: '' });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const settlement = ref<any>(null);
@@ -36,18 +38,18 @@ async function openTerminate() {
 async function preview() {
   try {
     settlement.value = await api('/hr/eos/calculate', { method: 'POST', json: { employeeId: props.id, endDate: term.terminationDate, reason: term.reason } });
-  } catch (err) {
+  } catch {
+    // المعاينة لمن يملك الاطلاع على الرواتب فقط
     settlement.value = null;
-    toast.error((err as Error).message);
   }
 }
+/** إنهاء الخدمة يمر بملف إخلاء الطرف: يُخلي كل مسؤول بنده، ثم يُعد بيان المستحقات ويُعتمد، وعندها تنتهي الخدمة */
 async function terminate() {
-  if (!confirm('سيُغلق ملف الموظف وتُحسب مخالصته النهائية. هل أنت متأكد؟')) return;
   try {
-    await api(`/hr/employees/${props.id}/terminate`, { method: 'POST', json: { terminationDate: term.terminationDate, reason: term.reason, note: term.note || null } });
-    toast.success('تم إنهاء الخدمة');
+    const s = await api<{ id: string }>('/hr/separations', { method: 'POST', json: { employeeId: props.id, lastWorkingDay: term.terminationDate, reason: term.reason, note: term.note || null } });
+    toast.success('فُتح ملف إنهاء الخدمة وأُرسلت بنود إخلاء الطرف لمسؤوليها');
     term.show = false;
-    await load();
+    router.push(`/hr/separations/${s.id}`);
   } catch (err) {
     toast.error((err as Error).message);
   }
@@ -67,7 +69,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
       <div class="pm-actions">
         <span class="pm-pill" :style="{ '--c': STATUS_COLOR[e.status], background: 'rgba(255,255,255,.9)' }">{{ e.status === 'active' ? 'على رأس العمل' : `انتهت خدمته: ${e.terminationLabel}` }}</span>
         <button v-if="e.status === 'active' && session.can(P.employees)" class="btn hr-glow" @click="editing = true">تعديل البيانات</button>
-        <button v-if="e.status === 'active' && session.can(P.employees) && session.can(P.salaries)" class="btn hr-ghost" @click="openTerminate">إنهاء الخدمة</button>
+        <button v-if="e.status === 'active' && session.can(P.separations)" class="btn hr-ghost" @click="openTerminate">إنهاء الخدمة وإخلاء الطرف</button>
       </div>
     </section>
     <div class="hr-tabs">
@@ -205,6 +207,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
     <div v-if="term.show" class="modal-backdrop" @click.self="term.show = false">
       <form class="card modal" @submit.prevent="terminate">
         <h2>إنهاء خدمة {{ e.fullName }}</h2>
+        <p class="pm-muted" style="margin-top: 0">يُفتح ملف إخلاء الطرف ويصل كل بند لمسؤوله. تنتهي الخدمة عند الاعتماد النهائي لبيان المستحقات، ثم يُنشأ سند صرفها.</p>
         <label class="field"><span>آخر يوم عمل</span><input v-model="term.terminationDate" type="date" class="input" required @change="preview" /></label>
         <label class="field"><span>سبب انتهاء الخدمة</span><select v-model="term.reason" class="input" @change="preview"><option v-for="r in reasons" :key="r.value" :value="r.value">{{ r.label }}</option></select></label>
         <label class="field"><span>ملاحظة</span><textarea v-model="term.note" class="input" rows="2" /></label>
@@ -217,7 +220,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
           </dl>
           <small class="pm-muted">لا يشمل راتب الشهر الأخير ولا الاستقطاعات، وتُصرف من النظام المالي.</small>
         </div>
-        <div class="modal-actions"><button class="btn btn-danger">إنهاء الخدمة</button><button type="button" class="btn" @click="term.show = false">إلغاء</button></div>
+        <div class="modal-actions"><button class="btn btn-danger">فتح ملف إخلاء الطرف</button><button type="button" class="btn" @click="term.show = false">إلغاء</button></div>
       </form>
     </div>
   </div>
