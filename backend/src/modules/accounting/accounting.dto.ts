@@ -429,8 +429,8 @@ export class VoucherDto {
   @trim() @IsString({ message: 'اكتب البيان (وهو قيمة ...)' }) @MinLength(3, { message: 'اكتب البيان (وهو قيمة ...)' }) @MaxLength(1000)
   purpose!: string;
 
-  @IsOptional() @IsIn(['manual', 'opportunity', 'store', 'payroll', 'membership', 'separation'])
-  sourceType?: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation';
+  @IsOptional() @IsIn(['manual', 'opportunity', 'store', 'payroll', 'membership', 'separation', 'comms'])
+  sourceType?: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms';
 
   @Nullable() @trim() @IsString() @MaxLength(120)
   sourceRef?: string | null;
