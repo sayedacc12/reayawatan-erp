@@ -31,11 +31,15 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
 import { WebsiteModule } from '../website/website.module';
 import { PartnershipsModule } from '../partnerships/partnerships.module';
 import { PartnershipsSeed } from './seed-partnerships';
+import { CommsModule } from '../comms/comms.module';
+import { MeetingsModule } from '../meetings/meetings.module';
+import { CommsSeed } from './seed-comms';
+import { MeetingsSeed } from './seed-meetings';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, PartnershipsModule],
+  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule],
   controllers: [DemoController],
-  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, PartnershipsSeed],
+  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed],
 })
 export class DemoModule {}

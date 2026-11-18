@@ -20,6 +20,8 @@ import { SupportSeed } from './seed-support';
 import { VolunteersSeed } from './seed-volunteers';
 import { WebsiteSeed } from './seed-website';
 import { PartnershipsSeed } from './seed-partnerships';
+import { CommsSeed } from './seed-comms';
+import { MeetingsSeed } from './seed-meetings';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -47,6 +49,8 @@ export class DemoService {
     private readonly website: WebsiteSeed,
     private readonly governance: GovernanceSeed,
     private readonly partnerships: PartnershipsSeed,
+    private readonly comms: CommsSeed,
+    private readonly meetings: MeetingsSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -71,6 +75,10 @@ export class DemoService {
       await this.members.run(team);
       // الشراكات قبل الموقع: الشركاء المعتمدون يظهرون في صفحة الشركاء
       await this.partnerships.run(team);
+      // الاتصالات الإدارية والمهام، ثم الاجتماعات (الجمعية العمومية من أعضاء العضوية، والتوصيات تتحول إلى مهام)
+      const commsTeam = await this.comms.grant(team);
+      await this.comms.run(commsTeam);
+      await this.meetings.run(commsTeam, staffPassword, origin);
       // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
       await this.website.run(team, tree, origin);
       // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة

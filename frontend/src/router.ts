@@ -22,6 +22,8 @@ export const router = createRouter({
     // صفحات التطوع العامة: تسجيل المتطوعين والشكاوى، استبانة الرضا، توقيع عقد التطوع، التحقق من الشهادة
     ...volunteersPublicRoutes,
     // استبانة قياس الرضا العامة (نظام الجودة)
+    { path: '/minutes/sign/:token', component: () => import('./modules/meetings/public/MinutesSignView.vue'), meta: { open: true, title: 'توقيع محضر' } },
+    { path: '/minutes/verify/:code', component: () => import('./modules/meetings/public/MinutesVerifyView.vue'), meta: { open: true, title: 'التحقق من محضر' } },
     { path: '/survey/:token', component: () => import('./views/PublicSurveyView.vue'), meta: { open: true, title: 'استبانة رضا' } },
     // صفحات عضوية الجمعية العمومية العامة: التقديم والسداد والتحقق من البطاقة
     ...membersPublicRoutes,

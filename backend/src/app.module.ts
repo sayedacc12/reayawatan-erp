@@ -21,6 +21,8 @@ import { MembersModule } from './modules/members/members.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { WebsiteModule } from './modules/website/website.module';
 import { PartnershipsModule } from './modules/partnerships/partnerships.module';
+import { CommsModule } from './modules/comms/comms.module';
+import { MeetingsModule } from './modules/meetings/meetings.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -48,6 +50,8 @@ import { HealthController } from './health.controller';
     KnowledgeModule,
     PartnershipsModule,
     WebsiteModule,
+    CommsModule,
+    MeetingsModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],
