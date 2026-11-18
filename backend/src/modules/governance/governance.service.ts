@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { DataSource, EntityManager, In } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import {
-  allItems, AXES, catalogStats, computePerformance, EMPTY_FIGURES, FIGURES, FinFigureKey, FinFigures, findItem, itemPercent, opinionFactor,
+  allItems, AXES, catalogStats, computePerformance, EMPTY_FIGURES, FIGURES, FINANCIAL_PERFORMANCE, FIN_SPLIT, GRADES, FinFigureKey, FinFigures, findItem, itemPercent, opinionFactor,
   OPINION_AR, reachableSteps, STANDARDS,
 } from './catalog';
 import {
@@ -57,7 +57,7 @@ export class GovernanceService {
 
   catalog() {
     return {
-      standards: STANDARDS, axes: AXES, stats: catalogStats(), figures: FIGURES,
+      standards: STANDARDS, axes: AXES, stats: catalogStats(), figures: FIGURES, performance: FINANCIAL_PERFORMANCE, finSplit: FIN_SPLIT, grades: GRADES,
       opinions: OPINION_AR, kinds: KIND_AR, periods: PERIOD_AR, obligationKinds: OBLIGATION_AR,
     };
   }
@@ -703,12 +703,13 @@ export class GovernanceService {
       finance: snap ? {
         year: snap.year.name, elapsed: snap.elapsed, actual: snap.actual.score, forecast: snap.forecast.score,
         indicators: snap.forecast.indicators.map((i) => ({ code: i.code, title: i.title, weight: i.weight, score: i.score, subs: i.subs.map((x) => ({ code: x.code, title: x.title, ratio: x.ratio, unit: x.unit, score: x.score })) })),
-        series: series?.points.map((p) => ({ month: p.month, score: p.score })) ?? [], projected: series?.projected ?? null, slope: series?.slope ?? 0,
+        series: series?.points.map((p) => ({ month: p.month, score: p.score })) ?? [], projected: series?.projected ?? null, monthsLeft: series?.monthsLeft ?? 0, slope: series?.slope ?? 0,
       } : null,
       accounting: ready,
       history: history.filter((h) => h.scores).map((h) => ({ id: h.id, code: h.code, kind: h.kind, kindLabel: KIND_AR[h.kind], periodTo: h.periodTo, status: h.status, overall: h.scores!.overall, predicted: h.scores!.predicted, axes: h.scores!.axes })),
       alerts: { counts: alerts.counts, top: alerts.items.slice(0, 6) },
       opportunities: e?.opportunities.slice(0, 8) ?? [],
+      opportunitiesCount: e?.opportunities.length ?? 0,
       actions: {
         total: actions.length, done: actions.filter((x) => x.status === 'done').length, open: actions.filter((x) => ['planned', 'in_progress'].includes(x.status)).length,
         overdue: actions.filter((x) => ['planned', 'in_progress'].includes(x.status) && x.dueDate && x.dueDate < t).length,
