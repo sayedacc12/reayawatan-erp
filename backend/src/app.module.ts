@@ -18,6 +18,8 @@ import { VolunteersModule } from './modules/volunteers/volunteers.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { MembersModule } from './modules/members/members.module';
+import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+import { WebsiteModule } from './modules/website/website.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -42,6 +44,8 @@ import { HealthController } from './health.controller';
     QualityModule,
     AuditModule,
     MembersModule,
+    KnowledgeModule,
+    WebsiteModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],

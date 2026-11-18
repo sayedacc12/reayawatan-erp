@@ -434,6 +434,50 @@ describe('Demo association across all modules', () => {
     expect(orgs.find((o) => o.slug === 'demo')?.subscriptionStatus).toBe('active');
   });
 
+  it('website: identity, public site, store with receipts and vouchers, contact and knowledge archive', async () => {
+    const admin = await staff('admin');
+    const id = (await http.get('/api/public/identity/demo').expect(200)).body;
+    expect(id.vision).toBeTruthy();
+    expect(id.goals.length).toBeGreaterThan(2);
+    const site = (await http.get('/api/public/website/demo').expect(200)).body;
+    expect(site.published).toBe(true);
+    expect(site.programs.length).toBeGreaterThanOrEqual(5);
+    expect(site.store.totals.count).toBe(14);
+    const gov = (await http.get('/api/public/website/demo/governance').expect(200)).body;
+    expect(gov.documents.length).toBeGreaterThan(1);
+    // تبرع في البيئة التجريبية: إيصال برقم ورمز تحقق وسند قبض في النظام المالي
+    const orphans = site.programs.find((p: { slug: string }) => p.slug === 'orphans');
+    const d = (await http.post('/api/public/website/demo/donate').send({ programId: orphans.id, amount: 150, phone: '0551112233' }).expect(201)).body;
+    const info = (await http.get(`/api/public/website/demo/pay/${d.token}`).expect(200)).body;
+    await http.post(`/api/public/website/demo/pay/${d.token}/sandbox`).send({ ref: info.gatewayId }).expect(201);
+    const r = (await http.get(`/api/public/website/demo/receipt/${d.token}`).expect(200)).body;
+    expect(r.status).toBe('paid');
+    expect(r.receiptNo).toMatch(/^W-\d{6}$/);
+    const v = (await http.get(`/api/public/website/demo/verify?no=${r.receiptNo}&code=${r.verifyCode}`).expect(200)).body;
+    expect(v.valid).toBe(true);
+    expect((await http.get(`/api/public/website/demo/verify?no=${r.receiptNo}&code=000000`).expect(200)).body.valid).toBe(false);
+    const list = (await http.get('/api/website/donations').set(as(admin)).expect(200)).body;
+    expect(list.totals.voucherErrors).toBe(0);
+    expect(list.totals.count).toBe(15);
+    // أقل من الحد الأدنى مرفوض
+    await http.post('/api/public/website/demo/donate').send({ amount: 1, phone: '0551112233' }).expect(400);
+    // التبرع الشهري ينشئ اشتراكًا بموعد قادم بصيغة تاريخ
+    const subs = (await http.get('/api/website/subscriptions').set(as(admin)).expect(200)).body;
+    expect(subs[0].nextDue).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // رسالة زائر تصل للوحة الموقع
+    await http.post('/api/public/website/demo/contact').send({ name: 'زائر', phone: '0550000000', topic: 'inquiry', body: 'استفسار عن كفالة يتيم' }).expect(201);
+    expect((await http.get('/api/website/messages').set(as(admin)).expect(200)).body.some((m: { body: string }) => m.body.includes('كفالة يتيم'))).toBe(true);
+    // إيقاف النشر: الموقع يحتاج مفتاح المعاينة
+    const st = (await http.get('/api/website/settings').set(as(admin)).expect(200)).body;
+    await http.put('/api/website/settings/general').set(as(admin)).send({ data: { ...st, published: false, newPreviewKey: false } }).expect(200);
+    await http.get('/api/public/website/demo').expect(404);
+    await http.get(`/api/public/website/demo?preview=${st.previewKey}`).expect(200);
+    await http.put('/api/website/settings/general').set(as(admin)).send({ data: { ...st, published: true } }).expect(200);
+    // أرشيف المعرفة
+    const kn = (await http.get('/api/knowledge/documents').set(as(admin)).expect(200)).body;
+    expect(kn.length ?? kn.rows?.length).toBeGreaterThan(10);
+  }, 60000);
+
   it('resets the demo association and creates it again', async () => {
     await http.delete('/api/platform/demo-organization').set(as(platform)).expect(204);
     await http.delete('/api/platform/demo-organization').set(as(platform)).expect(404);

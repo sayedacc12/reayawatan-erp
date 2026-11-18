@@ -41,7 +41,7 @@ export function resetEss() {
 }
 
 export const KIND_ICON: Record<string, string> = {
-  leave: '🌴', permission: '⏱️', exit_reentry: '✈️', letter: '📄', advance: '💳', general: '📝',
+  leave: '🌴', permission: '⏱️', exit_reentry: '✈️', letter: '📄', advance: '💳', resignation: '🚪', general: '📝',
 };
 export const REQ_COLOR: Record<string, string> = {
   pending: '#f59e0b', returned: '#f97316', approved: '#10b981', rejected: '#ef4444', cancelled: '#94a3b8',

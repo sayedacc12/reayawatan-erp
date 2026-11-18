@@ -9,7 +9,7 @@ import '../acc.css';
 
 interface V {
   id: string; kind: 'receipt' | 'payment'; kindLabel: string; serial: number; fiscalYear: number; voucherDate: string; partyName: string; partnerId: string | null; partnerName: string | null;
-  amount: number; amountWords: string; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership'; sourceRef: string | null; projectName: string | null;
+  amount: number; amountWords: string; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation'; sourceRef: string | null; projectName: string | null;
   method: string; methodLabel: string; methodRef: string | null; cashAccountId: string; cashAccountName: string; cashKind: string; cashGl: string;
   counterAccountId: string; counterAccountCode: string; counterAccountName: string; analytic: { analyticId: string; percent: number; code: string; name: string }[];
   status: string; statusLabel: string; stages: { id: string; name: string; instructions: string | null }[]; currentStageId: string | null; stageName: string | null;
@@ -140,7 +140,7 @@ function saved() {
         <p class="row"><span>{{ isR ? 'الحساب الدائن' : 'الحساب المدين' }}</span><b><span class="ac-code">{{ v.counterAccountCode }}</span> {{ v.counterAccountName }}</b></p>
         <p v-if="v.analytic.length" class="row"><span>التحليلي</span><b>{{ v.analytic.map((a) => `${a.name}${v!.analytic.length > 1 ? ` ${a.percent}%` : ''}`).join('، ') }}</b></p>
         <p v-if="v.projectName" class="row"><span>المشروع</span><b>{{ v.projectName }}</b></p>
-        <p v-if="v.sourceType !== 'manual'" class="row"><span>المصدر</span><b>{{ v.sourceType === 'opportunity' ? 'فرصة تبرع' : v.sourceType === 'payroll' ? 'مسير رواتب شهر' : v.sourceType === 'membership' ? 'اشتراك عضوية، مطالبة' : 'مشروع المتجر' }} {{ v.sourceRef }}</b></p>
+        <p v-if="v.sourceType !== 'manual'" class="row"><span>المصدر</span><b>{{ v.sourceType === 'opportunity' ? 'فرصة تبرع' : v.sourceType === 'payroll' ? 'مسير رواتب شهر' : v.sourceType === 'membership' ? 'اشتراك عضوية، مطالبة' : v.sourceType === 'separation' ? 'مستحقات نهاية خدمة، ملف' : 'مشروع المتجر' }} {{ v.sourceRef }}</b></p>
         <footer>
           <div><span>المحاسب</span><b>{{ v.createdByName }}</b></div>
           <div><span>المراجع</span><b>&nbsp;</b></div>

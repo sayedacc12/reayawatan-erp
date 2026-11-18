@@ -283,6 +283,17 @@ export class RequestsService {
       }
       data = { amount, installments, installmentAmount: round2(amount / installments), reason: str(d.reason, 500) ?? bad('اكتب سبب السلفة') };
       summary = `سلفة ${money(amount)} على ${installments} ${installments > 10 ? 'قسطًا' : 'أقساط'}`;
+    } else if (type.kind === 'resignation') {
+      const last = dateOf(d.lastWorkingDay, 'آخر يوم عمل');
+      checkStartDate(rules, last, t, 'آخر يوم عمل');
+      if (last < e.hireDate) bad('آخر يوم عمل قبل تاريخ المباشرة');
+      const [{ n }] = await this.db.query(
+        `SELECT COUNT(*)::int AS n FROM hr_separations WHERE organization_id = $1 AND employee_id = $2 AND status <> 'cancelled'`, [org, e.id],
+      );
+      if (n) bad('لديك ملف إنهاء خدمة مفتوح لدى شؤون الموظفين');
+      data = { lastWorkingDay: last, noticeDays: daysBetween(t, last), reason: str(d.reason, 1000) ?? bad('اكتب سبب الاستقالة') };
+      summary = `استقالة، آخر يوم عمل ${last}`;
+      startDate = last;
     } else {
       const firstText = type.fields.find((f) => f.type === 'text' && extra[f.key]);
       if (firstText) summary = `${type.name}: ${String(extra[firstText.key]).slice(0, 120)}`;
@@ -558,7 +569,14 @@ export class RequestsService {
       };
       return { letterNo, date: t, templateName: tp!.name, body: renderLetter(tp!.body, vars), organizationName: vars.اسم_الجمعية, signedBy: actor.fullName };
     }
+    if (r.kind === 'resignation' && this.resignationHook) return this.resignationHook(em, actor, r);
     return null;
+  }
+
+  /** يُسجله ملف إنهاء الخدمة: اعتماد الاستقالة يفتح ملف إخلاء الطرف (بلا اعتماد دائري بين الخدمتين) */
+  private resignationHook: ((em: EntityManager, actor: OrgUser, r: HrRequest) => Promise<Record<string, unknown>>) | null = null;
+  onResignationApproved(fn: (em: EntityManager, actor: OrgUser, r: HrRequest) => Promise<Record<string, unknown>>) {
+    this.resignationHook = fn;
   }
 
   // ---------------- القراءة ----------------

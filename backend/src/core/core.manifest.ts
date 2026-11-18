@@ -6,12 +6,13 @@ export const CORE_PERMISSIONS = {
   rolesRead: 'core.roles.read',
   rolesManage: 'core.roles.manage',
   supportManage: 'core.support.manage',
+  identityManage: 'core.identity.manage',
 } as const;
 
 export const coreManifest: ErpModuleManifest = {
   code: 'core',
   name: 'الإعدادات والصلاحيات',
-  description: 'إدارة المستخدمين والأدوار وصلاحيات الوحدات',
+  description: 'هوية الجمعية وإدارة المستخدمين والأدوار وصلاحيات الوحدات',
   icon: 'settings',
   version: '1.0.0',
   alwaysEnabled: true,
@@ -22,8 +23,10 @@ export const coreManifest: ErpModuleManifest = {
     { code: CORE_PERMISSIONS.rolesRead, name: 'عرض الأدوار والصلاحيات' },
     { code: CORE_PERMISSIONS.rolesManage, name: 'إدارة الأدوار والصلاحيات' },
     { code: CORE_PERMISSIONS.supportManage, name: 'طلبات الصيانة والدعم الفني للمنصة' },
+    { code: CORE_PERMISSIONS.identityManage, name: 'إدارة هوية الجمعية: الشعار والألوان والخطوط والرؤية والرسالة والأهداف' },
   ],
   menu: [
+    { label: 'هوية الجمعية', path: '/settings/identity', permission: CORE_PERMISSIONS.identityManage },
     { label: 'المستخدمون', path: '/settings/users', permission: CORE_PERMISSIONS.usersRead },
     { label: 'الأدوار والصلاحيات', path: '/settings/roles', permission: CORE_PERMISSIONS.rolesRead },
     { label: 'الدعم الفني والصيانة', path: '/settings/support', permission: CORE_PERMISSIONS.supportManage },

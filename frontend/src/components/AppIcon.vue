@@ -20,6 +20,7 @@ const paths: Record<string, string> = {
   award: 'M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12z M9.5 9l1.8 1.8L15 7.2 M8.2 13.8 7 22l5-3 5 3-1.2-8.2',
   shieldCheck: 'M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5l-8-3z M9 12l2 2 4-4',
   scale: 'M12 3v18 M5 21h14 M4 7h16 M12 3l-1.5 1.5M12 3l1.5 1.5 M7 7l-3 7a3 3 0 0 0 6 0L7 7z M17 7l-3 7a3 3 0 0 0 6 0l-3-7z',
+  book: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5 M9 7h7 M9 11h5',
   headset: 'M3 14v-2a9 9 0 0 1 18 0v2 M21 14v3a2 2 0 0 1-2 2h-1v-6h3 M3 14v3a2 2 0 0 0 2 2h1v-6H3 M18 19c0 1.5-2 2.5-5 2.5',
 };
 const d = () => paths[props.name ?? ''] ?? paths.grid;

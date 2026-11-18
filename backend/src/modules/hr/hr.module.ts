@@ -6,6 +6,8 @@ import { AccountingModule } from '../accounting/accounting.module';
 import { HrTasks } from './hr.tasks';
 import { RequestsService } from './requests.service';
 import { SelfServiceController } from './self-service.controller';
+import { SeparationController } from './separation.controller';
+import { SeparationService } from './separation.service';
 import { SelfServiceService } from './self-service.service';
 import { AttendanceService } from './attendance.service';
 import { DevelopmentController } from './development.controller';
@@ -25,8 +27,8 @@ import { PerformanceService } from './performance.service';
  */
 @Module({
   imports: [TypeOrmModule.forFeature(HR_ENTITIES), AccountingModule, CoreModule],
-  controllers: [HrController, PayrollController, IclockController, DevelopmentController, SelfServiceController],
-  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, HrReports, RequestsService, SelfServiceService, HrTasks],
-  exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, RequestsService, SelfServiceService],
+  controllers: [HrController, PayrollController, IclockController, DevelopmentController, SelfServiceController, SeparationController],
+  providers: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, HrReports, RequestsService, SelfServiceService, HrTasks, SeparationService],
+  exports: [HrCore, OrgService, PeopleService, PerformanceService, AttendanceService, PayrollService, DevelopmentService, RequestsService, SelfServiceService, SeparationService],
 })
 export class HrModule {}

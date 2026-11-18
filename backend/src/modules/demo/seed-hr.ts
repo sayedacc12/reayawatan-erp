@@ -11,6 +11,7 @@ import { lastDay } from '../hr/people.service';
 import { PeopleService } from '../hr/people.service';
 import { PerformanceService } from '../hr/performance.service';
 import { RequestsService } from '../hr/requests.service';
+import { SeparationService } from '../hr/separation.service';
 import { HrEmployee } from '../hr/entities/hr.entity';
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 
@@ -32,6 +33,7 @@ export class HrSeed {
     private readonly accounts: AccountsService,
     private readonly db: DataSource,
     private readonly requests: RequestsService,
+    private readonly separations: SeparationService,
   ) {}
 
   async run(team: DemoTeam) {
@@ -263,6 +265,8 @@ export class HrSeed {
     await this.seedSelfService(team, { ceoE, programsE, researcherE, projectsE, fundraiserE, financeE, qualityE });
 
     await this.seedAttendanceAndPayroll(team, year);
+
+    await this.seedSeparation(team, accountantE, accId);
   }
 
   /**
@@ -313,6 +317,26 @@ export class HrSeed {
     await this.requests.decide(admin, fl.id, 'approve', 'تُغطى المهام بالمحاسب');
     // استئذان لمدير البرامج بانتظار المدير التنفيذي
     await this.requests.submit(team.caseManager, { typeId: T('permission'), data: { permissionKind: 'official', date: daysAhead(3), fromTime: '09:00', toTime: '12:00', note: 'اجتماع في وزارة الموارد البشرية' } }, []);
+  }
+
+  /**
+   * إخلاء الطرف ونهاية الخدمة: الربط المحاسبي ومراحل اعتماد المستحقات (المالية ثم المدير التنفيذي)،
+   * وملف استقالة المحاسب قيد إخلاء الطرف: أخلى مديره تسليم المهام والشؤون المالية، وأخلت شؤون الموظفين العهد بخصم بطاقة مفقودة،
+   * وبقي إيقاف الحسابات ومقابلة الخروج.
+   */
+  private async seedSeparation(team: DemoTeam, accountantE: string, accId: (code: string) => string) {
+    const { admin } = team;
+    const cfg = await this.separations.config(admin.organizationId);
+    await this.separations.saveConfig(admin, {
+      ...cfg, eosAccountId: accId('4110202001'), leaveAccountId: accId('4110200101'), otherAccountId: accId('4110200701'),
+      stages: [{ name: 'مراجعة الشؤون المالية', roleId: team.roles.finance }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
+    });
+    const s = await this.separations.create(admin, {
+      employeeId: accountantE, reason: 'resignation', lastWorkingDay: daysAhead(20), noticeDate: daysAgo(10), note: 'استقالة للانتقال إلى مدينة أخرى',
+    });
+    await this.separations.clearItem(team.finance, s.id, 'handover', { decision: 'clear', note: 'سُلمت الملفات وأعمال الإقفال الشهري لأخصائي الموارد البشرية مؤقتًا' });
+    await this.separations.clearItem(team.finance, s.id, 'finance', { decision: 'clear', note: 'لا عهد نقدية ولا مطالبات' });
+    await this.separations.clearItem(admin, s.id, 'assets', { decision: 'clear', deduction: 250, note: 'سُلم الحاسب المحمول، وبطاقة الدخول مفقودة' });
   }
 
   /** الحضور: إعدادات الدوام وجهاز بصمة وملف حضور للشهر السابق والحالي، ثم كشف الشهر السابق معتمدًا بقيده وسنداته وكشف الشهر الحالي قيد الإعداد */
