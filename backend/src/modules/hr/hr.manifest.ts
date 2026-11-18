@@ -24,6 +24,8 @@ export const HR_PERMISSIONS = {
   policy: 'hr.policy.manage',
   settings: 'hr.settings.manage',
   reports: 'hr.reports.read',
+  requests: 'hr.requests.read',
+  approveRequests: 'hr.requests.approve',
 } as const;
 
 const P = HR_PERMISSIONS;
@@ -31,9 +33,9 @@ const P = HR_PERMISSIONS;
 export const hrManifest: ErpModuleManifest = {
   code: 'hr',
   name: 'الموارد البشرية',
-  description: 'الهيكل التنظيمي والأوصاف الوظيفية والجدارات، سلم الرواتب وخطط التعيين، الموظفون والعقود والرواتب والتأمينات، الإجازات ونهاية الخدمة، الحضور ومسير الرواتب، الأداء والتطوير والتدريب والصف الثاني',
+  description: 'الهيكل التنظيمي والأوصاف الوظيفية والجدارات، سلم الرواتب وخطط التعيين، الموظفون والعقود والرواتب والتأمينات، الإجازات ونهاية الخدمة، الحضور ومسير الرواتب، الأداء والتطوير والتدريب والصف الثاني، والخدمة الذاتية للموظفين وطلباتهم ومسارات اعتمادها',
   icon: 'idcard',
-  version: '1.2.0',
+  version: '1.3.0',
   alwaysEnabled: true,
   sequence: 70,
   permissions: [
@@ -58,6 +60,8 @@ export const hrManifest: ErpModuleManifest = {
     { code: P.development, name: 'إعداد خطط التطوير والتدريب ومتابعتها، وإدارة الصف الثاني' },
     { code: P.approveDevelopment, name: 'اعتماد خطط التطوير والتدريب في مراحلها' },
     { code: P.policy, name: 'تعديل لائحة الموارد البشرية' },
+    { code: P.requests, name: 'عرض كل طلبات الموظفين (الخدمة الذاتية) وسلفهم' },
+    { code: P.approveRequests, name: 'اعتماد طلبات الموظفين في خطوة «شؤون الموظفين»' },
     { code: P.reports, name: 'عرض تقارير الموارد البشرية وتصديرها (تقارير الرواتب تحتاج أيضًا صلاحية عرض الرواتب)' },
     { code: P.settings, name: 'إعدادات الموارد البشرية وصلاحياتها' },
   ],
@@ -65,6 +69,7 @@ export const hrManifest: ErpModuleManifest = {
   menu: [
     { label: 'لوحة الموارد البشرية', path: '/hr', permission: P.read },
     { label: 'الموظفون', path: '/hr/employees', permission: P.read, group: 'شؤون الموظفين' },
+    { label: 'طلبات الموظفين', path: '/hr/requests', permission: P.requests, group: 'شؤون الموظفين' },
     { label: 'الإجازات', path: '/hr/leaves', permission: P.read, group: 'شؤون الموظفين' },
     { label: 'الحضور والانصراف', path: '/hr/attendance', permission: P.read, group: 'شؤون الموظفين' },
     { label: 'مسير الرواتب', path: '/hr/payroll', permission: P.salaries, group: 'شؤون الموظفين' },

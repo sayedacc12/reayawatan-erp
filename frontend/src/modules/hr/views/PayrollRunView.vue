@@ -15,7 +15,7 @@ interface Line {
   items: { code: string; name: string; full: number; earned: number }[]; gross: number; workedDays: number; ratio: number; dailyWage: number; unpaidDays: number; unpaidDeduction: number;
   attendance: { tracked: boolean; absentDays: number; lateMinutes: number; missingOut: number; overridden: boolean };
   absenceDeduction: number; lateDeduction: number; additions: { code: string; amount: number; note: string | null }[];
-  otherDeduction: number; otherDeductionNote: string | null; earned: number; gosiEmployee: number; gosiEmployer: number; totalDeductions: number; net: number; employerCost: number;
+  otherDeduction: number; otherDeductionNote: string | null; advanceDeduction?: number; earned: number; gosiEmployee: number; gosiEmployer: number; totalDeductions: number; net: number; employerCost: number;
 }
 interface Voucher { id: string; serial: number; amount: number; status: string; statusLabel: string; purpose: string; cashAccountName: string; voucherDate: string }
 interface Run {
@@ -131,9 +131,9 @@ function csv(name: string, head: string[], rows: (string | number)[][]) {
 function exportLines() {
   const r = run.value!;
   const codes = [...new Set(r.lines.flatMap((l) => l.items.map((i) => i.code)))];
-  csv(`كشف-رواتب-${r.month}`, ['الرقم', 'الموظف', 'الوحدة', ...codes.map(typeName), 'إضافات', 'المستحق', 'خصم الحضور والإجازات', 'التأمينات', 'استقطاعات أخرى', 'الصافي', 'الآيبان'],
+  csv(`كشف-رواتب-${r.month}`, ['الرقم', 'الموظف', 'الوحدة', ...codes.map(typeName), 'إضافات', 'المستحق', 'خصم الحضور والإجازات', 'التأمينات', 'استقطاعات أخرى', 'أقساط السلف', 'الصافي', 'الآيبان'],
     r.lines.map((l) => [l.employeeNo, l.fullName, l.unitName, ...codes.map((c) => l.items.find((i) => i.code === c)?.earned ?? 0), l.additions.reduce((s, a) => s + a.amount, 0), l.earned,
-      attDed(l), l.gosiEmployee, l.otherDeduction, l.net, l.iban ?? '']));
+      attDed(l), l.gosiEmployee, l.otherDeduction, l.advanceDeduction ?? 0, l.net, l.iban ?? '']));
 }
 function exportBank(b: Run['bankSheets'][number]) {
   csv(`تحويل-${b.cashAccountName}-${run.value!.month}`, ['الرقم', 'الموظف', 'الآيبان', 'المبلغ'], b.rows.map((x) => [x.employeeNo, x.fullName, x.iban ?? '', x.amount.toFixed(2)]));
@@ -183,7 +183,7 @@ const totalCredit = computed(() => run.value?.entryPreview.reduce((s, l) => s + 
       <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>الموظفون</span><strong><CountUp :value="run.totals.employees" /></strong><small>{{ run.totals.missingIban ? `${run.totals.missingIban} بدون آيبان` : 'كل الحسابات البنكية مكتملة' }}</small></div>
       <div class="pm-kpi" style="--a: #0ea5e9; --i: 1"><span>إجمالي المستحق</span><strong><CountUp :value="run.totals.gross" :decimals="2" /></strong><small>إضافات {{ sar(run.totals.additions) }}</small></div>
       <div class="pm-kpi" style="--a: #ef4444; --i: 2"><span>خصم الغياب والتأخير</span><strong><CountUp :value="run.totals.absenceDeduction + run.totals.lateDeduction + run.totals.unpaidDeduction" :decimals="2" /></strong><small>بدون أجر {{ sar(run.totals.unpaidDeduction) }}</small></div>
-      <div class="pm-kpi" style="--a: #f59e0b; --i: 3"><span>التأمينات والاستقطاعات</span><strong><CountUp :value="run.totals.gosiEmployee + run.totals.otherDeduction" :decimals="2" /></strong><small>استقطاعات أخرى {{ sar(run.totals.otherDeduction) }}</small></div>
+      <div class="pm-kpi" style="--a: #f59e0b; --i: 3"><span>التأمينات والاستقطاعات</span><strong><CountUp :value="run.totals.gosiEmployee + run.totals.otherDeduction + (run.totals.advanceDeduction ?? 0)" :decimals="2" /></strong><small>استقطاعات أخرى {{ sar(run.totals.otherDeduction) }}<template v-if="run.totals.advanceDeduction"> · أقساط سلف {{ sar(run.totals.advanceDeduction) }}</template></small></div>
       <div class="pm-kpi" style="--a: #10b981; --i: 4"><span>صافي الرواتب</span><strong><CountUp :value="run.totals.net" :decimals="2" /></strong><small>التكلفة الكاملة {{ sar(run.totals.employerCost) }}</small></div>
     </div>
 
@@ -226,12 +226,13 @@ const totalCredit = computed(() => run.value?.entryPreview.reduce((s, l) => s + 
               <td class="hr-num">
                 <span class="hr-mini">تأمينات: {{ num(l.gosiEmployee) }}</span>
                 <span v-if="l.otherDeduction" class="hr-mini" style="color: var(--danger)">{{ l.otherDeductionNote ?? 'استقطاع' }}: {{ num(l.otherDeduction) }}</span>
+                <span v-if="l.advanceDeduction" class="hr-mini" style="color: #7c3aed">قسط سلفة: {{ num(l.advanceDeduction) }}</span>
               </td>
               <td class="pm-money" style="color: var(--success)">{{ sar(l.net) }}<span v-if="!l.iban" class="hr-mini" style="color: var(--danger)">بدون آيبان</span></td>
             </tr>
           </tbody>
           <tfoot><tr class="hr-tot"><td colspan="2">الإجمالي</td><td class="pm-money">{{ sar(run.totals.gross) }}</td><td></td>
-            <td class="hr-num">{{ sar(run.totals.absenceDeduction + run.totals.lateDeduction + run.totals.unpaidDeduction) }}</td><td class="hr-num">{{ sar(run.totals.gosiEmployee + run.totals.otherDeduction) }}</td><td class="pm-money">{{ sar(run.totals.net) }}</td></tr></tfoot>
+            <td class="hr-num">{{ sar(run.totals.absenceDeduction + run.totals.lateDeduction + run.totals.unpaidDeduction) }}</td><td class="hr-num">{{ sar(run.totals.gosiEmployee + run.totals.otherDeduction + (run.totals.advanceDeduction ?? 0)) }}</td><td class="pm-money">{{ sar(run.totals.net) }}</td></tr></tfoot>
         </table>
       </div>
     </section>

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { ContractType, HrEmployee, HrGrade, HrJob, HrLeaveRequest, HrPerformanceCard, HrUnit, LeaveStatus, QiwaStatus } from './entities/hr.entity';
+import { ContractType, HrEmployee, HrGrade, HrJob, HrLeaveRequest, HrPerformanceCard, HrRequest, HrUnit, LeaveStatus, QiwaStatus } from './entities/hr.entity';
 import { EmployeeDto, EosCalcDto, LeaveDto, TerminateDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
 import { HR_PERMISSIONS as P } from './hr.manifest';
@@ -57,9 +57,17 @@ export class PeopleService {
       id: e.id, employeeNo: e.employeeNo, fullName: e.fullName, nationalId: e.nationalId, nationality: e.nationality, isSaudi: e.isSaudi, gender: e.gender,
       unitName: units.get(e.unitId)?.name ?? '', jobTitle: jobs.get(e.jobId)?.title ?? '', gradeName: e.gradeId ? grades.get(e.gradeId)?.code ?? null : null,
       hireDate: e.hireDate, contractType: e.contractType, contractTypeLabel: CONTRACT_AR[e.contractType], contractEnd: e.contractEnd,
-      qiwaStatus: e.qiwaStatus, status: e.status, terminationDate: e.terminationDate,
+      qiwaStatus: e.qiwaStatus, status: e.status, terminationDate: e.terminationDate, userId: e.userId,
       gross: salaries ? round2(e.basicSalary + e.allowances.reduce((s, a) => s + a.amount, 0)) : null,
     }));
+  }
+
+  async users(actor: OrgUser) {
+    const rows: { id: string; full_name: string; email: string; is_active: boolean; employee_id: string | null; employee_name: string | null }[] = await this.db.query(
+      `SELECT u.id, u.full_name, u.email, u.is_active, e.id AS employee_id, e.full_name AS employee_name FROM users u
+         LEFT JOIN hr_employees e ON e.user_id = u.id WHERE u.organization_id = $1 ORDER BY u.full_name`, [actor.organizationId],
+    );
+    return rows.map((r) => ({ id: r.id, fullName: r.full_name, email: r.email, isActive: r.is_active, employeeId: r.employee_id, employeeName: r.employee_name }));
   }
 
   private async lookups(org: string) {
@@ -85,7 +93,9 @@ export class PeopleService {
       basicSalary: salaries ? e.basicSalary : null, allowances: salaries ? e.allowances : [], iban: salaries ? e.iban : null, eosAmount: salaries ? e.eosAmount : null,
       unitName: units.get(e.unitId)?.name ?? '', jobTitle: jobs.get(e.jobId)?.title ?? '', jobCode: jobs.get(e.jobId)?.code ?? '',
       gradeName: grade ? `${grade.code} ${grade.name}` : null, salaryRange: grade && salaries ? { min: grade.minSalary, max: grade.maxSalary } : null,
-      managerName: manager?.fullName ?? null, contractTypeLabel: CONTRACT_AR[e.contractType], qiwaLabel: QIWA_AR[e.qiwaStatus],
+      managerName: manager?.fullName ?? null,
+      userName: e.userId ? ((await this.db.query('SELECT full_name FROM users WHERE id = $1', [e.userId]))[0]?.full_name ?? null) : null,
+      contractTypeLabel: CONTRACT_AR[e.contractType], qiwaLabel: QIWA_AR[e.qiwaStatus],
       terminationLabel: e.terminationReason ? EOS_REASONS[e.terminationReason as EosReason]?.label ?? e.terminationReason : null,
       service: serviceSpan(e.hireDate, asOf),
       balances: await this.balances(org, e, policy, asOf),
@@ -132,6 +142,12 @@ export class PeopleService {
     if (dto.managerId) {
       if (dto.managerId === selfId) throw new BadRequestException('لا يمكن أن يكون الموظف مديرًا لنفسه');
       await this.employee(org, dto.managerId);
+    }
+    if (dto.userId) {
+      const [u] = await this.db.query('SELECT id FROM users WHERE id = $1 AND organization_id = $2', [dto.userId, org]);
+      if (!u) throw new BadRequestException('حساب الدخول غير موجود في الجمعية');
+      const other = await this.employees.findOne({ where: { userId: dto.userId } });
+      if (other && other.id !== selfId) throw new ConflictException(`حساب الدخول مربوط بالموظف ${other.fullName}`);
     }
     if (dto.contractType === 'fixed' && !dto.contractEnd) throw new BadRequestException('حدد تاريخ نهاية العقد محدد المدة');
     if (dto.contractEnd && dto.contractEnd <= dto.contractStart) throw new BadRequestException('نهاية العقد يجب أن تكون بعد بدايته');
@@ -405,6 +421,7 @@ export class PeopleService {
     if (decision === 'reject' && !note) throw new BadRequestException('اكتب سبب الرفض');
     Object.assign(l, { status: decision === 'approve' ? 'approved' : 'rejected', decisionNote: note, decidedByName: actor.fullName, decidedAt: new Date() });
     await this.leaves.save(l);
+    await this.syncRequest(l, decision === 'approve' ? 'approved' : 'rejected', actor, note);
     return { id };
   }
 
@@ -418,7 +435,27 @@ export class PeopleService {
     } else if (l.status !== 'pending') throw new BadRequestException('الطلب منتهٍ');
     Object.assign(l, { status: 'cancelled', decidedByName: actor.fullName, decidedAt: new Date() });
     await this.leaves.save(l);
+    await this.syncRequest(l, 'cancelled', actor, null);
     return { id };
+  }
+
+  /**
+   * قرار شؤون الموظفين من شاشة الإجازات على إجازة قُدمت من الخدمة الذاتية: يُغلق طلبها بالقرار نفسه
+   * (الخطوة الحالية تُسجل باسم متخذ القرار بالنيابة) حتى لا يبقى الطلب معلقًا عند المدير.
+   */
+  private async syncRequest(l: HrLeaveRequest, status: 'approved' | 'rejected' | 'cancelled', actor: OrgUser, note: string | null) {
+    if (!l.requestId) return;
+    const repo = this.db.getRepository(HrRequest);
+    const r = await repo.findOne({ where: { id: l.requestId } });
+    if (!r || (r.status !== 'pending' && r.status !== 'returned')) return;
+    const at = new Date().toISOString();
+    const steps = r.steps.map((s, i) => (i === r.stepIndex && status !== 'cancelled'
+      ? { ...s, status: status === 'approved' ? 'approved' as const : 'rejected' as const, actorName: actor.fullName, onBehalf: true, note, at }
+      : s));
+    await repo.update({ id: r.id }, {
+      status, steps, stepIndex: null, decidedAt: new Date(),
+      history: [...r.history, { action: 'hr_decision', note: note ?? (status === 'approved' ? 'اعتماد' : status === 'rejected' ? 'رفض' : 'إلغاء'), actorName: actor.fullName, at }],
+    });
   }
 
   // ---------------- اللوحة والتنبيهات ----------------

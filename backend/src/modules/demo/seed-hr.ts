@@ -10,6 +10,8 @@ import { PayrollService } from '../hr/payroll.service';
 import { lastDay } from '../hr/people.service';
 import { PeopleService } from '../hr/people.service';
 import { PerformanceService } from '../hr/performance.service';
+import { RequestsService } from '../hr/requests.service';
+import { HrEmployee } from '../hr/entities/hr.entity';
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 
 /**
@@ -29,6 +31,7 @@ export class HrSeed {
     private readonly dev: DevelopmentService,
     private readonly accounts: AccountsService,
     private readonly db: DataSource,
+    private readonly requests: RequestsService,
   ) {}
 
   async run(team: DemoTeam) {
@@ -257,7 +260,59 @@ export class HrSeed {
       emps: { programsE, projectsE, researcherE, financeE, accountantE, fundraiserE, qualityE, hrE, hindE },
     });
 
+    await this.seedSelfService(team, { ceoE, programsE, researcherE, projectsE, fundraiserE, financeE, qualityE });
+
     await this.seedAttendanceAndPayroll(team, year);
+  }
+
+  /**
+   * الخدمة الذاتية: ربط حسابات فريق الجمعية التجريبية بملفاتهم، أنواع الطلبات الافتراضية،
+   * وطلبات في مراحل مختلفة: إجازة بانتظار المدير المباشر، خطاب تعريف بالراتب معتمد، استئذان معتمد،
+   * سلفة معتمدة تُسترد من مسير الرواتب، إجازة مرضية بمرفق، طلب معاد للتعديل، وإجازة معتمدة بمسارها كاملًا.
+   */
+  private async seedSelfService(team: DemoTeam, e: Record<'ceoE' | 'programsE' | 'researcherE' | 'projectsE' | 'fundraiserE' | 'financeE' | 'qualityE', string>) {
+    const { admin } = team;
+    const org = admin.organizationId;
+    const repo = this.db.getRepository(HrEmployee);
+    const links: [{ id: string }, string][] = [
+      [admin, e.ceoE], [team.caseManager, e.programsE], [team.researcher, e.researcherE], [team.projectsManager, e.projectsE],
+      [team.fundraiser, e.fundraiserE], [team.finance, e.financeE], [team.quality, e.qualityE],
+    ];
+    for (const [u, emp] of links) await repo.update({ id: emp }, { userId: u.id });
+    await this.requests.addDefaults(org);
+    const types = await this.requests.types(org);
+    const T = (code: string) => types.find((t) => t.code === code)!.id;
+    const pdf = (name: string) => ({
+      buffer: Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF'), size: 64, originalname: Buffer.from(name, 'utf8').toString('latin1'),
+    } as Express.Multer.File);
+
+    // إجازة سنوية للباحثة بانتظار مديرها المباشر (مدير البرامج)
+    await this.requests.submit(team.researcher, { typeId: T('leave'), data: { leaveType: 'annual', startDate: daysAhead(12), endDate: daysAhead(16), note: 'إجازة عائلية' } }, []);
+    // خطاب تعريف بالراتب موجه لبنك: اعتمدته شؤون الموظفين وجاهز للطباعة
+    const letter = await this.requests.submit(team.researcher, { typeId: T('salary_certificate'), data: { templateId: 'bank', addressee: 'مصرف الراجحي - فرع العليا' } }, []);
+    await this.requests.decide(team.finance, letter.id, 'approve', 'صدر الخطاب');
+    // استئذان خروج مبكر لمدير المشاريع اعتمده مديره
+    const perm = await this.requests.submit(team.projectsManager, { typeId: T('permission'), data: { permissionKind: 'early', date: daysAhead(1), fromTime: '13:00', toTime: '15:00', note: 'مراجعة مستشفى' } }, []);
+    await this.requests.decide(team.caseManager, perm.id, 'approve', null);
+    // إجازة مرضية لمدير المشاريع بعد وقوعها بتقرير طبي، بانتظار مديره
+    await this.requests.submit(team.projectsManager, { typeId: T('sick_leave'), data: { leaveType: 'sick', startDate: daysAgo(2), endDate: daysAgo(1), note: 'نزلة برد' } }, [pdf('تقرير طبي.pdf')]);
+    // سلفة لمسؤول تنمية الموارد: المدير المباشر (المدير التنفيذي) ثم شؤون الموظفين، وتُسترد من مسير الرواتب
+    const adv = await this.requests.submit(team.fundraiser, { typeId: T('advance'), data: { amount: 6000, installments: 6, reason: 'ظروف عائلية طارئة' } }, []);
+    await this.requests.decide(admin, adv.id, 'approve', 'موافق');
+    await this.requests.decide(team.finance, adv.id, 'approve', 'تُخصم من الراتب ستة أشهر');
+    // تبدأ أقساطها من الشهر السابق حتى يظهر القسط الأول في كشفه المعتمد
+    const prev = new Date(`${today().slice(0, 7)}-01T00:00:00Z`);
+    prev.setUTCMonth(prev.getUTCMonth() - 1);
+    await this.db.query(`UPDATE hr_advances SET start_month = $1 WHERE request_id = $2`, [prev.toISOString().slice(0, 7), adv.id]);
+    // طلب عام لمسؤول الجودة أعاده المدير التنفيذي للتعديل
+    const gen = await this.requests.submit(team.quality, { typeId: T('general'), fields: { subject: 'تحديث الحساب البنكي', details: 'أرجو تحديث رقم الآيبان لتحويل الراتب إلى حسابي الجديد' } }, []);
+    await this.requests.decide(admin, gen.id, 'return', 'أرفق خطاب البنك بالآيبان الجديد');
+    // إجازة سنوية للمدير المالي اعتمدها المدير التنفيذي ثم شؤون الموظفين
+    const fl = await this.requests.submit(team.finance, { typeId: T('leave'), data: { leaveType: 'annual', startDate: daysAhead(70), endDate: daysAhead(74), note: null } }, []);
+    await this.requests.decide(admin, fl.id, 'approve', null);
+    await this.requests.decide(admin, fl.id, 'approve', 'تُغطى المهام بالمحاسب');
+    // استئذان لمدير البرامج بانتظار المدير التنفيذي
+    await this.requests.submit(team.caseManager, { typeId: T('permission'), data: { permissionKind: 'official', date: daysAhead(3), fromTime: '09:00', toTime: '12:00', note: 'اجتماع في وزارة الموارد البشرية' } }, []);
   }
 
   /** الحضور: إعدادات الدوام وجهاز بصمة وملف حضور للشهر السابق والحالي، ثم كشف الشهر السابق معتمدًا بقيده وسنداته وكشف الشهر الحالي قيد الإعداد */

@@ -88,6 +88,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
             <div><dt>تاريخ الميلاد</dt><dd>{{ fmtDate(e.birthDate) }}</dd></div>
             <div><dt>الجوال</dt><dd class="hr-code">{{ e.phone ?? '—' }}</dd></div>
             <div><dt>البريد</dt><dd>{{ e.email ?? '—' }}</dd></div>
+            <div><dt>حساب الدخول</dt><dd>{{ e.userName ?? 'غير مربوط' }}</dd></div>
             <div><dt>المدير المباشر</dt><dd>{{ e.managerName ?? '—' }}</dd></div>
             <div><dt>رقم التأمينات</dt><dd class="hr-code">{{ e.gosiNumber ?? '—' }}</dd></div>
             <div><dt>رقم البصمة</dt><dd><span class="hr-code">{{ e.attendanceCode || e.employeeNo }}</span><span v-if="e.attendanceExempt" class="pm-tag">معفى من البصمة</span></dd></div>

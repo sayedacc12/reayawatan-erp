@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import SideNav from '../components/SideNav.vue';
+import TasksBell from '../components/TasksBell.vue';
+import { ess, loadSummary, resetEss } from '../modules/hr/self/ess';
 import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
 import { loginPath, useSession } from '../stores/session';
 
@@ -32,7 +34,16 @@ const menu = computed(() => {
 });
 watch(() => currentApp.value?.code, (c) => { if (c === 'accounting' && session.can(ACC.read)) loadDocTypes(); }, { immediate: true });
 
+/** الخدمة الذاتية: تظهر لمستخدمي الجمعيات المربوطين بملف موظف */
+const isOrgUser = computed(() => !!session.user?.organizationId);
+watch(() => session.user?.id, (id) => {
+  resetEss();
+  if (id && session.user?.organizationId) loadSummary();
+}, { immediate: true });
+const inSelf = computed(() => route.path === '/me' || route.path.startsWith('/me/'));
+
 function logout() {
+  resetEss();
   session.logout();
   router.push(loginPath());
 }
@@ -55,6 +66,12 @@ function logout() {
           <span v-if="currentApp" :key="currentApp.code" class="app-name">{{ currentApp.name }}</span>
         </Transition>
       </div>
+      <div class="top-actions">
+      <RouterLink v-if="ess.summary?.linked" to="/me" :class="['self-btn', { on: inSelf }]" title="الخدمة الذاتية: لوحتي وطلباتي">
+        <span aria-hidden="true">✦</span><span class="label">خدمتي</span>
+        <b v-if="ess.summary.awaiting" class="self-count">{{ ess.summary.awaiting }}</b>
+      </RouterLink>
+      <TasksBell v-if="isOrgUser" />
       <div class="user">
         <button class="user-btn" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
           <span class="avatar">{{ session.user?.fullName.charAt(0) }}</span>
@@ -69,10 +86,12 @@ function logout() {
                 <div class="muted email" dir="ltr">{{ session.user?.email }}</div>
               </div>
             </div>
+            <RouterLink v-if="ess.summary?.linked" to="/me">لوحتي (الخدمة الذاتية)</RouterLink>
             <RouterLink to="/account">حسابي وكلمة المرور</RouterLink>
             <button class="link-btn" @click="logout">تسجيل الخروج</button>
           </div>
         </Transition>
+      </div>
       </div>
       <span class="glow-line" aria-hidden="true" />
     </header>
@@ -86,7 +105,7 @@ function logout() {
       <main class="content">
         <RouterView v-slot="{ Component, route: r }">
           <Transition name="page" mode="out-in">
-            <component :is="Component" :key="r.path" />
+            <component :is="Component" :key="(r.meta.layoutKey as string | undefined) ?? r.path" />
           </Transition>
         </RouterView>
       </main>
@@ -115,6 +134,11 @@ function logout() {
 .crumb-enter-active, .crumb-leave-active { transition: all .25s var(--ease); }
 .crumb-enter-from, .crumb-leave-to { opacity: 0; transform: translateX(-8px); }
 
+.top-actions { display: flex; align-items: center; gap: 10px; }
+.self-btn { position: relative; display: flex; align-items: center; gap: 6px; color: #fff; padding: 6px 14px; border-radius: 12px; font-weight: 600;
+  background: linear-gradient(135deg, rgba(244,114,182,.28), rgba(167,139,250,.28)); border: 1px solid rgba(244,114,182,.45); transition: all .2s var(--ease); }
+.self-btn:hover, .self-btn.on { background: linear-gradient(135deg, #f472b6, #a78bfa); box-shadow: 0 6px 20px rgba(244,114,182,.4); }
+.self-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: #f59e0b; font-size: .7rem; display: grid; place-items: center; }
 .user { position: relative; }
 .user-btn { background: none; border: 0; color: #fff; display: flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; padding: 4px; border-radius: 999px; }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--grad); display: grid; place-items: center; font-weight: 700; color: #fff;
@@ -145,7 +169,7 @@ function logout() {
   .side-title { display: none; }
   .nav-item { white-space: nowrap; }
   .content { padding: 16px; }
-  .user-name, .apps-btn .label, .app-name { display: none; }
+  .user-name, .apps-btn .label, .app-name, .self-btn .label { display: none; }
   .org-name { max-width: 140px; }
 }
 </style>

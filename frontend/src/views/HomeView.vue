@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import AppIcon from '../components/AppIcon.vue';
 import { useSession } from '../stores/session';
+import { ess } from '../modules/hr/self/ess';
 
 const session = useSession();
 
@@ -50,6 +51,16 @@ function spotlight(e: PointerEvent) {
         </p>
       </div>
     </section>
+
+    <RouterLink v-if="ess.summary?.linked" to="/me" class="self-banner">
+      <span class="self-ic" aria-hidden="true">✦</span>
+      <span class="self-tx">
+        <b>الخدمة الذاتية</b>
+        <span>لوحتك الشخصية: رصيد الإجازات والسلف، الراتب، الحضور، وتقديم الطلبات ومتابعتها{{ ess.summary.isManager ? '، ولوحة المدير لفريقك' : '' }}.</span>
+      </span>
+      <span v-if="ess.summary.awaiting" class="self-wait">{{ ess.summary.awaiting }} بانتظار اعتمادك</span>
+      <span class="self-go">افتح لوحتي ←</span>
+    </RouterLink>
 
     <div v-if="session.apps.length" class="apps">
       <RouterLink v-for="(app, i) in session.apps" :key="app.code" :to="app.menu[0].path" class="app" :style="tint(i)" @pointermove="spotlight">
@@ -114,4 +125,12 @@ function spotlight(e: PointerEvent) {
 .empty { padding: 28px; text-align: center; color: var(--muted); }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
 @media (max-width: 760px) { .welcome { padding: 22px 18px; } .welcome h1 { font-size: 1.3rem; } }
+.self-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 0 0 22px; padding: 16px 20px; border-radius: 18px; color: #fff;
+  background: linear-gradient(120deg, #3b0764, #6d28d9 45%, #db2777); box-shadow: 0 14px 36px rgba(109,40,217,.28); transition: transform .25s var(--ease), box-shadow .25s; }
+.self-banner:hover { transform: translateY(-2px); box-shadow: 0 18px 44px rgba(109,40,217,.38); }
+.self-ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-size: 1.3rem; background: rgba(255,255,255,.16); }
+.self-tx { flex: 1; min-width: 220px; display: grid; gap: 2px; }
+.self-tx span { opacity: .88; font-size: .9rem; }
+.self-wait { background: #f59e0b; border-radius: 99px; padding: 4px 12px; font-size: .82rem; font-weight: 700; }
+.self-go { font-weight: 700; }
 </style>

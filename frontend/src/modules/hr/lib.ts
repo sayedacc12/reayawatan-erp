@@ -7,6 +7,7 @@ export const P = {
   approvePerformance: 'hr.performance.approve', policy: 'hr.policy.manage', settings: 'hr.settings.manage',
   attendance: 'hr.attendance.manage', payroll: 'hr.payroll.manage', approvePayroll: 'hr.payroll.approve', payPayroll: 'hr.payroll.pay',
   development: 'hr.development.manage', approveDevelopment: 'hr.development.approve',
+  requests: 'hr.requests.read', approveRequests: 'hr.requests.approve',
 } as const;
 
 export const sar = (n: number | null | undefined) => `${(n ?? 0).toLocaleString('ar-SA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ر.س`;
