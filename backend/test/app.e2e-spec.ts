@@ -139,7 +139,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     expect(upd.body.modules).toEqual(['sampleopt']);
 
     mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'audit', 'beneficiaries', 'core', 'fundraising', 'hr', 'members', 'projects', 'knowledge', 'quality', 'risk', 'sampleopt', 'volunteers', 'website']);
+    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'audit', 'beneficiaries', 'core', 'fundraising', 'hr', 'knowledge', 'members', 'projects', 'quality', 'risk', 'sampleopt', 'volunteers', 'website']);
     const me = await http.get('/api/auth/me').set(as(adminToken)).expect(200);
     expect(me.body.user.permissions).toContain('sampleopt.pages.manage');
     await http.post('/api/roles').set(as(adminToken))
