@@ -45,6 +45,8 @@ const nav = computed(() => (mode.value === 'manager'
     ...(ess.summary?.awaiting ? [{ to: '/me/approvals', label: 'بانتظار اعتمادي', icon: 'shieldCheck', badge: ess.summary.awaiting }] : []),
   ]));
 const active = (n: { to: string; exact?: boolean }) => (n.exact ? route.path === n.to : route.path === n.to || route.path.startsWith(`${n.to}/`));
+const PALETTE = ['#14b8a6', '#6366f1', '#f59e0b', '#ec4899', '#0ea5e9', '#22c55e', '#a855f7', '#ef4444'];
+const appTint = (i: number) => ({ '--c': PALETTE[i % PALETTE.length], '--i': i });
 const initials = computed(() => ess.summary?.employee?.fullName.split(' ').slice(0, 2).map((w) => w.charAt(0)).join(' ') ?? '');
 </script>
 
@@ -71,10 +73,10 @@ const initials = computed(() => ess.summary?.employee?.fullName.split(' ').slice
         </RouterLink>
       </nav>
       <template v-if="session.apps.length">
-        <p class="ess-side-title">البرامج</p>
+        <p class="ess-side-title">الأنظمة المصرح لك بها <small>{{ session.apps.length }}</small></p>
         <nav class="ess-nav ess-apps">
-          <RouterLink v-for="a in session.apps" :key="a.code" :to="a.menu[0].path" class="ess-link">
-            <AppIcon :name="a.icon" :size="18" /><span>{{ a.name }}</span>
+          <RouterLink v-for="(a, i) in session.apps" :key="a.code" :to="a.menu[0].path" class="ess-link" :style="appTint(i)">
+            <span class="ess-app-ic"><AppIcon :name="a.icon" :size="16" /></span><span>{{ a.name }}</span>
           </RouterLink>
         </nav>
       </template>
@@ -83,7 +85,7 @@ const initials = computed(() => ess.summary?.employee?.fullName.split(' ').slice
       <div v-if="ess.summary && !ess.summary.linked" class="card ess-unlinked">
         <h2>حسابك غير مربوط بملف موظف</h2>
         <p class="pm-muted">الخدمة الذاتية متاحة لكل موظف بعد ربط حساب دخوله بملفه في الموارد البشرية. اطلب من شؤون الموظفين فتح ملفك واختيار حسابك في خانة «حساب الدخول».</p>
-        <RouterLink to="/" class="btn">العودة للتطبيقات</RouterLink>
+        <RouterLink to="/" class="btn">الذهاب إلى التطبيقات</RouterLink>
       </div>
       <RouterView v-else-if="ess.summary" v-slot="{ Component }">
         <Transition name="page" mode="out-in"><component :is="Component" :key="route.path" /></Transition>
