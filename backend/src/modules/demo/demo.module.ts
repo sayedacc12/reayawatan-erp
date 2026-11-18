@@ -10,12 +10,14 @@ import { ProjectsModule } from '../projects/projects.module';
 import { RiskModule } from '../risk/risk.module';
 import { VolunteersModule } from '../volunteers/volunteers.module';
 import { QualityModule } from '../quality/quality.module';
+import { GovernanceModule } from '../governance/governance.module';
 import { DemoController } from './demo.controller';
 import { DemoService } from './demo.service';
 import { AccountingSeed } from './seed-accounting';
 import { AuditSeed } from './seed-audit';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
+import { GovernanceSeed } from './seed-governance';
 import { HrSeed } from './seed-hr';
 import { MembersSeed } from './seed-members';
 import { PlatformSeed } from './seed-platform';
@@ -27,8 +29,8 @@ import { VolunteersSeed } from './seed-volunteers';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule],
+  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, GovernanceModule],
   controllers: [DemoController],
-  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed],
+  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, GovernanceSeed],
 })
 export class DemoModule {}

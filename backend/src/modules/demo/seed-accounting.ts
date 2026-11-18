@@ -37,8 +37,11 @@ export class AccountingSeed {
     });
     const yearId = overview.years[0].id;
 
-    const acc = new Map((await this.db.getRepository(Account).find({ where: { organizationId: org } })).map((a) => [a.code, a.id]));
+    const chart = await this.db.getRepository(Account).find({ where: { organizationId: org }, order: { code: 'ASC' } });
+    const acc = new Map(chart.map((a) => [a.code, a.id]));
     const id = (code: string) => acc.get(code)!;
+    /** أول حساب ترحيل تحت رمز في الدليل الموحد (مع استثناء فرع إن لزم) */
+    const leaf = (prefix: string, except?: string) => chart.find((a) => a.kind === 'sub' && a.code.startsWith(prefix) && (!except || !a.code.startsWith(except)))!.id;
     const cc = new Map((await this.db.getRepository(AnalyticAccount).find({ where: { organizationId: org } })).map((a) => [a.code, a.id]));
     const share = (code: string) => [{ analyticId: cc.get(code)!, percent: 100 }];
 
@@ -124,6 +127,10 @@ export class AccountingSeed {
       lines: [
         { accountId: id('1110100201'), debit: 150000, credit: 0 }, { accountId: id('1110300101'), debit: 8000, credit: 0 },
         { accountId: id('2310100101'), debit: 0, credit: 158000 },
+        // أصول الاستدامة وصافي الأصول المقيدة (تُستخدم في مؤشرات السلامة المالية في نظام الحوكمة)
+        { accountId: id('1110100101'), debit: 95000, credit: 0 }, { accountId: leaf('23102'), debit: 0, credit: 95000 },
+        { accountId: leaf('113'), debit: 180000, credit: 0 }, { accountId: id('2310100101'), debit: 0, credit: 180000 },
+        { accountId: leaf('134'), debit: 1250000, credit: 0 }, { accountId: leaf('23103002'), debit: 0, credit: 1250000 },
       ],
     });
     // تحويل من بنك الرياض للراجحي (قيد يومية مرحّل) وإيجار المستودع (قيد غير مرحّل للشهر الحالي)
@@ -176,6 +183,33 @@ export class AccountingSeed {
       await this.entries.create(admin, {
         voucherType: custody, documentDate: dayOf(m, 8), description: text, post,
         lines: [{ accountId: id('4120300101'), debit: amount, credit: 0, analytic: share('CC01') }, { accountId: id('1110300101'), debit: 0, credit: amount }],
+      });
+    }
+
+    // قيود شهرية بالتصنيف الوظيفي للمصروفات وعوائد الاستدامة (مصدر مؤشرات الأداء المالي في نظام الحوكمة):
+    // تبرعات غير مقيدة، ريع أوقاف وإيرادات غير مقيدة، ومصروفات البرامج والإدارية المحملة والأوقاف والاستثمار وجمع الأموال والحوكمة.
+    // مصاريف جمع الأموال ترتفع في الأشهر الأخيرة لتظهر إشارة الإنذار المبكر في نسبة جمع الأموال.
+    for (let m = 1; m <= Math.max(1, month - 1); m++) {
+      const fr = m >= month - 3 ? 7400 : 3100;
+      await this.entries.create(admin, {
+        voucherType: 'journal', documentDate: dayOf(m, 25), description: `إيرادات الشهر ${m}: التبرعات العامة وريع الأوقاف والإيرادات غير المقيدة`, post: true,
+        lines: [
+          { accountId: id('1110100101'), debit: 84500, credit: 0 },
+          { accountId: leaf('31201'), debit: 0, credit: 72000 }, { accountId: leaf('31303'), debit: 0, credit: 8500 }, { accountId: leaf('31205'), debit: 0, credit: 4000 },
+        ],
+      });
+      await this.entries.create(admin, {
+        voucherType: 'journal', documentDate: dayOf(m, 26), description: `مصروفات الشهر ${m} حسب التصنيف الوظيفي`, post: true,
+        lines: [
+          { accountId: leaf('42', '423'), debit: 58000, credit: 0, analytic: share('CC02') },
+          { accountId: leaf('423'), debit: 7600, credit: 0, analytic: share('CC02') },
+          { accountId: leaf('41'), debit: 6200, credit: 0, analytic: share('CC01') },
+          { accountId: leaf('46'), debit: 1400, credit: 0, analytic: share('CC01') },
+          { accountId: leaf('43'), debit: 1900, credit: 0, analytic: share('CC01') },
+          { accountId: leaf('45'), debit: 450, credit: 0, analytic: share('CC01') },
+          { accountId: leaf('44'), debit: fr, credit: 0, analytic: share('CC01') },
+          { accountId: id('1110100101'), debit: 0, credit: 75550 + fr },
+        ],
       });
     }
 

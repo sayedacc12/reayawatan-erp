@@ -9,6 +9,7 @@ import { PROJECT_PERMISSIONS } from '../projects/projects.manifest';
 import { RISK_PERMISSIONS } from '../risk/risk.manifest';
 import { VOL_PERMISSIONS } from '../volunteers/volunteers.manifest';
 import { QUALITY_PERMISSIONS } from '../quality/quality.manifest';
+import { GOV_PERMISSIONS } from '../governance/governance.manifest';
 
 export const DEMO_SLUG = 'demo';
 /** بريد الحسابات وطلبات الاشتراك التجريبية (تُحذف كلها عند إعادة إنشاء الجمعية التجريبية) */
@@ -20,6 +21,7 @@ export const daysAhead = (n: number) => daysAgo(-n);
 export const ALL_PERMISSIONS = [
   ...Object.values(BENEFICIARY_PERMISSIONS), ...Object.values(FUNDRAISING_PERMISSIONS), ...Object.values(PROJECT_PERMISSIONS),
   ...Object.values(ACC_PERMISSIONS), ...Object.values(HR_PERMISSIONS), ...Object.values(RISK_PERMISSIONS), ...Object.values(VOL_PERMISSIONS), ...Object.values(QUALITY_PERMISSIONS), ...Object.values(AUDIT_PERMISSIONS), ...Object.values(MEMBER_PERMISSIONS),
+  ...Object.values(GOV_PERMISSIONS),
 ];
 
 /** مستخدم تجريبي بصيغة المستخدم الحالي، لتنفيذ العمليات عبر خدمات الوحدات كما لو نفذها بنفسه */

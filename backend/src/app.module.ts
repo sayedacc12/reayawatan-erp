@@ -13,6 +13,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
 import { HrModule } from './modules/hr/hr.module';
 import { RiskModule } from './modules/risk/risk.module';
+import { GovernanceModule } from './modules/governance/governance.module';
 import { VolunteersModule } from './modules/volunteers/volunteers.module';
 import { QualityModule } from './modules/quality/quality.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -36,6 +37,7 @@ import { HealthController } from './health.controller';
     AccountingModule,
     HrModule,
     RiskModule,
+    GovernanceModule,
     VolunteersModule,
     QualityModule,
     AuditModule,
