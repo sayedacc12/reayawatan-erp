@@ -1,3 +1,4 @@
+import { AccountingTasks } from './accounting.tasks';
 import { AccountingReports } from './accounting.reports';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -19,7 +20,7 @@ import { VouchersService } from './vouchers.service';
 @Module({
   imports: [TypeOrmModule.forFeature(ACCOUNTING_ENTITIES)],
   controllers: [AccountingController],
-  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports],
+  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks],
   exports: [AccCore, AccountsService, MastersService, EntriesService, SetupService, VouchersService],
 })
 export class AccountingModule {}

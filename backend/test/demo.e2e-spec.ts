@@ -155,6 +155,47 @@ describe('Demo association across all modules', () => {
     }
   });
 
+  it('hr self-service: linked accounts, requests in every stage, approvals by reporting line and the bell', async () => {
+    const researcher = await staff('researcher');
+    const me = (await http.get('/api/hr/me').set(as(researcher)).expect(200)).body;
+    expect(me.employee.fullName).toBeTruthy();
+    expect(me.service.totalDays).toBeGreaterThan(600);
+    expect(me.balances.find((b: { code: string }) => b.code === 'annual')).toBeTruthy();
+    expect(me.types.map((t: { kind: string }) => t.kind)).toEqual(expect.arrayContaining(['leave', 'permission', 'letter', 'advance', 'general']));
+    // الباحثة سعودية: تأشيرة الخروج والعودة لغير السعوديين فقط فلا تظهر لها
+    expect(me.types.some((t: { kind: string }) => t.kind === 'exit_reentry')).toBe(false);
+    const mine = (await http.get('/api/hr/me/requests').set(as(researcher)).expect(200)).body as { kind: string; status: string; id: string }[];
+    const letter = mine.find((r) => r.kind === 'letter')!;
+    expect(letter.status).toBe('approved');
+    const lv = (await http.get(`/api/hr/me/requests/${letter.id}`).set(as(researcher)).expect(200)).body;
+    expect(lv.result.body).toContain('مصرف الراجحي');
+    expect(lv.can.print).toBe(true);
+    // مدير البرامج: فريقه وطلب الإجازة بانتظاره، وجرس المهام
+    const manager = await staff('manager');
+    const team = (await http.get('/api/hr/me/team').set(as(manager)).expect(200)).body;
+    expect(team.stats.team).toBeGreaterThanOrEqual(3);
+    expect(team.awaiting.length).toBeGreaterThanOrEqual(2);
+    const bell = (await http.get('/api/tasks').set(as(manager)).expect(200)).body;
+    expect(bell.groups.find((g: { module: string }) => g.module === 'hr').items.some((i: { link: string }) => i.link.startsWith('/me/requests/'))).toBe(true);
+    // الطلب المعاد يظهر لصاحبه في الجرس
+    const quality = await staff('quality');
+    const qb = (await http.get('/api/tasks').set(as(quality)).expect(200)).body;
+    expect(qb.groups.find((g: { module: string }) => g.module === 'hr').items.some((i: { group: string }) => i.group === 'طلباتي المعادة')).toBe(true);
+    // السلفة المعتمدة وقسطها في مسير الرواتب
+    const fund = await staff('fundraising');
+    const fd = (await http.get('/api/hr/me').set(as(fund)).expect(200)).body;
+    expect(fd.advances.total).toBe(6000);
+    const admin = await staff('admin');
+    const runs = (await http.get('/api/hr/payroll-runs').set(as(admin)).expect(200)).body as { id: string; month: string; status: string }[];
+    const month = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 7);
+    const cur = (await http.get(`/api/hr/payroll-runs/${runs.find((r) => r.month === month)!.id}`).set(as(admin)).expect(200)).body;
+    expect(cur.totals.advanceDeduction).toBe(1000);
+    if (runs.some((r) => r.status === 'approved')) expect(fd.advances.paid).toBe(1000);
+    const all = (await http.get('/api/hr/requests').set(as(await staff('finance'))).expect(200)).body;
+    expect(all.counts.pending).toBeGreaterThanOrEqual(3);
+    expect(all.counts.returned).toBe(1);
+  });
+
   it('internal audit: risk-based plans, engagements in every stage and timed recommendations', async () => {
     const auditor = await staff('auditor');
     const plans = (await http.get('/api/audit/plans').set(as(auditor)).expect(200)).body;

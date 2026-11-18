@@ -8,14 +8,15 @@ import AttendanceSettingsPane from '../components/AttendanceSettingsPane.vue';
 import DevConfigPane from '../components/DevConfigPane.vue';
 import ExpenseProfilesPane from '../components/ExpenseProfilesPane.vue';
 import PayrollConfigPane from '../components/PayrollConfigPane.vue';
+import RequestTypesPane from '../components/RequestTypesPane.vue';
 import { useToast } from '../../../stores/toast';
 import '../../projects/projects.css';
 import '../hr.css';
 
 const toast = useToast();
-type Tab = 'structure' | 'allowances' | 'profiles' | 'accounting' | 'attendance' | 'development' | 'permissions';
+type Tab = 'structure' | 'services' | 'allowances' | 'profiles' | 'accounting' | 'attendance' | 'development' | 'permissions';
 const route = useRoute();
-const tab = ref<Tab>((['structure', 'allowances', 'profiles', 'accounting', 'attendance', 'development', 'permissions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
+const tab = ref<Tab>((['structure', 'services', 'allowances', 'profiles', 'accounting', 'attendance', 'development', 'permissions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
 const levels = ref<string[]>([]);
 onMounted(async () => {
   levels.value = (await api<{ structureLevels: string[] }>('/hr/settings')).structureLevels;
@@ -40,6 +41,7 @@ function move(i: number, d: number) {
     <div class="page-head"><div><h1>إعدادات الموارد البشرية</h1><p class="muted">مستويات الهيكل، البدلات، حسابات المصروف حسب الوظيفة، الربط المحاسبي للرواتب، الحضور وأجهزة البصمة، التطوير والتدريب، والصلاحيات. النسب والمدد والإجازات في <RouterLink to="/hr/policy" class="pm-link">لائحة الموارد البشرية</RouterLink>.</p></div></div>
     <div class="hr-tabs">
       <button :class="['hr-tab', { on: tab === 'structure' }]" @click="tab = 'structure'">مستويات الهيكل</button>
+      <button :class="['hr-tab', { on: tab === 'services' }]" @click="tab = 'services'">خدمات الموظفين ومسارات الطلبات</button>
       <button :class="['hr-tab', { on: tab === 'allowances' }]" @click="tab = 'allowances'">البدلات</button>
       <button :class="['hr-tab', { on: tab === 'profiles' }]" @click="tab = 'profiles'">حسابات المصروف للوظائف</button>
       <button :class="['hr-tab', { on: tab === 'accounting' }]" @click="tab = 'accounting'">الربط المحاسبي واعتماد المسير</button>
@@ -60,6 +62,7 @@ function move(i: number, d: number) {
       <button class="btn btn-sm" :disabled="levels.length >= 8" @click="levels.push('')">+ مستوى</button>
       <div class="modal-actions"><button class="btn btn-primary" @click="save">حفظ</button></div>
     </section>
+    <RequestTypesPane v-else-if="tab === 'services'" />
     <AllowancesPane v-else-if="tab === 'allowances'" />
     <ExpenseProfilesPane v-else-if="tab === 'profiles'" />
     <PayrollConfigPane v-else-if="tab === 'accounting'" />

@@ -43,6 +43,8 @@ export interface PayrollConfig {
   gosiExpenseAccountId?: string | null;
   /** الاستقطاعات الأخرى (السلف والجزاءات) */
   deductionsAccountId: string | null;
+  /** سلف الموظفين (فارغ = حساب الاستقطاعات) */
+  advancesAccountId?: string | null;
   /** البنك الافتراضي لصرف أي بند ليس له بنك خاص */
   defaultCashAccountId: string | null;
   stages: PayrollStage[];
@@ -377,12 +379,17 @@ export class HrStaffingPlan {
 @Entity('hr_employees')
 @Index('UQ_hr_employees_org_no', ['organizationId', 'employeeNo'], { unique: true })
 @Index('UQ_hr_employees_org_nid', ['organizationId', 'nationalId'], { unique: true })
+@Index('UQ_hr_employees_user', ['userId'], { unique: true, where: '"user_id" IS NOT NULL' })
 export class HrEmployee {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
+
+  /** حساب الدخول المربوط بالموظف: به يدخل الخدمة الذاتية ويعتمد طلبات فريقه */
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId!: string | null;
 
   @Column({ name: 'employee_no', type: 'int' })
   employeeNo!: number;
@@ -532,6 +539,10 @@ export class HrLeaveRequest {
 
   @Column({ name: 'leave_type', type: 'varchar', length: 30 })
   leaveType!: string;
+
+  /** طلب الخدمة الذاتية الذي أنشأ الإجازة (يتبع مسار اعتماده) */
+  @Column({ name: 'request_id', type: 'uuid', nullable: true })
+  requestId!: string | null;
 
   @Column({ name: 'start_date', type: 'date' })
   startDate!: string;
@@ -842,6 +853,8 @@ export interface RunLine {
   absenceDeduction: number; lateDeduction: number;
   additions: { code: string; amount: number; note: string | null }[];
   otherDeduction: number; otherDeductionNote: string | null;
+  /** أقساط السلف المستردة في هذا الشهر (تُسجل عند الاعتماد النهائي) */
+  advanceDeduction?: number; advances?: { advanceId: string; amount: number }[];
   earned: number; gosiEmployee: number; gosiEmployer: number; totalDeductions: number; net: number; employerCost: number;
 }
 export interface RunHistory { action: string; stageName: string | null; note: string | null; actorName: string; at: string }
@@ -1007,7 +1020,256 @@ export class HrSuccessionCandidate {
   createdAt!: Date;
 }
 
+// ---------------- الخدمة الذاتية: أنواع الطلبات والطلبات والسلف ----------------
+
+/** سلوك نوع الطلب في النظام: إجازة، استئذان، خروج وعودة، خطاب (تعريف راتب وغيره)، سلفة، أو طلب عام بحقول مخصصة */
+export const REQUEST_KINDS = ['leave', 'permission', 'exit_reentry', 'letter', 'advance', 'general'] as const;
+export type RequestKind = (typeof REQUEST_KINDS)[number];
+export type RequestStatus = 'pending' | 'returned' | 'approved' | 'rejected' | 'cancelled';
+/** خطوة اعتماد: المدير المباشر، مدير المدير، رئيس الوحدة في مستوى معيّن من الهيكل، أعلى الهيكل، دور، أو شؤون الموظفين */
+export const APPROVER_KINDS = ['direct_manager', 'second_manager', 'unit_head', 'top_manager', 'role', 'hr'] as const;
+export type ApproverKind = (typeof APPROVER_KINDS)[number];
+export interface ApprovalStepDef { kind: ApproverKind; name: string; level?: number | null; roleId?: string | null }
+export type FieldKind = 'text' | 'textarea' | 'number' | 'date' | 'time' | 'select' | 'checkbox';
+export interface RequestField { key: string; label: string; type: FieldKind; required: boolean; options?: string[]; hint?: string | null }
+export interface LetterTemplate { id: string; name: string; body: string; withSalary: boolean }
+export interface PermissionKind { code: string; name: string; maxHours: number | null }
+/** القيود المرنة لكل نوع طلب (تُضبط من الإعدادات) */
+export interface RequestRules {
+  gender: 'male' | 'female' | null;
+  nationality: 'all' | 'saudi' | 'non_saudi';
+  minServiceMonths: number;
+  /** أقصى عدد أيام يُسمح فيها بتاريخ سابق لليوم (0 = لا يقبل تاريخًا سابقًا) */
+  allowPastDays: number;
+  /** أقل مدة بالأيام بين تقديم الطلب وتاريخ بدايته (إشعار مسبق) */
+  minNoticeDays: number;
+  /** أبعد تاريخ يمكن الطلب له من اليوم (فارغ = بلا حد) */
+  maxFutureDays: number | null;
+  maxPerMonth: number | null;
+  maxPerYear: number | null;
+  /** لا يُقدَّم طلب جديد من النوع نفسه وآخر قيد الاعتماد */
+  oneOpen: boolean;
+  attachment: 'none' | 'optional' | 'required';
+  attachmentHint: string | null;
+  // الاستئذان
+  maxHoursPerMonth: number | null;
+  // السلف
+  maxSalaryMultiple: number | null;
+  maxInstallments: number | null;
+}
+export interface RequestStep {
+  kind: ApproverKind; name: string; roleId: string | null;
+  /** الموظف المعتمد (للخطوات المبنية على الهيكل) */
+  approverEmployeeId: string | null; approverName: string | null;
+  status: 'waiting' | 'approved' | 'returned' | 'rejected' | 'skipped';
+  actorName: string | null; onBehalf: boolean; note: string | null; at: string | null;
+}
+export interface RequestAttachment { id: string; key: string; name: string; mime: string; size: number; uploadedByName: string; at: string }
+export interface RequestHistory { action: string; note: string | null; actorName: string; at: string }
+
+@Entity('hr_request_types')
+@Index('UQ_hr_request_types_code', ['organizationId', 'code'], { unique: true })
+export class HrRequestType {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ type: 'varchar', length: 40 })
+  code!: string;
+
+  @Column({ type: 'varchar', length: 150 })
+  name!: string;
+
+  @Column({ type: 'varchar', length: 16 })
+  kind!: RequestKind;
+
+  /** مجموعة العرض في قائمة الطلبات: إجازات، استئذانات، خطابات، مالية، أخرى */
+  @Column({ type: 'varchar', length: 60, default: 'أخرى' })
+  category!: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  description!: string | null;
+
+  /** لون البطاقة في قائمة الطلبات */
+  @Column({ type: 'varchar', length: 9, default: '#6366f1' })
+  color!: string;
+
+  /** حقول إضافية يعبئها الموظف */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  fields!: RequestField[];
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  approval!: ApprovalStepDef[];
+
+  @Column({ type: 'jsonb', default: () => `'{}'` })
+  rules!: Partial<RequestRules>;
+
+  /** أنواع الإجازات (من اللائحة) التي يغطيها طلب الإجازة */
+  @Column({ name: 'leave_types', type: 'jsonb', default: () => `'[]'` })
+  leaveTypes!: string[];
+
+  /** أنواع الاستئذان */
+  @Column({ name: 'permission_kinds', type: 'jsonb', default: () => `'[]'` })
+  permissionKinds!: PermissionKind[];
+
+  /** نماذج الخطابات (تعريف بالراتب وغيره) */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  templates!: LetterTemplate[];
+
+  @Column({ name: 'is_active', default: true })
+  isActive!: boolean;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+@Entity('hr_requests')
+@Index('UQ_hr_requests_no', ['organizationId', 'requestNo'], { unique: true })
+@Index('IDX_hr_requests_emp', ['organizationId', 'employeeId', 'status'])
+export class HrRequest {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'request_no', type: 'int' })
+  requestNo!: number;
+
+  @Column({ name: 'type_id', type: 'uuid' })
+  typeId!: string;
+
+  @Column({ type: 'varchar', length: 16 })
+  kind!: RequestKind;
+
+  @Column({ name: 'type_name', type: 'varchar', length: 150 })
+  typeName!: string;
+
+  @Column({ name: 'employee_id', type: 'uuid' })
+  employeeId!: string;
+
+  /** بيانات الطلب: الحقول الأساسية حسب النوع والحقول الإضافية */
+  @Column({ type: 'jsonb', default: () => `'{}'` })
+  data!: Record<string, unknown>;
+
+  /** ملخص بسطر واحد يظهر في القوائم */
+  @Column({ type: 'varchar', length: 300 })
+  summary!: string;
+
+  /** تاريخ بداية الطلب (للإجازات والاستئذان والسفر) لترتيب القوائم والقيود */
+  @Column({ name: 'start_date', type: 'date', nullable: true })
+  startDate!: string | null;
+
+  @Column({ type: 'varchar', length: 12, default: 'pending' })
+  status!: RequestStatus;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  steps!: RequestStep[];
+
+  @Column({ name: 'step_index', type: 'int', nullable: true })
+  stepIndex!: number | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  attachments!: RequestAttachment[];
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  history!: RequestHistory[];
+
+  /** نتيجة الاعتماد: نص الخطاب ورقمه، أو رقم السلفة */
+  @Column({ type: 'jsonb', nullable: true })
+  result!: Record<string, unknown> | null;
+
+  @Column({ name: 'leave_id', type: 'uuid', nullable: true })
+  leaveId!: string | null;
+
+  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
+  createdByName!: string;
+
+  @Column({ name: 'decided_at', type: 'timestamptz', nullable: true })
+  decidedAt!: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+/** سلفة موظف معتمدة: تُسترد بأقساط شهرية من مسير الرواتب */
+@Entity('hr_advances')
+@Index('IDX_hr_advances_emp', ['organizationId', 'employeeId'])
+export class HrAdvance {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'employee_id', type: 'uuid' })
+  employeeId!: string;
+
+  @Column({ name: 'request_id', type: 'uuid', nullable: true })
+  requestId!: string | null;
+
+  @Column(money('amount'))
+  amount!: number;
+
+  @Column({ type: 'int' })
+  installments!: number;
+
+  @Column(money('installment_amount'))
+  installmentAmount!: number;
+
+  /** أول شهر يُخصم فيه القسط YYYY-MM */
+  @Column({ name: 'start_month', length: 7 })
+  startMonth!: string;
+
+  @Column({ type: 'varchar', length: 12, default: 'active' })
+  status!: 'active' | 'cancelled';
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  reason!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+/** قسط مسترد من سلفة عبر كشف رواتب معتمد */
+@Entity('hr_advance_repayments')
+@Index('IDX_hr_advance_repayments', ['advanceId'])
+export class HrAdvanceRepayment {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'advance_id', type: 'uuid' })
+  advanceId!: string;
+
+  @Column({ name: 'run_id', type: 'uuid', nullable: true })
+  runId!: string | null;
+
+  @Column({ length: 7 })
+  month!: string;
+
+  @Column(money('amount'))
+  amount!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
 export const HR_ENTITIES = [
+  HrRequestType, HrRequest, HrAdvance, HrAdvanceRepayment,
   HrExpenseProfile, HrDevPlan, HrSuccessionCandidate, HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrPayrollRun,
   HrSettings, HrPolicyVersion, HrUnit, HrGrade, HrCompetency, HrJob, HrStaffingPlan, HrEmployee, HrLeaveRequest, HrPerformanceCard,
 ];

@@ -15,6 +15,8 @@ const units = ref<Unit[]>([]);
 const grades = ref<Grade[]>([]);
 const managers = ref<EmpRow[]>([]);
 const types = ref<AllowanceType[]>([]);
+/** حسابات الدخول في الجمعية لربط الموظف بحسابه (للخدمة الذاتية) */
+const users = ref<{ id: string; fullName: string; email: string; isActive: boolean; employeeId: string | null; employeeName: string | null }[]>([]);
 const saving = ref(false);
 const e = props.employee;
 const form = reactive({
@@ -23,7 +25,7 @@ const form = reactive({
   step: e?.step ?? 1, hireDate: e?.hireDate ?? '', contractType: e?.contractType ?? 'fixed', contractStart: e?.contractStart ?? '', contractEnd: e?.contractEnd ?? '',
   probationEnd: e?.probationEnd ?? '', qiwaStatus: e?.qiwaStatus ?? 'pending', basicSalary: e?.basicSalary ?? 0,
   allowances: (e?.allowances ?? [{ code: 'housing', name: 'بدل السكن', amount: 0 }, { code: 'transport', name: 'بدل النقل', amount: 0 }]) as { code: string; name: string; amount: number }[],
-  attendanceCode: e?.attendanceCode ?? '', attendanceExempt: e?.attendanceExempt ?? false,
+  attendanceCode: e?.attendanceCode ?? '', attendanceExempt: e?.attendanceExempt ?? false, userId: e?.userId ?? '',
   salaryException: e?.salaryException ?? '', iban: e?.iban ?? '', gosiNumber: e?.gosiNumber ?? '', gosiFirstRegistration: e?.gosiFirstRegistration ?? '',
   idExpiry: e?.idExpiry ?? '', passportExpiry: e?.passportExpiry ?? '', leaveOpeningAnnual: e?.leaveOpening?.annual ?? '', leaveOpeningDate: e?.leaveOpeningDate ?? '',
 });
@@ -33,6 +35,7 @@ onMounted(async () => {
       api<JobRow[]>('/hr/jobs'), api<{ units: Unit[] }>('/hr/structure'), api<Grade[]>('/hr/grades'), api<EmpRow[]>('/hr/employees'), api<AllowanceType[]>('/hr/allowance-types'),
     ]);
     types.value = t.filter((x) => !x.isSystem);
+    users.value = await api<typeof users.value>('/hr/users').catch(() => []);
     jobs.value = j.filter((x) => x.isActive || x.id === form.jobId);
     units.value = s.units;
     grades.value = g;
@@ -74,7 +77,7 @@ async function save() {
       phone: nn(form.phone), email: nn(form.email), jobId: form.jobId, unitId: nn(form.unitId), managerId: nn(form.managerId), step: Number(form.step), hireDate: form.hireDate,
       contractType: form.contractType, contractStart: form.contractStart || form.hireDate, contractEnd: nn(form.contractEnd), probationEnd: nn(form.probationEnd), qiwaStatus: form.qiwaStatus,
       basicSalary: Number(form.basicSalary), allowances: form.allowances.filter((a) => a.code).map((a) => ({ code: a.code, amount: Number(a.amount) })),
-      attendanceCode: nn(String(form.attendanceCode).trim()), attendanceExempt: form.attendanceExempt,
+      attendanceCode: nn(String(form.attendanceCode).trim()), attendanceExempt: form.attendanceExempt, userId: form.userId || null,
       salaryException: nn(form.salaryException), iban: nn(form.iban.replace(/\s/g, '').toUpperCase()), gosiNumber: nn(form.gosiNumber), gosiFirstRegistration: nn(form.gosiFirstRegistration),
       idExpiry: nn(form.idExpiry), passportExpiry: nn(form.passportExpiry),
       leaveOpening: form.leaveOpeningAnnual === '' ? {} : { annual: Number(form.leaveOpeningAnnual) }, leaveOpeningDate: nn(form.leaveOpeningDate),
@@ -106,6 +109,13 @@ async function save() {
         <label class="field"><span>تاريخ الميلاد</span><input v-model="form.birthDate" type="date" class="input" /></label>
         <label class="field"><span>الجوال</span><input v-model="form.phone" class="input hr-code" placeholder="05xxxxxxxx" /></label>
         <label class="field"><span>البريد الإلكتروني</span><input v-model="form.email" type="email" class="input" /></label>
+        <label class="field"><span>حساب الدخول (للخدمة الذاتية)</span>
+          <select v-model="form.userId" class="input">
+            <option value="">غير مربوط</option>
+            <option v-for="u in users" :key="u.id" :value="u.id" :disabled="!!u.employeeId && u.employeeId !== e?.id">{{ u.fullName }} · {{ u.email }}{{ u.employeeId && u.employeeId !== e?.id ? ` (مربوط بـ ${u.employeeName})` : '' }}</option>
+          </select>
+          <small class="pm-muted">يفتح للموظف لوحته وطلباته من «خدمتي»</small>
+        </label>
       </div>
 
       <div class="hr-sec">الوظيفة والعقد</div>
