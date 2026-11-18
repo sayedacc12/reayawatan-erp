@@ -9,14 +9,15 @@ import DevConfigPane from '../components/DevConfigPane.vue';
 import ExpenseProfilesPane from '../components/ExpenseProfilesPane.vue';
 import PayrollConfigPane from '../components/PayrollConfigPane.vue';
 import RequestTypesPane from '../components/RequestTypesPane.vue';
+import SeparationConfigPane from '../components/SeparationConfigPane.vue';
 import { useToast } from '../../../stores/toast';
 import '../../projects/projects.css';
 import '../hr.css';
 
 const toast = useToast();
-type Tab = 'structure' | 'services' | 'allowances' | 'profiles' | 'accounting' | 'attendance' | 'development' | 'permissions';
+type Tab = 'structure' | 'services' | 'allowances' | 'profiles' | 'accounting' | 'attendance' | 'development' | 'separation' | 'permissions';
 const route = useRoute();
-const tab = ref<Tab>((['structure', 'services', 'allowances', 'profiles', 'accounting', 'attendance', 'development', 'permissions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
+const tab = ref<Tab>((['structure', 'services', 'allowances', 'profiles', 'accounting', 'attendance', 'development', 'separation', 'permissions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
 const levels = ref<string[]>([]);
 onMounted(async () => {
   levels.value = (await api<{ structureLevels: string[] }>('/hr/settings')).structureLevels;
@@ -47,6 +48,7 @@ function move(i: number, d: number) {
       <button :class="['hr-tab', { on: tab === 'accounting' }]" @click="tab = 'accounting'">الربط المحاسبي واعتماد المسير</button>
       <button :class="['hr-tab', { on: tab === 'attendance' }]" @click="tab = 'attendance'">الحضور وأجهزة البصمة</button>
       <button :class="['hr-tab', { on: tab === 'development' }]" @click="tab = 'development'">التطوير والتدريب</button>
+      <button :class="['hr-tab', { on: tab === 'separation' }]" @click="tab = 'separation'">إخلاء الطرف ونهاية الخدمة</button>
       <button :class="['hr-tab', { on: tab === 'permissions' }]" @click="tab = 'permissions'">الصلاحيات</button>
     </div>
     <section v-if="tab === 'structure'" class="card pm-panel" style="max-width: 640px">
@@ -68,6 +70,7 @@ function move(i: number, d: number) {
     <PayrollConfigPane v-else-if="tab === 'accounting'" />
     <DevConfigPane v-else-if="tab === 'development'" />
     <AttendanceSettingsPane v-else-if="tab === 'attendance'" />
+    <SeparationConfigPane v-else-if="tab === 'separation'" />
     <ModulePermissionsPane v-else module="hr" />
   </div>
 </template>

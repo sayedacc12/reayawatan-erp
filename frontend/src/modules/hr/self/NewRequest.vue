@@ -43,7 +43,7 @@ const form = reactive({
   permissionKind: '', date: isoDay(1), fromTime: '', toTime: '',
   visaType: 'single', travelDate: '', returnDate: '', destination: '', dependents: 0,
   templateId: '', addressee: '',
-  amount: 0, installments: 1, reason: '',
+  amount: 0, installments: 1, reason: '', lastWorkingDay: '',
   fields: {} as Record<string, any>, // eslint-disable-line @typescript-eslint/no-explicit-any
 });
 const files = ref<File[]>([]);
@@ -57,6 +57,7 @@ watch(selected, (t) => {
   form.templateId = t.templates[0]?.id ?? '';
   form.startDate = isoDay(t.rules.minNoticeDays || 0);
   form.endDate = form.startDate;
+  form.lastWorkingDay = form.startDate;
   form.fields = {};
   files.value = [];
 }, { immediate: true });
@@ -69,7 +70,7 @@ async function loadEdit(id: string) {
     leaveType: d.leaveType ?? '', startDate: d.startDate ?? '', endDate: d.endDate ?? '', note: d.note ?? '',
     permissionKind: d.permissionKind ?? '', date: d.date ?? isoDay(1), fromTime: d.fromTime ?? '', toTime: d.toTime ?? '',
     visaType: d.visaType ?? 'single', travelDate: d.travelDate ?? '', returnDate: d.returnDate ?? '', destination: d.destination ?? '', dependents: d.dependents ?? 0,
-    templateId: d.templateId ?? '', addressee: d.addressee ?? '', amount: d.amount ?? 0, installments: d.installments ?? 1, reason: d.reason ?? '',
+    templateId: d.templateId ?? '', addressee: d.addressee ?? '', amount: d.amount ?? 0, installments: d.installments ?? 1, reason: d.reason ?? '', lastWorkingDay: d.lastWorkingDay ?? '',
     fields: { ...((d.extra as Record<string, any>) ?? {}) },
   });
 }
@@ -102,7 +103,8 @@ function payload() {
         : t.kind === 'exit_reentry' ? { visaType: form.visaType, travelDate: form.travelDate, returnDate: form.returnDate, destination: form.destination, dependents: Number(form.dependents) || 0, note: form.note || null }
           : t.kind === 'letter' ? { templateId: form.templateId, addressee: form.addressee || null, note: form.note || null }
             : t.kind === 'advance' ? { amount: Number(form.amount), installments: Number(form.installments), reason: form.reason }
-              : {};
+              : t.kind === 'resignation' ? { lastWorkingDay: form.lastWorkingDay, reason: form.reason }
+                : {};
   return { typeId: t.id, data, fields: form.fields };
 }
 
@@ -226,6 +228,15 @@ async function submit() {
           <template v-if="advanceLeft">عليك سلفة متبقية {{ num(advanceLeft) }} ريال.</template>
         </p>
         <label class="field"><span>سبب السلفة</span><textarea v-model="form.reason" class="input" rows="2" required /></label>
+      </template>
+
+      <template v-else-if="selected.kind === 'resignation'">
+        <label class="field"><span>آخر يوم عمل</span><input v-model="form.lastWorkingDay" type="date" class="input" :min="minDate" :max="maxDate" required /></label>
+        <p class="pm-muted">
+          <template v-if="selected.rules.minNoticeDays">مدة الإشعار {{ selected.rules.minNoticeDays }} يومًا على الأقل من تاريخ الطلب. </template>
+          بعد اعتماد الاستقالة يُفتح لك ملف إنهاء الخدمة تلقائيًا، وتصل بنود إخلاء الطرف لمسؤوليها، ثم يُعد بيان مستحقاتك ويُعتمد ويُصرف.
+        </p>
+        <label class="field"><span>سبب الاستقالة</span><textarea v-model="form.reason" class="input" rows="3" required /></label>
       </template>
 
       <template v-for="f in selected.fields" :key="f.key">

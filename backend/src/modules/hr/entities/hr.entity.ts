@@ -49,6 +49,32 @@ export interface PayrollConfig {
   defaultCashAccountId: string | null;
   stages: PayrollStage[];
 }
+/** بند في نموذج إخلاء الطرف ومن المسؤول عن إخلائه */
+export interface ClearanceItemDef {
+  code: string; name: string; description: string | null;
+  approver: 'direct_manager' | 'second_manager' | 'unit_head' | 'top_manager' | 'role' | 'hr';
+  level?: number | null; roleId?: string | null;
+  /** يسمح للمسؤول بتسجيل مبلغ يُخصم من المستحقات (عهدة مفقودة، مطالبة ...) */
+  allowDeduction: boolean;
+}
+export interface SeparationConfig {
+  items: ClearanceItemDef[];
+  /** مراحل اعتماد بيان المستحقات (الدور فارغ = أي مستخدم معه صلاحية الاعتماد) */
+  stages: PayrollStage[];
+  /** مصروف مكافأة نهاية الخدمة أو مخصصها (مدين) */
+  eosAccountId: string | null;
+  /** مصروف بدل رصيد الإجازات (مدين) */
+  leaveAccountId: string | null;
+  /** مستحقات أخرى تُضاف يدويًا في البيان (مدين) */
+  otherAccountId: string | null;
+  /** مستحقات نهاية الخدمة (دائن، فارغ = حساب الرواتب المستحقة في المسير) */
+  payableAccountId: string | null;
+  /** البنك الافتراضي لصرف المستحقات (فارغ = بنك الرواتب الافتراضي) */
+  cashAccountId: string | null;
+  /** صرف بدل رصيد الإجازات السنوية المتبقي */
+  encashLeave: boolean;
+}
+
 export interface DevelopmentConfig {
   stages: PayrollStage[];
   /** أنواع الأنشطة التطويرية المتاحة (تدريب، دورة، إرشاد ...) */
@@ -86,6 +112,10 @@ export class HrSettings {
   /** إعدادات الحضور والانصراف: الدوام والعطل وتفعيل الخصم */
   @Column({ name: 'attendance_config', type: 'jsonb', default: () => `'{}'` })
   attendanceConfig!: Partial<AttendanceConfig>;
+
+  /** إخلاء الطرف ونهاية الخدمة: بنود الإخلاء ومسؤولوها، مراحل اعتماد المستحقات، والربط المحاسبي */
+  @Column({ name: 'separation_config', type: 'jsonb', default: () => `'{}'` })
+  separationConfig!: Partial<SeparationConfig>;
 
   /** إعدادات خطط التطوير والتدريب: مراحل الاعتماد وأنواع الأنشطة التطويرية */
   @Column({ name: 'development_config', type: 'jsonb', default: () => `'{}'` })
@@ -1023,7 +1053,7 @@ export class HrSuccessionCandidate {
 // ---------------- الخدمة الذاتية: أنواع الطلبات والطلبات والسلف ----------------
 
 /** سلوك نوع الطلب في النظام: إجازة، استئذان، خروج وعودة، خطاب (تعريف راتب وغيره)، سلفة، أو طلب عام بحقول مخصصة */
-export const REQUEST_KINDS = ['leave', 'permission', 'exit_reentry', 'letter', 'advance', 'general'] as const;
+export const REQUEST_KINDS = ['leave', 'permission', 'exit_reentry', 'letter', 'advance', 'resignation', 'general'] as const;
 export type RequestKind = (typeof REQUEST_KINDS)[number];
 export type RequestStatus = 'pending' | 'returned' | 'approved' | 'rejected' | 'cancelled';
 /** خطوة اعتماد: المدير المباشر، مدير المدير، رئيس الوحدة في مستوى معيّن من الهيكل، أعلى الهيكل، دور، أو شؤون الموظفين */
@@ -1268,8 +1298,95 @@ export class HrAdvanceRepayment {
   createdAt!: Date;
 }
 
+export type SeparationStatus = 'clearance' | 'settlement' | 'approved' | 'paid' | 'cancelled';
+export interface ClearanceItem {
+  code: string; name: string; description: string | null; kind: ClearanceItemDef['approver']; roleId: string | null;
+  approverEmployeeId: string | null; approverName: string | null; allowDeduction: boolean;
+  status: 'pending' | 'cleared' | 'blocked'; deduction: number; note: string | null; actorName: string | null; onBehalf: boolean; at: string | null;
+}
+export interface SettlementAdjustment { kind: 'addition' | 'deduction'; label: string; amount: number }
+export interface Settlement {
+  eos: { amount: number; fullAmount: number; factor: number; wage: number; years: number; months: number; days: number; explanation: string; reasonLabel: string };
+  leaveDays: number; dailyWage: number; leaveEncashment: number;
+  advances: { advanceId: string; remaining: number }[]; advancesTotal: number;
+  clearanceDeductions: number; adjustments: SettlementAdjustment[];
+  gross: number; deductions: number; net: number;
+  computedAt: string; computedById: string; computedByName: string;
+}
+export interface SeparationHistory { action: string; note: string | null; actorName: string; at: string; stageName?: string | null }
+
+/** ملف إنهاء خدمة موظف: إخلاء الطرف، ثم بيان المستحقات واعتماده، ثم القيد وسند الصرف */
+@Entity('hr_separations')
+@Index('UQ_hr_separations_no', ['organizationId', 'separationNo'], { unique: true })
+@Index('IDX_hr_separations_emp', ['organizationId', 'employeeId'])
+export class HrSeparation {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'separation_no', type: 'int' })
+  separationNo!: number;
+
+  @Column({ name: 'employee_id', type: 'uuid' })
+  employeeId!: string;
+
+  @Column({ length: 30 })
+  reason!: string;
+
+  @Column({ name: 'last_working_day', type: 'date' })
+  lastWorkingDay!: string;
+
+  @Column({ name: 'notice_date', type: 'date', nullable: true })
+  noticeDate!: string | null;
+
+  /** طلب الاستقالة من الخدمة الذاتية إن بدأ الملف منه */
+  @Column({ name: 'request_id', type: 'uuid', nullable: true })
+  requestId!: string | null;
+
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  note!: string | null;
+
+  @Column({ length: 20, default: 'clearance' })
+  status!: SeparationStatus;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  items!: ClearanceItem[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  settlement!: Settlement | null;
+
+  @Column({ name: 'stage_index', type: 'int', nullable: true })
+  stageIndex!: number | null;
+
+  @Column({ name: 'entry_id', type: 'uuid', nullable: true })
+  entryId!: string | null;
+
+  @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
+  voucherId!: string | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  history!: SeparationHistory[];
+
+  @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+  createdById!: string | null;
+
+  @Column({ name: 'created_by_name', length: 150 })
+  createdByName!: string;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
 export const HR_ENTITIES = [
-  HrRequestType, HrRequest, HrAdvance, HrAdvanceRepayment,
+  HrSeparation, HrRequestType, HrRequest, HrAdvance, HrAdvanceRepayment,
   HrExpenseProfile, HrDevPlan, HrSuccessionCandidate, HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrPayrollRun,
   HrSettings, HrPolicyVersion, HrUnit, HrGrade, HrCompetency, HrJob, HrStaffingPlan, HrEmployee, HrLeaveRequest, HrPerformanceCard,
 ];

@@ -23,6 +23,10 @@ export const hrRoutes: RouteRecordRaw[] = [
       { path: 'team/:id', component: () => import('./self/MemberView.vue'), props: true, meta: ess('موظف من فريقي') },
     ],
   },
+  // إخلاء الطرف ونهاية الخدمة: القائمة لشؤون الموظفين والمعتمدين، وصفحة الملف لمسؤولي البنود والموظف أيضًا (الخادم يتحقق)
+  { path: '/hr/separations', component: () => import('./views/SeparationsView.vue'), meta: { title: 'إخلاء الطرف ونهاية الخدمة', app: 'hr', anyPermission: [P.separations, P.approveSeparations, P.payPayroll] } },
+  { path: '/hr/separations/:id', component: () => import('./views/SeparationView.vue'), props: true, meta: { title: 'ملف إنهاء الخدمة', app: 'hr' } },
+  { path: '/hr/separations/:id/print', component: () => import('./views/SeparationPrint.vue'), props: true, meta: { title: 'إخلاء الطرف وبيان المستحقات', app: 'hr' } },
   { path: '/hr/requests', component: () => import('./views/RequestsAdminView.vue'), meta: meta('طلبات الموظفين', P.requests) },
   { path: '/hr', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة الموارد البشرية') },
   { path: '/hr/employees', component: () => import('./views/EmployeesView.vue'), meta: meta('الموظفون') },

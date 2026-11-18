@@ -55,6 +55,7 @@ const rows = computed(() => {
   if (x.kind === 'exit_reentry') out.push({ k: 'نوع التأشيرة', v: s('visaTypeName') }, { k: 'تاريخ السفر', v: fmtDate(s('travelDate')) }, { k: 'تاريخ العودة', v: fmtDate(s('returnDate')) }, { k: 'المدة', v: `${s('days')} يومًا` }, { k: 'جهة السفر', v: s('destination') }, { k: 'المرافقون', v: s('dependents') });
   if (x.kind === 'letter') out.push({ k: 'النموذج', v: s('templateName') }, { k: 'الجهة الموجه إليها', v: s('addressee') });
   if (x.kind === 'advance') out.push({ k: 'المبلغ', v: sar(Number(d.value.amount)) }, { k: 'عدد الأقساط', v: s('installments') }, { k: 'القسط الشهري', v: sar(Number(d.value.installmentAmount)) }, { k: 'السبب', v: s('reason') });
+  if (x.kind === 'resignation') out.push({ k: 'آخر يوم عمل', v: fmtDate(s('lastWorkingDay')) }, { k: 'مدة الإشعار', v: `${s('noticeDays')} يومًا` }, { k: 'سبب الاستقالة', v: s('reason') });
   for (const f of x.fields) {
     const v = d.value.extra?.[f.key];
     out.push({ k: f.label, v: v === true ? 'نعم' : v === false ? 'لا' : v === null || v === undefined || v === '' ? '—' : String(v) });
@@ -171,6 +172,10 @@ const CHOICES = [
                 <div class="bar"><i class="t" :style="{ width: `${Math.min(100, (r.advance.paid / r.advance.amount) * 100)}%` }" /></div>
               </div>
               <p class="pm-muted">يبدأ الخصم من شهر {{ r.advance.startMonth }} بقسط {{ sar(r.advance.installmentAmount) }}. المتبقي {{ sar(r.advance.remaining) }}.</p>
+            </div>
+            <div v-if="r.result?.separationId" class="ess-hints" style="margin-top: 12px">
+              <span>فُتح ملف إنهاء الخدمة رقم {{ r.result.separationNo }}</span>
+              <RouterLink :to="`/hr/separations/${r.result.separationId}`">متابعة إخلاء الطرف والمستحقات ←</RouterLink>
             </div>
             <div v-if="r.result?.letterNo" class="ess-hints" style="margin-top: 12px">
               <span>رقم الخطاب {{ r.result.letterNo }}</span><span>بتاريخ {{ fmtDate(String(r.result.date)) }}</span>

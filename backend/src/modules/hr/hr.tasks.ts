@@ -6,6 +6,7 @@ import { TasksRegistry } from '../../core/tasks/tasks.registry';
 import { HrRequest } from './entities/hr.entity';
 import { HR_PERMISSIONS as P } from './hr.manifest';
 import { RequestsService } from './requests.service';
+import { SeparationService } from './separation.service';
 
 const DAY = 86400000;
 const old = (d: Date | string, days: number) => Date.now() - new Date(d).getTime() > days * DAY;
@@ -13,7 +14,9 @@ const old = (d: Date | string, days: number) => Date.now() - new Date(d).getTime
 /** مهام الموارد البشرية المعلقة في جرس الإشعارات */
 @Injectable()
 export class HrTasks implements OnModuleInit {
-  constructor(private readonly registry: TasksRegistry, private readonly db: DataSource, private readonly requests: RequestsService) {}
+  constructor(
+    private readonly registry: TasksRegistry, private readonly db: DataSource, private readonly requests: RequestsService, private readonly separations: SeparationService,
+  ) {}
 
   onModuleInit() {
     this.registry.register({ module: 'hr', name: 'الموارد البشرية', color: '#ec4899', collect: (u) => this.collect(u) });
@@ -108,6 +111,8 @@ export class HrTasks implements OnModuleInit {
       );
       for (const j of jobs) out.push({ id: `job:${j.id}`, group: 'أوصاف وظيفية', link: `/hr/jobs/${j.id}`, at: j.updated_at, title: `اعتماد الوصف الوظيفي: ${j.title}` });
     }
+    // إخلاء الطرف ونهاية الخدمة: بنود تنتظر مسؤولها، وبيانات مستحقات للإعداد أو الاعتماد أو الصرف
+    out.push(...(await this.separations.pendingFor(u)));
     return out;
   }
 }
