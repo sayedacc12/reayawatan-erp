@@ -58,13 +58,13 @@ function logout() {
   <div class="shell">
     <header class="topbar">
       <div class="topbar-start">
-        <RouterLink to="/" class="home-link" title="كل التطبيقات">
+        <RouterLink :to="ess.summary?.linked ? '/me' : '/'" class="home-link" :title="ess.summary?.linked ? 'لوحتي' : 'كل التطبيقات'">
           <img v-if="orgLogo" :src="orgLogo" class="org-logo" alt="" />
           <BrandMark v-else :size="32" />
           <span class="product">سنابل</span>
           <span class="org-name">{{ session.user?.organizationName ?? 'إدارة المنصة' }}</span>
         </RouterLink>
-        <RouterLink to="/" class="apps-btn" title="كل التطبيقات">
+        <RouterLink v-if="!ess.summary?.linked" to="/" class="apps-btn" title="كل التطبيقات">
           <span class="grid-icon" aria-hidden="true"><i /><i /><i /><i /></span>
           <span class="label">التطبيقات</span>
         </RouterLink>
