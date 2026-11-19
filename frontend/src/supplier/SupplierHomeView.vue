@@ -10,7 +10,11 @@ const slug = route.params.slug as string;
 const busy = ref(false);
 const error = ref('');
 const ok = ref('');
-onMounted(() => loadMe(true).catch((e) => (error.value = e.message)));
+const summary = ref<{ openRfqs: number; newOrders: number } | null>(null);
+onMounted(async () => {
+  await loadMe(true).catch((e) => (error.value = e.message));
+  if (me.value?.supplier.status === 'approved') summary.value = await supplierApi('/sourcing-summary').catch(() => null);
+});
 const m = computed(() => me.value);
 const editable = computed(() => ['draft', 'returned'].includes(m.value?.supplier.status));
 const STEP: Record<string, string> = {
@@ -46,6 +50,10 @@ async function submit() {
         <p v-if="m.supplier.reviewNote && ['returned', 'rejected', 'suspended'].includes(m.supplier.status)" class="alert alert-error">ملاحظة الجمعية: {{ m.supplier.reviewNote }}</p>
       </div>
     </section>
+    <div v-if="summary && (summary.openRfqs || summary.newOrders)" class="pc-cards" style="margin-bottom: 16px">
+      <RouterLink v-if="summary.openRfqs" class="pc-kpi" :to="`/supplier/${slug}/rfqs`"><small class="pm-muted">منافسات بانتظار عرضكم</small><b style="font-size: 1.5rem">{{ summary.openRfqs }}</b></RouterLink>
+      <RouterLink v-if="summary.newOrders" class="pc-kpi" :to="`/supplier/${slug}/orders`"><small class="pm-muted">تعميدات جديدة بانتظار تأكيدكم</small><b style="font-size: 1.5rem">{{ summary.newOrders }}</b></RouterLink>
+    </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="ok" class="alert alert-success">{{ ok }}</div>
 

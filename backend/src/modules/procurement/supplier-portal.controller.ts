@@ -11,6 +11,8 @@ import {
 } from './procurement.dto';
 import { CurrentSupplier, SupplierPortalGuard, SupplierPortalUser } from './supplier-portal.guard';
 import { SupplierPortalService } from './supplier-portal.service';
+import { SourcingPortalService } from './sourcing-portal.service';
+import { QuestionDto, QuoteDto, RespondDto } from './sourcing.dto';
 
 const uuid = new ParseUUIDPipe();
 const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
@@ -23,7 +25,7 @@ const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fil
 @Public()
 @Controller('supplier-portal')
 export class SupplierPortalController {
-  constructor(private readonly portal: SupplierPortalService) {}
+  constructor(private readonly portal: SupplierPortalService, private readonly sourcing: SourcingPortalService) {}
 
   @Get('o/:slug')
   info(@Param('slug') slug: string) { return this.portal.info(slug); }
@@ -85,4 +87,56 @@ export class SupplierPortalController {
   @UseGuards(SupplierPortalGuard)
   @Patch('users/:id')
   updateUser(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: PortalUserUpdateDto) { return this.portal.updateUser(p, id, dto); }
+
+  // ---------------- المنافسات والتعميدات ----------------
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('sourcing-summary')
+  sourcingSummary(@CurrentSupplier() p: SupplierPortalUser) { return this.sourcing.summary(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('rfqs')
+  rfqs(@CurrentSupplier() p: SupplierPortalUser) { return this.sourcing.rfqs(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('rfqs/:id')
+  rfq(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.sourcing.rfqDetail(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('rfqs/:id/questions') @HttpCode(200)
+  ask(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: QuestionDto) { return this.sourcing.ask(p, id, dto); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Put('rfqs/:id/quote')
+  saveQuote(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: QuoteDto) { return this.sourcing.saveQuote(p, id, dto); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('rfqs/:id/withdraw') @HttpCode(200)
+  withdraw(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.sourcing.withdraw(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('rfqs/:id/files') @HttpCode(200) @UseInterceptors(upload)
+  addQuoteFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @UploadedFile() file: Express.Multer.File) { return this.sourcing.addQuoteFile(p, id, file); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Delete('rfqs/:id/files/:key')
+  removeQuoteFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Param('key') key: string) { return this.sourcing.removeQuoteFile(p, id, key); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('rfqs/:id/files/:key')
+  async rfqFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Param('key') key: string, @Res({ passthrough: true }) res: Response) {
+    return sendFile(res, await this.sourcing.file(p, id, key));
+  }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('orders')
+  orders(@CurrentSupplier() p: SupplierPortalUser) { return this.sourcing.ordersList(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('orders/:id')
+  order(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.sourcing.order(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('orders/:id/respond') @HttpCode(200)
+  respond(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: RespondDto) { return this.sourcing.respond(p, id, dto); }
 }

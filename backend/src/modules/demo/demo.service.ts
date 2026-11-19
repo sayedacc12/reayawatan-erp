@@ -23,6 +23,7 @@ import { VolunteersSeed } from './seed-volunteers';
 import { WebsiteSeed } from './seed-website';
 import { PartnershipsSeed } from './seed-partnerships';
 import { ProcurementSeed } from './seed-procurement';
+import { SourcingSeed } from './seed-sourcing';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
 import { PlanningSeed } from './seed-planning';
@@ -60,6 +61,7 @@ export class DemoService {
     private readonly planning: PlanningSeed,
     private readonly budget: BudgetSeed,
     private readonly procurement: ProcurementSeed,
+    private readonly sourcing: SourcingSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -122,6 +124,8 @@ export class DemoService {
     // التخطيط بعد الأنظمة التي يربط بها (الهيكل التنظيمي والمشاريع والموازنة الرأسمالية)
     const planning = await this.planning.run(team);
     await this.budget.run(team, planning.strategic);
+    // دورة الشراء بعد الموازنة: التعميد يحجز من بنودها ومن مصادر التمويل
+    await this.sourcing.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
     return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers, supplierPortal };

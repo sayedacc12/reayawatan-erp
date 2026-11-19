@@ -5,7 +5,10 @@ import {
   BANK_STATUS, DOC_STATUS, ENTITY_TYPES, ISSUE_POLICY, ITEM_KINDS, LOCATION_KINDS, LOCATION_PURPOSE, LogEntry, PORTAL_ROLES, PrItemGroup, PrSettings,
   PrSupplierCategory, PrUom, SUPPLIER_KINDS, SUPPLIER_STATUS, VALUATION, WAREHOUSE_KINDS,
 } from './entities/procurement.entity';
-import { DEFAULT_ACTIVITIES, DEFAULT_DOC_TYPES, DEFAULT_ITEM_GROUPS, DEFAULT_SUPPLIER_CATEGORIES, DEFAULT_UOMS } from './procurement-defaults';
+import {
+  ORDER_KINDS, ORDER_STATUS, PRIORITIES, PURCHASE_METHODS, QUOTE_STATUS, REQUEST_KINDS, REQUEST_STATUS, RFQ_STATUS,
+} from './entities/sourcing.entity';
+import { DEFAULT_APPROVAL_LEVELS, DEFAULT_EVAL_CRITERIA, DEFAULT_ORDER_TERMS, DEFAULT_ACTIVITIES, DEFAULT_DOC_TYPES, DEFAULT_ITEM_GROUPS, DEFAULT_SUPPLIER_CATEGORIES, DEFAULT_UOMS } from './procurement-defaults';
 
 /** تاريخ اليوم بتوقيت الرياض */
 export const prToday = () => new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
@@ -112,7 +115,7 @@ export class ProcurementCore {
   async lookups(org: string) {
     const safe = <T>(p: Promise<T[]>) => p.catch(() => [] as T[]);
     const s = await this.settings(org);
-    const [uoms, groups, categories, units, users, projects, assetGroups, accounts, partnerCategories] = await Promise.all([
+    const [uoms, groups, categories, units, users, projects, assetGroups, accounts, partnerCategories, suppliers, warehouses] = await Promise.all([
       this.db.getRepository(PrUom).find({ where: { organizationId: org }, order: { sortOrder: 'ASC', name: 'ASC' } }),
       this.db.getRepository(PrItemGroup).find({ where: { organizationId: org }, order: { sortOrder: 'ASC', code: 'ASC' } }),
       this.db.getRepository(PrSupplierCategory).find({ where: { organizationId: org }, order: { sortOrder: 'ASC', name: 'ASC' } }),
@@ -125,12 +128,25 @@ export class ProcurementCore {
       safe(this.db.query(
         `SELECT id, code, name, nature FROM acc_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active AND nature IN ('assets', 'liabilities', 'expenses') ORDER BY code`, [org])),
       safe(this.db.query(`SELECT id, name FROM acc_partner_categories WHERE organization_id = $1 AND behavior = 'supplier' ORDER BY sort_order, name`, [org])),
+      this.db.query(
+        `SELECT id, 'SUP-' || LPAD(supplier_no::text, 4, '0') AS code, name, supplier_kind AS "supplierKind", category_ids AS "categoryIds", activities
+           FROM pr_suppliers WHERE organization_id = $1 AND status = 'approved' ORDER BY name`, [org]),
+      this.db.query('SELECT id, code, name, kind FROM pr_warehouses WHERE organization_id = $1 AND is_active ORDER BY code', [org]),
     ]);
     return {
       settings: s, uoms, groups, categories, units, users, projects, assetGroups, accounts, partnerCategories,
       itemKinds: ITEM_KINDS, valuation: VALUATION, issuePolicy: ISSUE_POLICY, warehouseKinds: WAREHOUSE_KINDS, locationKinds: LOCATION_KINDS,
       locationPurpose: LOCATION_PURPOSE, entityTypes: ENTITY_TYPES, supplierKinds: SUPPLIER_KINDS, supplierStatus: SUPPLIER_STATUS,
       docStatus: DOC_STATUS, bankStatus: BANK_STATUS, portalRoles: PORTAL_ROLES,
+      approvedSuppliers: suppliers, activeWarehouses: warehouses,
+      sourcing: {
+        methodLimits: s.methodLimits ?? { direct: 10000, quotes: 100000 }, minQuotes: s.minQuotes ?? 3,
+        approvalLevels: s.approvalLevels?.length ? s.approvalLevels : DEFAULT_APPROVAL_LEVELS,
+        evalCriteria: s.evalCriteria?.length ? s.evalCriteria : DEFAULT_EVAL_CRITERIA, technicalPass: s.technicalPass ?? 60,
+        orderTerms: s.orderTerms ?? DEFAULT_ORDER_TERMS, discloseWinner: !!s.discloseWinner,
+      },
+      purchaseMethods: PURCHASE_METHODS, requestKinds: REQUEST_KINDS, priorities: PRIORITIES, requestStatus: REQUEST_STATUS, rfqStatus: RFQ_STATUS,
+      quoteStatus: QUOTE_STATUS, orderStatus: ORDER_STATUS, orderKinds: ORDER_KINDS,
     };
   }
 }

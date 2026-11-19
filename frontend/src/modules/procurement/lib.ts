@@ -6,7 +6,31 @@ export const PR = {
   read: 'procurement.dashboard.read', items: 'procurement.items.manage', warehouses: 'procurement.warehouses.manage',
   suppliersRead: 'procurement.suppliers.read', suppliers: 'procurement.suppliers.manage', approveSuppliers: 'procurement.suppliers.approve',
   approveBanks: 'procurement.banks.approve', reports: 'procurement.reports.read', settings: 'procurement.settings.manage',
+  requests: 'procurement.requests.create', approveRequests: 'procurement.requests.approve', sourcing: 'procurement.sourcing.manage',
+  evaluate: 'procurement.sourcing.evaluate', approveOrders: 'procurement.orders.approve', approveOrdersHigh: 'procurement.orders.approve_high',
 } as const;
+export const REQ_READ = [PR.requests, PR.approveRequests, PR.sourcing, PR.approveOrders, PR.approveOrdersHigh];
+export const RFQ_READ = [PR.sourcing, PR.evaluate, PR.approveOrders, PR.approveOrdersHigh];
+export const ORD_READ = [PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.read];
+
+export const REQ_COLOR: Record<string, string> = {
+  draft: '#64748b', submitted: '#d97706', returned: '#db2777', approved: '#0369a1', sourcing: '#7c3aed', ordered: '#059669', closed: '#15803d', rejected: '#dc2626', cancelled: '#94a3b8',
+};
+export const RFQ_COLOR: Record<string, string> = { draft: '#64748b', published: '#0369a1', opened: '#d97706', recommended: '#7c3aed', awarded: '#059669', cancelled: '#94a3b8' };
+export const QUOTE_COLOR: Record<string, string> = { draft: '#64748b', submitted: '#0369a1', withdrawn: '#94a3b8', excluded: '#dc2626' };
+export const ORDER_COLOR: Record<string, string> = {
+  draft: '#64748b', pending: '#d97706', returned: '#db2777', issued: '#0369a1', acknowledged: '#0891b2', accepted: '#059669', clarification: '#c026d3',
+  declined: '#dc2626', cancelled: '#94a3b8', closed: '#15803d',
+};
+export const PRIORITY_COLOR: Record<string, string> = { normal: '#64748b', high: '#d97706', urgent: '#dc2626' };
+
+/** من تاريخ ووقت محلي (datetime-local) إلى ISO والعكس */
+export const toLocalInput = (iso: string | null | undefined) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+export const fromLocalInput = (v: string) => (v ? new Date(v).toISOString() : null);
 
 export const SUPPLIER_COLOR: Record<string, string> = {
   draft: '#64748b', pending: '#d97706', returned: '#db2777', approved: '#059669', rejected: '#dc2626', suspended: '#7c3aed',

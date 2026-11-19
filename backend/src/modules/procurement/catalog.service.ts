@@ -190,7 +190,7 @@ export class CatalogService {
     const rows = await this.db.query(
       `SELECT i.id, i.code, i.name, i.kind, i.status, i.barcode, i.track_batch AS "trackBatch", i.track_serial AS "trackSerial", i.track_expiry AS "trackExpiry",
               i.reorder_point::float AS "reorderPoint", i.min_qty::float AS "minQty", i.max_qty::float AS "maxQty", i.ref_price::float AS "refPrice",
-              i.image_key IS NOT NULL AS "hasImage", g.id AS "groupId", g.name AS "groupName", g.code AS "groupCode", u.name AS uom
+              i.image_key IS NOT NULL AS "hasImage", g.id AS "groupId", g.name AS "groupName", g.code AS "groupCode", u.name AS uom, i.uom_id AS "uomId"
          FROM pr_items i JOIN pr_item_groups g ON g.id = i.group_id JOIN pr_uoms u ON u.id = i.uom_id
         WHERE i.organization_id = $1 AND ($2::uuid[] IS NULL OR i.group_id = ANY($2)) AND ($3::text IS NULL OR i.kind = $3)
           AND ($4::text IS NULL OR i.status = $4)

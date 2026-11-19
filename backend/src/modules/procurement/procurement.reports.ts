@@ -6,8 +6,10 @@ import { ReportsRegistry } from '../../core/reports/reports.registry';
 import { BANK_STATUS, DOC_STATUS, ENTITY_TYPES, ITEM_KINDS, LOCATION_KINDS, LOCATION_PURPOSE, SUPPLIER_KINDS, SUPPLIER_STATUS, VALUATION, WAREHOUSE_KINDS } from './entities/procurement.entity';
 import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { addDays, prToday, supplierCode } from './procurement-core.service';
+import { ORDER_KINDS, ORDER_STATUS, PRIORITIES, PURCHASE_METHODS, REQUEST_KINDS, REQUEST_STATUS, RFQ_STATUS } from './entities/sourcing.entity';
+import { orderCode, requestCode, rfqCode } from './sourcing-core.service';
 
-/** تقارير المشتريات والمستودعات (المرحلة الأولى: البيانات الأساسية والموردون) */
+/** تقارير المشتريات والمستودعات: البيانات الأساسية والموردون، وطلبات الشراء والمنافسات والتعميدات */
 @Injectable()
 export class ProcurementReports implements OnModuleInit {
   constructor(private readonly registry: ReportsRegistry, private readonly db: DataSource) {}
@@ -146,6 +148,77 @@ export class ProcurementReports implements OnModuleInit {
                FROM pr_supplier_banks b JOIN pr_suppliers s ON s.id = b.supplier_id
               WHERE b.organization_id = $1 AND ($2::text IS NULL OR b.status = $2) ORDER BY b.created_at DESC`, [org(u).organizationId, f.status ?? null]);
           return rows.map((r: Record<string, unknown>) => ({ ...r, supplier: `${supplierCode(Number(r.supplier_no))} ${r.name}`, status: ar(BANK_STATUS, r.status) }));
+        },
+      },
+      {
+        ...base, code: 'procurement.requests', category: 'المشتريات', title: 'طلبات الشراء', description: 'طلبات الشراء بحالاتها وأساليبها وقيمها التقديرية، والمتأخر منها عن تاريخ الاحتياج',
+        filters: [selectFilter('status', 'الحالة', REQUEST_STATUS), selectFilter('method', 'أسلوب الشراء', PURCHASE_METHODS), selectFilter('kind', 'النوع', REQUEST_KINDS)],
+        link: '/procurement/requests/{id}', orientation: 'landscape',
+        columns: [
+          { key: 'code', label: 'الرقم' }, { key: 'title', label: 'الطلب' }, { key: 'kind', label: 'النوع' }, { key: 'unit', label: 'الإدارة' }, { key: 'requestedBy', label: 'مقدم الطلب' },
+          { key: 'priority', label: 'الأولوية' }, { key: 'method', label: 'الأسلوب' }, { key: 'estimated', label: 'القيمة التقديرية', type: 'money' },
+          { key: 'ordered', label: 'قيمة التعميدات', type: 'money' }, { key: 'neededBy', label: 'تاريخ الاحتياج', type: 'date' }, { key: 'status', label: 'الحالة' },
+        ],
+        run: async (u, f) => {
+          const rows = await this.db.query(
+            `SELECT r.id, r.request_no, r.title, r.kind, h.name AS unit, r.requested_by_name AS "requestedBy", r.priority, r.method, r.estimated_total::float AS estimated,
+                    (SELECT COALESCE(SUM(o.total), 0)::float FROM pr_orders o WHERE o.request_id = r.id AND o.status <> 'cancelled' AND o.issued_at IS NOT NULL) AS ordered,
+                    r.needed_by::text AS "neededBy", r.status
+               FROM pr_requests r LEFT JOIN hr_units h ON h.id = r.unit_id
+              WHERE r.organization_id = $1 AND ($2::text IS NULL OR r.status = $2) AND ($3::text IS NULL OR r.method = $3) AND ($4::text IS NULL OR r.kind = $4)
+              ORDER BY r.request_no DESC`, [org(u).organizationId, f.status ?? null, f.method ?? null, f.kind ?? null]);
+          const t = prToday();
+          return rows.map((r: Record<string, unknown>) => ({
+            ...r, code: requestCode(Number(r.request_no)), kind: ar(REQUEST_KINDS, r.kind), priority: ar(PRIORITIES, r.priority), method: r.method ? ar(PURCHASE_METHODS, r.method) : '—',
+            status: ar(REQUEST_STATUS, r.status), _style: r.neededBy && String(r.neededBy) < t && ['submitted', 'approved', 'sourcing'].includes(String(r.status)) ? 'strong' : undefined,
+          }));
+        },
+      },
+      {
+        ...base, code: 'procurement.rfqs', category: 'المشتريات', title: 'المنافسات ونتائجها', description: 'المنافسات وعدد المدعوين والعروض، وأقل عرض والعرض المرسى، والوفر عن القيمة التقديرية',
+        filters: [selectFilter('status', 'الحالة', RFQ_STATUS)], link: '/procurement/rfqs/{id}', orientation: 'landscape',
+        columns: [
+          { key: 'code', label: 'الرقم' }, { key: 'title', label: 'المنافسة' }, { key: 'method', label: 'الأسلوب' }, { key: 'closesAt', label: 'إغلاق التقديم', type: 'datetime' },
+          { key: 'invited', label: 'المدعوون', type: 'number' }, { key: 'quotes', label: 'العروض', type: 'number' }, { key: 'estimated', label: 'التقديري', type: 'money' },
+          { key: 'lowest', label: 'أقل عرض', type: 'money' }, { key: 'awarded', label: 'المرسى', type: 'money' }, { key: 'winner', label: 'المورد المرسى عليه' },
+          { key: 'saving', label: 'الوفر', type: 'money' }, { key: 'status', label: 'الحالة' },
+        ],
+        run: async (u, f) => {
+          const rows = await this.db.query(
+            `SELECT q.id, q.rfq_no, q.title, q.method, q.closes_at AS "closesAt", jsonb_array_length(q.invited_ids)::int AS invited, q.status, r.estimated_total::float AS estimated,
+                    (SELECT COUNT(*)::int FROM pr_quotes x WHERE x.rfq_id = q.id AND x.status IN ('submitted', 'excluded')) AS quotes,
+                    CASE WHEN q.opened_at IS NOT NULL THEN (SELECT MIN(x.total)::float FROM pr_quotes x WHERE x.rfq_id = q.id AND x.status = 'submitted') END AS lowest,
+                    o.total::float AS awarded, s.name AS winner
+               FROM pr_rfqs q JOIN pr_requests r ON r.id = q.request_id
+               LEFT JOIN pr_orders o ON o.rfq_id = q.id AND o.status <> 'cancelled' LEFT JOIN pr_suppliers s ON s.id = o.supplier_id
+              WHERE q.organization_id = $1 AND ($2::text IS NULL OR q.status = $2) ORDER BY q.rfq_no DESC`, [org(u).organizationId, f.status ?? null]);
+          return rows.map((r: Record<string, unknown>) => ({
+            ...r, code: rfqCode(Number(r.rfq_no)), method: ar(PURCHASE_METHODS, r.method), status: ar(RFQ_STATUS, r.status),
+            saving: r.awarded !== null && r.awarded !== undefined ? Math.round((Number(r.estimated) - Number(r.awarded)) * 100) / 100 : null,
+          }));
+        },
+      },
+      {
+        ...base, code: 'procurement.orders', category: 'المشتريات', title: 'التعميدات وأوامر الشراء', description: 'التعميدات بقيمها وموردها ومصدر الصرف وحالتها لدى المورد، والمتأخر عن موعد التسليم',
+        filters: [selectFilter('status', 'الحالة', ORDER_STATUS), selectFilter('kind', 'النوع', ORDER_KINDS)], link: '/procurement/orders/{id}', orientation: 'landscape',
+        columns: [
+          { key: 'code', label: 'الرقم' }, { key: 'title', label: 'التعميد' }, { key: 'kind', label: 'النوع' }, { key: 'supplier', label: 'المورد' },
+          { key: 'source', label: 'مصدر الصرف' }, { key: 'total', label: 'القيمة شاملة الضريبة', type: 'money' }, { key: 'issuedAt', label: 'تاريخ الإصدار', type: 'datetime' },
+          { key: 'deliveryDate', label: 'موعد التسليم', type: 'date' }, { key: 'status', label: 'الحالة' },
+        ],
+        run: async (u, f) => {
+          const rows = await this.db.query(
+            `SELECT o.id, o.order_no, o.title, o.kind, s.supplier_no, s.name AS supplier, o.total::float AS total, o.issued_at AS "issuedAt", o.delivery_date::text AS "deliveryDate", o.status,
+                    CASE WHEN o.funding_batch_id IS NOT NULL THEN 'مصدر تمويل: الدفعة ' || b.batch_no ELSE 'بند موازنة: ' || COALESCE(l.name, '—') END AS source
+               FROM pr_orders o JOIN pr_suppliers s ON s.id = o.supplier_id
+               LEFT JOIN fundraising_batches b ON b.id = o.funding_batch_id LEFT JOIN plan_budget_lines l ON l.id = o.budget_line_id
+              WHERE o.organization_id = $1 AND ($2::text IS NULL OR o.status = $2) AND ($3::text IS NULL OR o.kind = $3) ORDER BY o.order_no DESC`,
+            [org(u).organizationId, f.status ?? null, f.kind ?? null]);
+          const t = prToday();
+          return rows.map((r: Record<string, unknown>) => ({
+            ...r, code: orderCode(Number(r.order_no)), kind: ar(ORDER_KINDS, r.kind), supplier: `${supplierCode(Number(r.supplier_no))} ${r.supplier}`, status: ar(ORDER_STATUS, r.status),
+            _style: r.deliveryDate && String(r.deliveryDate) < t && ['issued', 'acknowledged', 'accepted'].includes(String(r.status)) ? 'strong' : r.status === 'cancelled' ? 'muted' : undefined,
+          }));
         },
       },
     ];

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import CountUp from '../../beneficiaries/components/CountUp.vue';
-import { PR, fmtDate } from '../lib';
+import { PR, fmtDate, sar } from '../lib';
 import '../../projects/projects.css';
 import '../procurement.css';
 
@@ -54,6 +54,12 @@ async function copyPortal() {
         <div class="pm-kpi" style="--a: #0369a1; --i: 1"><span>المستودعات</span><strong><CountUp :value="d.warehouses.active" /></strong><small>{{ d.warehouses.locations }} موقع تخزين</small></div>
         <div class="pm-kpi" style="--a: #059669; --i: 2"><span>الموردون المعتمدون</span><strong><CountUp :value="sup('approved')" /></strong><small>{{ sup('pending') }} بانتظار المراجعة · {{ sup('draft') }} مسودة في البوابة</small></div>
         <div class="pm-kpi" style="--a: #db2777; --i: 3"><span>مستندات تنتهي قريبًا</span><strong><CountUp :value="d.expiring.length" /></strong><small>{{ d.expiring.filter((x: any) => x.expired).length }} منتهية</small></div>
+      </div>
+      <div v-if="d.sourcing" class="pc-cards" style="margin-bottom: 18px">
+        <RouterLink class="pc-kpi" to="/procurement/requests?status=submitted"><small class="pm-muted">طلبات شراء بانتظار الاعتماد</small><b style="font-size: 1.5rem">{{ d.sourcing.requests.submitted }}</b><small class="pm-muted">{{ d.sourcing.requests.approved }} معتمدة بانتظار التوريد</small></RouterLink>
+        <RouterLink class="pc-kpi" to="/procurement/rfqs"><small class="pm-muted">منافسات مفتوحة للعروض</small><b style="font-size: 1.5rem">{{ d.sourcing.rfqs.open }}</b><small class="pm-muted">{{ d.sourcing.rfqs.toOpen }} بانتظار الفتح · {{ d.sourcing.rfqs.evaluating }} قيد التقييم</small></RouterLink>
+        <RouterLink class="pc-kpi" to="/procurement/orders?status=pending"><small class="pm-muted">تعميدات بانتظار الاعتماد</small><b style="font-size: 1.5rem">{{ d.sourcing.orders.pending }}</b><small class="pm-muted">مستويات حسب القيمة</small></RouterLink>
+        <RouterLink class="pc-kpi" to="/procurement/orders?status=issued"><small class="pm-muted">تعميدات سارية</small><b style="font-size: 1.5rem">{{ d.sourcing.orders.live }}</b><small class="pm-muted">{{ sar(d.sourcing.orders.liveTotal) }}<span v-if="d.sourcing.orders.late" class="pc-flag" style="margin-inline-start: 6px">{{ d.sourcing.orders.late }} متأخر</span></small></RouterLink>
       </div>
 
       <div class="pc-grid">

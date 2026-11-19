@@ -30,6 +30,8 @@ function logout() {
 const role = computed(() => me.value?.user.role as string | undefined);
 const links = computed(() => [
   { to: `/supplier/${slug.value}/home`, label: 'حالة الطلب', show: true },
+  { to: `/supplier/${slug.value}/rfqs`, label: 'المنافسات', show: me.value?.supplier.status === 'approved' },
+  { to: `/supplier/${slug.value}/orders`, label: 'التعميدات', show: me.value?.supplier.status === 'approved' },
   { to: `/supplier/${slug.value}/profile`, label: 'بيانات المنشأة', show: true },
   { to: `/supplier/${slug.value}/docs`, label: 'المستندات', show: true },
   { to: `/supplier/${slug.value}/banks`, label: 'الحساب البنكي', show: canBanks(role.value) },
