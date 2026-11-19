@@ -13,6 +13,25 @@ export class BeneficiariesTasks implements OnModuleInit {
   }
 
   async collect(u: OrgUser): Promise<PendingTask[]> {
+    const [requests, resets] = await Promise.all([this.requests(u), this.portalResets(u)]);
+    return [...resets, ...requests];
+  }
+
+  /** مستفيدون طلبوا استعادة كلمة مرور البوابة (طابق رقم الهوية الجوال المسجل) */
+  private async portalResets(u: OrgUser): Promise<PendingTask[]> {
+    if (!u.permissions.includes('beneficiaries.cases.manage')) return [];
+    const rows: { id: string; bid: string; name: string; at: Date }[] = await this.db.query(
+      `SELECT id, beneficiary_id AS bid, subject_name AS name, created_at AS at FROM password_resets
+        WHERE organization_id = $1 AND audience = 'portal' AND status = 'pending' AND created_at > now() - interval '7 days'
+        ORDER BY created_at LIMIT 50`, [u.organizationId],
+    );
+    return rows.map((r) => ({
+      id: `ben-pwd:${r.id}`, group: 'استعادة كلمة مرور البوابة', link: `/beneficiaries/files/${r.bid}`, at: r.at, urgent: true,
+      title: `${r.name} نسي كلمة مرور البوابة`, subtitle: 'اتصل بجواله المسجل وسلّمه كلمة مرور مؤقتة',
+    }));
+  }
+
+  private async requests(u: OrgUser): Promise<PendingTask[]> {
     if (!u.isSuperadmin && !u.permissions.includes('beneficiaries.requests.process')) return [];
     const rows: { id: string; no: number; name: string; stage: string; at: Date }[] = await this.db.query(
       `SELECT r.id, r.request_no AS no, b.full_name AS name, s.name AS stage, r.updated_at AS at

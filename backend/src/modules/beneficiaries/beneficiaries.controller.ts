@@ -72,6 +72,13 @@ export class BeneficiariesController {
     return this.service.setPortalAccess(actor, id, dto.password);
   }
 
+  /** كلمة مرور مؤقتة للبوابة تظهر مرة واحدة لترسل لجوال المستفيد المسجل */
+  @Post(':id/portal-temp-password')
+  @RequirePermissions(P.manage)
+  portalTempPassword(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.service.portalTempPassword(actor, id);
+  }
+
   @Delete(':id/portal-access')
   @HttpCode(204)
   @RequirePermissions(P.manage)

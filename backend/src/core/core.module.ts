@@ -6,6 +6,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth/auth.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthService } from './auth/auth.service';
+import { PasswordReset } from './auth/password-reset.entity';
+import { PasswordResetService } from './auth/password-reset.service';
+import { CoreTasks } from './auth/core.tasks';
 import { PermissionResolver } from './auth/permission-resolver.service';
 import { BootstrapService } from './bootstrap.service';
 import { CORE_ENTITIES } from './entities';
@@ -50,7 +53,7 @@ import { OnboardingService } from './onboarding/onboarding.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, UserOnboarding, OrganizationClosure]),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, UserOnboarding, OrganizationClosure, PasswordReset]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -65,10 +68,10 @@ import { OnboardingService } from './onboarding/onboarding.service';
     PublicSiteController, PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController,
   ],
   providers: [
-    AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
+    AuthService, PasswordResetService, CoreTasks, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
     FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, OnboardingService, LifecycleService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],
+  exports: [PasswordResetService, ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],
 })
 export class CoreModule {}

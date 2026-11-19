@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NationalitySelect from '../components/NationalitySelect.vue';
 import ParticleField from '../components/ParticleField.vue';
-import { hasArabic, passwordProblem } from '../validation';
+import { hasArabic, passwordProblem, strongPasswordProblem } from '../validation';
 import { portalApi, setPortalToken, usePortal, type PortalProject } from './portal';
 
 const route = useRoute();
@@ -12,14 +12,29 @@ const slug = route.params.slug as string;
 const portal = usePortal(slug);
 const info = ref<{ name: string; projects: PortalProject[]; nationalities: string[] } | null>(null);
 const notFound = ref(false);
-const mode = ref<'login' | 'register'>('login');
+const mode = ref<'login' | 'register' | 'forgot' | 'change'>('login');
 const error = ref('');
 const busy = ref(false);
 const loginForm = reactive({ nationalId: '', password: '' });
+const forgotForm = reactive({ nationalId: '', phone: '' });
+const forgotDone = ref('');
+// الدخول بكلمة مؤقتة: يختار المستفيد كلمة جديدة قبل المتابعة
+const change = reactive({ current: '', next: '', confirm: '' });
+const changeProblem = computed(() => strongPasswordProblem(change.next));
+function setMode(m: typeof mode.value) {
+  mode.value = m;
+  error.value = '';
+  forgotDone.value = '';
+}
 const reg = reactive({ fullName: '', nationalId: '', phone: '', gender: 'female', nationality: '', birthDate: '', city: '', password: '', confirm: '' });
 
 onMounted(async () => {
-  if (portal.token) { router.replace(`/portal/${slug}/home`); return; }
+  if (portal.token) {
+    // جلسة بكلمة مؤقتة لم تُغيّر بعد: تبقى في صفحة تغيير كلمة المرور
+    const me = await portalApi<{ mustChangePassword?: boolean }>('/me').catch(() => null);
+    if (!me?.mustChangePassword) { router.replace(`/portal/${slug}/home`); return; }
+    mode.value = 'change';
+  }
   try {
     info.value = await portalApi(`/o/${slug}`);
   } catch {
@@ -36,6 +51,8 @@ const pwProblem = computed(() => passwordProblem(reg.password));
 
 async function submit() {
   error.value = '';
+  if (mode.value === 'forgot') return sendForgot();
+  if (mode.value === 'change') return sendChange();
   if (mode.value === 'register') {
     if (pwProblem.value) { error.value = pwProblem.value; return; }
     if (reg.password !== reg.confirm) { error.value = 'كلمتا المرور غير متطابقتين'; return; }
@@ -47,15 +64,50 @@ async function submit() {
   try {
     const { confirm: _c, ...regBody } = reg;
     const res = mode.value === 'login'
-      ? await portalApi<{ accessToken: string }>(`/o/${slug}/login`, { method: 'POST', json: loginForm })
-      : await portalApi<{ accessToken: string }>(`/o/${slug}/register`, { method: 'POST', json: regBody });
+      ? await portalApi<{ accessToken: string; mustChangePassword?: boolean }>(`/o/${slug}/login`, { method: 'POST', json: loginForm })
+      : await portalApi<{ accessToken: string; mustChangePassword?: boolean }>(`/o/${slug}/register`, { method: 'POST', json: regBody });
     setPortalToken(res.accessToken);
+    if (res.mustChangePassword) {
+      change.current = loginForm.password;
+      setMode('change');
+      return;
+    }
     router.push(`/portal/${slug}/${mode.value === 'register' ? 'apply' : 'home'}`);
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
     busy.value = false;
   }
+}
+
+async function sendForgot() {
+  busy.value = true;
+  try {
+    forgotDone.value = (await portalApi<{ message: string }>(`/o/${slug}/forgot`, { method: 'POST', json: forgotForm })).message;
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function sendChange() {
+  if (changeProblem.value) { error.value = changeProblem.value; return; }
+  if (change.next !== change.confirm) { error.value = 'كلمتا المرور غير متطابقتين'; return; }
+  busy.value = true;
+  try {
+    await portalApi('/change-password', { method: 'POST', json: { currentPassword: change.current, newPassword: change.next } });
+    router.push(`/portal/${slug}/home`);
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
+
+function cancelChange() {
+  setPortalToken(null);
+  setMode('login');
 }
 </script>
 
@@ -77,7 +129,13 @@ async function submit() {
     </section>
 
     <section class="card box">
-      <div class="switch">
+      <div v-if="mode === 'forgot' || mode === 'change'" class="alt-head">
+        <h2>{{ mode === 'forgot' ? 'استعادة كلمة المرور' : 'اختر كلمة مرور جديدة' }}</h2>
+        <p class="muted">{{ mode === 'forgot'
+          ? 'اكتب رقم هويتك والجوال المسجل لدى الجمعية. إن تطابقا تتصل بك الجمعية على جوالك المسجل وتسلّمك كلمة مرور مؤقتة.'
+          : 'دخلت بكلمة مرور مؤقتة. اختر كلمة مرور خاصة بك: 8 أحرف على الأقل، فيها حرف إنجليزي ورقم.' }}</p>
+      </div>
+      <div v-else class="switch">
         <button :class="{ on: mode === 'login' }" @click="mode = 'login'; error = ''">تسجيل الدخول</button>
         <button :class="{ on: mode === 'register' }" @click="mode = 'register'; error = ''">حساب جديد</button>
         <span class="pill" :style="{ transform: mode === 'login' ? 'translateX(0)' : 'translateX(-100%)' }" />
@@ -88,6 +146,18 @@ async function submit() {
           <div v-if="mode === 'login'" key="l">
             <div class="field"><label>رقم الهوية / الإقامة</label><input v-model="loginForm.nationalId" class="input" inputmode="numeric" dir="ltr" required autocomplete="username" /></div>
             <div class="field"><label>كلمة المرور</label><input v-model="loginForm.password" class="input" type="password" dir="ltr" required autocomplete="current-password" /></div>
+          </div>
+          <div v-else-if="mode === 'forgot'" key="f">
+            <div v-if="forgotDone" class="alert alert-success">{{ forgotDone }}</div>
+            <template v-else>
+              <div class="field"><label>رقم الهوية / الإقامة</label><input v-model="forgotForm.nationalId" class="input" inputmode="numeric" dir="ltr" required /></div>
+              <div class="field"><label>الجوال المسجل لدى الجمعية</label><input v-model="forgotForm.phone" class="input" inputmode="tel" dir="ltr" required placeholder="05xxxxxxxx" /></div>
+            </template>
+          </div>
+          <div v-else-if="mode === 'change'" key="c">
+            <div class="field"><label>كلمة المرور المؤقتة</label><input v-model="change.current" class="input" type="password" dir="ltr" required autocomplete="current-password" /></div>
+            <div class="field"><label>كلمة المرور الجديدة</label><input v-model="change.next" :class="['input', { invalid: changeProblem }]" type="password" dir="ltr" required autocomplete="new-password" /><small v-if="changeProblem" class="field-error">{{ changeProblem }}</small></div>
+            <div class="field"><label>تأكيد كلمة المرور الجديدة</label><input v-model="change.confirm" class="input" type="password" dir="ltr" required autocomplete="new-password" /></div>
           </div>
           <div v-else key="r" class="two">
             <div class="field wide"><label>الاسم رباعي *</label><input v-model="reg.fullName" class="input" required minlength="3" /></div>
@@ -102,8 +172,11 @@ async function submit() {
             <small v-if="pwProblem" class="field-error wide">{{ pwProblem }}</small>
           </div>
         </Transition>
-        <button class="btn btn-primary go" :disabled="busy">{{ busy ? 'لحظة...' : mode === 'login' ? 'دخول' : 'إنشاء الحساب' }}</button>
+        <button v-if="!(mode === 'forgot' && forgotDone)" class="btn btn-primary go" :disabled="busy">{{ busy ? 'لحظة...' : { login: 'دخول', register: 'إنشاء الحساب', forgot: 'إرسال الطلب', change: 'حفظ ومتابعة' }[mode] }}</button>
       </form>
+      <button v-if="mode === 'login'" type="button" class="link" @click="setMode('forgot')">نسيت كلمة المرور؟</button>
+      <button v-else-if="mode === 'forgot'" type="button" class="link" @click="setMode('login')">← العودة لتسجيل الدخول</button>
+      <button v-else-if="mode === 'change'" type="button" class="link" @click="cancelChange">خروج</button>
     </section>
 
     <section v-if="axes.length" class="projects">
@@ -140,6 +213,10 @@ async function submit() {
 .switch button { position: relative; z-index: 1; font: inherit; font-weight: 600; padding: 9px; border: 0; background: none; cursor: pointer; color: var(--muted); transition: color .2s; }
 .switch button.on { color: #fff; }
 .pill { position: absolute; top: 4px; bottom: 4px; right: 4px; width: calc(50% - 4px); border-radius: 9px; background: var(--grad); box-shadow: 0 6px 16px rgba(13,148,136,.35); transition: transform .35s var(--ease); }
+.alt-head h2 { margin: 0 0 4px; font-size: 1.2rem; }
+.alt-head p { margin: 0 0 14px; font-size: .9rem; line-height: 1.7; }
+.link { display: block; margin: 12px auto 0; background: none; border: 0; font: inherit; color: var(--primary); font-weight: 600; cursor: pointer; }
+.link:hover { text-decoration: underline; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 .wide { grid-column: 1 / -1; }
 .go { width: 100%; margin-top: 6px; min-height: 46px; font-size: 1.02rem; }

@@ -114,6 +114,10 @@ const annTarget = computed(() => ctx.target(ann.value?.link));
           </nav>
           <div class="sh-tools">
             <RouterLink :to="ctx.to('/search')" class="sh-icon" title="بحث"><SiteIcon name="search" :size="19" /></RouterLink>
+            <div v-if="sec.portal || sec.staff" class="sh-gates">
+              <a v-if="sec.portal" :href="data.links.portal" class="sh-gate" title="بوابة المستفيدين"><SiteIcon name="users" :size="16" /><span><em>بوابة </em>المستفيدين</span></a>
+              <a v-if="sec.staff" :href="data.links.login" class="sh-gate" title="بوابة الموظفين"><SiteIcon name="building" :size="16" /><span><em>بوابة </em>الموظفين</span></a>
+            </div>
             <RouterLink v-if="sec.store && data.store.enabled" :to="ctx.to('/donate')" class="sx-btn main sm"><SiteIcon name="heart" :size="16" /> تبرع الآن</RouterLink>
             <button class="sh-icon sh-burger" aria-label="القائمة" @click="menu = !menu"><SiteIcon :name="menu ? 'x' : 'menu'" :size="22" /></button>
           </div>
@@ -122,10 +126,13 @@ const annTarget = computed(() => ctx.target(ann.value?.link));
       <transition name="sh-fade">
         <div v-if="menu" class="sh-drawer" @click.self="menu = false">
           <nav>
+            <div v-if="sec.portal || sec.staff" class="sh-drawer-gates">
+              <a v-if="sec.portal" :href="data.links.portal" class="sh-drawer-gate ben"><SiteIcon name="users" :size="20" /><span><b>بوابة المستفيدين</b><small>قدّم طلبك وتابعه</small></span></a>
+              <a v-if="sec.staff" :href="data.links.login" class="sh-drawer-gate staff"><SiteIcon name="building" :size="20" /><span><b>بوابة الموظفين</b><small>دخول فريق العمل</small></span></a>
+            </div>
             <RouterLink v-for="[p, l] in nav" :key="p" :to="ctx.to(p)">{{ l }}</RouterLink>
             <a v-if="sec.volunteer" :href="data.links.volunteer">التطوع</a>
             <a v-if="sec.membership" :href="data.links.membership">العضوية</a>
-            <a v-if="sec.portal" :href="data.links.portal">بوابة المستفيدين</a>
           </nav>
         </div>
       </transition>
@@ -152,7 +159,7 @@ const annTarget = computed(() => ctx.target(ann.value?.link));
             <a v-if="sec.volunteer" :href="data.links.volunteer">سجّل متطوعًا</a>
             <a v-if="sec.membership" :href="data.links.membership">عضوية الجمعية العمومية</a>
             <a v-if="sec.portal" :href="data.links.portal">بوابة المستفيدين</a>
-            <a :href="data.links.login">دخول الموظفين</a>
+            <a v-if="sec.staff" :href="data.links.login">بوابة الموظفين</a>
           </div>
           <div>
             <h4>تواصل معنا</h4>
@@ -197,6 +204,19 @@ const annTarget = computed(() => ctx.target(ann.value?.link));
 .sh-icon { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; transition: background .2s; }
 .sh-icon:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
 .sh-burger { display: none; }
+.sh-gates { display: flex; gap: 6px; }
+.sh-gate { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-weight: 700; font-size: .84rem; white-space: nowrap; border: 1.5px solid color-mix(in srgb, currentColor 30%, transparent); transition: background .2s, border-color .2s, transform .2s; }
+.sh-gate:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: var(--primary); transform: translateY(-1px); }
+.sh-head.home:not(.solid) .sh-gate:hover { background: rgba(255,255,255,.14); border-color: var(--accent); }
+.sh-gate svg { color: var(--accent); flex-shrink: 0; }
+.sh-head.solid .sh-gate svg, .sh-head:not(.home) .sh-gate svg { color: var(--primary); }
+.sh-drawer-gates { display: grid; gap: 8px; margin-bottom: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line, #e5e7eb); }
+.sh-drawer a.sh-drawer-gate { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; color: #fff; }
+.sh-drawer-gate.ben { background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #000)); }
+.sh-drawer-gate.staff { background: linear-gradient(135deg, var(--dark, #10201f), color-mix(in srgb, var(--dark, #10201f) 75%, var(--primary))); }
+.sh-drawer-gate span { display: grid; line-height: 1.3; }
+.sh-drawer-gate small { font-weight: 500; opacity: .8; font-size: .78rem; }
+.sh-drawer a.sh-drawer-gate:hover { color: #fff; filter: brightness(1.08); }
 .sh-drawer { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.4); backdrop-filter: blur(4px); }
 .sh-drawer nav { position: absolute; top: 0; bottom: 0; inset-inline-start: 0; width: min(300px, 82vw); background: var(--paper); padding: 90px 20px 20px; display: grid; align-content: start; gap: 4px; box-shadow: 0 0 40px rgba(0,0,0,.2); }
 .sh-drawer a { padding: 12px 14px; border-radius: 12px; font-weight: 600; }
@@ -231,7 +251,12 @@ const annTarget = computed(() => ctx.target(ann.value?.link));
 .sh-loading i { width: 14px; height: 14px; border-radius: 50%; background: #0f766e; animation: sh-dot 1s infinite alternate; }
 .sh-loading i:nth-child(2) { animation-delay: .2s; } .sh-loading i:nth-child(3) { animation-delay: .4s; }
 @keyframes sh-dot { to { transform: translateY(-14px); opacity: .4; } }
-@media (max-width: 1080px) { .sh-nav { display: none; } .sh-burger { display: grid; } .sh-tools { margin-inline-start: auto; } }
+.sh-gate em { font-style: normal; }
+@media (max-width: 1600px) { .sh-gate em { display: none; } .sh-gate { padding: 7px 10px; } .sh-nav a { padding: 8px 8px; font-size: .9rem; } .sh-bar { gap: 14px; } }
+.sh-nav a { white-space: nowrap; }
+@media (max-width: 1280px) { .sh-gate span { display: none; } .sh-gate { padding: 0; width: 38px; height: 38px; justify-content: center; } }
+@media (max-width: 1080px) { .sh-nav { display: none; } .sh-burger { display: grid; } .sh-tools { margin-inline-start: auto; } .sh-gate span, .sh-gate em { display: inline; } .sh-gate { padding: 7px 12px; width: auto; height: auto; } }
+@media (max-width: 720px) { .sh-gates { display: none; } }
 @media (max-width: 860px) { .sh-foot-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .sh-foot-grid { grid-template-columns: 1fr; } .sh-brand small { display: none; } .sh-bar { gap: 10px; height: 66px; } .sh-brand img { height: 40px; } }
 </style>

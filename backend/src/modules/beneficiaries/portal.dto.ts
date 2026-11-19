@@ -2,7 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize, IsArray, IsDateString, IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, MaxLength, Min, MinLength,
 } from 'class-validator';
-import { IsValidPassword } from '../../core/validation';
+import { IsStrongPassword, IsValidPassword } from '../../core/validation';
 import { CATEGORIES, GENDERS } from './constants';
 
 const clean = () =>
@@ -107,6 +107,22 @@ export class TicketReplyDto {
 
   @IsOptional()
   close?: boolean;
+}
+
+export class PortalForgotDto {
+  @clean() @Matches(/^[0-9]{5,20}$/, { message: 'رقم الهوية أرقام فقط (من 5 إلى 20 رقم)' })
+  nationalId!: string;
+
+  @clean() @Matches(/^\+?[0-9 -]{6,20}$/, { message: 'رقم الجوال غير صحيح' })
+  phone!: string;
+}
+
+export class PortalChangePasswordDto {
+  @IsString() @MinLength(1, { message: 'كلمة المرور الحالية مطلوبة' }) @MaxLength(200)
+  currentPassword!: string;
+
+  @IsStrongPassword()
+  newPassword!: string;
 }
 
 export class PortalAccessDto {
