@@ -33,7 +33,7 @@ jobs:
       - name: Run each spec on its own
         run: |
           fail=0
-          for f in test/*.e2e-spec.ts test/security/*.spec.ts; do
+          for f in test/*.e2e-spec.ts test/security/*spec.ts; do
             echo "::group::$f"
             npx jest "$f" || fail=1
             echo "::endgroup::"
