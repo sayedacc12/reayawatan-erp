@@ -311,11 +311,18 @@ cmd_setup_drive() {
   echo "  ssh -L 53682:localhost:53682 -i <ملف المفتاح> ubuntu@<IP السيرفر>"
   echo
   echo "سيظهر الآن رابط. انسخه وافتحه في متصفح جهازك، وسجّل الدخول بحساب Google ووافق."
+  echo "بعد ظهور صفحة All done ارجع هنا وانتظر، ولا تكتب شيئًا في هذه الشاشة."
   echo "الصلاحية المطلوبة محدودة: الملفات التي ينشئها سنابل فقط، ولا يرى بقية ملفاتك."
   echo
+  # authorize يكتفي بتسجيل الدخول ويطبع الرمز، دون أسئلة إضافية تقرأ من لوحة المفاتيح
+  # (صلاحية drive.file فقط: الملفات التي ينشئها سنابل)
+  local blob out tok
+  blob="$(printf '{"scope":"drive.file"}' | base64 -w0 | tr -d '=')"
+  out="$(rclone authorize drive "$blob" </dev/null)" || die "لم يكتمل تسجيل الدخول في Google. تأكد من أمر الدخول أعلاه ثم أعد المحاولة."
+  tok="$(printf '%s\n' "$out" | grep -m1 '^{.*access_token')" || die "لم يصل رمز الدخول من Google. أعد المحاولة."
   rclone config delete gdrive >/dev/null 2>&1 || true
-  rclone config create gdrive drive scope=drive.file >/dev/null \
-    || die "لم يكتمل الربط. تأكد من أمر الدخول أعلاه ثم أعد المحاولة."
+  rclone config create gdrive drive scope=drive.file token="$tok" config_refresh_token=false --non-interactive </dev/null >/dev/null \
+    || die "تعذّر حفظ ربط Google Drive. أعد المحاولة."
   rclone config show gdrive 2>/dev/null | grep -q '^token' || die "لم يكتمل تسجيل الدخول في Google. أعد المحاولة."
   add_crypt gdrive "gdrive:sanabel-backups"
   test_target gdrive
