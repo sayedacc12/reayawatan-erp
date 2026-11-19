@@ -83,6 +83,15 @@ export class ReportPdfService implements OnModuleDestroy {
       const browser = await this.getBrowser();
       const page = await browser.newPage();
       try {
+        // التقرير مكتمل داخل HTML (الخط مضمّن). نمنع أي طلب شبكي أو ملف حتى لا يصبح المتصفح
+        // وسيلة للوصول لعناوين داخلية (SSRF) لو تسرب نص غير مُهرّب، ونعطّل JavaScript.
+        await page.setJavaScriptEnabled(false);
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+          const url = req.url();
+          if (url.startsWith('data:') || url === 'about:blank') void req.continue().catch(() => undefined);
+          else void req.abort('blockedbyclient').catch(() => undefined);
+        });
         await page.setContent(html, { waitUntil: 'load', timeout: 60_000 });
         await page.evaluate('document.fonts.ready');
         const footer = `<style>${reportFontCss()}</style>

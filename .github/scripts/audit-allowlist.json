@@ -1,0 +1,8 @@
+[
+  {
+    "project": "backend",
+    "package": "extract-zip",
+    "until": "2027-02-19",
+    "reason": "No patched release exists. Pulled in by @puppeteer/browsers (puppeteer-core) to unzip downloaded browsers; Sanabel never downloads browsers (executablePath points to the system Chromium) and never extracts user-supplied archives. Re-check when puppeteer ships a CommonJS-compatible fix or when moving to ESM."
+  }
+]

@@ -6,7 +6,12 @@ import { AppModule } from './app.module';
 
 export function configureApp(app: NestExpressApplication) {
   app.setGlobalPrefix('api');
-  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
+  // عنوان العميل الحقيقي: الطلب يمر بـ Caddy ثم nginx (شبكة Docker خاصة). نثق فقط بالعناوين الخاصة،
+  // فيكون req.ip أول عنوان عام من اليمين في X-Forwarded-For. Caddy يتجاهل X-Forwarded-For القادم من الإنترنت
+  // ويضع عنوان المتصل الحقيقي، فلا يمكن تزويره. بدونه كانت كل الطلبات تظهر بعنوان Caddy،
+  // فيصبح حد محاولات الدخول مشتركًا بين كل المستخدمين.
+  app.set('trust proxy', process.env.TRUST_PROXY ?? 'loopback, linklocal, uniquelocal');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   return app;
 }
