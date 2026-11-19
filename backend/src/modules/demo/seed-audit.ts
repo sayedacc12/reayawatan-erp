@@ -9,7 +9,7 @@ import { AUDIT_PERMISSIONS as P } from '../audit/audit.manifest';
 import { EngagementService } from '../audit/engagement.service';
 import { AuditAction, AuditEngagement, RiskRef } from '../audit/entities/audit.entity';
 import { PlanningService } from '../audit/planning.service';
-import { DEMO_EMAIL, DemoTeam, actorOf, daysAgo, daysAhead } from './demo-context';
+import { DemoTeam, actorOf, daysAgo, daysAhead } from './demo-context';
 
 /**
  * المراجعة الداخلية في الجمعية التجريبية: مجالات المراجعة بتقييم مخاطرها، خطة رئيسية معتمدة وخطط فرعية
@@ -39,9 +39,9 @@ export class AuditSeed {
       organizationId: org, name: 'المراجع الداخلي', description: 'يعد خطط المراجعة وينفذ مهامها ويتابع التوصيات ويتحقق من إغلاقها', permissions: await perms(auditorCodes),
     }));
     const u = await this.db.getRepository(User).save(this.db.getRepository(User).create({
-      organizationId: org, fullName: 'سلمان الحربي', email: DEMO_EMAIL('auditor'), passwordHash: await bcrypt.hash(password, 12), roles: [role],
+      organizationId: org, fullName: 'سلمان الحربي', email: team.email('auditor'), passwordHash: await bcrypt.hash(password, 12), roles: [role],
     }));
-    const auditor = actorOf(org, u, auditorCodes);
+    const auditor = actorOf(org, u, auditorCodes, false, team.slug);
     // المدير المالي ومسؤولة تنمية الموارد يتابعان التوصيات المسندة لإدارتيهما
     const respond = (await perms([P.respond]))[0];
     for (const id of [team.roles.finance, team.roles.fundraiser, team.roles.caseManager]) {

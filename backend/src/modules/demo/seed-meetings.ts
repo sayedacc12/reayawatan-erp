@@ -26,7 +26,11 @@ export class MeetingsSeed {
     private readonly minutes: MinutesService,
   ) {}
 
-  async run(t: CommsTeam, password: string, origin: string) {
+  /**
+   * presigned: حسابات لا نعرف كلمة مرورها (مدير نظام جمعية حقيقية أضاف بيانات تجريبية):
+   * يُسجَّل توقيعها على محاضر البيانات التجريبية مباشرة بدل إعادة إدخال كلمة المرور.
+   */
+  async run(t: CommsTeam, password: string, origin: string, presigned: string[] = []) {
     const org = t.admin.organizationId;
     const s = await this.core.settings(org);
     await this.db.query(`UPDATE mtg_settings SET minutes_footer = $2 WHERE organization_id = $1`, [org, 'حُرر هذا المحضر في نظام سنابل، ويُتحقق من صحة توقيعاته برمز التحقق المطبوع عليه.']);
@@ -93,7 +97,11 @@ export class MeetingsSeed {
         const reason = abstain[a.name] ?? null;
         if (a.userId) {
           const actor = Object.values(t).find((x) => x.id === a.userId)!;
-          await this.minutes.sign(actor, id, { decision: reason ? 'abstain' : 'sign', password, reason }, '127.0.0.1');
+          if (presigned.includes(actor.id)) {
+            await this.minutes['record'](actor.organizationId, id, a.id, reason ? 'abstain' : 'sign', reason, 'password', '127.0.0.1', actor.fullName);
+          } else {
+            await this.minutes.sign(actor, id, { decision: reason ? 'abstain' : 'sign', password, reason }, '127.0.0.1');
+          }
         } else {
           const link = await this.minutes.signLink(t.admin, id, a.id, origin);
           await this.minutes.publicSign(link.url.split('/').pop()!, { decision: reason ? 'abstain' : 'sign', code: link.code, reason }, '127.0.0.1');

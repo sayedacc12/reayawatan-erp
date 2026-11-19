@@ -32,16 +32,20 @@ export const ALL_PERMISSIONS = [
 
 /** مستخدم تجريبي بصيغة المستخدم الحالي، لتنفيذ العمليات عبر خدمات الوحدات كما لو نفذها بنفسه */
 export function actorOf(
-  orgId: string, u: { id: string; fullName: string; email: string }, permissions: string[], isSuperadmin = false,
+  orgId: string, u: { id: string; fullName: string; email: string }, permissions: string[], isSuperadmin = false, slug = DEMO_SLUG,
 ): OrgUser {
   return {
-    id: u.id, organizationId: orgId, organizationName: null, organizationSlug: DEMO_SLUG, email: u.email, username: null,
+    id: u.id, organizationId: orgId, organizationName: null, organizationSlug: slug, email: u.email, username: null,
     fullName: u.fullName, isSuperadmin, isPlatformAdmin: false, permissions,
   };
 }
 
 /** فريق الجمعية التجريبية: كل موظف بدوره، وتُسجَّل العمليات بأسمائهم */
 export interface DemoTeam {
+  /** معرّف الجمعية التي تُبنى فيها البيانات (demo أو جمعية تجريبية أضافت بيانات تجريبية) */
+  slug: string;
+  /** بريد حسابات الموظفين التجريبيين (فريد على مستوى المنصة) */
+  email: (name: string) => string;
   admin: OrgUser;
   researcher: OrgUser;
   caseManager: OrgUser;
@@ -57,4 +61,15 @@ export interface DemoTree {
   axes: { social: string; health: string; education: string };
   programs: { sponsorship: string; food: string; treatment: string; students: string };
   projects: { orphans: string; widows: string; ramadan: string; surgery: string; school: string };
+}
+
+/** بريد الموظفين التجريبيين داخل جمعية حقيقية في فترة التجربة: فريد لكل جمعية */
+export const SAMPLE_EMAIL = (slug: string) => (name: string) => `sample-${name}.${slug}@sanabelerp.com`;
+
+/** إعدادات البناء: الجمعية التجريبية الكاملة، أو بيانات تجريبية داخل جمعية مشتركة */
+export interface SeedTarget {
+  slug: string;
+  email: (name: string) => string;
+  /** مدير نظام الجمعية الحالي: تُسجَّل باسمه عمليات «المدير» بدل إنشاء حساب مدير تجريبي */
+  admin?: { id: string; fullName: string; email: string };
 }

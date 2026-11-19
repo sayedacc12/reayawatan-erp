@@ -11,7 +11,11 @@ import { RiskModule } from '../risk/risk.module';
 import { VolunteersModule } from '../volunteers/volunteers.module';
 import { QualityModule } from '../quality/quality.module';
 import { GovernanceModule } from '../governance/governance.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { DemoController } from './demo.controller';
+import { PlatformSampleDataController, SampleDataController } from './sample-data.controller';
+import { OrganizationSampleData } from './sample-data.entity';
+import { SampleDataService } from './sample-data.service';
 import { DemoService } from './demo.service';
 import { AccountingSeed } from './seed-accounting';
 import { AssetsSeed } from './seed-assets';
@@ -39,8 +43,8 @@ import { MeetingsSeed } from './seed-meetings';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule],
-  controllers: [DemoController],
-  providers: [DemoService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed],
+  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, TypeOrmModule.forFeature([OrganizationSampleData])],
+  controllers: [DemoController, SampleDataController, PlatformSampleDataController],
+  providers: [DemoService, SampleDataService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed],
 })
 export class DemoModule {}
