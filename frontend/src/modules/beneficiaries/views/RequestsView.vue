@@ -25,7 +25,7 @@ const loading = ref(false);
 const filter = reactive({
   status: (route.query.status as string) ?? 'open',
   stageId: '',
-  projectId: '',
+  projectId: (route.query.projectId as string) ?? '',
   search: '',
   mine: route.query.mine === 'true',
   page: 1,

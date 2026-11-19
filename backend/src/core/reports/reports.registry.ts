@@ -4,7 +4,9 @@ import { todayRiyadh } from '../organizations/org-access';
 import { formatDateText, isNumeric, nowText } from './report-format';
 import { ReportDefinition, ReportFilter, ReportFilters, ReportOption, ReportOutput, ReportResult, ReportRow } from './report.types';
 
-const MAX_ROWS = 20_000;
+export const MAX_ROWS = 20_000;
+/** حد للاستعلام: سطر زائد واحد يكفي لمعرفة أن التقرير تجاوز الحد دون جلب كل الأسطر */
+export const REPORT_QUERY_LIMIT = MAX_ROWS + 1;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const YEAR = /^\d{4}$/;

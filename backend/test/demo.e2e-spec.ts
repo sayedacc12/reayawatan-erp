@@ -389,7 +389,7 @@ describe('Demo association across all modules', () => {
     expect(allocations.filter((a) => a.kind === 'request')).toHaveLength(2);
     expect(allocations.filter((a) => a.kind === 'general')).toHaveLength(2);
     // طلب معتمد ينتظر التحميل، ودفعة الداعم المناسبة متاحة له
-    const queue = (await http.get('/api/projects-ops/support/queue').set(as(pm)).expect(200)).body as { id: string; outstanding: number }[];
+    const queue = (await http.get('/api/projects-ops/support/queue').set(as(pm)).expect(200)).body.items as { id: string; outstanding: number }[];
     const waiting = queue.filter((q) => q.outstanding > 0);
     expect(waiting).toHaveLength(1);
     const options = (await http.get(`/api/projects-ops/support/requests/${waiting[0].id}/options`).set(as(pm)).expect(200)).body;

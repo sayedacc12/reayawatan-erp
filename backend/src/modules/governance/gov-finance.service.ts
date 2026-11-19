@@ -28,6 +28,9 @@ export const monthEnd = (date: string) => {
   return isoDay(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)));
 };
 
+/** net بالهللات */
+interface DailyNet { code: string; name: string; day: string; opening: boolean; net: number }
+
 export interface FiscalYearInfo { id: string; name: number; startDate: string; endDate: string; status: string }
 
 export interface FinanceSnapshot {
@@ -93,6 +96,46 @@ export class GovFinance {
     return ys.find((y) => y.startDate <= date && y.endDate >= date) ?? (date > (ys.at(-1)?.endDate ?? '') ? ys.at(-1) ?? null : ys[0] ?? null);
   }
 
+  /**
+   * صافي الحركة لكل حساب ولكل يوم من بداية السنة حتى تاريخ معيّن، في استعلام واحد.
+   * منه تُحسب أرقام أي فترة تبدأ من أول السنة (اللقطة والسلسلة الشهرية) دون إعادة مسح القيود لكل شهر.
+   * تُحفظ النتيجة 60 ثانية لأن اللوحة والتنبيهات تطلبها معًا في الطلب نفسه.
+   */
+  private readonly dailyCache = new Map<string, { at: number; rows: Promise<DailyNet[]> }>();
+
+  private dailyNets(org: string, year: FiscalYearInfo, to: string): Promise<DailyNet[]> {
+    const key = `${org}|${year.id}|${to}`;
+    const hit = this.dailyCache.get(key);
+    if (hit && Date.now() - hit.at < 60_000) return hit.rows;
+    const rows = this.db
+      .query(
+        `SELECT a.code, a.name, to_char(e.document_date, 'YYYY-MM-DD') AS day, (e.voucher_type = 'opening') AS opening, SUM(l.debit - l.credit) AS net
+           FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id JOIN acc_accounts a ON a.id = l.account_id
+          WHERE e.organization_id = $1 AND e.fiscal_year_id = $2 AND e.status = 'posted' AND e.document_date <= $3
+          GROUP BY a.code, a.name, e.document_date, e.voucher_type = 'opening'`,
+        [org, year.id, to],
+      )
+      .then((r: { code: string; name: string; day: string; opening: boolean; net: string }[]) => r.map((x) => ({ ...x, net: Math.round(Number(x.net) * 100) })));
+    rows.catch(() => this.dailyCache.delete(key));
+    for (const [k, v] of this.dailyCache) if (Date.now() - v.at >= 60_000) this.dailyCache.delete(k);
+    this.dailyCache.set(key, { at: Date.now(), rows });
+    return rows;
+  }
+
+  /** نفس نتيجة nets() لفترة تبدأ من أول السنة، محسوبة من الحركة اليومية */
+  private netsFromDaily(daily: DailyNet[], end: string) {
+    const acc = new Map<string, { code: string; name: string; flow: number; bal: number }>();
+    for (const d of daily) {
+      if (d.day > end) continue;
+      const n = acc.get(d.code) ?? { code: d.code, name: d.name, flow: 0, bal: 0 };
+      n.bal += d.net;
+      if (!d.opening) n.flow += d.net;
+      acc.set(d.code, n);
+    }
+    // الجمع بالهللات لتفادي أخطاء الكسور، ثم التحويل للريال
+    return [...acc.values()].map((n) => ({ ...n, flow: n.flow / 100, bal: n.bal / 100 })).sort((a, b) => (a.code < b.code ? -1 : 1));
+  }
+
   /** صافي الحركة (مدين − دائن) لكل حساب ترحيل في الفترة */
   private async nets(org: string, year: FiscalYearInfo, from: string, to: string) {
     const rows: { code: string; name: string; flow: string; bal: string }[] = await this.db.query(
@@ -136,7 +179,8 @@ export class GovFinance {
     if (!year) return null;
     const f = from < year.startDate ? year.startDate : from;
     const t = to > year.endDate ? year.endDate : to;
-    const { figures, breakdown } = this.apply(await this.nets(org, year, f, t), this.mappingOf(s));
+    const nets = f === year.startDate ? this.netsFromDaily(await this.dailyNets(org, year, t), t) : await this.nets(org, year, f, t);
+    const { figures, breakdown } = this.apply(nets, this.mappingOf(s));
     return { year, from: f, to: t, figures, breakdown };
   }
 
@@ -175,9 +219,10 @@ export class GovFinance {
     const points: { month: string; to: string; score: number; indicators: Record<string, number>; subs: Record<string, number | null> }[] = [];
     let m = year.startDate;
     const last = to > year.endDate ? year.endDate : to;
+    const daily = await this.dailyNets(org, year, last);
     while (m <= last) {
       const end = monthEnd(m) > last ? last : monthEnd(m);
-      const { figures } = this.apply(await this.nets(org, year, year.startDate, end), mapping);
+      const { figures } = this.apply(this.netsFromDaily(daily, end), mapping);
       const { figures: ann } = this.annualize(figures, year.startDate, end, year);
       const r = computePerformance(ann);
       points.push({

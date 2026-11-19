@@ -188,8 +188,9 @@ describe('Project management', () => {
     ids.alloc1 = al.body.id;
     const b = await http.get(`/api/fundraising/batches/${ids.batchA}`).set(as(admin)).expect(200);
     expect(b.body).toMatchObject({ reservedAmount: 1000, spentAmount: 0, net: 11000 });
+    // الطلب المغطى بالكامل يخرج من قائمة الطلبات المنتظرة للدعم
     const q = await http.get(`${OPS}/support/queue`).set(as(admin)).expect(200);
-    expect(q.body.find((x: { id: string }) => x.id === ids.req1)).toMatchObject({ need: 1000, covered: 1000, outstanding: 0 });
+    expect(q.body.items.find((x: { id: string }) => x.id === ids.req1)).toBeUndefined();
     // مشروع عليه دعم محجوز لا يُعاد فتحه
     await http.post(`${P}/${ids.a}/reopen`).set(as(admin)).send({ note: 'تعديل' }).expect(409);
   });
@@ -315,7 +316,7 @@ describe('Project management', () => {
     const ok = await send([{ batchId: b1, amount: 600 }, { batchId: b2, amount: 400 }]).expect(201);
     expect(ok.body).toHaveLength(2);
     const q = await http.get(`${OPS}/support/queue`).set(as(admin)).expect(200);
-    expect(q.body.find((x: { id: string }) => x.id === req.body.id)).toMatchObject({ need: 1000, covered: 1000, outstanding: 0 });
+    expect(q.body.items.find((x: { id: string }) => x.id === req.body.id)).toBeUndefined();
     await send([{ batchId: b2, amount: 1 }]).expect(409);
   });
 });

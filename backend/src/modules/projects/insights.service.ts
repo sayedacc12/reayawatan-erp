@@ -26,6 +26,9 @@ export const REPORTS: { key: string; name: string; description: string; dated?: 
 ];
 
 /** لوحة المعلومات، صفحة المشروع، إجمالي المشاريع، والتقارير */
+/** عدد طلبات المستفيدين المعروضة في صفحة المشروع */
+const PAGE_REQUESTS = 300;
+
 @Injectable()
 export class InsightsService {
   constructor(
@@ -109,14 +112,15 @@ export class InsightsService {
   async projectPage(actor: OrgUser, id: string) {
     const org = actor.organizationId;
     const detail = await this.projects.detail(actor, id);
-    const [requests, batches, allocations, payments, transfers, amendments, entries] = await Promise.all([
+    const [[{ total: requestsTotal }], requests, batches, allocations, payments, transfers, amendments, entries] = await Promise.all([
+      this.db.query(`SELECT COUNT(*)::int AS total FROM beneficiary_requests WHERE organization_id = $1 AND project_id = $2`, [org, id]) as Promise<{ total: number }[]>,
       this.db.query(
         `SELECT r.id, r.request_no AS "requestNo", r.status, r.estimated_cost::float AS "estimatedCost", r.support_percent::float AS "supportPercent",
                 r.services, r.created_at AS "createdAt", b.id AS "beneficiaryId", b.full_name AS "beneficiaryName", b.file_no AS "fileNo",
                 COALESCE((SELECT SUM(amount - released_amount) FROM project_allocations al WHERE al.request_id = r.id), 0)::float AS covered,
                 COALESCE((SELECT SUM(spent_amount) FROM project_allocations al WHERE al.request_id = r.id), 0)::float AS spent
          FROM beneficiary_requests r JOIN beneficiaries b ON b.id = r.beneficiary_id
-         WHERE r.organization_id = $1 AND r.project_id = $2 ORDER BY r.created_at DESC`, [org, id]),
+         WHERE r.organization_id = $1 AND r.project_id = $2 ORDER BY r.created_at DESC LIMIT ${PAGE_REQUESTS}`, [org, id]),
       this.funding.listBatches(org, { activityIds: [id, detail.program.id] }),
       this.support.allocations(actor, { activityId: id }),
       this.support.payments(actor, { activityId: id }),
@@ -144,9 +148,10 @@ export class InsightsService {
         pendingPayments: sum(payments.filter((p) => p.status === 'pending'), 'amount'),
         transfersIn: sum(transfers.filter((t) => t.targetActivityId === id), 'amount'),
         transfersOut: sum(transfers.filter((t) => t.sourceActivityId === id), 'amount'),
-        requests: requests.length, served: new Set(allocations.map((a) => a.beneficiaryId).filter(Boolean)).size,
+        requests: requestsTotal, served: new Set(allocations.map((a) => a.beneficiaryId).filter(Boolean)).size,
       },
-      requests,
+      // أحدث الطلبات فقط (المشاريع الكبيرة فيها عشرات الآلاف)، والعدد الكلي في requestsTotal
+      requests, requestsTotal,
       batches: batches.map((b) => ({ ...b, net: net(b), level: b.activityId === id ? 'project' : 'program' })),
       donors: [...donors.values()],
       allocations, payments, transfers, amendments, entries,

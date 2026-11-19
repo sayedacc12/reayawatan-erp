@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ar, dynamicFilter, org, periodFilters, selectFilter } from '../../core/reports/report-helpers';
 import { ReportDefinition, ReportRow } from '../../core/reports/report.types';
-import { ReportsRegistry } from '../../core/reports/reports.registry';
+import { REPORT_QUERY_LIMIT, ReportsRegistry } from '../../core/reports/reports.registry';
 import { AccCore, voucherNo } from './acc-core.service';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { NATURE_AR } from './accounts.service';
@@ -174,7 +174,8 @@ export class AccountingReports implements OnModuleInit {
                     e.counterparty, e.total::float AS total, e.status, e.created_by_name, e.posted_by_name
                FROM acc_entries e JOIN acc_fiscal_years y ON y.id = e.fiscal_year_id
               WHERE e.organization_id = $1 AND e.document_date BETWEEN $2 AND $3 AND ($4::text IS NULL OR e.status = $4) AND ($5::text IS NULL OR e.voucher_type = $5)
-              ORDER BY e.document_date, e.entry_no`,
+              ORDER BY e.document_date, e.entry_no
+              LIMIT ${REPORT_QUERY_LIMIT}`,
             [o, f.from, f.to, f.status ?? null, f.type ?? null],
           );
           return rows.map((r) => ({
@@ -204,7 +205,8 @@ export class AccountingReports implements OnModuleInit {
                FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id JOIN acc_accounts a ON a.id = l.account_id
                LEFT JOIN acc_partners p ON p.id = l.partner_id
               WHERE e.organization_id = $1 AND e.status = 'posted' AND e.document_date BETWEEN $2 AND $3
-              ORDER BY e.document_date, e.entry_no, l.line_no`,
+              ORDER BY e.document_date, e.entry_no, l.line_no
+              LIMIT ${REPORT_QUERY_LIMIT}`,
             [o, f.from, f.to],
           );
           return rows.map((r) => ({
@@ -230,7 +232,8 @@ export class AccountingReports implements OnModuleInit {
                FROM acc_vouchers v LEFT JOIN acc_cash_accounts c ON c.id = v.cash_account_id
               WHERE v.organization_id = $1 AND v.voucher_date BETWEEN $2 AND $3 AND ($4::text IS NULL OR v.kind = $4)
                 AND ($5::text IS NULL OR v.status = $5) AND ($6::text IS NULL OR v.method = $6)
-              ORDER BY v.voucher_date, v.kind, v.serial`,
+              ORDER BY v.voucher_date, v.kind, v.serial
+              LIMIT ${REPORT_QUERY_LIMIT}`,
             [org(u).organizationId, f.from, f.to, f.kind ?? null, f.status ?? null, f.method ?? null],
           );
           return rows.map((r) => {

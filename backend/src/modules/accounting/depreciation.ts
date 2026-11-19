@@ -39,15 +39,20 @@ const diffDays = (a: string, b: string) => Math.round((toDate(b).getTime() - toD
 /** عدد الأشهر المكافئة بين تاريخين (من a شاملًا حتى b غير شامل)، الشهر الجزئي بنسبة أيامه */
 export function monthsEquivalent(a: string, b: string) {
   if (b <= a) return 0;
-  let total = 0;
-  let cur = a;
-  while (cur < b) {
-    const end = addDays(monthEnd(cur), 1) < b ? addDays(monthEnd(cur), 1) : b;
-    const y = Number(cur.slice(0, 4));
-    const m = Number(cur.slice(5, 7));
-    total += diffDays(cur, end) / daysInMonth(y, m);
-    cur = end;
-  }
+  // نفس عمليات الجمع التي كانت تتم شهرًا بشهر (فالنتيجة مطابقة تمامًا)، لكن دون إنشاء تواريخ لكل شهر:
+  // كانت تُستدعى لكل شهر من عمر الأصل فتصبح بطيئة جدًا مع آلاف الأصول القديمة
+  const y = Number(a.slice(0, 4));
+  const m = Number(a.slice(5, 7));
+  const firstEnd = addDays(monthEnd(a), 1);
+  if (b <= firstEnd) return diffDays(a, b) / daysInMonth(y, m);
+  let total = diffDays(a, firstEnd) / daysInMonth(y, m);
+  const fy = Number(firstEnd.slice(0, 4));
+  const fm = Number(firstEnd.slice(5, 7));
+  const by = Number(b.slice(0, 4));
+  const bm = Number(b.slice(5, 7));
+  for (let k = by * 12 + bm - (fy * 12 + fm); k > 0; k--) total += 1;
+  const bd = Number(b.slice(8, 10));
+  if (bd > 1) total += (bd - 1) / daysInMonth(by, bm);
   return total;
 }
 
@@ -141,4 +146,16 @@ export function computeDepreciation(a: CalcInput, to: string): CalcResult {
   const cost = costAt(to);
   const fully = r2(cost - Math.max(a.salvage, 1) - running) <= 0;
   return { from, to, amount, months, capped, fully, reason: amount === 0 ? (fully ? 'اكتمل إهلاكه' : null) : null };
+}
+
+/** يجمع الصفوف حسب الأصل في خريطة واحدة (بدل البحث في القائمة كاملة لكل أصل، وهو بطيء جدًا مع آلاف الأصول) */
+export function byAsset<T extends { assetId: string }>(rows: T[], ids: Set<string>) {
+  const m = new Map<string, T[]>();
+  for (const r of rows) {
+    if (!ids.has(r.assetId)) continue;
+    const list = m.get(r.assetId);
+    if (list) list.push(r);
+    else m.set(r.assetId, [r]);
+  }
+  return m;
 }

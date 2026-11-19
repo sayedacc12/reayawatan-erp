@@ -28,9 +28,13 @@ export class InventoryService {
            FROM (${src}) s`, [year.id]);
       let missing: number[] = [];
       if (r.first !== null && r.last !== null && r.last - r.first + 1 !== r.count) {
-        const serials: { s: number }[] = await em.query(
-          `SELECT g AS s FROM generate_series($2::int, $3::int) g WHERE g NOT IN (SELECT voucher_serial FROM (${src}) s) LIMIT 50`,
-          [year.id, r.first, r.last]);
+        // أول 50 فجوة بين كل رقم والرقم الذي يليه (يمر على السندات الموجودة فقط، لا على كل الأرقام الممكنة)
+        const gaps: { s: number; n: number }[] = await em.query(
+          `SELECT s, n FROM (SELECT voucher_serial AS s, LEAD(voucher_serial) OVER (ORDER BY voucher_serial) AS n FROM (SELECT DISTINCT voucher_serial FROM (${src}) x) d) t
+            WHERE n > s + 1 ORDER BY s LIMIT 50`,
+          [year.id]);
+        const serials: { s: number }[] = [];
+        for (const g of gaps) for (let k = Number(g.s) + 1; k < Number(g.n) && serials.length < 50; k++) serials.push({ s: k });
         missing = serials.map((x) => Number(x.s));
       }
       // نوع السند الخاص بالجمعية لا يظهر في المحضر إلا إن صدر منه سند في السنة
