@@ -12,7 +12,7 @@ if [ ! -f .env ]; then
 fi
 
 current_user="$(grep -E '^SMTP_USER=' .env | cut -d= -f2- || true)"
-default_user="${current_user:-sayed.acc1@gmail.com}"
+default_user="${current_user:-sayed.acc12@gmail.com}"
 
 echo
 echo "== تفعيل البريد الصادر لسنابل =="
