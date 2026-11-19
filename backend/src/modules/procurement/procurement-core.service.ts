@@ -82,14 +82,14 @@ export class ProcurementCore {
   }
 
   /** حساب فرعي نشط في الدليل بطبيعة محددة */
-  async account(org: string, id: string | null | undefined, nature: 'assets' | 'liabilities' | 'expenses' | null, label: string, em: EntityManager = this.db.manager) {
+  async account(org: string, id: string | null | undefined, nature: 'assets' | 'liabilities' | 'expenses' | 'revenue' | 'net_assets' | null, label: string, em: EntityManager = this.db.manager) {
     if (!id) return null;
     const [a] = await em.query('SELECT id, code, name, kind, nature, is_active FROM acc_accounts WHERE organization_id = $1 AND id = $2', [org, id]);
     if (!a) throw new BadRequestException(`${label}: الحساب غير موجود في الدليل`);
     if (a.kind !== 'sub') throw new BadRequestException(`${label}: الحساب ${a.code} ليس حسابًا فرعيًا`);
     if (!a.is_active) throw new BadRequestException(`${label}: الحساب ${a.code} موقوف`);
     if (nature && a.nature !== nature) {
-      const names = { assets: 'الأصول', liabilities: 'الخصوم', expenses: 'المصروفات' };
+      const names = { assets: 'الأصول', liabilities: 'الخصوم', expenses: 'المصروفات', revenue: 'الإيرادات والتبرعات', net_assets: 'صافي الأصول' };
       throw new BadRequestException(`${label}: يجب أن يكون الحساب من ${names[nature]}`);
     }
     return a as { id: string; code: string; name: string };
@@ -126,7 +126,7 @@ export class ProcurementCore {
            FROM activities a JOIN project_profiles p ON p.activity_id = a.id WHERE a.organization_id = $1 ORDER BY p.project_no`, [org])),
       safe(this.db.query('SELECT id, code, name FROM acc_asset_groups WHERE organization_id = $1 AND is_active ORDER BY sort_order, code', [org])),
       safe(this.db.query(
-        `SELECT id, code, name, nature FROM acc_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active AND nature IN ('assets', 'liabilities', 'expenses') ORDER BY code`, [org])),
+        `SELECT id, code, name, nature FROM acc_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active AND nature IN ('assets', 'liabilities', 'expenses', 'revenue', 'net_assets') ORDER BY code`, [org])),
       safe(this.db.query(`SELECT id, name FROM acc_partner_categories WHERE organization_id = $1 AND behavior = 'supplier' ORDER BY sort_order, name`, [org])),
       this.db.query(
         `SELECT id, 'SUP-' || LPAD(supplier_no::text, 4, '0') AS code, name, supplier_kind AS "supplierKind", category_ids AS "categoryIds", activities

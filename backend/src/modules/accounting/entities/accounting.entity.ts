@@ -16,16 +16,18 @@ export const NATURES = ['assets', 'liabilities', 'net_assets', 'revenue', 'expen
 export type AccountNature = (typeof NATURES)[number];
 export const ACCOUNT_KINDS = ['root', 'main', 'sub'] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
-export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment', 'depreciation', 'asset'] as const;
+export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment', 'depreciation', 'asset', 'stock'] as const;
 /** سندات تصدر من الأصول الثابتة فقط: لا تُنشأ ولا تُعدَّل ولا تُلغى من النظام المالي */
 export const ASSET_VOUCHER_TYPES = ['depreciation', 'asset'] as const;
+/** سندات المخازن: تصدر من المستودعات (الاستلام والصرف والتحويل والمرتجعات والإتلاف والجرد) فقط، وتظهر في النظام المالي للاطلاع */
+export const STOCK_VOUCHER_TYPES = ['stock'] as const;
 export type BuiltinVoucherType = (typeof VOUCHER_TYPES)[number];
 /** نوع المستند: أحد الأنواع الأساسية، أو نوع سند خاص بالجمعية يُعرَّف من الإعدادات (رمزه يبدأ بـ d_) */
 export type VoucherType = BuiltinVoucherType | `d_${string}`;
 /** صيغة رمز نوع السند الخاص بالجمعية */
 export const CUSTOM_TYPE_RE = /^d_[a-z0-9]{6,16}$/;
 export type EntryStatus = 'draft' | 'posted' | 'cancelled';
-export type EntrySource = 'manual' | 'system' | 'voucher' | 'assets';
+export type EntrySource = 'manual' | 'system' | 'voucher' | 'assets' | 'stock';
 export type FiscalYearStatus = 'open' | 'closed';
 
 /** إعدادات الأصول الثابتة داخل النظام المالي */
@@ -489,7 +491,7 @@ export class JournalEntry {
   @Column({ type: 'varchar', length: 12, default: 'draft' })
   status!: EntryStatus;
 
-  /** manual: يدوي، system: قيد آلي (القيد الافتتاحي عند فتح سنة جديدة)، voucher: ناتج عن اعتماد سند قبض أو صرف، assets: من الأصول الثابتة */
+  /** manual: يدوي، system: قيد آلي (القيد الافتتاحي عند فتح سنة جديدة)، voucher: ناتج عن اعتماد سند قبض أو صرف، assets: من الأصول الثابتة، stock: سند مخازن من المستودعات */
   @Column({ type: 'varchar', length: 10, default: 'manual' })
   source!: EntrySource;
 

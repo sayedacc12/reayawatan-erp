@@ -18,6 +18,7 @@ import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { ProcurementCore } from './procurement-core.service';
 import { staffActor, SuppliersService } from './suppliers.service';
 import { WarehousesService } from './warehouses.service';
+import { StockService } from './stock.service';
 
 const uuid = new ParseUUIDPipe();
 const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
@@ -34,7 +35,7 @@ export function sendFile(res: Response, f: { stream: ReadStream; mime: string; n
 export class ProcurementController {
   constructor(
     private readonly db: DataSource, private readonly core: ProcurementCore, private readonly catalog: CatalogService,
-    private readonly warehouses: WarehousesService, private readonly suppliers: SuppliersService,
+    private readonly warehouses: WarehousesService, private readonly suppliers: SuppliersService, private readonly stockSvc: StockService,
   ) {}
 
   // ---------------- اللوحة والإعدادات ----------------
@@ -78,6 +79,7 @@ export class ProcurementController {
       items, warehouses: wh, suppliers: Object.fromEntries(sup.map((r: { status: string; n: number }) => [r.status, r.n])),
       expiring, approvals: { suppliers: approvals.suppliers.length, docs: approvals.docs.length, banks: approvals.banks.length },
       groups, activities, portalUrl: await this.suppliers.portalUrl(org),
+      stock: await this.stockSvc.summary(a),
     };
   }
 

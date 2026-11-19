@@ -196,7 +196,23 @@ export class SourcingPortalService {
     ]);
     const uomName = new Map(uoms.map((u) => [u.id, u.name]));
     const can = canQuote(p);
+    // نتائج الاستلام والفحص والمرتجعات (بلا قيم محاسبية داخلية)
+    const receipts: { id: string; receipt_no: number; date: string; delivery_ref: string | null; inspection: { result: string; note: string | null } | null; lines: { orderLineId: string | null; qty: number; acceptedQty: number; rejectedQty: number; rejectReason: string | null; description: string }[] }[] =
+      await this.db.query(`SELECT id, receipt_no, to_char(date, 'YYYY-MM-DD') AS date, delivery_ref, inspection, lines FROM pr_receipts WHERE order_id = $1 AND status = 'posted' ORDER BY receipt_no`, [o.id]);
+    const returns: { doc_no: number; date: string; notes: string | null; lines: { qty: number; refLineId: string | null }[] }[] = await this.db.query(
+      `SELECT d.doc_no, to_char(d.date, 'YYYY-MM-DD') AS date, d.notes, d.lines FROM pr_stock_docs d JOIN pr_receipts r ON r.id = d.ref_id
+        WHERE r.order_id = $1 AND d.kind = 'return_supplier' AND d.status = 'posted' ORDER BY d.doc_no`, [o.id]);
+    const recLine = new Map(receipts.flatMap((r) => r.lines.map((l) => [(l as unknown as { id: string }).id, l.description] as const)));
+    const inspectionAr: Record<string, string> = { accepted: 'مطابق', partial: 'مطابق جزئيًا', rejected: 'غير مطابق' };
     return {
+      receipts: receipts.map((r) => ({
+        code: `GRN-${String(r.receipt_no).padStart(4, '0')}`, date: r.date, deliveryRef: r.delivery_ref, inspection: r.inspection ? inspectionAr[r.inspection.result] ?? null : null,
+        inspectionNote: r.inspection?.note ?? null,
+        lines: r.lines.map((l) => ({ description: l.description, delivered: Number(l.qty), accepted: Number(l.acceptedQty), rejected: Number(l.rejectedQty), rejectReason: l.rejectReason })),
+      })),
+      returns: returns.map((d) => ({
+        code: `RTS-${String(d.doc_no).padStart(4, '0')}`, date: d.date, reason: d.notes, lines: d.lines.map((l) => ({ description: recLine.get(l.refLineId ?? '') ?? '', qty: Number(l.qty) })),
+      })),
       id: o.id, code: orderCode(o.orderNo), title: o.title, kind: o.kind, kindLabel: ORDER_KINDS[o.kind], status: o.status, statusLabel: ORDER_STATUS[o.status],
       version: o.version, organizationName: org[0]?.name ?? '',
       lines: o.lines.map((l) => ({ description: l.description, qty: l.qty, uomName: l.uomId ? uomName.get(l.uomId) ?? null : null, unitPrice: l.unitPrice, total: l.total })),

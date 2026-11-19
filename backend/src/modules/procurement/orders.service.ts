@@ -219,6 +219,7 @@ export class OrdersService {
     const org = a.organizationId;
     const o = await this.find(org, id);
     if (['cancelled', 'closed'].includes(o.status)) throw new ConflictException('التعميد منتهٍ');
+    if (o.status === 'partial') throw new ConflictException('استُلم جزء من التعميد، فلا يُلغى. أغلقه بالمستلم لفك حجز الباقي');
     if (!can(a, P.sourcing) && !can(a, P.approveOrders) && !can(a, P.approveOrdersHigh)) throw new ForbiddenException('لا تملك صلاحية إلغاء التعميد');
     const wasLive = LIVE_ORDER.includes(o.status);
     if (wasLive) await this.sc.release(org, o);
@@ -251,6 +252,7 @@ export class OrdersService {
   async amend(a: OrgUser, id: string, dto: AmendDto) {
     const org = a.organizationId;
     const o = await this.find(org, id);
+    if (o.status === 'partial') throw new ConflictException('استُلم جزء من التعميد، فلا يُعدل. أغلقه بالمستلم وأصدر تعميدًا جديدًا للباقي إن لزم');
     if (!LIVE_ORDER.includes(o.status) || o.status === 'declined') throw new ConflictException('يُعدل التعميد الصادر فقط');
     let lines = o.lines;
     if (dto.lines) {
@@ -361,6 +363,14 @@ export class OrdersService {
       o.warehouseId ? this.db.query('SELECT id, code, name FROM pr_warehouses WHERE id = $1', [o.warehouseId]) : Promise.resolve([]),
     ]);
     const rfq = o.rfqId ? await this.db.getRepository(PrRfq).findOne({ where: { id: o.rfqId } }) : null;
+    const receipts: { id: string; receipt_no: number; date: string; status: string; total: number; inspection: string | null; lines: { orderLineId: string | null; acceptedQty: number; rejectedQty: number }[] }[] =
+      await this.db.query(`SELECT id, receipt_no, to_char(date, 'YYYY-MM-DD') AS date, status, total::float AS total, inspection->>'result' AS inspection, lines FROM pr_receipts WHERE order_id = $1 ORDER BY receipt_no`, [o.id]);
+    const returnsQ: { ref: string; qty: string }[] = await this.db.query(
+      `SELECT rl->>'orderLineId' AS ref, SUM((dl->>'qty')::numeric) AS qty FROM pr_stock_docs d JOIN pr_receipts r ON r.id = d.ref_id, jsonb_array_elements(d.lines) dl, jsonb_array_elements(r.lines) rl
+        WHERE r.order_id = $1 AND d.kind = 'return_supplier' AND d.status = 'posted' AND rl->>'id' = dl->>'refLineId' GROUP BY 1`, [o.id]);
+    const recQty = new Map<string, number>();
+    for (const x of receipts.filter((x) => x.status === 'posted')) for (const l of x.lines) if (l.orderLineId) recQty.set(l.orderLineId, (recQty.get(l.orderLineId) ?? 0) + Number(l.acceptedQty));
+    for (const x of returnsQ) recQty.set(x.ref, (recQty.get(x.ref) ?? 0) - Number(x.qty));
     const uomName = new Map(uoms.map((u) => [u.id, u.name]));
     const line = o.budgetLineId ? fin.lines.get(o.budgetLineId) : null;
     const batch = o.fundingBatchId ? fin.batches.get(o.fundingBatchId) : null;
@@ -379,13 +389,19 @@ export class OrdersService {
       budgetLine: line ? { id: line.id, name: line.name, budgetCode: line.budgetCode, year: line.year } : null,
       funding: batch ? { id: batch.id, label: `الدفعة ${batch.batchNo} · ${batch.targetName}` } : null,
       warehouse: wh[0] ?? null,
-      lines: o.lines.map((l) => ({ ...l, uomName: l.uomId ? uomName.get(l.uomId) ?? null : null })),
+      lines: o.lines.map((l) => ({ ...l, uomName: l.uomId ? uomName.get(l.uomId) ?? null : null, receivedQty: Math.round((recQty.get(l.lineId ?? '') ?? 0) * 1000) / 1000 })),
+      receipts: receipts.map((x) => ({
+        id: x.id, code: `GRN-${String(x.receipt_no).padStart(4, '0')}`, date: x.date, status: x.status, total: x.total, inspection: x.inspection,
+        rejected: x.lines.some((l) => Number(l.rejectedQty) > 0),
+      })),
       nextLevel: lvl, liveCheck: preview ? this.sc.snapshot(preview) : null,
       can: {
         edit: ['draft', 'returned'].includes(o.status) && sourcing,
         submit: ['draft', 'returned'].includes(o.status) && sourcing,
         approve: approve.ok, approveWhy: o.status === 'pending' ? approve.why : null,
-        cancel: !['cancelled', 'closed'].includes(o.status) && (sourcing || can(a, P.approveOrders) || can(a, P.approveOrdersHigh)),
+        cancel: !['cancelled', 'closed', 'partial'].includes(o.status) && (sourcing || can(a, P.approveOrders) || can(a, P.approveOrdersHigh)),
+        receive: ['issued', 'acknowledged', 'accepted', 'clarification', 'partial'].includes(o.status) && can(a, P.stockOperate) && (a.isSuperadmin || o.createdById !== a.id),
+        shortClose: o.status === 'partial' && (sourcing || can(a, P.approveOrders) || can(a, P.approveOrdersHigh)),
         amend: LIVE_ORDER.includes(o.status) && o.status !== 'declined' && sourcing,
         reply: o.status === 'clarification' && sourcing,
       },

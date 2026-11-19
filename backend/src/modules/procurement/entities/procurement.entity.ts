@@ -109,6 +109,27 @@ export class PrSettings {
   @Column({ name: 'order_terms', type: 'text', nullable: true }) orderTerms!: string | null;
   /** إظهار اسم المورد الفائز لباقي المتنافسين في البوابة */
   @Column({ name: 'disclose_winner', default: false }) discloseWinner!: boolean;
+  // ---- المستودعات (المرحلة الثالثة) ----
+  /** حساب البضاعة المستلمة غير المفوترة (من الخصوم): يُقيد له الاستلام، ويُقفل عند قيد فاتورة المورد */
+  @Column({ name: 'grni_account_id', type: 'uuid', nullable: true }) grniAccountId!: string | null;
+  /** حساب فروقات الجرد والإتلاف والتسويات (من المصروفات) */
+  @Column({ name: 'adjust_account_id', type: 'uuid', nullable: true }) adjustAccountId!: string | null;
+  /** مركز التكلفة لقيود الفروقات والإتلاف (إن تطلبه الحساب) */
+  @Column({ name: 'adjust_analytic_id', type: 'uuid', nullable: true }) adjustAnalyticId!: string | null;
+  /** حساب التبرعات العينية (من الإيرادات): يُقيد له الاستلام بالقيمة العادلة */
+  @Column({ name: 'donation_account_id', type: 'uuid', nullable: true }) donationAccountId!: string | null;
+  /** الحساب المقابل للأرصدة الافتتاحية للمستودعات (من صافي الأصول) */
+  @Column({ name: 'opening_account_id', type: 'uuid', nullable: true }) openingAccountId!: string | null;
+  /** حساب المصروف الافتراضي للصرف والخدمات إن لم يُحدد للصنف أو مجموعته */
+  @Column({ name: 'default_expense_account_id', type: 'uuid', nullable: true }) defaultExpenseAccountId!: string | null;
+  /** التنبيه قبل انتهاء صلاحية الأصناف بهذا العدد من الأيام */
+  @Column({ name: 'expiry_alert_days', type: 'int', default: 60 }) expiryAlertDays!: number;
+  /** نسبة الزيادة المسموح استلامها عن كمية التعميد */
+  @Column({ name: 'over_receipt_pct', type: 'int', default: 0 }) overReceiptPct!: number;
+  /** ضريبة القيمة المضافة جزء من تكلفة الصنف (الجمعية غير مسجلة في الضريبة أو لا تسترد ضريبة المشتريات) */
+  @Column({ name: 'vat_in_cost', default: true }) vatInCost!: boolean;
+  /** فحص لجنة الاستلام إلزامي قبل اعتماد الاستلام */
+  @Column({ name: 'require_inspection', default: false }) requireInspection!: boolean;
 }
 
 // ---------------- الأصناف ----------------

@@ -43,7 +43,7 @@ export type OrderKind = keyof typeof ORDER_KINDS;
 
 export const ORDER_STATUS = {
   draft: 'مسودة', pending: 'بانتظار الاعتماد', returned: 'معاد للتعديل', issued: 'صادر للمورد', acknowledged: 'استلمه المورد', accepted: 'قبله المورد',
-  clarification: 'طلب المورد توضيحًا', declined: 'اعتذر المورد', cancelled: 'ملغى', closed: 'مغلق',
+  clarification: 'طلب المورد توضيحًا', declined: 'اعتذر المورد', partial: 'مستلم جزئيًا', cancelled: 'ملغى', closed: 'مغلق',
 } as const;
 export type OrderStatus = keyof typeof ORDER_STATUS;
 /** حالات التعميد النافذ (محجوز على الموازنة ومرسل للمورد) */
@@ -267,6 +267,8 @@ export class PrOrder {
   @Column({ name: 'acknowledged_at', type: 'timestamptz', nullable: true }) acknowledgedAt!: Date | null;
   @Column({ name: 'accepted_at', type: 'timestamptz', nullable: true }) acceptedAt!: Date | null;
   @Column({ name: 'cancel_reason', type: 'varchar', length: 1000, nullable: true }) cancelReason!: string | null;
+  /** طريقة الإغلاق: received اكتمل الاستلام، short أُغلق بالمستلم وفُك حجز الباقي */
+  @Column({ name: 'close_kind', type: 'varchar', length: 10, nullable: true }) closeKind!: 'received' | 'short' | null;
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true }) createdById!: string | null;
   @Column({ name: 'created_by_name', length: 200 }) createdByName!: string;
   @Column({ type: 'jsonb', default: () => `'[]'` }) log!: LogEntry[];

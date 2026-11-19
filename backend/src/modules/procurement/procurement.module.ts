@@ -9,6 +9,7 @@ import { PlanningModule } from '../planning/planning.module';
 import { CatalogService } from './catalog.service';
 import { PROCUREMENT_ENTITIES } from './entities/procurement.entity';
 import { SOURCING_ENTITIES } from './entities/sourcing.entity';
+import { STOCK_ENTITIES } from './entities/stock.entity';
 import { ProcurementController } from './procurement.controller';
 import { ProcurementReports } from './procurement.reports';
 import { ProcurementTasks } from './procurement.tasks';
@@ -24,23 +25,33 @@ import { RfqsService } from './rfqs.service';
 import { SourcingCore } from './sourcing-core.service';
 import { SourcingController } from './sourcing.controller';
 import { SourcingPortalService } from './sourcing-portal.service';
+import { CountsService } from './counts.service';
+import { IssueRequestsService } from './issue-requests.service';
+import { ReceiptsService } from './receipts.service';
+import { StockCore } from './stock-core.service';
+import { StockDocsService } from './stock-docs.service';
+import { StockController } from './stock.controller';
+import { StockService } from './stock.service';
 
 /**
- * المشتريات والمستودعات وبوابة الموردين (المرحلة الأولى: البيانات الأساسية، والثانية: طلبات الشراء والمنافسات والتعميدات).
+ * المشتريات والمستودعات وبوابة الموردين (المرحلة الأولى: البيانات الأساسية، والثانية: طلبات الشراء والمنافسات والتعميدات،
+ * والثالثة: الاستلام والفحص والصرف والتحويل والمرتجعات والتبرعات العينية والجرد والصلاحية بجرد مستمر وسندات مخازن).
  * يملك دليل الأصناف والمستودعات وسجل الموردين؛ ويقرأ من النظام المالي الدليل وتصنيفات الشركاء ومجموعات الأصول للاختيار،
  * وينشئ الشريك المقابل للمورد المعتمد عبر MastersService المصدّر من النظام المالي.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([...PROCUREMENT_ENTITIES, ...SOURCING_ENTITIES]), CoreModule, AccountingModule, PlanningModule, FundraisingModule,
+  imports: [TypeOrmModule.forFeature([...PROCUREMENT_ENTITIES, ...SOURCING_ENTITIES, ...STOCK_ENTITIES]), CoreModule, AccountingModule, PlanningModule, FundraisingModule,
     // رموز بوابة الموردين بنفس السر لكن بنوع supplier، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({ secret: config.getOrThrow<string>('JWT_SECRET') }),
     }),
   ],
-  controllers: [ProcurementController, SourcingController, SupplierPortalController],
+  controllers: [ProcurementController, SourcingController, StockController, SupplierPortalController],
   providers: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SupplierPortalGuard, ProcurementTasks, ProcurementReports,
-    SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService],
-  exports: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService],
+    SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService,
+    StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService],
+  exports: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService,
+    StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService],
 })
 export class ProcurementModule {}
