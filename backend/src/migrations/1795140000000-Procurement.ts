@@ -1,8 +1,8 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 /** المشتريات والمستودعات (المرحلة الأولى): الأصناف ووحدات القياس والمجموعات، والمستودعات ومواقعها، والموردون ومستنداتهم وحساباتهم البنكية ومستخدمو بوابتهم */
-export class Procurement1795120000500 implements MigrationInterface {
-    name = 'Procurement1795120000500'
+export class Procurement1795140000000 implements MigrationInterface {
+    name = 'Procurement1795140000000'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE "pr_settings" ("organization_id" uuid NOT NULL, "valuation" character varying(6) NOT NULL DEFAULT 'avg', "account_level" character varying(10) NOT NULL DEFAULT 'group', "doc_alert_days" integer NOT NULL DEFAULT '30', "supplier_doc_types" jsonb NOT NULL DEFAULT '[]', "activities" jsonb NOT NULL DEFAULT '[]', "portal_open" boolean NOT NULL DEFAULT true, "portal_intro" text, "partner_category_id" uuid, "payables_account_id" uuid, CONSTRAINT "PK_eba7c47894cd73b4721e32cd64b" PRIMARY KEY ("organization_id"))`);
