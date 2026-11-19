@@ -4,7 +4,7 @@ import type { SelectOption } from '../fundraising/components/SearchSelect.vue';
 
 export const P = {
   read: 'accounting.dashboard.read', setup: 'accounting.setup.manage', accounts: 'accounting.accounts.manage', partners: 'accounting.partners.manage',
-  banks: 'accounting.banks.manage', warehouses: 'accounting.warehouses.manage', receipts: 'accounting.receipts.manage', payments: 'accounting.payments.manage',
+  banks: 'accounting.banks.manage', receipts: 'accounting.receipts.manage', payments: 'accounting.payments.manage',
   approveVouchers: 'accounting.vouchers.approve', entries: 'accounting.entries.manage', post: 'accounting.entries.post', unpost: 'accounting.entries.unpost',
   cancel: 'accounting.entries.cancel', approveReceiptCancel: 'accounting.receipts.cancel_approve', closePeriods: 'accounting.periods.close',
   reopenPeriods: 'accounting.periods.reopen', reports: 'accounting.reports.read', settings: 'accounting.settings.manage',

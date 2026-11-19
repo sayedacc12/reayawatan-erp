@@ -273,23 +273,6 @@ export class CashAccountDto {
   isActive?: boolean;
 }
 
-export class WarehouseDto {
-  @trim() @IsString({ message: 'اكتب اسم المستودع' }) @MinLength(2, { message: 'اكتب اسم المستودع' }) @MaxLength(200)
-  name!: string;
-
-  @trim() @IsString({ message: 'اختر نوع المستودع' }) @MinLength(2, { message: 'اختر نوع المستودع' }) @MaxLength(120)
-  type!: string;
-
-  @Nullable() @trim() @IsString() @MaxLength(500)
-  description?: string | null;
-
-  @IsUUID('4', { message: 'اختر الحساب المرتبط في الدليل المحاسبي' })
-  glAccountId!: string;
-
-  @IsOptional() @IsBoolean()
-  isActive?: boolean;
-}
-
 // ---------------- القيود ----------------
 
 export class AnalyticShareDto {

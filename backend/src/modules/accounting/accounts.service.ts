@@ -175,8 +175,10 @@ export class AccountsService {
       if (await this.hasMoves(org, id, em)) throw new ConflictException('لا يمكن إلغاء حساب عليه معاملات محاسبية');
       const [used] = await em.query(
         `SELECT (SELECT COUNT(*) FROM acc_cash_accounts WHERE gl_account_id = $1) + (SELECT COUNT(*) FROM acc_warehouses WHERE gl_account_id = $1)
+              + (SELECT COUNT(*) FROM pr_warehouses WHERE gl_account_id = $1) + (SELECT COUNT(*) FROM pr_item_groups WHERE inventory_account_id = $1 OR expense_account_id = $1)
+              + (SELECT COUNT(*) FROM pr_items WHERE inventory_account_id = $1 OR expense_account_id = $1) + (SELECT COUNT(*) FROM pr_settings WHERE payables_account_id = $1)
               + (SELECT COUNT(*) FROM acc_partners WHERE account_id = $1) + (SELECT COUNT(*) FROM acc_settings WHERE closing_account_id = $1) AS n`, [id]);
-      if (Number(used.n)) throw new ConflictException(`الحساب ${a.code} مرتبط ببنك أو صندوق أو مستودع أو شريك أو بإعدادات الإقفال، فك الربط أولًا`);
+      if (Number(used.n)) throw new ConflictException(`الحساب ${a.code} مرتبط ببنك أو صندوق أو مستودع أو مجموعة أصناف أو صنف أو شريك أو بإعدادات الإقفال أو المشتريات، فك الربط أولًا`);
       await em.delete(Account, { id });
     });
   }

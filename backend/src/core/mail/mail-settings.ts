@@ -9,6 +9,7 @@ export const MAIL_EVENTS = {
   inquiryAck: 'رسالة تأكيد لمقدم طلب الخدمة',
   passwordReset: 'استعادة كلمة المرور',
   backups: 'تنبيه الإدارة عند فشل النسخ الاحتياطي أو تأخره',
+  suppliers: 'إشعارات بوابة الموردين (الحسابات والاعتماد والمستندات)',
 } as const;
 export type MailEvent = keyof typeof MAIL_EVENTS;
 

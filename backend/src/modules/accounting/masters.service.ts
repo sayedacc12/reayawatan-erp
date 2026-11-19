@@ -4,9 +4,9 @@ import { randomBytes } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AccCore, cents, fromCents } from './acc-core.service';
-import { CashAccountDto, CategoryDto, DocumentTypeDto, PartnerDto, SettingsDto, WarehouseDto } from './accounting.dto';
+import { CashAccountDto, CategoryDto, DocumentTypeDto, PartnerDto, SettingsDto } from './accounting.dto';
 import { AccountsService } from './accounts.service';
-import { Account, AccountingSettings, DocumentType, JournalEntry, AccountNature, CashAccount, Partner, PartnerBehavior, PartnerCategory, Warehouse } from './entities/accounting.entity';
+import { Account, AccountingSettings, DocumentType, JournalEntry, AccountNature, CashAccount, Partner, PartnerBehavior, PartnerCategory } from './entities/accounting.entity';
 
 export const BEHAVIOR_AR: Record<PartnerBehavior, string> = { customer: 'عملاء', supplier: 'موردون', other: 'تصنيف آخر' };
 
@@ -23,7 +23,6 @@ export class MastersService {
     @InjectRepository(PartnerCategory) private readonly categories: Repository<PartnerCategory>,
     @InjectRepository(Partner) private readonly partners: Repository<Partner>,
     @InjectRepository(CashAccount) private readonly cash: Repository<CashAccount>,
-    @InjectRepository(Warehouse) private readonly warehouses: Repository<Warehouse>,
   ) {}
 
   // ---------------- أنواع السندات الخاصة بالجمعية ----------------
@@ -296,52 +295,5 @@ export class MastersService {
   /** الحسابات المحاسبية المرتبطة بالبنوك والصناديق (لسندات القبض والصرف) */
   async cashGlIds(org: string) {
     return new Set((await this.cash.find({ where: { organizationId: org }, select: ['glAccountId'] })).map((c) => c.glAccountId));
-  }
-
-  // ---------------- المستودعات ----------------
-
-  async listWarehouses(actor: OrgUser) {
-    const org = actor.organizationId;
-    const [rows, bal, s] = await Promise.all([
-      this.warehouses.find({ where: { organizationId: org }, relations: { glAccount: true }, order: { createdAt: 'ASC' } }),
-      this.balances(org, 'account_id'),
-      this.core.settings(org),
-    ]);
-    return {
-      types: s.warehouseTypes,
-      warehouses: rows.map((w) => ({
-        id: w.id, name: w.name, type: w.type, description: w.description, isActive: w.isActive,
-        glAccount: w.glAccount ? { id: w.glAccount.id, code: w.glAccount.code, name: w.glAccount.name } : null,
-        balance: fromCents(bal.get(w.glAccountId) ?? 0),
-      })),
-    };
-  }
-
-  private async checkWarehouse(org: string, dto: WarehouseDto) {
-    const s = await this.core.settings(org);
-    if (!s.warehouseTypes.includes(dto.type)) throw new BadRequestException('اختر نوع المستودع من الأنواع المعرفة في الإعدادات');
-    await this.checkGl(org, dto.glAccountId, 'assets');
-  }
-
-  async createWarehouse(actor: OrgUser, dto: WarehouseDto) {
-    const org = actor.organizationId;
-    await this.checkWarehouse(org, dto);
-    await this.warehouses.save(this.warehouses.create({
-      organizationId: org, name: dto.name, type: dto.type, description: dto.description ?? null, glAccountId: dto.glAccountId, isActive: dto.isActive ?? true,
-    }));
-    return this.listWarehouses(actor);
-  }
-
-  async updateWarehouse(actor: OrgUser, id: string, dto: WarehouseDto) {
-    const org = actor.organizationId;
-    const w = await this.warehouses.findOne({ where: { id, organizationId: org } });
-    if (!w) throw new NotFoundException('المستودع غير موجود');
-    await this.checkWarehouse(org, dto);
-    if (dto.glAccountId !== w.glAccountId && (await this.accounts.hasMoves(org, w.glAccountId, undefined, false))) {
-      throw new ConflictException('لا يمكن تعديل الحساب المحاسبي المرتبط بالمستودع بعد التسجيل عليه، ويلزم تفريغه أولًا من العمليات');
-    }
-    Object.assign(w, { name: dto.name, type: dto.type, description: dto.description ?? null, glAccountId: dto.glAccountId, isActive: dto.isActive ?? true });
-    await this.warehouses.save(w);
-    return this.listWarehouses(actor);
   }
 }
