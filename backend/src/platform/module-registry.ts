@@ -17,13 +17,14 @@ import { websiteManifest } from '../modules/website/website.manifest';
 import { partnershipsManifest } from '../modules/partnerships/partnerships.manifest';
 import { commsManifest } from '../modules/comms/comms.manifest';
 import { meetingsManifest } from '../modules/meetings/meetings.manifest';
+import { planningManifest } from '../modules/planning/planning.manifest';
 
 /**
  * سجل الوحدات المثبتة.
  * لإضافة وحدة جديدة: أنشئ مجلدها تحت src/modules ثم أضف الـ manifest هنا
  * وأضف الـ Nest module الخاص بها في app.module.ts.
  */
-export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, supportManifest, coreManifest, beneficiariesManifest, fundraisingManifest, projectsManifest, accountingManifest, hrManifest, riskManifest, governanceManifest, volunteersManifest, qualityManifest, auditManifest, membersManifest, knowledgeManifest, partnershipsManifest, websiteManifest, commsManifest, meetingsManifest];
+export const INSTALLED_MODULES: ErpModuleManifest[] = [platformManifest, supportManifest, coreManifest, beneficiariesManifest, fundraisingManifest, projectsManifest, accountingManifest, hrManifest, riskManifest, governanceManifest, volunteersManifest, qualityManifest, auditManifest, membersManifest, knowledgeManifest, partnershipsManifest, websiteManifest, commsManifest, meetingsManifest, planningManifest];
 
 export function validateManifests(manifests: ErpModuleManifest[]): void {
   const codes = new Set<string>();

@@ -94,7 +94,7 @@ export class GovSignals {
     const out: Record<string, Signal> = {};
     const set = (k: string, status: SignalStatus, text: string, source: string) => { out[k] = { status, text, source }; };
     const t = await this.tables(['acc_settings', 'acc_entries', 'hr_units', 'hr_jobs', 'hr_employees', 'audit_plans', 'audit_engagements', 'mem_members', 'mem_settings',
-      'quality_complaints', 'quality_surveys', 'quality_documents', 'risk_register', 'beneficiaries', 'beneficiary_aids', 'acc_vouchers', 'hr_policy_versions', 'mtg_meetings']);
+      'quality_complaints', 'quality_surveys', 'quality_documents', 'risk_register', 'beneficiaries', 'beneficiary_aids', 'acc_vouchers', 'hr_policy_versions', 'mtg_meetings', 'plan_plans']);
 
     // ---- النظام المالي
     if (t.has('acc_settings')) {
@@ -109,6 +109,16 @@ export class GovSignals {
       const cash = await this.count(`SELECT COUNT(*) AS n FROM acc_vouchers WHERE organization_id = $1 AND method = 'cash' AND voucher_date >= $2`, [org, addDays(at, -365)]);
       // وجود سندات نقدية لا يحدد الالتزام بالإجراءات؛ فيُترك للمقيّم
       if (!cash) set('acc.cash_transactions', 'na', 'لا توجد سندات نقدية خلال السنة الأخيرة', 'النظام المالي');
+    }
+
+    // ---- التخطيط: خطة تشغيلية للسنة الحالية
+    if (t.has('plan_plans')) {
+      const y = Number(at.slice(0, 4));
+      const [p] = await this.db.query(
+        `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE version > 0)::int AS ok FROM plan_plans
+          WHERE organization_id = $1 AND kind = 'operational' AND status <> 'rejected' AND start_year <= $2 AND end_year >= $2`, [org, y]);
+      set('plan.operational', p.ok ? 'met' : p.n ? 'partial' : 'missing',
+        p.ok ? `توجد ${p.ok} خطة تشغيلية معتمدة للسنة ${y} (تأكد من اعتمادها من الجمعية العمومية)` : p.n ? 'الخطة التشغيلية للسنة الحالية لم تُعتمد بعد' : `لا توجد خطة تشغيلية للسنة ${y} في نظام التخطيط`, 'التخطيط');
     }
 
     // ---- الموارد البشرية

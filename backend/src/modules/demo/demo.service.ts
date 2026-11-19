@@ -24,6 +24,7 @@ import { WebsiteSeed } from './seed-website';
 import { PartnershipsSeed } from './seed-partnerships';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
+import { PlanningSeed } from './seed-planning';
 
 /**
  * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
@@ -54,6 +55,7 @@ export class DemoService {
     private readonly partnerships: PartnershipsSeed,
     private readonly comms: CommsSeed,
     private readonly meetings: MeetingsSeed,
+    private readonly planning: PlanningSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -110,6 +112,8 @@ export class DemoService {
     await this.meetings.run(commsTeam, staffPassword, origin, target.admin ? [target.admin.id] : []);
     // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
     await this.website.run(team, tree, origin);
+    // التخطيط بعد الأنظمة التي يربط بها (الهيكل التنظيمي والمشاريع والموازنة الرأسمالية)
+    await this.planning.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
     return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers };
