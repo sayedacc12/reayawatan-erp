@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { Organization, OrganizationModule, User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
@@ -116,6 +117,26 @@ export class OrganizationsService {
     if (dto.endsOn !== undefined) org.subscriptionEndsOn = dto.endsOn;
     await this.orgs.save(org);
     return this.get(id);
+  }
+
+  /** حسابات مدير نظام الجمعية (لعرض بيانات الدخول في ملف الجمعية بإدارة المنصة) */
+  async admins(organizationId: string) {
+    const rows = await this.db.getRepository(User).find({
+      where: { organizationId, isSuperadmin: true },
+      select: { id: true, fullName: true, email: true, username: true, isActive: true, lastLoginAt: true },
+      order: { createdAt: 'ASC' },
+    });
+    return rows.map((u) => ({ id: u.id, fullName: u.fullName, email: u.email, username: u.username, isActive: u.isActive, lastLoginAt: u.lastLoginAt }));
+  }
+
+  /** كلمة مرور مؤقتة جديدة لمدير نظام الجمعية، تظهر لمدير المنصة مرة واحدة ليرسلها للجمعية */
+  async resetAdminPassword(organizationId: string, userId: string) {
+    const repo = this.db.getRepository(User);
+    const user = await repo.findOne({ where: { id: userId, organizationId, isSuperadmin: true } });
+    if (!user) throw new NotFoundException('حساب مدير النظام غير موجود في هذه الجمعية');
+    const password = `Snb-${randomBytes(5).toString('hex')}`;
+    await repo.update(user.id, { passwordHash: await bcrypt.hash(password, 12) });
+    return { password, login: user.username ?? user.email };
   }
 
   async get(id: string) {
