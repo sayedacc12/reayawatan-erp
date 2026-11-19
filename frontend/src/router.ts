@@ -78,6 +78,10 @@ export const router = createRouter({
         { path: 'docs', component: () => import('./supplier/SupplierDocsView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المستندات' } },
         { path: 'banks', component: () => import('./supplier/SupplierBanksView.vue'), meta: { supplier: true, supplierAuth: true, title: 'الحساب البنكي' } },
         { path: 'users', component: () => import('./supplier/SupplierUsersView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المستخدمون' } },
+        { path: 'rfqs', component: () => import('./supplier/SupplierRfqsView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المنافسات' } },
+        { path: 'rfqs/:id', component: () => import('./supplier/SupplierRfqView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المنافسة' } },
+        { path: 'orders', component: () => import('./supplier/SupplierOrdersView.vue'), meta: { supplier: true, supplierAuth: true, title: 'التعميدات' } },
+        { path: 'orders/:id', component: () => import('./supplier/SupplierOrderView.vue'), meta: { supplier: true, supplierAuth: true, title: 'التعميد' } },
       ],
     },
     {

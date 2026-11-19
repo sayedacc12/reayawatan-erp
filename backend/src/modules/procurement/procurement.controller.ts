@@ -39,7 +39,7 @@ export class ProcurementController {
 
   // ---------------- اللوحة والإعدادات ----------------
 
-  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ)
+  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh)
   lookups(@CurrentOrgUser() a: OrgUser) { return this.core.lookups(a.organizationId); }
 
   @Get('dashboard') @RequirePermissions(P.read)
@@ -153,7 +153,7 @@ export class ProcurementController {
 
   // ---------------- الأصناف ----------------
 
-  @Get('items') @RequirePermissions(P.read)
+  @Get('items') @RequireAnyPermission(P.read, P.requests, P.sourcing)
   items(@CurrentOrgUser() a: OrgUser, @Query() q: Record<string, string>) { return this.catalog.items(a.organizationId, q); }
 
   @Get('items-similar') @RequirePermissions(P.read)

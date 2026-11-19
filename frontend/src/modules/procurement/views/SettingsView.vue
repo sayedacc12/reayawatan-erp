@@ -9,7 +9,8 @@ import '../../projects/projects.css';
 import '../procurement.css';
 
 const toast = useToast();
-const tab = ref<'general' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'permissions'>('general');
+const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'permissions'>('general');
+const src = ref<any>(null);
 const lk = ref<any>(null);
 const g = ref<any>({});
 const docTypes = ref<any[]>([]);
@@ -26,6 +27,33 @@ function apply(v: any) {
   docTypes.value = s.supplierDocTypes.map((d: any) => ({ ...d, entityTypes: [...d.entityTypes] }));
   activities.value = [...s.activities];
   cats.value = v.categories.map((c: any) => ({ ...c, description: c.description ?? '' }));
+  const so = v.sourcing;
+  src.value = {
+    methodLimits: { ...so.methodLimits }, minQuotes: so.minQuotes, technicalPass: so.technicalPass, orderTerms: so.orderTerms ?? '', discloseWinner: so.discloseWinner,
+    approvalLevels: so.approvalLevels.map((l: any) => ({ ...l })), evalCriteria: so.evalCriteria.map((c: any) => ({ ...c })),
+  };
+}
+const critWeight = () => src.value.evalCriteria.reduce((s: number, c: any) => s + (Number(c.weight) || 0), 0);
+async function saveSourcing() {
+  const x = src.value;
+  if (critWeight() !== 100) return toast.error('مجموع أوزان معايير التقييم يجب أن يكون 100');
+  busy.value = true;
+  try {
+    apply(await api('/procurement/sourcing-settings', {
+      method: 'PUT',
+      json: {
+        methodLimits: { direct: Number(x.methodLimits.direct), quotes: Number(x.methodLimits.quotes) }, minQuotes: Number(x.minQuotes), technicalPass: Number(x.technicalPass),
+        orderTerms: x.orderTerms || null, discloseWinner: !!x.discloseWinner,
+        approvalLevels: x.approvalLevels.map((l: any) => ({ name: l.name, minAmount: Number(l.minAmount), permission: l.permission })),
+        evalCriteria: x.evalCriteria.map((c: any) => ({ key: c.key, name: c.name, weight: Number(c.weight), kind: c.kind })),
+      },
+    }));
+    toast.success('حُفظت إعدادات الشراء');
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    busy.value = false;
+  }
 }
 onMounted(async () => {
   try {
@@ -74,6 +102,7 @@ function addActivity() {
     <div class="page-head"><div><h1>إعدادات المشتريات والمستودعات</h1><p class="muted">طريقة التقييم ومستوى الحسابات، ومستندات الموردين المطلوبة، والأنشطة والتصنيفات، وبوابة الموردين، والربط بالنظام المالي.</p></div></div>
     <div class="pc-tabs">
       <button :class="{ on: tab === 'general' }" @click="tab = 'general'">عام</button>
+      <button :class="{ on: tab === 'sourcing' }" @click="tab = 'sourcing'">الشراء والاعتماد</button>
       <button :class="{ on: tab === 'docs' }" @click="tab = 'docs'">مستندات الموردين</button>
       <button :class="{ on: tab === 'suppliers' }" @click="tab = 'suppliers'">الأنشطة والتصنيفات</button>
       <button :class="{ on: tab === 'portal' }" @click="tab = 'portal'">بوابة الموردين</button>
@@ -138,6 +167,57 @@ function addActivity() {
           <div class="pc-inline"><input v-model="newActivity" class="input" placeholder="نشاط جديد" @keydown.enter.prevent="addActivity" /><button class="btn btn-sm" @click="addActivity">إضافة</button></div>
           <button class="btn btn-primary" style="margin-top: 10px" :disabled="busy" @click="save({ activities }, 'حُفظت الأنشطة')">حفظ</button>
         </section>
+      </div>
+
+      <div v-else-if="tab === 'sourcing' && src" style="display: grid; gap: 16px">
+        <section class="card pm-panel">
+          <h2>أسلوب الشراء حسب القيمة</h2>
+          <div class="pc-fields">
+            <label class="field"><span>شراء مباشر حتى (ريال)</span><input v-model.number="src.methodLimits.direct" type="number" min="0" class="input" /></label>
+            <label class="field"><span>طلب عروض أسعار حتى (ريال)</span><input v-model.number="src.methodLimits.quotes" type="number" min="0" class="input" /><small class="pm-muted">وما زاد عليه منافسة عامة.</small></label>
+            <label class="field"><span>الحد الأدنى لعدد العروض</span><input v-model.number="src.minQuotes" type="number" min="1" max="10" class="input" /></label>
+            <label class="field"><span><input v-model="src.discloseWinner" type="checkbox" /> إبلاغ الموردين غير الفائزين باسم الفائز</span></label>
+          </div>
+        </section>
+        <section class="card pm-panel">
+          <h2>مستويات اعتماد التعميد</h2>
+          <p class="pm-muted" style="font-size: .82rem">يمر التعميد بكل مستوى يبلغ حده الأدنى، بالترتيب، وكل مستوى بمعتمد مختلف عن مُعد التعميد ومن سبقه.</p>
+          <table class="pc-lines">
+            <thead><tr><th>المستوى</th><th style="width: 150px">من قيمة (ريال)</th><th style="width: 220px">الصلاحية المطلوبة</th><th /></tr></thead>
+            <tbody>
+              <tr v-for="(l, i) in src.approvalLevels" :key="i">
+                <td><input v-model="l.name" class="input" /></td>
+                <td><input v-model.number="l.minAmount" type="number" min="0" class="input" /></td>
+                <td><select v-model="l.permission" class="input"><option value="procurement.orders.approve">اعتماد التعميدات</option><option value="procurement.orders.approve_high">اعتماد التعميدات العالية</option></select></td>
+                <td><button type="button" class="btn btn-ghost" :disabled="src.approvalLevels.length < 2" @click="src.approvalLevels.splice(i, 1)">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <button class="btn" style="margin-top: 8px" :disabled="src.approvalLevels.length >= 6" @click="src.approvalLevels.push({ name: '', minAmount: 0, permission: 'procurement.orders.approve_high' })">+ مستوى</button>
+        </section>
+        <section class="card pm-panel">
+          <h2>معايير التقييم الافتراضية <small :class="critWeight() === 100 ? 'pc-okflag' : 'pc-flag'">المجموع {{ critWeight() }} من 100</small></h2>
+          <table class="pc-lines">
+            <thead><tr><th>المعيار</th><th style="width: 170px">النوع</th><th style="width: 90px">الوزن</th><th /></tr></thead>
+            <tbody>
+              <tr v-for="(c, i) in src.evalCriteria" :key="c.key">
+                <td><input v-model="c.name" class="input" /></td>
+                <td><select v-model="c.kind" class="input"><option value="price">مالي (آلي من السعر)</option><option value="technical">فني (تقدّره اللجنة)</option></select></td>
+                <td><input v-model.number="c.weight" type="number" min="1" max="100" class="input" /></td>
+                <td><button type="button" class="btn btn-ghost" @click="src.evalCriteria.splice(i, 1)">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="pc-inline" style="margin-top: 8px">
+            <button class="btn" @click="src.evalCriteria.push({ key: `c${Date.now().toString(36).slice(-5)}`, name: '', weight: 0, kind: 'technical' })">+ معيار</button>
+            <label class="field" style="margin: 0"><span>الحد الأدنى للدرجة الفنية</span><input v-model.number="src.technicalPass" type="number" min="0" max="100" class="input" style="width: 100px" /></label>
+          </div>
+        </section>
+        <section class="card pm-panel">
+          <h2>الشروط العامة للتعميد</h2>
+          <textarea v-model="src.orderTerms" class="input" rows="6" />
+        </section>
+        <div><button class="btn btn-primary" :disabled="busy" @click="saveSourcing">حفظ إعدادات الشراء</button></div>
       </div>
 
       <section v-else-if="tab === 'portal'" class="card pm-panel">
