@@ -87,6 +87,7 @@ async function save() {
       <div style="display: grid; gap: 16px; align-content: start">
         <section class="card pm-panel">
           <h2>البنود</h2>
+          <div v-if="!form.lines.some((l: any) => l.left > 0)" class="alert alert-error">صدرت تعميدات بكل كميات هذا الطلب، فلا يوجد ما يُعمَّد.</div>
           <p class="pm-muted" style="font-size: .8rem">لا تتجاوز الكمية المتبقية من الطلب{{ fromQuote ? '، ولا يزيد السعر عن سعر العرض المرسى' : '' }}.</p>
           <div class="table-wrap">
             <table class="pc-lines">

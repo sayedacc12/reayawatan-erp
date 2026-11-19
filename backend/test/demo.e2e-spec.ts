@@ -13,7 +13,7 @@ describe('Demo association across all modules', () => {
   let app: NestExpressApplication;
   let http: ReturnType<typeof request>;
   let platform: string;
-  let demo: { staffPassword: string; portalPassword: string; portalUsers: { nationalId: string }[]; staff: { email: string }[]; supportTeam: { email: string }[]; supplierPortal: { url: string; users: { email: string; status: string }[] } };
+  let demo: { staffPassword: string; portalPassword: string; portalUsers: { nationalId: string }[]; staff: { email: string }[]; supportTeam: { email: string }[]; supplierPortal: { url: string; users: { supplier: string; email: string; status: string }[] } };
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
   const login = async (login: string, password: string, organization?: string) =>
     (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
@@ -285,6 +285,33 @@ describe('Demo association across all modules', () => {
     for (const u of demo.supplierPortal.users) {
       await http.post('/api/supplier-portal/o/demo/login').send({ email: u.email, password: demo.portalPassword }).expect(200);
     }
+  });
+
+  it('procurement sourcing: a full tender to an accepted order, direct orders reserving the budget, and an open tender in the portal', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/procurement/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.sourcing.requests.submitted).toBeGreaterThanOrEqual(1);
+    expect(d.sourcing.rfqs.open).toBe(1);
+    expect(d.sourcing.orders.pending).toBe(1);
+    expect(d.sourcing.orders.live).toBe(2);
+    const orders = (await http.get('/api/procurement/orders').set(as(admin)).expect(200)).body as { id: string; status: string; supplierName: string }[];
+    expect(orders.map((o) => o.status).sort()).toEqual(['accepted', 'issued', 'pending']);
+    const accepted = (await http.get(`/api/procurement/orders/${orders.find((o) => o.status === 'accepted')!.id}`).set(as(admin)).expect(200)).body;
+    expect(accepted.supplier.name).toBe('شركة الوفاء للتموين الغذائي');
+    expect(accepted.fundingReserved).toBe(accepted.total);
+    const direct = (await http.get(`/api/procurement/orders/${orders.find((o) => o.status === 'issued')!.id}`).set(as(admin)).expect(200)).body;
+    expect(direct.commitmentId).toBeTruthy();
+    const requests = (await http.get('/api/procurement/requests').set(as(admin)).expect(200)).body as { status: string }[];
+    expect(requests.some((r) => r.status === 'returned')).toBe(true);
+    // المورد يرى المنافسة المفتوحة وتعميده المقبول من البوابة
+    const wafa = demo.supplierPortal.users.find((u) => u.supplier === 'شركة الوفاء للتموين الغذائي')!;
+    const t = (await http.post('/api/supplier-portal/o/demo/login').send({ email: wafa.email, password: demo.portalPassword }).expect(200)).body.accessToken;
+    const rfqs = (await http.get('/api/supplier-portal/rfqs').set(as(t)).expect(200)).body as { open: boolean; result: { won: boolean } | null }[];
+    expect(rfqs.filter((r) => r.open)).toHaveLength(1);
+    expect(rfqs.some((r) => r.result?.won)).toBe(true);
+    const po = (await http.get('/api/supplier-portal/orders').set(as(t)).expect(200)).body as { status: string }[];
+    // التعميد بانتظار الاعتماد لا يظهر للمورد قبل صدوره
+    expect(po.map((o) => o.status)).toEqual(['accepted']);
   });
 
   it('members: registry in every status, applications in every stage, payments as receipt vouchers', async () => {

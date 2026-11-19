@@ -45,11 +45,12 @@ import { PlanningSeed } from './seed-planning';
 import { BudgetSeed } from './seed-budget';
 import { ProcurementModule } from '../procurement/procurement.module';
 import { ProcurementSeed } from './seed-procurement';
+import { SourcingSeed } from './seed-sourcing';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
   imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, TypeOrmModule.forFeature([OrganizationSampleData])],
   controllers: [DemoController, SampleDataController, PlatformSampleDataController],
-  providers: [DemoService, SampleDataService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed],
+  providers: [DemoService, SampleDataService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed],
 })
 export class DemoModule {}

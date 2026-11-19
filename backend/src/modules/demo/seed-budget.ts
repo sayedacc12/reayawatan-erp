@@ -89,8 +89,7 @@ export class BudgetSeed {
       for (let i = 0; i < 5; i++) { const r = await this.exec.decide(admin, t.id, { decision: 'approve', note: null }).catch(() => null); if (!r || r.status !== 'in_review') break; }
       await this.exec.request(finance, id, { kind: 'increase', toLineId: over.lineId, amount: 15000, fromMonth: Math.min(12, month + 1), reason: 'ارتفاع الأسعار في الربع الأخير' });
     }
-    const maint = ((await this.budgets.get(finance, id)).lines as { id: string; name: string }[]).find((l) => l.name === 'صيانة وتجهيز المقر');
-    if (maint) await this.avail.reserve(org, { amount: 32000, budgetLineId: maint.id, sourceModule: 'procurement', sourceRef: 'أمر شراء PO-0007 أعمال صيانة', note: 'تعميد مورد الصيانة', byName: finance.fullName });
+    // حجوزات بند «صيانة وتجهيز المقر» تأتي من تعميدات المشتريات الفعلية (seed-sourcing)
     return id;
   }
 
