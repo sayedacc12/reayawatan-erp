@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import { ORDER_COLOR, fmtDate, fmtDateTime, sar } from '../lib';
+import { ORDER_COLOR, RECEIPT_COLOR, fmtDate, fmtDateTime, fmtQty, sar } from '../lib';
 import '../../projects/projects.css';
 import '../procurement.css';
 
@@ -13,7 +13,7 @@ const router = useRouter();
 const toast = useToast();
 const o = ref<any>(null);
 const busy = ref(false);
-const modal = ref<'' | 'approve' | 'return' | 'cancel' | 'reply' | 'amend'>('');
+const modal = ref<'' | 'approve' | 'return' | 'cancel' | 'reply' | 'amend' | 'short'>('');
 const note = ref('');
 const amend = ref<any>({ lines: [], deliveryDate: '', terms: '' });
 const base = () => `/procurement/orders/${props.id}`;
@@ -54,6 +54,7 @@ function confirm() {
   if (m === 'return') return run(post('return', { reason: note.value }), 'أعيد التعميد للتعديل');
   if (m === 'cancel') return run(post('cancel', { reason: note.value }), 'أُلغي التعميد وفُك الحجز');
   if (m === 'reply') return run(post('reply', { reason: note.value }), 'أُرسل الرد للمورد');
+  if (m === 'short') return run(async () => { await post('short-close', { reason: note.value })(); return api(base()); }, 'أُغلق التعميد بالمستلم وفُك حجز الباقي');
   if (m === 'amend') {
     const a = amend.value;
     return run(post('amend', {
@@ -62,7 +63,7 @@ function confirm() {
     }), 'عُدل التعميد وأُبلغ المورد');
   }
 }
-const TITLES: Record<string, string> = { approve: 'اعتماد التعميد', return: 'إعادة التعميد للتعديل', cancel: 'إلغاء التعميد', reply: 'الرد على استفسار المورد', amend: 'تعديل التعميد الصادر' };
+const TITLES: Record<string, string> = { approve: 'اعتماد التعميد', return: 'إعادة التعميد للتعديل', cancel: 'إلغاء التعميد', reply: 'الرد على استفسار المورد', amend: 'تعديل التعميد الصادر', short: 'إغلاق التعميد بالمستلم' };
 const needsNote = computed(() => modal.value !== 'approve');
 const check = computed(() => o.value?.liveCheck ?? o.value?.budgetCheck);
 const RESP: Record<string, string> = { acknowledge: 'أكد الاستلام', accept: 'قبل التعميد', clarify: 'طلب توضيحًا', decline: 'اعتذر عن التنفيذ', reply: 'رد الجمعية' };
@@ -88,6 +89,8 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
           <button class="btn" @click="modal = 'return'">إعادة للتعديل</button>
         </template>
         <button v-if="o.can.reply" class="btn btn-primary" @click="modal = 'reply'">الرد على المورد</button>
+        <button v-if="o.can.receive" class="btn btn-primary" @click="router.push(`/procurement/receipts/new?kind=order&order=${o.id}`)">استلام وفحص</button>
+        <button v-if="o.can.shortClose" class="btn" @click="note = ''; modal = 'short'">إغلاق بالمستلم</button>
         <button v-if="o.can.amend" class="btn" @click="openAmend">تعديل بالتخفيض</button>
         <button v-if="['issued', 'acknowledged', 'accepted', 'closed'].includes(o.status)" class="btn" @click="printPage">طباعة</button>
         <button v-if="o.can.cancel" class="btn btn-ghost" @click="modal = 'cancel'">إلغاء التعميد</button>
@@ -118,16 +121,18 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
           <h2>البنود</h2>
           <div class="table-wrap">
             <table class="pc-lines">
-              <thead><tr><th>#</th><th>البند</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
+              <thead><tr><th>#</th><th>البند</th><th>الكمية</th><th v-if="o.receipts.length" class="pc-noprint">المستلم</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>
               <tbody>
                 <tr v-for="(l, i) in o.lines" :key="l.lineId ?? i">
-                  <td>{{ i + 1 }}</td><td><b>{{ l.description }}</b></td><td class="pc-num">{{ l.qty }} {{ l.uomName ?? '' }}</td><td class="pc-num">{{ sar(l.unitPrice) }}</td><td class="pc-num">{{ sar(l.total) }}</td>
+                  <td>{{ i + 1 }}</td><td><b>{{ l.description }}</b></td><td class="pc-num">{{ l.qty }} {{ l.uomName ?? '' }}</td>
+                  <td v-if="o.receipts.length" class="pc-num pc-noprint">{{ fmtQty(l.receivedQty) }}<small v-if="l.receivedQty >= l.qty" class="pc-okflag" style="display: flex">مكتمل</small></td>
+                  <td class="pc-num">{{ sar(l.unitPrice) }}</td><td class="pc-num">{{ sar(l.total) }}</td>
                 </tr>
               </tbody>
               <tfoot>
-                <tr><td colspan="4">قبل الضريبة</td><td class="pc-num">{{ sar(o.subtotal) }}</td></tr>
-                <tr><td colspan="4">ضريبة القيمة المضافة {{ o.vatRate }}%</td><td class="pc-num">{{ sar(o.vat) }}</td></tr>
-                <tr><td colspan="4"><b>الإجمالي</b></td><td class="pc-num"><b>{{ sar(o.total) }}</b></td></tr>
+                <tr><td :colspan="o.receipts.length ? 5 : 4">قبل الضريبة</td><td class="pc-num">{{ sar(o.subtotal) }}</td></tr>
+                <tr><td :colspan="o.receipts.length ? 5 : 4">ضريبة القيمة المضافة {{ o.vatRate }}%</td><td class="pc-num">{{ sar(o.vat) }}</td></tr>
+                <tr><td :colspan="o.receipts.length ? 5 : 4"><b>الإجمالي</b></td><td class="pc-num"><b>{{ sar(o.total) }}</b></td></tr>
               </tfoot>
             </table>
           </div>
@@ -164,6 +169,17 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
           </div>
           <p v-if="!o.commitmentId && !o.fundingReserved" class="pm-muted" style="font-size: .78rem; margin-top: 6px">يُحجز المبلغ عند الاعتماد الأخير.</p>
         </section>
+        <section v-if="o.receipts.length" class="card pm-panel">
+          <h2>الاستلامات</h2>
+          <ul class="pc-log">
+            <li v-for="x in o.receipts" :key="x.id">
+              <span><RouterLink class="pm-link" :to="`/procurement/receipts/${x.id}`">{{ x.code }}</RouterLink> · {{ fmtDate(x.date) }} · {{ sar(x.total) }}
+                <span class="pm-pill" :style="{ '--c': RECEIPT_COLOR[x.status] }">{{ x.status === 'posted' ? 'معتمد' : 'ملغى' }}</span>
+                <small v-if="x.rejected" class="pc-flag">مرفوضات</small></span>
+            </li>
+          </ul>
+          <p v-if="o.closeKind === 'short'" class="pm-muted" style="font-size: .8rem; margin-top: 6px">أُغلق التعميد بالكميات المستلمة وفُك حجز الباقي.</p>
+        </section>
         <section v-if="o.responses.length" class="card pm-panel">
           <h2>ردود المورد</h2>
           <ul class="pc-log">
@@ -186,6 +202,7 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
           <p>{{ o.nextLevel?.name }} لتعميد بقيمة <b>{{ sar(o.total) }}</b> للمورد {{ o.supplier.name }}.</p>
           <p v-if="o.requiredLevels.length - o.approvals.length <= 1" class="pm-muted" style="font-size: .85rem">هذا الاعتماد الأخير: يُحجز المبلغ من مصدر الصرف ويصدر التعميد للمورد عبر البوابة والبريد.</p>
         </template>
+        <p v-if="modal === 'short'" class="pm-muted" style="font-size: .85rem">يُغلق التعميد بما استُلم منه، ويُفك حجز الباقي على بند الموازنة ومصدر التمويل، ولا يُستلم عليه بعد ذلك.</p>
         <template v-if="modal === 'amend'">
           <p class="pm-muted" style="font-size: .85rem">يخفض التعديل الكميات أو الأسعار فقط، ويُعاد حجز القيمة الجديدة ويُبلَّغ المورد بالإصدار الجديد. ضع الكمية صفرًا لحذف البند.</p>
           <table class="pc-lines">

@@ -4,14 +4,14 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import { ASSET_TYPES, P, VOUCHER_STATUS, allTypes, loadDocTypes, sar, todayStr } from '../lib';
+import { P, SOURCE_TYPES, VOUCHER_STATUS, allTypes, loadDocTypes, sar, todayStr } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 import CloseFlow from '../components/CloseFlow.vue';
 
 interface PendingV { id: string; kind: string; voucherNo: string; voucherDate: string; partyName: string; amount: number; status: string; requestKind: string | null }
 /** كل أنواع المستندات ما عدا القيد الافتتاحي (لا يخضع للترحيل) */
-const TYPES = computed(() => allTypes.value.filter((x) => x.value !== 'opening' && !ASSET_TYPES.includes(x.value)));
+const TYPES = computed(() => allTypes.value.filter((x) => x.value !== 'opening' && !SOURCE_TYPES.includes(x.value)));
 loadDocTypes();
 interface Cand { id: string; entryNo: number; voucherLabel: string; voucherNo: string; documentDate: string; description: string; total: number }
 const session = useSession();

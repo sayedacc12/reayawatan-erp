@@ -69,6 +69,30 @@ const RESP: Record<string, string> = { acknowledge: 'تأكيد الاستلام
               </table>
             </div>
           </section>
+          <section v-if="o.receipts?.length" class="card pm-panel">
+            <h2>الاستلام والفحص</h2>
+            <div v-for="r in o.receipts" :key="r.code" style="margin-bottom: 12px">
+              <p style="margin: 0 0 6px"><b class="pc-code">{{ r.code }}</b> · {{ fmtDate(r.date) }}<span v-if="r.deliveryRef"> · إشعار التسليم {{ r.deliveryRef }}</span><span v-if="r.inspection"> · نتيجة الفحص: <b>{{ r.inspection }}</b></span></p>
+              <table class="pc-lines">
+                <thead><tr><th>البند</th><th>المسلّم</th><th>المقبول</th><th>المرفوض</th></tr></thead>
+                <tbody>
+                  <tr v-for="(l, i) in r.lines" :key="i">
+                    <td>{{ l.description }}</td><td class="pc-num">{{ l.delivered }}</td><td class="pc-num">{{ l.accepted }}</td>
+                    <td class="pc-num">{{ l.rejected || '—' }}<small v-if="l.rejectReason" class="pm-muted" style="display: block">{{ l.rejectReason }}</small></td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-if="r.inspectionNote" class="pm-muted" style="font-size: .85rem; margin: 6px 0 0">ملاحظات لجنة الفحص: {{ r.inspectionNote }}</p>
+            </div>
+          </section>
+          <section v-if="o.returns?.length" class="card pm-panel">
+            <h2>المرتجعات إليكم</h2>
+            <div v-for="d in o.returns" :key="d.code" style="margin-bottom: 10px">
+              <p style="margin: 0 0 4px"><b class="pc-code">{{ d.code }}</b> · {{ fmtDate(d.date) }}</p>
+              <ul style="margin: 0; padding-inline-start: 18px; font-size: .88rem"><li v-for="(l, i) in d.lines" :key="i">{{ l.description }}: {{ l.qty }}</li></ul>
+              <p v-if="d.reason" class="pm-muted" style="font-size: .85rem; margin: 4px 0 0">السبب: {{ d.reason }}</p>
+            </div>
+          </section>
           <section v-if="o.terms" class="card pm-panel"><h2>الشروط</h2><p style="white-space: pre-line; font-size: .9rem">{{ o.terms }}</p></section>
         </div>
         <div style="display: grid; gap: 16px; align-content: start">

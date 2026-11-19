@@ -61,7 +61,7 @@ export const procurementManifest: ErpModuleManifest = {
     { label: 'المنافسات وطلبات العروض', path: '/procurement/rfqs', permission: P.sourcing, anyOf: [P.evaluate], group: 'المشتريات' },
     { label: 'التعميدات وأوامر الشراء', path: '/procurement/orders', permission: P.sourcing, anyOf: [P.approveOrders, P.approveOrdersHigh, P.read], group: 'المشتريات' },
     { label: 'الاستلام والفحص', path: '/procurement/receipts', permission: P.stockOperate, anyOf: [P.stockApprove], group: 'المستودعات' },
-    { label: 'أرصدة المخزون', path: '/procurement/stock', permission: P.read, group: 'المستودعات' },
+    { label: 'أرصدة المخزون', path: '/procurement/stock', permission: P.read, anyOf: [P.stockOperate, P.stockApprove], group: 'المستودعات' },
     { label: 'طلبات الصرف', path: '/procurement/issue-requests', permission: P.issueRequest, anyOf: [P.issueApprove, P.stockOperate], group: 'المستودعات' },
     { label: 'حركات المستودع', path: '/procurement/stock-docs', permission: P.stockOperate, anyOf: [P.stockApprove], group: 'المستودعات' },
     { label: 'الجرد', path: '/procurement/counts', permission: P.stockOperate, anyOf: [P.stockApprove], group: 'المستودعات' },

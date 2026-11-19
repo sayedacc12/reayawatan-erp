@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import { ASSET_TYPES, ENTRY_STATUS, P, allTypes, loadDocTypes, sar, typeLabel as labelOf } from '../lib';
+import { ASSET_TYPES, ENTRY_STATUS, SOURCE_TYPES, P, allTypes, loadDocTypes, sar, typeLabel as labelOf } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -40,11 +40,12 @@ const counts = computed(() => ({
       <div>
         <p class="pm-kicker">النظام المالي</p>
         <h1>{{ fixedType === 'adjustment' ? 'قيود التسوية' : fixedType ? typeLabel : 'قيود اليومية' }}</h1>
+        <p v-if="fixedType === 'stock'" class="pm-sub">تصدر سندات المخازن بتسلسل مستقل من المستودعات فقط مع كل حركة مخزون، ولا تُعدَّل أو تُلغى من النظام المالي. للإلغاء ألغِ المستند في المستودعات.</p>
         <p v-if="ASSET_TYPES.includes(fixedType ?? '')" class="pm-sub">تصدر هذه السندات بتسلسل مستقل من الأصول الثابتة فقط، ولا تُعدَّل أو تُلغى من النظام المالي. للإلغاء ادخل على سجل حركات الإهلاك أو عمليات الأصول.</p>
         <p v-else class="pm-sub">رقم القيد مسلسل لا يتكرر ولا يُحذف، والقيد الملغي يبقى برقمه ويظهر «ملغي». سندات القبض والصرف تبدأ أرقامها من محضر الجرد السابق، وباقي المستندات من 1 مع رقم السنة.</p>
       </div>
       <div class="pm-actions">
-        <RouterLink v-if="session.can(P.entries) && !ASSET_TYPES.includes(fixedType ?? '')" :to="fixedType ? `/accounting/entries/new?type=${fixedType}` : '/accounting/entries/new'" class="btn ac-glow">{{ fixedType ? `${typeLabel} جديد` : 'قيد جديد' }}</RouterLink>
+        <RouterLink v-if="session.can(P.entries) && !SOURCE_TYPES.includes(fixedType ?? '')" :to="fixedType ? `/accounting/entries/new?type=${fixedType}` : '/accounting/entries/new'" class="btn ac-glow">{{ fixedType ? `${typeLabel} جديد` : 'قيد جديد' }}</RouterLink>
         <RouterLink v-if="session.can(P.post)" to="/accounting/posting" class="btn ac-ghost">الترحيل الجماعي</RouterLink>
       </div>
     </section>

@@ -74,6 +74,8 @@ export class SourcingSeed {
           AND amount - reserved_amount - spent_amount - transferred_amount >= 40000
         ORDER BY (target_kind = 'program' AND activity_id IS NOT NULL) DESC, amount - reserved_amount - spent_amount - transferred_amount DESC LIMIT 1`, [org, daysAhead(0)]);
     const line = maint?.id as string | undefined;
+    // ربط بنود الطلب بدليل الأصناف: السلة الغذائية صنف مخزني يدخل المستودع عند الاستلام
+    const [basketItem] = await this.db.query(`SELECT id FROM pr_items WHERE organization_id = $1 AND name = 'سلة غذائية متكاملة لأسرة' LIMIT 1`, [org]);
 
     const request = async (by: OrgUser, dto: Omit<RequestDto, 'priority'> & { priority?: RequestDto['priority'] }) =>
       this.requests.create(by, { priority: 'normal', unitId: unit?.id ?? null, ...dto } as RequestDto);
@@ -84,7 +86,7 @@ export class SourcingSeed {
         title: 'سلال غذائية لبرنامج إفطار رمضان', kind: 'goods', priority: 'high', neededBy: daysAhead(25), projectId: batch.kind === 'program' ? batch.activityId : null,
         justification: 'توزيع 200 سلة على الأسر المسجلة في البرنامج قبل بداية الشهر', method: 'quotes', fundingBatchId: batch.id,
         lines: [
-          { description: 'سلة غذائية متكاملة', qty: 200, uomId: uom('سلة') ?? uom('حبة'), estPrice: 140, specs: 'أرز بسمتي 5 كجم، سكر 2 كجم، زيت 1.5 لتر، تمر 1 كجم، عدس 1 كجم' },
+          { itemId: basketItem?.id ?? null, description: 'سلة غذائية متكاملة', qty: 200, uomId: uom('سلة') ?? uom('حبة'), estPrice: 140, specs: 'أرز بسمتي 5 كجم، سكر 2 كجم، زيت 1.5 لتر، تمر 1 كجم، عدس 1 كجم' },
           { description: 'كيس تغليف قماشي بشعار الجمعية', qty: 200, uomId: uom('حبة'), estPrice: 5, specs: null },
         ],
       });

@@ -21,6 +21,7 @@ onMounted(async () => {
 });
 const sup = (k: string) => d.value?.suppliers[k] ?? 0;
 const maxGroup = computed(() => Math.max(1, ...(d.value?.groups ?? []).map((g: any) => g.n)));
+const maxWh = computed(() => Math.max(1, ...(d.value?.stock?.byWarehouse ?? []).map((w: any) => w.value)));
 const maxAct = computed(() => Math.max(1, ...(d.value?.activities ?? []).map((g: any) => g.n)));
 const pendingTotal = computed(() => (d.value ? d.value.approvals.suppliers + d.value.approvals.docs + d.value.approvals.banks : 0));
 async function copyPortal() {
@@ -61,8 +62,34 @@ async function copyPortal() {
         <RouterLink class="pc-kpi" to="/procurement/orders?status=pending"><small class="pm-muted">تعميدات بانتظار الاعتماد</small><b style="font-size: 1.5rem">{{ d.sourcing.orders.pending }}</b><small class="pm-muted">مستويات حسب القيمة</small></RouterLink>
         <RouterLink class="pc-kpi" to="/procurement/orders?status=issued"><small class="pm-muted">تعميدات سارية</small><b style="font-size: 1.5rem">{{ d.sourcing.orders.live }}</b><small class="pm-muted">{{ sar(d.sourcing.orders.liveTotal) }}<span v-if="d.sourcing.orders.late" class="pc-flag" style="margin-inline-start: 6px">{{ d.sourcing.orders.late }} متأخر</span></small></RouterLink>
       </div>
+      <template v-if="d.stock">
+        <div v-if="!d.stock.configured.grni || !d.stock.configured.adjust" class="alert" style="background: #fffbeb; margin-bottom: 14px">
+          حدد حسابات قيود المستودعات قبل الاستلام: <RouterLink class="pm-link" to="/procurement/settings">الإعدادات ← المستودعات</RouterLink>
+        </div>
+        <div class="pc-cards" style="margin-bottom: 18px">
+          <RouterLink class="pc-kpi" to="/procurement/stock"><small class="pm-muted">قيمة المخزون</small><b style="font-size: 1.4rem">{{ sar(d.stock.value) }}</b><small class="pm-muted">{{ d.stock.lines }} رصيد · صُرف هذا الشهر {{ sar(d.stock.docs.issuedMonth) }}</small></RouterLink>
+          <RouterLink class="pc-kpi" :class="{ hot: d.stock.expired || d.stock.expiring }" to="/procurement/stock?alert=expiry"><small class="pm-muted">تنبيهات الصلاحية</small><b style="font-size: 1.5rem">{{ d.stock.expired + d.stock.expiring }}</b><small class="pm-muted">{{ d.stock.expired }} منتهية · {{ d.stock.expiring }} خلال {{ d.stock.expiryAlertDays }} يومًا</small></RouterLink>
+          <RouterLink class="pc-kpi" :class="{ hot: d.stock.reorder.length }" to="/procurement/stock?alert=reorder"><small class="pm-muted">أصناف بلغت حد إعادة الطلب</small><b style="font-size: 1.5rem">{{ d.stock.reorder.length }}</b><small class="pm-muted">اطلب شراءها قبل النفاد</small></RouterLink>
+          <RouterLink class="pc-kpi" :class="{ hot: d.stock.issueRequests.submitted }" to="/procurement/issue-requests?todo=1"><small class="pm-muted">طلبات صرف</small><b style="font-size: 1.5rem">{{ d.stock.issueRequests.submitted }}</b><small class="pm-muted">بانتظار الاعتماد · {{ d.stock.issueRequests.toIssue }} بانتظار الصرف</small></RouterLink>
+          <RouterLink class="pc-kpi" :class="{ hot: d.stock.docs.pendingWriteoffs || d.stock.counts.submitted }" to="/procurement/stock-docs?status=pending"><small class="pm-muted">بانتظار الاعتماد</small><b style="font-size: 1.5rem">{{ d.stock.docs.pendingWriteoffs + d.stock.counts.submitted }}</b><small class="pm-muted">{{ d.stock.docs.pendingWriteoffs }} إتلاف · {{ d.stock.counts.submitted }} جرد</small></RouterLink>
+          <RouterLink class="pc-kpi" to="/procurement/warehouses?tab=reconcile"><small class="pm-muted">المطابقة مع الدليل</small><b style="font-size: 1.3rem" :style="{ color: d.stock.reconcile?.ok === false ? '#b91c1c' : '#047857' }">{{ d.stock.reconcile ? (d.stock.reconcile.ok ? '✓ مطابق' : `✕ ${d.stock.reconcile.issues} فرق`) : '—' }}</b><small class="pm-muted">حسابات المخزون مقابل المستودعات</small></RouterLink>
+        </div>
+      </template>
 
       <div class="pc-grid">
+        <section v-if="d.stock?.dueOrders.length" class="card pm-panel">
+          <h2>تعميدات بانتظار الاستلام <RouterLink to="/procurement/receipts" class="pm-link">الاستلام</RouterLink></h2>
+          <RouterLink v-for="o in d.stock.dueOrders" :key="o.id" :to="`/procurement/orders/${o.id}`" class="line">
+            <span><b>{{ o.title }}</b><small class="pm-muted">{{ o.supplierName }}</small></span>
+            <span :class="o.late ? 'pc-flag' : 'pc-warn'">{{ o.status === 'partial' ? 'مستلم جزئيًا' : o.late ? 'متأخر' : 'التسليم' }} {{ fmtDate(o.deliveryDate) }}</span>
+          </RouterLink>
+        </section>
+        <section v-if="d.stock?.byWarehouse.length" class="card pm-panel">
+          <h2>قيمة المخزون حسب المستودع</h2>
+          <div class="pc-bars">
+            <div v-for="w in d.stock.byWarehouse" :key="w.name" class="r"><span>{{ w.name }}</span><div class="pc-bar"><i :style="{ width: (w.value / maxWh) * 100 + '%', '--c': '#0369a1' }" /></div><b style="font-size: .78rem">{{ sar(w.value) }}</b></div>
+          </div>
+        </section>
         <section class="card pm-panel">
           <h2>تحت الإجراء</h2>
           <div class="queue">
