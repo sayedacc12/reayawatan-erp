@@ -11,8 +11,8 @@ import { VoucherType } from './entities/accounting.entity';
 import { ReportsService } from './reports.service';
 import { VOUCHER_STATUS_AR } from './vouchers.service';
 
-const METHOD_AR: Record<string, string> = { cash: 'نقدًا', transfer: 'حوالة بنكية', cheque: 'شيك', card: 'شبكة / بطاقة' };
-const SOURCE_AR: Record<string, string> = { manual: 'يدوي', opportunity: 'فرصة تبرع', store: 'المتجر', payroll: 'الرواتب' };
+const METHOD_AR: Record<string, string> = { cash: 'نقدًا', transfer: 'حوالة بنكية', cheque: 'شيك', card: 'شبكة / بطاقة', credit: 'آجل' };
+const SOURCE_AR: Record<string, string> = { manual: 'يدوي', opportunity: 'فرصة تبرع', store: 'المتجر', payroll: 'الرواتب', assets: 'الأصول الثابتة' };
 const KIND_AR: Record<string, string> = { receipt: 'سند قبض', payment: 'سند صرف' };
 const LEVELS: Record<string, string> = { '1': 'المستوى 1', '2': 'حتى المستوى 2', '3': 'حتى المستوى 3', '4': 'حتى المستوى 4', '5': 'حتى المستوى 5', '9': 'كل المستويات' };
 

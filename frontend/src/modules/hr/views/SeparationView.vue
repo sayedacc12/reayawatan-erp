@@ -104,6 +104,12 @@ const who = (i: SepItem) => i.approverName ?? i.roleName ?? i.kindLabel;
         <button v-if="s.can.cancel" class="btn btn-sm btn-danger" @click="cancel">إلغاء الملف</button>
       </div>
 
+      <div v-if="s.assetCustody?.length" class="custody-block no-print">
+        <b>⚠ لدى الموظف عهدة أصول ثابتة ({{ s.assetCustody.length }})، ولا يُقبل إخلاء طرفه إلا بعد استلامها منه أو نقلها لموظف آخر.</b>
+        <ul><li v-for="x in s.assetCustody" :key="x.id"><RouterLink :to="`/accounting/assets/${x.id}`">{{ x.code }} · {{ x.name }}</RouterLink></li></ul>
+        <RouterLink to="/accounting/assets/custody" class="btn btn-sm">شاشة العهد في الأصول الثابتة</RouterLink>
+      </div>
+
       <div class="ess-grid">
         <section class="card ess-card wide">
           <h2>بنود إخلاء الطرف <small class="pm-muted">{{ s.cleared }} من {{ s.items.length }}</small></h2>
@@ -215,6 +221,8 @@ const who = (i: SepItem) => i.approverName ?? i.roleName ?? i.kindLabel;
 </template>
 
 <style scoped>
+.custody-block { border: 2px solid #dc2626; background: #fef2f2; color: #7f1d1d; border-radius: 14px; padding: 12px 16px; margin-bottom: 14px; }
+.custody-block ul { margin: 6px 0 10px; padding-inline-start: 20px; }
 .sep-steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0; margin: 0 0 14px; }
 .sep-steps li { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: .88rem; }
 .sep-steps li b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); flex-shrink: 0; }

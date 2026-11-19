@@ -16,14 +16,31 @@ export const NATURES = ['assets', 'liabilities', 'net_assets', 'revenue', 'expen
 export type AccountNature = (typeof NATURES)[number];
 export const ACCOUNT_KINDS = ['root', 'main', 'sub'] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
-export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment'] as const;
+export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment', 'depreciation', 'asset'] as const;
+/** سندات تصدر من الأصول الثابتة فقط: لا تُنشأ ولا تُعدَّل ولا تُلغى من النظام المالي */
+export const ASSET_VOUCHER_TYPES = ['depreciation', 'asset'] as const;
 export type BuiltinVoucherType = (typeof VOUCHER_TYPES)[number];
 /** نوع المستند: أحد الأنواع الأساسية، أو نوع سند خاص بالجمعية يُعرَّف من الإعدادات (رمزه يبدأ بـ d_) */
 export type VoucherType = BuiltinVoucherType | `d_${string}`;
 /** صيغة رمز نوع السند الخاص بالجمعية */
 export const CUSTOM_TYPE_RE = /^d_[a-z0-9]{6,16}$/;
 export type EntryStatus = 'draft' | 'posted' | 'cancelled';
+export type EntrySource = 'manual' | 'system' | 'voucher' | 'assets';
 export type FiscalYearStatus = 'open' | 'closed';
+
+/** إعدادات الأصول الثابتة داخل النظام المالي */
+export interface AssetConfig {
+  /** بادئة ترميز الأصول (مثل FA) */
+  prefix?: string;
+  /** الأصل المادي لا يُسجَّل إلا في عهدة موظف */
+  requireCustody?: boolean;
+  /** التنبيه قبل انتهاء التراخيص وعقود الصيانة (بالأيام) */
+  alertDays?: number;
+  /** الشهر الجزئي: days بالأيام الفعلية، next_month من بداية الشهر التالي للشراء ويُحسب شهر البيع كاملًا حتى تاريخه */
+  partialMonth?: 'days' | 'next_month';
+  /** الحساب الافتراضي للتبرعات العينية من الأصول */
+  donationAccountId?: string | null;
+}
 
 /** إعدادات النظام المحاسبي لكل جمعية */
 @Entity('acc_settings')
@@ -50,6 +67,10 @@ export class AccountingSettings {
   /** تاريخ تنصيب الدليل الموحد (null = لم يُنصّب) */
   @Column({ name: 'chart_installed_at', type: 'timestamptz', nullable: true })
   chartInstalledAt!: Date | null;
+
+  /** إعدادات الأصول الثابتة */
+  @Column({ name: 'asset_config', type: 'jsonb', default: () => `'{}'` })
+  assetConfig!: AssetConfig;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
@@ -456,9 +477,9 @@ export class JournalEntry {
   @Column({ type: 'varchar', length: 12, default: 'draft' })
   status!: EntryStatus;
 
-  /** manual: يدوي، system: قيد آلي (القيد الافتتاحي عند فتح سنة جديدة)، voucher: ناتج عن اعتماد سند قبض أو صرف */
+  /** manual: يدوي، system: قيد آلي (القيد الافتتاحي عند فتح سنة جديدة)، voucher: ناتج عن اعتماد سند قبض أو صرف، assets: من الأصول الثابتة */
   @Column({ type: 'varchar', length: 10, default: 'manual' })
-  source!: 'manual' | 'system' | 'voucher';
+  source!: EntrySource;
 
   /** السند الذي نتج عنه القيد */
   @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
@@ -610,8 +631,8 @@ export class VoucherInventory {
 
 export type VoucherKind = 'receipt' | 'payment';
 export type VoucherStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected' | 'cancelled';
-export type VoucherMethod = 'cash' | 'transfer' | 'cheque' | 'card';
-export type VoucherSource = 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms';
+export type VoucherMethod = 'cash' | 'transfer' | 'cheque' | 'card' | 'credit';
+export type VoucherSource = 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms' | 'assets';
 
 /** مرحلة من مراحل اعتماد سندات القبض أو الصرف (مستقلة لكل نوع) */
 @Entity('acc_voucher_stages')
@@ -705,9 +726,9 @@ export class Voucher {
   @Column({ name: 'method_ref', type: 'varchar', length: 120, nullable: true })
   methodRef!: string | null;
 
-  /** الحساب المستلم عليه أو المصروف منه (بنك أو صندوق) */
-  @Column({ name: 'cash_account_id', type: 'uuid' })
-  cashAccountId!: string;
+  /** الحساب المستلم عليه أو المصروف منه (بنك أو صندوق)، فارغ في سندات الأصول الآجلة */
+  @Column({ name: 'cash_account_id', type: 'uuid', nullable: true })
+  cashAccountId!: string | null;
 
   @ManyToOne(() => CashAccount, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'cash_account_id' })
@@ -723,6 +744,10 @@ export class Voucher {
 
   @Column({ type: 'jsonb', default: () => `'[]'` })
   analytic!: AnalyticShare[];
+
+  /** سطور قيد ثابتة لسندات تصدرها وحدة أخرى (مثل شراء أصل أو بيعه)، تحل محل سطري البنك والحساب المقابل */
+  @Column({ name: 'custom_lines', type: 'jsonb', nullable: true })
+  customLines!: { accountId: string; debit: number; credit: number; label: string | null; partnerId?: string | null; analytic?: AnalyticShare[] }[] | null;
 
   @Column({ type: 'varchar', length: 12, default: 'draft' })
   status!: VoucherStatus;

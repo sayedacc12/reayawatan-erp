@@ -19,7 +19,9 @@ const blocks = computed(() => {
   return out;
 });
 
-const isActive = (p: string) => route.path === p || route.path.startsWith(`${p}/`);
+const covers = (p: string) => route.path === p || route.path.startsWith(`${p}/`);
+/** العنصر النشط هو أطول مسار مطابق، حتى لا تُضاء لوحة القسم مع شاشاته الفرعية (مثل /accounting/assets و/accounting/assets/groups) */
+const isActive = (p: string) => covers(p) && !props.items.some((i) => i.path.length > p.length && i.path.startsWith(`${p}/`) && covers(i.path));
 const key = computed(() => `erp.nav.${props.appCode}`);
 const read = () => { try { return JSON.parse(localStorage.getItem(key.value) ?? '[]') as string[]; } catch { return []; } };
 const open = ref<string[]>(read());

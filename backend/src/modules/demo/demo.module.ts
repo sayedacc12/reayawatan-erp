@@ -14,6 +14,7 @@ import { GovernanceModule } from '../governance/governance.module';
 import { DemoController } from './demo.controller';
 import { DemoService } from './demo.service';
 import { AccountingSeed } from './seed-accounting';
+import { AssetsSeed } from './seed-assets';
 import { AuditSeed } from './seed-audit';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
@@ -40,6 +41,6 @@ import { MeetingsSeed } from './seed-meetings';
 @Module({
   imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule],
   controllers: [DemoController],
-  providers: [DemoService, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed],
+  providers: [DemoService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed],
 })
 export class DemoModule {}

@@ -8,6 +8,8 @@ export const P = {
   approveVouchers: 'accounting.vouchers.approve', entries: 'accounting.entries.manage', post: 'accounting.entries.post', unpost: 'accounting.entries.unpost',
   cancel: 'accounting.entries.cancel', approveReceiptCancel: 'accounting.receipts.cancel_approve', closePeriods: 'accounting.periods.close',
   reopenPeriods: 'accounting.periods.reopen', reports: 'accounting.reports.read', settings: 'accounting.settings.manage',
+  assetsRead: 'accounting.assets.read', assetsManage: 'accounting.assets.manage', assetsOperate: 'accounting.assets.operate',
+  assetsDepreciate: 'accounting.assets.depreciate', assetsReverse: 'accounting.assets.reverse', assetsCustody: 'accounting.assets.custody',
 } as const;
 
 export interface Account {
@@ -34,7 +36,10 @@ export const KINDS = [{ value: 'root', label: 'رئيسي (جذر)' }, { value: 
 export const VOUCHER_TYPES = [
   { value: 'journal', label: 'قيد يومية' }, { value: 'receipt', label: 'سند قبض' }, { value: 'payment', label: 'سند صرف' },
   { value: 'opening', label: 'قيد افتتاحي' }, { value: 'adjustment', label: 'قيد تسوية' },
+  { value: 'depreciation', label: 'سند إهلاك' }, { value: 'asset', label: 'سند أصول ثابتة' },
 ];
+/** سندات تصدر من الأصول الثابتة فقط، ولا تُنشأ أو تُعدَّل أو تُلغى من النظام المالي */
+export const ASSET_TYPES = ['depreciation', 'asset'];
 export const ENTRY_STATUS: Record<string, { label: string; color: string }> = {
   draft: { label: 'غير مرحّل', color: '#f59e0b' }, posted: { label: 'مرحّل', color: '#10b981' }, cancelled: { label: 'ملغي', color: '#ef4444' },
 };
@@ -45,6 +50,7 @@ export const VOUCHER_STATUS: Record<string, { label: string; color: string }> = 
 export const METHODS = [
   { value: 'cash', label: 'نقدًا' }, { value: 'transfer', label: 'حوالة بنكية' }, { value: 'cheque', label: 'شيك' }, { value: 'card', label: 'شبكة / بطاقة' },
 ];
+export const METHOD_LABELS: Record<string, string> = { cash: 'نقدًا', transfer: 'حوالة بنكية', cheque: 'شيك', card: 'شبكة / بطاقة', credit: 'آجل' };
 
 const nf = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const money = (v: number | null | undefined) => nf.format(Number(v ?? 0));

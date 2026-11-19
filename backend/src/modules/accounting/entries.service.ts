@@ -7,7 +7,7 @@ import { BatchPostDto, EntryDto, EntryUpdateDto, LineDto } from './accounting.dt
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AccountsService } from './accounts.service';
 import {
-  AnalyticShare, EntryStatus, FiscalYear, JournalEntry, JournalLine, Partner, VoucherInventory, VoucherSequence, VoucherType,
+  AnalyticShare, EntrySource, EntryStatus, FiscalYear, JournalEntry, JournalLine, Partner, VoucherInventory, VoucherSequence, VoucherType,
 } from './entities/accounting.entity';
 import { MastersService } from './masters.service';
 
@@ -24,6 +24,8 @@ interface CleanLine { accountId: string; debit: number; credit: number; label: s
  * القيود والسندات: الترقيم (رمز القيد الرئيسي ورقم السند)، التحقق من التوازن والحسابات الفرعية والتحليلي،
  * الترحيل المنفرد والجماعي وفك الترحيل، والإلغاء (سند القبض باعتماد ثنائي). لا يُحذف أي قيد بعد حجز رقمه.
  */
+/** قيود الأصول الثابتة (الإهلاك والتخريد والتبرع العيني) لا تُعدَّل ولا تُلغى إلا من الأصول الثابتة */
+export const ASSETS_ONLY = 'هذا القيد صادر من الأصول الثابتة، ولا يُعدَّل ولا يُلغى من النظام المالي. يُلغى من سجل حركات الإهلاك أو سجل العمليات في الأصول الثابتة';
 const NO_POSTING_OPENING = 'القيد الافتتاحي لا يخضع للترحيل، ويسري أثره بمجرد حفظه';
 
 @Injectable()
@@ -96,7 +98,7 @@ export class EntriesService {
 
   // ---------------- التحقق ----------------
 
-  async cleanLines(org: string, type: VoucherType, lines: LineDto[], em: EntityManager): Promise<CleanLine[]> {
+  async cleanLines(org: string, type: VoucherType, lines: LineDto[], em: EntityManager, requireCash = true): Promise<CleanLine[]> {
     const out: CleanLine[] = [];
     let debit = 0;
     let credit = 0;
@@ -143,7 +145,7 @@ export class EntriesService {
       });
     }
     if (debit !== credit) throw new BadRequestException(`القيد غير متوازن: مجموع المدين ${fmtSar(debit)} ومجموع الدائن ${fmtSar(credit)}`);
-    if (type === 'receipt' || type === 'payment') {
+    if ((type === 'receipt' || type === 'payment') && requireCash) {
       const cash = await this.masters.cashGlIds(org);
       const side = type === 'receipt' ? 'debit' : 'credit';
       if (!out.some((l) => cash.has(l.accountId) && l[side] > 0)) {
@@ -211,7 +213,7 @@ export class EntriesService {
   private async insert(
     em: EntityManager, actor: { id: string | null; fullName: string }, year: FiscalYear, type: VoucherType,
     head: { documentDate: string; description: string; counterparty: string | null }, lines: CleanLine[], status: EntryStatus,
-    source: 'manual' | 'system' | 'voucher' = 'manual', fromVoucher?: { id: string; serial: number },
+    source: EntrySource = 'manual', fromVoucher?: { id: string; serial: number },
   ) {
     const org = year.organizationId;
     const entryNo = await this.core.nextEntryNo(em, org);
@@ -234,10 +236,10 @@ export class EntriesService {
   /** قيد سند القبض أو الصرف عند اعتماده النهائي: مرحّل مباشرة وبرقم السند نفسه */
   async createVoucherEntry(
     em: EntityManager, actor: OrgUser, year: FiscalYear, type: 'receipt' | 'payment', voucher: { id: string; serial: number },
-    head: { documentDate: string; description: string; counterparty: string | null }, lines: LineDto[],
+    head: { documentDate: string; description: string; counterparty: string | null }, lines: LineDto[], requireCash = true,
   ) {
     await this.core.assertWritable(year.organizationId, head.documentDate, em);
-    const clean = await this.cleanLines(year.organizationId, type, lines, em);
+    const clean = await this.cleanLines(year.organizationId, type, lines, em, requireCash);
     return this.insert(em, actor, year, type, head, clean, 'posted', 'voucher', voucher);
   }
 
@@ -254,6 +256,26 @@ export class EntriesService {
     return this.insert(em, actor, year, type, { ...head, counterparty: null }, lines, 'posted', 'system');
   }
 
+  /** قيد من الأصول الثابتة (سند إهلاك أو سند أصول): مرحّل مباشرة ولا يُعدَّل من النظام المالي */
+  async createAssetEntry(
+    em: EntityManager, actor: { id: string | null; fullName: string; organizationId: string }, type: 'depreciation' | 'asset',
+    head: { documentDate: string; description: string; counterparty?: string | null }, lines: LineDto[],
+  ) {
+    const year = await this.core.assertWritable(actor.organizationId, head.documentDate, em);
+    await this.assertNoApprovedInventory(em, year);
+    const clean = await this.cleanLines(actor.organizationId, type, lines, em);
+    return this.insert(em, actor, year, type, { ...head, counterparty: head.counterparty ?? null }, clean, 'posted', 'assets');
+  }
+
+  /** إلغاء قيد صادر من الأصول الثابتة: يبقى رقمه ويُكتب عليه «ملغي» مع السبب */
+  async cancelAssetEntry(em: EntityManager, actor: { fullName: string; organizationId: string }, entryId: string, reason: string) {
+    const e = await this.load(em, actor.organizationId, entryId);
+    if (e.status === 'cancelled') return;
+    if (e.source !== 'assets') throw new ConflictException('القيد ليس من الأصول الثابتة');
+    await this.core.assertWritable(e.organizationId, e.documentDate, em);
+    await em.getRepository(JournalEntry).update({ id: e.id }, { status: 'cancelled', cancelledAt: new Date(), cancelledByName: actor.fullName, cancelReason: reason });
+  }
+
   private async load(em: EntityManager, org: string, id: string, lock = true) {
     const qb = em.getRepository(JournalEntry).createQueryBuilder('e').where('e.id = :id AND e.organization_id = :org', { id, org });
     if (lock) qb.setLock('pessimistic_write');
@@ -268,7 +290,7 @@ export class EntriesService {
       const e = await this.load(em, org, id);
       const editableOpening = e.voucherType === 'opening' && e.status === 'posted';
       if (e.status !== 'draft' && !editableOpening) throw new ConflictException(e.status === 'posted' ? 'القيود المرحّلة لا تُعدَّل. فك الترحيل أولًا إن كان الشهر مفتوحًا' : 'القيد ملغي');
-      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعدَّل من شاشة السند بإعادته للمسودة' : 'القيد الافتتاحي الآلي لا يُعدَّل يدويًا');
+      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعدَّل من شاشة السند بإعادته للمسودة' : e.source === 'assets' ? ASSETS_ONLY : 'القيد الافتتاحي الآلي لا يُعدَّل يدويًا');
       await this.core.assertWritable(org, e.documentDate, em);
       const year = await this.core.assertWritable(org, dto.documentDate, em);
       if (year.id !== e.fiscalYearId) throw new BadRequestException('لا يمكن نقل المستند إلى سنة مالية أخرى، لأن رقم السند محجوز في سنته');
@@ -333,7 +355,7 @@ export class EntriesService {
       const e = await this.load(em, actor.organizationId, id);
       if (e.voucherType === 'opening') throw new ConflictException(NO_POSTING_OPENING);
       if (e.status !== 'posted') throw new ConflictException('القيد غير مرحّل');
-      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعكس من شاشة السند بإعادته للمسودة' : 'القيد الافتتاحي الآلي لا يُفك ترحيله، ويُحدَّث من شاشة الافتتاحيات');
+      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعكس من شاشة السند بإعادته للمسودة' : e.source === 'assets' ? ASSETS_ONLY : 'القيد الافتتاحي الآلي لا يُفك ترحيله، ويُحدَّث من شاشة الافتتاحيات');
       await this.core.assertWritable(e.organizationId, e.documentDate, em);
       await em.getRepository(JournalEntry).update({ id }, { status: 'draft', postedAt: null, postedByName: null });
     });
@@ -347,7 +369,7 @@ export class EntriesService {
     await this.db.transaction(async (em) => {
       const e = await this.load(em, actor.organizationId, id);
       if (e.status === 'cancelled') throw new ConflictException('القيد ملغي بالفعل');
-      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُلغى من شاشة السند' : 'القيد الافتتاحي الآلي لا يُلغى يدويًا');
+      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُلغى من شاشة السند' : e.source === 'assets' ? ASSETS_ONLY : 'القيد الافتتاحي الآلي لا يُلغى يدويًا');
       await this.core.assertWritable(e.organizationId, e.documentDate, em);
       await em.getRepository(JournalEntry).update({ id }, { status: 'cancelled', cancelledAt: new Date(), cancelledByName: actor.fullName, cancelReason: reason });
     });

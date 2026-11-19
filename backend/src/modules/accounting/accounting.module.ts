@@ -1,6 +1,12 @@
 import { AccountingTasks } from './accounting.tasks';
 import { AccountingReports } from './accounting.reports';
 import { Module } from '@nestjs/common';
+import { CoreModule } from '../../core/core.module';
+import { AssetOpsService } from './asset-ops.service';
+import { AssetsController } from './assets.controller';
+import { AssetsReports } from './assets.reports';
+import { AssetsService } from './assets.service';
+import { ASSET_ENTITIES } from './entities/assets.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccCore } from './acc-core.service';
 import { AccountingController } from './accounting.controller';
@@ -18,9 +24,9 @@ import { VouchersService } from './vouchers.service';
  * الربط مع المستفيدين والموارد المالية والمشاريع يأتي لاحقًا عبر createSystemEntry وحقول مصدر السند.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature(ACCOUNTING_ENTITIES)],
-  controllers: [AccountingController],
-  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks],
-  exports: [AccCore, AccountsService, MastersService, EntriesService, SetupService, VouchersService],
+  imports: [TypeOrmModule.forFeature([...ACCOUNTING_ENTITIES, ...ASSET_ENTITIES]), CoreModule],
+  controllers: [AccountingController, AssetsController],
+  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks, AssetsService, AssetOpsService, AssetsReports],
+  exports: [AccCore, AccountsService, MastersService, EntriesService, SetupService, VouchersService, AssetsService, AssetOpsService],
 })
 export class AccountingModule {}

@@ -6,6 +6,7 @@ import { Organization } from '../../core/entities';
 import { FileStore } from '../../core/files/file-store.service';
 import { DEMO_SLUG } from './demo-context';
 import { AccountingSeed } from './seed-accounting';
+import { AssetsSeed } from './seed-assets';
 import { AuditSeed } from './seed-audit';
 import { BeneficiariesSeed } from './seed-beneficiaries';
 import { FinanceSeed } from './seed-finance';
@@ -39,6 +40,7 @@ export class DemoService {
     private readonly finance: FinanceSeed,
     private readonly platform: PlatformSeed,
     private readonly accounting: AccountingSeed,
+    private readonly assets: AssetsSeed,
     private readonly support: SupportSeed,
     private readonly hr: HrSeed,
     private readonly risk: RiskSeed,
@@ -67,6 +69,8 @@ export class DemoService {
       await this.finance.run(team, tree, extra, cases);
       await this.accounting.run(team);
       await this.hr.run(team);
+      await this.assets.run(team);
+      await this.accounting.closeMonths(team);
       await this.risk.run(team);
       await this.volunteers.run(team);
       await this.quality.run(team);

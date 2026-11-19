@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import { ENTRY_STATUS, P, allTypes, loadDocTypes, sar, typeLabel as labelOf } from '../lib';
+import { ASSET_TYPES, ENTRY_STATUS, P, allTypes, loadDocTypes, sar, typeLabel as labelOf } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -40,10 +40,11 @@ const counts = computed(() => ({
       <div>
         <p class="pm-kicker">النظام المالي</p>
         <h1>{{ fixedType === 'adjustment' ? 'قيود التسوية' : fixedType ? typeLabel : 'قيود اليومية' }}</h1>
-        <p class="pm-sub">رقم القيد مسلسل لا يتكرر ولا يُحذف، والقيد الملغي يبقى برقمه ويظهر «ملغي». سندات القبض والصرف تبدأ أرقامها من محضر الجرد السابق، وباقي المستندات من 1 مع رقم السنة.</p>
+        <p v-if="ASSET_TYPES.includes(fixedType ?? '')" class="pm-sub">تصدر هذه السندات بتسلسل مستقل من الأصول الثابتة فقط، ولا تُعدَّل أو تُلغى من النظام المالي. للإلغاء ادخل على سجل حركات الإهلاك أو عمليات الأصول.</p>
+        <p v-else class="pm-sub">رقم القيد مسلسل لا يتكرر ولا يُحذف، والقيد الملغي يبقى برقمه ويظهر «ملغي». سندات القبض والصرف تبدأ أرقامها من محضر الجرد السابق، وباقي المستندات من 1 مع رقم السنة.</p>
       </div>
       <div class="pm-actions">
-        <RouterLink v-if="session.can(P.entries)" :to="fixedType ? `/accounting/entries/new?type=${fixedType}` : '/accounting/entries/new'" class="btn ac-glow">{{ fixedType ? `${typeLabel} جديد` : 'قيد جديد' }}</RouterLink>
+        <RouterLink v-if="session.can(P.entries) && !ASSET_TYPES.includes(fixedType ?? '')" :to="fixedType ? `/accounting/entries/new?type=${fixedType}` : '/accounting/entries/new'" class="btn ac-glow">{{ fixedType ? `${typeLabel} جديد` : 'قيد جديد' }}</RouterLink>
         <RouterLink v-if="session.can(P.post)" to="/accounting/posting" class="btn ac-ghost">الترحيل الجماعي</RouterLink>
       </div>
     </section>
@@ -65,7 +66,7 @@ const counts = computed(() => ({
           <tbody>
             <tr v-for="r in rows" :key="r.id" :class="['ac-row-click', { voided: r.status === 'cancelled' }]" @click="router.push(`/accounting/entries/${r.id}`)">
               <td class="ac-code"><b>{{ r.entryNo }}</b></td>
-              <td>{{ r.voucherLabel }} <span class="ac-code">{{ r.voucherNo }}</span><span v-if="r.source !== 'manual'" class="pm-tag" style="margin-inline-start: 4px">{{ r.source === 'voucher' ? 'من سند' : 'آلي' }}</span></td>
+              <td>{{ r.voucherLabel }} <span class="ac-code">{{ r.voucherNo }}</span><span v-if="r.source !== 'manual'" class="pm-tag" style="margin-inline-start: 4px">{{ r.source === 'voucher' ? 'من سند' : r.source === 'assets' ? 'الأصول الثابتة' : 'آلي' }}</span></td>
               <td>{{ r.documentDate }}</td>
               <td><span class="desc">{{ r.description }}</span><span v-if="r.counterparty" class="pm-muted">{{ r.counterparty }}</span><span v-if="r.cancelReason" class="pm-muted reason">{{ r.cancelReason }}</span></td>
               <td class="pm-money">{{ sar(r.total) }}</td>
