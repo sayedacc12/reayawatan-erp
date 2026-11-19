@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /home
+Disallow: /me
+Disallow: /platform/
+Disallow: /settings/
+Disallow: /register/
+Disallow: /contract/
+Disallow: /pc/
+Disallow: /minutes/
+Disallow: /survey/
+
+Sitemap: https://sanabelerp.com/sitemap.xml

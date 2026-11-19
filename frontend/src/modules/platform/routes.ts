@@ -2,6 +2,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 const ORGS = 'platform.organizations.manage';
 const SUBS = 'platform.subscriptions.manage';
+const SITE = 'platform.site.manage';
 
 export const platformRoutes: RouteRecordRaw[] = [
   { path: '/platform/organizations', component: () => import('./views/OrganizationsView.vue'), meta: { permission: ORGS, title: 'الجمعيات' } },
@@ -11,5 +12,7 @@ export const platformRoutes: RouteRecordRaw[] = [
   { path: '/platform/contracts', component: () => import('./views/ContractsView.vue'), meta: { permission: SUBS, title: 'العقود' } },
   { path: '/platform/contracts/:id', component: () => import('./views/ContractView.vue'), meta: { permission: SUBS, title: 'العقد' } },
   { path: '/platform/contract-clauses', component: () => import('./views/ContractClausesView.vue'), meta: { permission: SUBS, title: 'بنود العقد' } },
+  { path: '/platform/inquiries', component: () => import('./views/InquiriesView.vue'), meta: { permission: SITE, title: 'طلبات الخدمات' } },
+  { path: '/platform/settings', component: () => import('./views/PlatformSettingsView.vue'), meta: { permission: SITE, title: 'إعدادات المنصة' } },
   { path: '/platform/reports', component: () => import('./views/ReportsView.vue'), meta: { permission: 'platform.reports.read', title: 'تقارير المنصة' } },
 ];

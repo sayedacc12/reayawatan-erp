@@ -69,7 +69,7 @@ export const router = createRouter({
       component: AppShell,
       children: [
         // الموظف المربوط بملف موظف يبدأ من لوحته، والأنظمة المصرح بها في جانبها؛ شاشة التطبيقات لغير المربوطين فقط
-        { path: '', component: () => import('./views/HomeView.vue'), meta: { title: 'التطبيقات' }, beforeEnter: homeOrDashboard },
+        { path: '', alias: '/home', component: () => import('./views/HomeView.vue'), meta: { title: 'التطبيقات' }, beforeEnter: homeOrDashboard },
         { path: 'account', component: () => import('./views/AccountView.vue'), meta: { title: 'حسابي' } },
         ...moduleRoutes,
         { path: 'forbidden', component: () => import('./views/ForbiddenView.vue'), meta: { title: 'غير مسموح' } },
@@ -97,6 +97,11 @@ router.beforeEach(async (to) => {
   const session = useSession();
   await session.restore();
   if (to.meta.public) return session.isLoggedIn ? '/' : true;
+  // الزائر غير المسجل على الجذر يرى الصفحة التعريفية (يقدّمها الخادم على / مباشرة)
+  if (!session.isLoggedIn && (to.path === '/' || to.path === '/home') && import.meta.env.PROD) {
+    window.location.replace('/');
+    return false;
+  }
   if (!session.isLoggedIn) return { path: loginPath(), query: { next: to.fullPath } };
   if (!session.can(to.meta.permission as string | undefined)) return '/forbidden';
   const anyOf = to.meta.anyPermission as string[] | undefined;

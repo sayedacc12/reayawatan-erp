@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // من سجّل دخوله ينتقل مباشرة إلى أنظمته (إلا لو طلب عرض الصفحة بـ ?site)
+      try {
+        if (localStorage.getItem('erp.token') && !/[?&]site\b/.test(location.search)) location.replace('/home');
+      } catch (e) {}
+    </script>
+    <title>سنابل | منصة متكاملة لخدمة الجمعيات الأهلية: أنظمة واستشارات</title>
+    <meta name="description" content="سنابل منصة سعودية متكاملة لخدمة الجمعيات الأهلية بسبع خدمات: التحول الرقمي بنظام سنابل ERP، والحوكمة والالتزام، والمخاطر والمراجعة الداخلية، وقياس الأثر الاجتماعي، والاستدامة المالية، والتخطيط الاستراتيجي والجودة، وبناء القدرات." />
+    <meta name="keywords" content="نظام إدارة الجمعيات, ERP للجمعيات, برنامج محاسبة للجمعيات الخيرية, حوكمة الجمعيات, المركز الوطني لتنمية القطاع غير الربحي, قياس الأثر الاجتماعي, SROI, الاستدامة المالية للجمعيات, ISO 9001, المراجعة الداخلية, إدارة المخاطر, سنابل" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#06141a" />
+    <link rel="canonical" href="https://sanabelerp.com/" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ar_SA" />
+    <meta property="og:site_name" content="سنابل" />
+    <meta property="og:url" content="https://sanabelerp.com/" />
+    <meta property="og:title" content="سنابل | سبع خدمات لنماء الجمعيات الأهلية" />
+    <meta property="og:description" content="أنظمة رقمية متكاملة واستشارات متخصصة للجمعيات: الحوكمة، المخاطر والمراجعة، قياس الأثر، الاستدامة المالية، التخطيط والجودة، وبناء القدرات." />
+    <meta property="og:image" content="https://sanabelerp.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="سنابل | سبع خدمات لنماء الجمعيات الأهلية" />
+    <meta name="twitter:description" content="أنظمة رقمية متكاملة واستشارات متخصصة للجمعيات الأهلية في المملكة." />
+    <meta name="twitter:image" content="https://sanabelerp.com/og-image.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://sanabelerp.com/#org",
+            "name": "سنابل",
+            "alternateName": "Sanabel ERP",
+            "url": "https://sanabelerp.com/",
+            "logo": "https://sanabelerp.com/apple-touch-icon.png",
+            "email": "info@sanabelerp.com",
+            "areaServed": { "@type": "Country", "name": "المملكة العربية السعودية" },
+            "description": "منصة متكاملة لخدمة الجمعيات الأهلية: أنظمة رقمية واستشارات في الحوكمة والمخاطر وقياس الأثر والاستدامة المالية والجودة وبناء القدرات."
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://sanabelerp.com/#site",
+            "url": "https://sanabelerp.com/",
+            "name": "سنابل",
+            "inLanguage": "ar",
+            "publisher": { "@id": "https://sanabelerp.com/#org" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "سنابل ERP",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "inLanguage": "ar",
+            "description": "نظام سحابي متكامل لإدارة الجمعيات الأهلية: المالية والمحاسبة، المساعدات الاجتماعية، تنمية الموارد، المشاريع، الموارد البشرية، التطوع، الحوكمة، الجودة، المخاطر، المراجعة الداخلية وغيرها.",
+            "provider": { "@id": "https://sanabelerp.com/#org" }
+          },
+          {
+            "@type": "ItemList",
+            "name": "خدمات سنابل السبع",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "item": { "@type": "Service", "name": "التحول الرقمي", "provider": { "@id": "https://sanabelerp.com/#org" } } },
+              { "@type": "ListItem", "position": 2, "item": { "@type": "Service", "name": "الحوكمة والالتزام", "provider": { "@id": "https://sanabelerp.com/#org" } } },
+              { "@type": "ListItem", "position": 3, "item": { "@type": "Service", "name": "المخاطر والمراجعة الداخلية", "provider": { "@id": "https://sanabelerp.com/#org" } } },
+              { "@type": "ListItem", "position": 4, "item": { "@type": "Service", "name": "قياس الأثر الاجتماعي", "provider": { "@id": "https://sanabelerp.com/#org" } } },
+              { "@type": "ListItem", "position": 5, "item": { "@type": "Service", "name": "الاستدامة المالية", "provider": { "@id": "https://sanabelerp.com/#org" } } },
+              { "@type": "ListItem", "position": 6, "item": { "@type": "Service", "name": "التخطيط الاستراتيجي والجودة", "provider": { "@id": "https://sanabelerp.com/#org" } } },
+              { "@type": "ListItem", "position": 7, "item": { "@type": "Service", "name": "بناء القدرات", "provider": { "@id": "https://sanabelerp.com/#org" } } }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "هل يمكن الاستفادة من الخدمات الاستشارية دون الاشتراك في منصة سنابل ERP؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم. كل خدمة من الخدمات السبع مستقلة، ويمكن طلبها وحدها، كما يمكن الجمع بينها وبين المنصة للحصول على أفضل نتيجة." } },
+              { "@type": "Question", "name": "أين تُحفظ بيانات الجمعية؟", "acceptedAnswer": { "@type": "Answer", "text": "تعمل المنصة على خوادم سحابية داخل المملكة العربية السعودية، وبيانات كل جمعية معزولة تمامًا عن غيرها." } },
+              { "@type": "Question", "name": "هل الاستشارة الأولى مجانية؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم. نبدأ بجلسة تشخيص مجانية نتعرف فيها على احتياج الجمعية، ثم نقدم عرضًا واضحًا بالنطاق والمدة والتكلفة." } },
+              { "@type": "Question", "name": "هل تساعدون الجمعية في الاستعداد لتقييم المركز الوطني لتنمية القطاع غير الربحي؟", "acceptedAnswer": { "@type": "Answer", "text": "نعم. خدمة الحوكمة والالتزام تبدأ بتقييم ذاتي وفق معايير الحوكمة المعتمدة، ثم معالجة الملاحظات وتوثيقها قبل موعد التقييم." } },
+              { "@type": "Question", "name": "كم يستغرق تشغيل منصة سنابل في الجمعية؟", "acceptedAnswer": { "@type": "Answer", "text": "يمكن البدء خلال أيام: نجهز حساب الجمعية، ونهيئ الإعدادات، وندرب الفريق، ثم ننقل البيانات تدريجيًا حسب أولويات الجمعية." } }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#services">انتقل إلى الخدمات</a>
+    <div class="bg" aria-hidden="true">
+      <div class="aurora"><span></span><span></span><span></span></div>
+      <div class="pattern"></div>
+      <canvas id="particles"></canvas>
+    </div>
+
+    <!-- الشريط العلوي -->
+    <header class="nav" id="top">
+      <div class="nav-in">
+        <a class="brand" href="/" aria-label="سنابل: الصفحة الرئيسية">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#wheat" /></svg>
+          <span><b>سنابل</b><small>لخدمة الجمعيات الأهلية</small></span>
+        </a>
+        <nav class="links" aria-label="أقسام الصفحة">
+          <a href="#services">الخدمات</a>
+          <a href="#platform">المنصة</a>
+          <a href="#how">كيف نعمل</a>
+          <a href="#faq">الأسئلة الشائعة</a>
+          <a href="#contact">تواصل معنا</a>
+        </nav>
+        <div class="nav-actions">
+          <a class="btn ghost sm" href="/register">سجّل جمعيتك</a>
+          <button class="btn gold sm" type="button" data-open-login>تسجيل الدخول</button>
+          <button class="burger" type="button" aria-label="القائمة" aria-expanded="false" data-burger><i></i><i></i><i></i></button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- البطل -->
+      <section class="hero">
+        <div class="hero-in">
+          <div class="hero-text">
+            <p class="eyebrow reveal"><span class="pulse"></span>منصة سعودية متكاملة لخدمة القطاع غير الربحي</p>
+            <h1 class="reveal">
+              سبع سنابل
+              <span class="shine-text">لنماء جمعيتك</span>
+            </h1>
+            <p class="lead reveal">
+              نجمع لجمعيتك الأنظمة الرقمية والخبرة الاستشارية في مكان واحد: من الحوكمة والمخاطر، إلى قياس الأثر والاستدامة المالية، مع منصة
+              <strong>سنابل ERP</strong> التي تدير أعمال الجمعية كلها.
+            </p>
+            <div class="cta reveal">
+              <button class="btn gold lg" type="button" data-request="consultation">
+                <span>اطلب استشارة مجانية</span><span class="sweep"></span>
+              </button>
+              <button class="btn glass lg" type="button" data-request="demo">شاهد عرضًا تجريبيًا للمنصة</button>
+            </div>
+            <blockquote class="verse reveal">
+              ﴿مثل الذين ينفقون أموالهم في سبيل الله كمثل حبة أنبتت سبع سنابل﴾
+              <cite>البقرة: 261</cite>
+            </blockquote>
+          </div>
+
+          <!-- السنبلة التفاعلية: كل حبة خدمة -->
+          <div class="stalk-wrap reveal" aria-hidden="true">
+            <div class="halo"></div>
+            <svg class="stalk" viewBox="0 0 300 420">
+              <defs>
+                <linearGradient id="gStem" x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0" stop-color="#0d9488" />
+                  <stop offset="1" stop-color="#f5c66b" />
+                </linearGradient>
+                <radialGradient id="gGrain" cx="50%" cy="35%" r="70%">
+                  <stop offset="0" stop-color="#fff7da" />
+                  <stop offset=".45" stop-color="#f5c66b" />
+                  <stop offset="1" stop-color="#b7791f" />
+                </radialGradient>
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur stdDeviation="6" result="b" />
+                  <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+              </defs>
+              <path class="stem" d="M150 410 C 148 330, 152 230, 150 70" />
+              <path class="leaf" d="M150 360 C 110 340, 80 300, 70 260 C 105 280, 135 310, 150 340" />
+              <path class="leaf" d="M150 330 C 190 315, 222 285, 236 245 C 200 262, 168 292, 150 315" />
+              <g class="grains">
+                <g class="grain" data-i="0" transform="translate(116 250) rotate(-32)"><ellipse rx="17" ry="34" /></g>
+                <g class="grain" data-i="1" transform="translate(184 250) rotate(32)"><ellipse rx="17" ry="34" /></g>
+                <g class="grain" data-i="2" transform="translate(119 190) rotate(-28)"><ellipse rx="16" ry="32" /></g>
+                <g class="grain" data-i="3" transform="translate(181 190) rotate(28)"><ellipse rx="16" ry="32" /></g>
+                <g class="grain" data-i="4" transform="translate(123 132) rotate(-24)"><ellipse rx="15" ry="30" /></g>
+                <g class="grain" data-i="5" transform="translate(177 132) rotate(24)"><ellipse rx="15" ry="30" /></g>
+                <g class="grain" data-i="6" transform="translate(150 62)"><ellipse rx="15" ry="33" /></g>
+              </g>
+            </svg>
+            <div class="grain-label"><span id="grainNo">السنبلة الأولى</span><b id="grainName">التحول الرقمي</b></div>
+          </div>
+        </div>
+
+        <ul class="stats" aria-label="سنابل بالأرقام">
+          <li class="reveal"><b data-count="7">7</b><span>خدمات رئيسية</span></li>
+          <li class="reveal"><b data-count="16">16</b><span>نظامًا متكاملًا في منصة واحدة</span></li>
+          <li class="reveal"><b data-count="150" data-plus>150+</b><span>شاشة عمل عربية بالكامل</span></li>
+          <li class="reveal"><b data-count="90" data-plus>90+</b><span>تقريرًا جاهزًا</span></li>
+        </ul>
+      </section>
+
+      <!-- الخدمات السبع -->
+      <section class="section" id="services">
+        <div class="head reveal">
+          <p class="kicker">السنابل السبع</p>
+          <h2>سبع خدمات تغطي احتياج جمعيتك كاملًا</h2>
+          <p>كل خدمة مستقلة يمكن طلبها وحدها، وتتكامل جميعها مع منصة سنابل لتصبح النتائج قابلة للقياس والمتابعة.</p>
+        </div>
+        <div class="services">
+          <article class="svc reveal" data-service="digital">
+            <div class="svc-top"><span class="num">01</span><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4M7 9h4M7 12h7" /></svg></span></div>
+            <h3>التحول الرقمي</h3>
+            <p>منصة <strong>سنابل ERP</strong>: أنظمة سحابية متكاملة تدير أعمال الجمعية كلها بقاعدة بيانات واحدة وصلاحيات دقيقة.</p>
+            <ul>
+              <li>النظام المالي والمحاسبي والأصول الثابتة</li>
+              <li>المساعدات الاجتماعية وبوابة المستفيدين</li>
+              <li>تنمية الموارد والموقع الإلكتروني والمتجر</li>
+              <li>الموارد البشرية والتطوع والخدمة الذاتية</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="demo" data-svc="digital">اطلب عرضًا تجريبيًا</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="digital">عرض سعر</button>
+            </div>
+          </article>
+
+          <article class="svc reveal" data-service="governance">
+            <div class="svc-top"><span class="num">02</span><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></svg></span></div>
+            <h3>الحوكمة والالتزام</h3>
+            <p>نقيّم جاهزية جمعيتك وفق معايير الحوكمة، ونعالج الملاحظات ونوثقها قبل تقييم المركز الوطني لتنمية القطاع غير الربحي.</p>
+            <ul>
+              <li>تقييم ذاتي وفق مؤشر الحوكمة</li>
+              <li>إعداد اللوائح والسياسات والأدلة</li>
+              <li>تنظيم أعمال الجمعية العمومية والمجلس واللجان</li>
+              <li>متابعة الالتزام والإفصاح والشفافية</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="consultation" data-svc="governance">استشارة مجانية</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="governance">عرض سعر</button>
+            </div>
+          </article>
+
+          <article class="svc reveal" data-service="risk_audit">
+            <div class="svc-top"><span class="num">03</span><span class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5M11 8v3.5M11 14h.01" /></svg></span></div>
+            <h3>المخاطر والمراجعة الداخلية</h3>
+            <p>نبني لجمعيتك سجل مخاطر مؤسسيًا، وخطة مراجعة داخلية مبنية على المخاطر، ونتابع التوصيات حتى إغلاقها.</p>
+            <ul>
+              <li>تحديد المخاطر وتقييمها ومصفوفة المخاطر</li>
+              <li>خطة مراجعة داخلية سنوية مبنية على المخاطر</li>
+              <li>تنفيذ مهام المراجعة وإعداد تقاريرها</li>
+              <li>متابعة الإجراءات التصحيحية والتحقق منها</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="consultation" data-svc="risk_audit">استشارة مجانية</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="risk_audit">عرض سعر</button>
+            </div>
+          </article>
+
+          <article class="svc reveal" data-service="impact">
+            <div class="svc-top"><span class="num">04</span><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg></span></div>
+            <h3>قياس الأثر الاجتماعي</h3>
+            <p>نقيس التغيير الحقيقي الذي تصنعه برامجك، ونحوله إلى أرقام وتقارير مقنعة للمانحين والداعمين.</p>
+            <ul>
+              <li>بناء نظرية التغيير ومؤشرات الأداء</li>
+              <li>قياس العائد الاجتماعي على الاستثمار (SROI)</li>
+              <li>تقارير أثر احترافية للمانحين</li>
+              <li>ربط القياس ببيانات المستفيدين في المنصة</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="consultation" data-svc="impact">استشارة مجانية</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="impact">عرض سعر</button>
+            </div>
+          </article>
+
+          <article class="svc reveal" data-service="sustainability">
+            <div class="svc-top"><span class="num">05</span><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 21c-4-2-7-5.5-7-10a7 7 0 0 1 14 0c0 4.5-3 8-7 10z" /><path d="M12 7v8M9.5 9.5h3.75a1.75 1.75 0 0 1 0 3.5h-2.5a1.75 1.75 0 0 0 0 3.5H14" /></svg></span></div>
+            <h3>الاستدامة المالية</h3>
+            <p>نعد مع جمعيتك خطة لتنمية الموارد وتنويع الإيرادات، ونرافقك في تنفيذها ومتابعة نتائجها.</p>
+            <ul>
+              <li>تشخيص مصادر الإيراد الحالية ومخاطرها</li>
+              <li>خطة تنمية موارد: أوقاف واستثمار وشراكات وتبرعات</li>
+              <li>إدارة المانحين وفرص التبرع</li>
+              <li>متابعة التنفيذ بتقارير دورية</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="consultation" data-svc="sustainability">استشارة مجانية</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="sustainability">عرض سعر</button>
+            </div>
+          </article>
+
+          <article class="svc reveal" data-service="strategy_quality">
+            <div class="svc-top"><span class="num">06</span><span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><path d="M12 12l6-6M15 6h3v3" /></svg></span></div>
+            <h3>التخطيط الاستراتيجي والجودة</h3>
+            <p>نصوغ مع جمعيتك خطتها الاستراتيجية ومؤشراتها، ونطبق نظام إدارة الجودة ISO 9001 ونهيئها للشهادة.</p>
+            <ul>
+              <li>الخطة الاستراتيجية والخطط التشغيلية</li>
+              <li>مؤشرات الأداء ولوحات المتابعة</li>
+              <li>تطبيق ISO 9001 والتهيئة للشهادة</li>
+              <li>توثيق الإجراءات وخرائط العمليات</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="consultation" data-svc="strategy_quality">استشارة مجانية</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="strategy_quality">عرض سعر</button>
+            </div>
+          </article>
+
+          <article class="svc reveal" data-service="capacity">
+            <div class="svc-top"><span class="num">07</span><span class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" /><path d="M16 5.5a3 3 0 0 1 0 5.6M18.5 14.5c1.2.8 1.8 2.3 2 4.5" /></svg></span></div>
+            <h3>بناء القدرات</h3>
+            <p>نؤهل مجالس الإدارات والفرق التنفيذية بالتدريب والإرشاد العملي، لتعمل الجمعية بكفاءة واستقلالية.</p>
+            <ul>
+              <li>برامج تدريبية لمجالس الإدارات والفرق</li>
+              <li>تدريب عملي على أنظمة سنابل</li>
+              <li>إرشاد ومرافقة للقيادات</li>
+              <li>أدلة ونماذج جاهزة للعمل</li>
+            </ul>
+            <div class="svc-actions">
+              <button type="button" class="link" data-request="consultation" data-svc="capacity">استشارة مجانية</button>
+              <button type="button" class="link muted" data-request="quote" data-svc="capacity">عرض سعر</button>
+            </div>
+          </article>
+
+          <aside class="svc svc-cta reveal">
+            <svg class="mark big" viewBox="0 0 64 64" aria-hidden="true"><use href="#wheat" /></svg>
+            <h3>لا تعرف من أين تبدأ؟</h3>
+            <p>جلسة تشخيص مجانية نحدد فيها أولويات جمعيتك، ونقترح الخدمات المناسبة لها.</p>
+            <button class="btn gold" type="button" data-request="consultation"><span>احجز جلستك المجانية</span><span class="sweep"></span></button>
+          </aside>
+        </div>
+      </section>
+
+      <!-- المنصة -->
+      <section class="section platform" id="platform">
+        <div class="platform-in">
+          <div class="platform-text reveal">
+            <p class="kicker">سنابل ERP</p>
+            <h2>منصة واحدة تدير أعمال جمعيتك كلها</h2>
+            <p>ستة عشر نظامًا تعمل معًا على قاعدة بيانات واحدة: ما يُسجَّل في نظام يظهر أثره في البقية، بلا تكرار ولا جداول متفرقة.</p>
+            <ul class="checks">
+              <li>واجهة عربية بالكامل، تعمل على الحاسب والجوال</li>
+              <li>صلاحيات دقيقة لكل موظف في كل نظام</li>
+              <li>بيانات كل جمعية معزولة، على خوادم داخل المملكة</li>
+              <li>بوابات عامة للمستفيدين والمتطوعين والأعضاء والمانحين</li>
+              <li>اعتمادات إلكترونية وتوقيع إلكتروني للعقود والمحاضر</li>
+            </ul>
+            <div class="cta">
+              <button class="btn gold" type="button" data-request="demo"><span>اطلب عرضًا تجريبيًا</span><span class="sweep"></span></button>
+              <a class="btn glass" href="/register">سجّل جمعيتك وابدأ التجربة</a>
+            </div>
+          </div>
+          <div class="orbit reveal" aria-label="أنظمة منصة سنابل">
+            <div class="orbit-core">
+              <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#wheat" /></svg>
+              <b>سنابل ERP</b>
+            </div>
+            <div class="ring r1"></div>
+            <div class="ring r2"></div>
+            <ul class="orbit-list">
+              <li>النظام المالي</li>
+              <li>المساعدات الاجتماعية</li>
+              <li>الموارد المالية</li>
+              <li>إدارة المشاريع</li>
+              <li>الموارد البشرية</li>
+              <li>التطوع</li>
+              <li>العضوية</li>
+              <li>الحوكمة</li>
+              <li>إدارة الجودة</li>
+              <li>المخاطر والالتزام</li>
+              <li>المراجعة الداخلية</li>
+              <li>الاتصالات الإدارية</li>
+              <li>الاجتماعات واللجان</li>
+              <li>الشراكات</li>
+              <li>الموقع الإلكتروني</li>
+              <li>أرشيف المعرفة</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- كيف نعمل -->
+      <section class="section" id="how">
+        <div class="head reveal">
+          <p class="kicker">رحلة العمل</p>
+          <h2>من الحبة إلى السنبلة: أربع خطوات واضحة</h2>
+        </div>
+        <ol class="steps">
+          <li class="reveal"><span class="step-no">1</span><h3>تشخيص مجاني</h3><p>نستمع لجمعيتك ونقيّم وضعها الحالي ونحدد الأولويات.</p></li>
+          <li class="reveal"><span class="step-no">2</span><h3>عرض واضح</h3><p>نقدم نطاق العمل والمدة والتكلفة ومؤشرات النجاح مكتوبة.</p></li>
+          <li class="reveal"><span class="step-no">3</span><h3>تنفيذ ومرافقة</h3><p>ننفذ مع فريقك خطوة بخطوة، ونسلم الأدلة والأنظمة جاهزة للعمل.</p></li>
+          <li class="reveal"><span class="step-no">4</span><h3>قياس ومتابعة</h3><p>نتابع النتائج بتقارير دورية حتى يثمر العمل ويستمر.</p></li>
+        </ol>
+      </section>
+
+      <!-- لماذا سنابل -->
+      <section class="section why">
+        <div class="head reveal">
+          <p class="kicker">لماذا سنابل</p>
+          <h2>الخبرة والتقنية في مكان واحد</h2>
+        </div>
+        <div class="why-grid">
+          <div class="why-card reveal"><h3>متخصصون في القطاع غير الربحي</h3><p>نعرف أنظمة القطاع ومعاييره في المملكة، ومتطلبات المانحين والجهات المشرفة.</p></div>
+          <div class="why-card reveal"><h3>استشارة تتحول إلى نظام</h3><p>كل توصية نقدمها لها مكان في المنصة: سياسة تُعتمد، ومخاطرة تُتابع، ومؤشر يُقاس.</p></div>
+          <div class="why-card reveal"><h3>بياناتك في أمان</h3><p>خوادم داخل المملكة، وعزل تام لبيانات كل جمعية، وصلاحيات وسجل لكل عملية.</p></div>
+          <div class="why-card reveal"><h3>دعم فني بمستويات خدمة</h3><p>فريق دعم يستقبل طلبات جمعيتك ويعالجها في أوقات استجابة محددة.</p></div>
+        </div>
+      </section>
+
+      <!-- نموذج الطلب -->
+      <section class="section contact" id="contact">
+        <div class="contact-in">
+          <div class="contact-side reveal">
+            <p class="kicker">تواصل معنا</p>
+            <h2>لنبدأ رحلة نماء جمعيتك</h2>
+            <p>اختر نوع الطلب واترك بياناتك، وسيتواصل معك فريقنا خلال يوم عمل واحد.</p>
+            <a class="contact-card wa" id="waCard" href="#contact" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a9.5 9.5 0 0 0-8.2 14.3L2.5 21.5l4.8-1.3A9.5 9.5 0 1 0 12 2.5z" /><path d="M8.6 7.9c.2-.4.4-.4.7-.4h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2 0 .4-.1.6l-.5.6c-.1.1-.2.3 0 .5.6 1.1 1.5 2 2.6 2.6.2.1.4.1.5 0l.6-.7c.2-.2.4-.2.6-.1l1.7.8c.2.1.3.3.3.5 0 .9-.6 1.8-1.6 1.9-.7.1-1.6 0-3.3-.8-2-1-3.4-3-3.6-3.3-.2-.3-1-1.4-1-2.6 0-.9.3-1.4.5-1.7z" /></svg>
+              <span><b>تواصل عبر واتساب</b><small id="waText">رد سريع من فريقنا</small></span>
+            </a>
+            <a class="contact-card" id="mailCard" href="mailto:info@sanabelerp.com">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3.5 6.5l8.5 6.5 8.5-6.5" /></svg>
+              <span><b>البريد الإلكتروني</b><small id="mailText" dir="ltr">info@sanabelerp.com</small></span>
+            </a>
+            <a class="contact-card" id="phoneCard" href="#contact" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5h3.5l1.5 4.5-2.2 1.4a11 11 0 0 0 4.8 4.8l1.4-2.2 4.5 1.5V17a2.5 2.5 0 0 1-2.5 2.5A15.5 15.5 0 0 1 2.5 6 2.5 2.5 0 0 1 5 3.5z" /></svg>
+              <span><b>الهاتف</b><small id="phoneText" dir="ltr"></small></span>
+            </a>
+          </div>
+
+          <form class="form-card reveal" id="requestForm" novalidate>
+            <div class="form-border" aria-hidden="true"></div>
+            <div class="form-inner">
+              <div class="tabs" role="tablist" aria-label="نوع الطلب">
+                <button type="button" role="tab" data-kind="consultation" aria-selected="true">استشارة مجانية</button>
+                <button type="button" role="tab" data-kind="quote" aria-selected="false">عرض سعر</button>
+                <button type="button" role="tab" data-kind="demo" aria-selected="false">عرض تجريبي</button>
+              </div>
+              <p class="kind-hint" id="kindHint">جلسة تشخيص مجانية مدتها 30 دقيقة مع أحد مستشارينا.</p>
+
+              <div class="grid2">
+                <label class="field full">
+                  <span>الخدمة المطلوبة</span>
+                  <select name="serviceCode" id="serviceSelect">
+                    <option value="">لم أحدد بعد</option>
+                    <option value="digital">التحول الرقمي (منصة سنابل ERP)</option>
+                    <option value="governance">الحوكمة والالتزام</option>
+                    <option value="risk_audit">المخاطر والمراجعة الداخلية</option>
+                    <option value="impact">قياس الأثر الاجتماعي</option>
+                    <option value="sustainability">الاستدامة المالية</option>
+                    <option value="strategy_quality">التخطيط الاستراتيجي والجودة</option>
+                    <option value="capacity">بناء القدرات</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>اسم الجمعية <i>*</i></span>
+                  <input name="orgName" required maxlength="200" autocomplete="organization" />
+                </label>
+                <label class="field">
+                  <span>الاسم <i>*</i></span>
+                  <input name="contactName" required maxlength="200" autocomplete="name" />
+                </label>
+                <label class="field">
+                  <span>الصفة الوظيفية</span>
+                  <input name="jobTitle" maxlength="120" autocomplete="organization-title" placeholder="مثل: المدير التنفيذي" />
+                </label>
+                <label class="field">
+                  <span>رقم الجوال <i>*</i></span>
+                  <input name="phone" required inputmode="tel" dir="ltr" autocomplete="tel" placeholder="05xxxxxxxx" />
+                </label>
+                <label class="field">
+                  <span>البريد الإلكتروني</span>
+                  <input name="email" type="email" dir="ltr" autocomplete="email" placeholder="name@org.sa" />
+                </label>
+                <label class="field">
+                  <span>المدينة</span>
+                  <input name="city" maxlength="100" autocomplete="address-level2" />
+                </label>
+                <label class="field hp" aria-hidden="true">
+                  <span>الموقع</span>
+                  <input name="website" tabindex="-1" autocomplete="off" />
+                </label>
+                <label class="field full">
+                  <span>كيف يمكننا مساعدتك؟</span>
+                  <textarea name="message" rows="3" maxlength="3000" placeholder="اكتب باختصار احتياج جمعيتك"></textarea>
+                </label>
+              </div>
+
+              <div class="form-error" id="formError" role="alert" hidden></div>
+              <button class="btn gold lg block" type="submit" id="submitBtn"><span id="submitText">أرسل الطلب</span><span class="sweep"></span></button>
+              <p class="privacy">بياناتك تُستخدم للتواصل معك بخصوص طلبك فقط.</p>
+            </div>
+            <div class="success" id="formSuccess" hidden>
+              <svg viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="M15 27l7 7 15-15" /></svg>
+              <h3>وصل طلبك، شكرًا لك</h3>
+              <p id="successText">سيتواصل معك فريقنا خلال يوم عمل واحد.</p>
+              <button type="button" class="btn glass" id="againBtn">إرسال طلب آخر</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- الأسئلة الشائعة -->
+      <section class="section faq" id="faq">
+        <div class="head reveal">
+          <p class="kicker">الأسئلة الشائعة</p>
+          <h2>إجابات سريعة</h2>
+        </div>
+        <div class="faq-list">
+          <details class="reveal"><summary>هل يمكن الاستفادة من الخدمات الاستشارية دون الاشتراك في منصة سنابل ERP؟</summary><p>نعم. كل خدمة من الخدمات السبع مستقلة، ويمكن طلبها وحدها، كما يمكن الجمع بينها وبين المنصة للحصول على أفضل نتيجة.</p></details>
+          <details class="reveal"><summary>أين تُحفظ بيانات الجمعية؟</summary><p>تعمل المنصة على خوادم سحابية داخل المملكة العربية السعودية، وبيانات كل جمعية معزولة تمامًا عن غيرها.</p></details>
+          <details class="reveal"><summary>هل الاستشارة الأولى مجانية؟</summary><p>نعم. نبدأ بجلسة تشخيص مجانية نتعرف فيها على احتياج الجمعية، ثم نقدم عرضًا واضحًا بالنطاق والمدة والتكلفة.</p></details>
+          <details class="reveal"><summary>هل تساعدون الجمعية في الاستعداد لتقييم المركز الوطني لتنمية القطاع غير الربحي؟</summary><p>نعم. خدمة الحوكمة والالتزام تبدأ بتقييم ذاتي وفق معايير الحوكمة المعتمدة، ثم معالجة الملاحظات وتوثيقها قبل موعد التقييم.</p></details>
+          <details class="reveal"><summary>كم يستغرق تشغيل منصة سنابل في الجمعية؟</summary><p>يمكن البدء خلال أيام: نجهز حساب الجمعية، ونهيئ الإعدادات، وندرب الفريق، ثم ننقل البيانات تدريجيًا حسب أولويات الجمعية.</p></details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-in">
+        <div class="footer-brand">
+          <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#wheat" /></svg><span><b>سنابل</b><small>لخدمة الجمعيات الأهلية</small></span></a>
+          <p>أنظمة رقمية واستشارات متخصصة، لنماء الجمعيات الأهلية واستدامة أثرها.</p>
+        </div>
+        <div>
+          <h4>الخدمات</h4>
+          <a href="#services">التحول الرقمي</a>
+          <a href="#services">الحوكمة والالتزام</a>
+          <a href="#services">المخاطر والمراجعة الداخلية</a>
+          <a href="#services">قياس الأثر الاجتماعي</a>
+        </div>
+        <div>
+          <h4>&nbsp;</h4>
+          <a href="#services">الاستدامة المالية</a>
+          <a href="#services">التخطيط الاستراتيجي والجودة</a>
+          <a href="#services">بناء القدرات</a>
+        </div>
+        <div>
+          <h4>المنصة</h4>
+          <button type="button" class="flink" data-open-login>دخول موظفي الجمعيات</button>
+          <a href="/register">تسجيل جمعية جديدة</a>
+          <a href="/login">دخول إدارة المنصة</a>
+          <a id="footMail" href="mailto:info@sanabelerp.com" dir="ltr">info@sanabelerp.com</a>
+        </div>
+      </div>
+      <p class="copy">© <span id="year">2026</span> سنابل. جميع الحقوق محفوظة.</p>
+    </footer>
+
+    <!-- زر واتساب العائم -->
+    <a class="wa-float" id="waFloat" href="#contact" target="_blank" rel="noopener" aria-label="تواصل عبر واتساب">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a9.5 9.5 0 0 0-8.2 14.3L2.5 21.5l4.8-1.3A9.5 9.5 0 1 0 12 2.5z" /><path d="M8.6 7.9c.2-.4.4-.4.7-.4h.5c.2 0 .4 0 .5.4l.7 1.7c.1.2 0 .4-.1.6l-.5.6c-.1.1-.2.3 0 .5.6 1.1 1.5 2 2.6 2.6.2.1.4.1.5 0l.6-.7c.2-.2.4-.2.6-.1l1.7.8c.2.1.3.3.3.5 0 .9-.6 1.8-1.6 1.9-.7.1-1.6 0-3.3-.8-2-1-3.4-3-3.6-3.3-.2-.3-1-1.4-1-2.6 0-.9.3-1.4.5-1.7z" /></svg>
+    </a>
+
+    <!-- نافذة تسجيل الدخول -->
+    <dialog class="login-dlg" id="loginDlg" aria-labelledby="loginTitle">
+      <form method="dialog" class="dlg-close-wrap"><button class="dlg-close" aria-label="إغلاق">×</button></form>
+      <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#wheat" /></svg>
+      <h3 id="loginTitle">تسجيل الدخول</h3>
+      <p>اكتب معرّف جمعيتك كما في رابط الدخول الخاص بها.</p>
+      <form id="orgForm" class="org-form">
+        <div class="org-input" dir="ltr">
+          <span>sanabelerp.com/o/</span>
+          <input id="orgSlug" placeholder="al-bir" autocapitalize="off" spellcheck="false" autocomplete="off" />
+        </div>
+        <p class="form-error" id="orgError" hidden></p>
+        <button class="btn gold block" type="submit"><span>متابعة إلى صفحة الدخول</span><span class="sweep"></span></button>
+      </form>
+      <a class="lastorg" id="lastOrg" href="#" hidden></a>
+      <div class="dlg-foot">
+        <a href="/login">دخول إدارة المنصة</a>
+        <a href="/register">جمعيتك غير مسجلة؟ سجّلها الآن</a>
+      </div>
+    </dialog>
+
+    <!-- رمز السنبلة المشترك -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="wg" x1="0" y1="1" x2="0.6" y2="0">
+          <stop offset="0" stop-color="#14b8a6" />
+          <stop offset=".5" stop-color="#5eead4" />
+          <stop offset="1" stop-color="#f5c66b" />
+        </linearGradient>
+        <symbol id="wheat" viewBox="0 0 64 64">
+          <g fill="none" stroke="url(#wg)" stroke-width="1.4" opacity=".45" stroke-linejoin="round">
+            <rect x="12" y="12" width="40" height="40" rx="5" />
+            <rect x="12" y="12" width="40" height="40" rx="5" transform="rotate(45 32 32)" />
+          </g>
+          <g fill="url(#wg)">
+            <path d="M31.2 56c0-9 .3-24 .8-38.5h1c-.4 14.5-.6 29.5-.6 38.5z" />
+            <ellipse cx="27.2" cy="43" rx="2.6" ry="5.2" transform="rotate(-32 27.2 43)" />
+            <ellipse cx="36.6" cy="43" rx="2.6" ry="5.2" transform="rotate(32 36.6 43)" />
+            <ellipse cx="27.6" cy="34.5" rx="2.5" ry="5" transform="rotate(-30 27.6 34.5)" />
+            <ellipse cx="36.4" cy="34.5" rx="2.5" ry="5" transform="rotate(30 36.4 34.5)" />
+            <ellipse cx="28.2" cy="26.3" rx="2.3" ry="4.6" transform="rotate(-26 28.2 26.3)" />
+            <ellipse cx="35.8" cy="26.3" rx="2.3" ry="4.6" transform="rotate(26 35.8 26.3)" />
+            <ellipse cx="32" cy="15.5" rx="2.3" ry="5" />
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+
+    <script type="module" src="/src/landing/main.ts"></script>
+  </body>
+</html>
