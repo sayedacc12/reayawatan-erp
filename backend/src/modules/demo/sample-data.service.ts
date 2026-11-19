@@ -103,6 +103,7 @@ export class SampleDataService {
         staff: built.staff,
         portalPassword,
         portalUsers: built.portalUsers,
+        supplierPortal: built.supplierPortal,
       };
     } catch (e) {
       this.logger.error(`Sample data failed for ${org.slug}: ${(e as Error).message}`, (e as Error).stack);

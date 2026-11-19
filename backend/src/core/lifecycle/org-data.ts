@@ -130,6 +130,7 @@ const SYSTEMS: [RegExp, string][] = [
   [/^pt_/, 'الشراكات'],
   [/^comms_/, 'الاتصالات الإدارية'],
   [/^mtg_/, 'الاجتماعات واللجان'],
+  [/^pr_/, 'المشتريات والمستودعات'],
 ];
 export const systemOf = (table: string) => SYSTEMS.find(([re]) => re.test(table))?.[1] ?? 'أخرى';
 

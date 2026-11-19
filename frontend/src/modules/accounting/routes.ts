@@ -23,7 +23,6 @@ export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting/analytic', component: () => import('./views/AnalyticView.vue'), meta: meta('الحسابات التحليلية') },
   { path: '/accounting/partners', component: () => import('./views/PartnersView.vue'), meta: meta('العملاء والموردون') },
   { path: '/accounting/banks', component: () => import('./views/BanksView.vue'), meta: meta('البنوك والنقدية') },
-  { path: '/accounting/warehouses', component: () => import('./views/WarehousesView.vue'), meta: meta('المستودعات') },
   { path: '/accounting/setup', component: () => import('./views/SetupView.vue'), meta: meta('الافتتاحيات والسنوات المالية', P.setup, [P.setup, P.closePeriods, P.reopenPeriods, P.read]) },
   { path: '/accounting/inventory', component: () => import('./views/InventoryView.vue'), meta: meta('محضر جرد السندات') },
   // الأصول الثابتة

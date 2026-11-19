@@ -86,6 +86,7 @@ interface DemoResult {
   portalPassword: string;
   portalUsers: { fullName: string; nationalId: string }[];
   supportTeam?: { role: string; email: string }[];
+  supplierPortal?: { url: string; users: { supplier: string; status: string; fullName: string; email: string }[] };
 }
 const demo = ref<DemoResult | null>(null);
 const demoBusy = ref(false);
@@ -122,6 +123,8 @@ function exportDemoWord() {
 <table><tr><th>الدور</th><th>البريد الإلكتروني</th></tr>${rows([...d.staff.map((s) => [s.role, s.email] as [string, string]), ['كلمة المرور للكل', d.staffPassword]])}</table>
 <h2>بوابة المستفيدين: ${esc(origin)}/portal/${esc(d.organization.slug)}</h2>
 <table><tr><th>المستفيد</th><th>رقم الهوية</th></tr>${rows([...d.portalUsers.map((p) => [p.fullName, p.nationalId] as [string, string]), ['كلمة المرور للكل', d.portalPassword]])}</table>
+${d.supplierPortal?.users.length ? `<h2>بوابة الموردين: ${esc(origin)}/supplier/${esc(d.organization.slug)}</h2>
+<table><tr><th>المورد (حالته)</th><th>البريد الإلكتروني</th></tr>${rows([...d.supplierPortal.users.map((u) => [`${u.supplier} (${u.status})`, u.email] as [string, string]), ['كلمة المرور للكل', d.portalPassword]])}</table>` : ''}
 ${d.supportTeam?.length ? `<h2>فريق الدعم الفني: ${esc(origin)}/login</h2>
 <table><tr><th>الدور</th><th>البريد الإلكتروني</th></tr>${rows([...d.supportTeam.map((s) => [s.role, s.email] as [string, string]), ['كلمة المرور', d.staffPassword]])}</table>` : ''}
 </body></html>`;
@@ -216,6 +219,7 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
           <li><b>الجودة ISO 9001:</b> وثائق وإجراءات بنماذجها، وخرائط إجراءات، وأهداف بمؤشرات، ومراجعات داخلية، وحالات عدم مطابقة، وشكاوى واستبانات رضا، ومراجعتا إدارة.</li>
           <li><b>المخاطر والتغيير والالتزام:</b> سجل مخاطر بمراجعات دورية، وتحليل PESTEL وSWOT، وطلبات تغيير بمهام، والتزامات، وخطط استمرارية، وفريق أزمات بأزمة مفعّلة الآن.</li>
           <li><b>التخطيط والموازنات:</b> خطة استراتيجية خمسية من قالب الجمعيات الأهلية بإصدارين معتمدين (مراجعة منتصف المدة) ومؤشرات بقراءات، وخطط تشغيلية للإدارات مرتبطة بالمبادرات بنسب مساهمة وأنشطتها في كل الحالات (منجز، حسب الخطة، في خطر، متأخر بإجراء تصحيحي)، ونشاط مُرحّل من العام السابق، وخطة قيد الاعتماد وأخرى مسودة. وموازنة تقديرية للسنة القادمة مبنية من بيانات الأنظمة (الموظفون وخطة التعيين، والمصروفات والإيرادات الفعلية، وأنشطة خطة تشغيلية، وموازنات المشاريع) بافتراضات مرحلية وقواعد علاوات ومعادلة خاصة وسقوف للإدارات، معتمدة بإصدارين للمقارنة.</li>
+          <li><b>المشتريات والمستودعات:</b> دليل أصناف موحد بمجموعات مربوطة بحساباتها (مخزنية ومستهلكة وأصول ثابتة وخدمات) بوحدات ومواصفات وتتبع للصلاحية والتشغيلة، وصنف بديل معتمد وصنف موقوف ببديله، ومستودع رئيسي بمواقع تخزين وفرعي وميداني لمشروع، و6 موردين في كل الحالات (معتمد بحساب بنكي معتمد ومرتبط بالمالي، ومستند ينتهي قريبًا، وطلب تغيير حساب بنكي بانتظار المالية، وطلب من البوابة بانتظار الاعتماد، ومعاد للاستكمال، وتسجيل غير مكتمل) بحسابات في بوابة الموردين.</li>
           <li><b>المراجعة الداخلية:</b> خطة رئيسية وخطط فرعية، و4 مهام مراجعة في مراحل مختلفة، وتوصيات مغلقة وبانتظار التحقق وقيد التنفيذ ومتأخرة.</li>
           <li><b>عضوية الجمعية العمومية:</b> أعضاء بحالات مختلفة (سارية، تنتهي قريبًا، في مهلة السماح، منتهية، موقوفة)، وطلبات عضوية في كل المراحل، وسدادات بسندات قبض.</li>
           <li><b>الدعم الفني:</b> فريق دعم (مدير وموظف)، وطلبات صيانة بكل الحالات، ومهام منجزة وجارية ومتأخرة بساعات عمل مسجلة.</li>
@@ -236,6 +240,13 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
           <tr v-for="p in demo.portalUsers" :key="p.nationalId"><td>{{ p.fullName }}</td><td dir="ltr"><code>{{ p.nationalId }}</code></td></tr>
           <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.portalPassword }}</code></td></tr>
         </table>
+        <template v-if="demo.supplierPortal?.users.length">
+          <h3>بوابة الموردين <a :href="`/supplier/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/supplier/{{ demo.organization.slug }}</a></h3>
+          <table class="table">
+            <tr v-for="u in demo.supplierPortal.users" :key="u.email"><td>{{ u.supplier }} <small class="muted">({{ u.status }})</small></td><td dir="ltr"><code>{{ u.email }}</code></td></tr>
+            <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ demo.portalPassword }}</code></td></tr>
+          </table>
+        </template>
         <template v-if="demo.supportTeam?.length">
           <h3>فريق الدعم الفني <a href="/login" target="_blank" dir="ltr">{{ origin }}/login</a></h3>
           <table class="table">

@@ -15,10 +15,10 @@ interface ChartInfo { name: string; accounts: number; postingAccounts: number; l
 interface Stage { id?: string | null; name: string; instructions: string | null; roleId: string | null; pending?: number }
 
 const toast = useToast();
-type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'doctypes' | 'categories' | 'warehouses' | 'assets' | 'permissions';
+type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'doctypes' | 'categories' | 'assets' | 'permissions';
 const tabs: { key: Tab; label: string }[] = [
   { key: 'general', label: 'عام' }, { key: 'chart', label: 'الدليل الموحد' }, { key: 'receipt', label: 'مراحل اعتماد القبض' }, { key: 'payment', label: 'مراحل اعتماد الصرف' }, { key: 'doctypes', label: 'أنواع السندات' },
-  { key: 'categories', label: 'تصنيفات العملاء والموردين' }, { key: 'warehouses', label: 'أنواع المستودعات' }, { key: 'assets', label: 'الأصول الثابتة' }, { key: 'permissions', label: 'الصلاحيات' },
+  { key: 'categories', label: 'تصنيفات العملاء والموردين' }, { key: 'assets', label: 'الأصول الثابتة' }, { key: 'permissions', label: 'الصلاحيات' },
 ];
 const tab = ref<Tab>('general');
 const s = ref<Settings | null>(null);
@@ -29,7 +29,6 @@ const { load: loadAccounts, subOptions } = useAccounts();
 const busy = ref(false);
 const levels = ref(3);
 const closingId = ref<string | null>(null);
-const whTypes = ref<string[]>([]);
 
 async function load() {
   const [st, ch, r, sr, sp] = await Promise.all([
@@ -38,7 +37,7 @@ async function load() {
     api<Stage[]>('/accounting/voucher-stages/receipt'), api<Stage[]>('/accounting/voucher-stages/payment'),
   ]);
   s.value = st; chart.value = ch; roles.value = r.roles; stages.value = { receipt: sr, payment: sp };
-  levels.value = st.analyticLevels; closingId.value = st.closingAccount?.id ?? null; whTypes.value = [...st.warehouseTypes];
+  levels.value = st.analyticLevels; closingId.value = st.closingAccount?.id ?? null;
 }
 onMounted(() => { load(); loadAccounts().catch(() => {}); });
 
@@ -266,13 +265,6 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
           <select v-model="newCat.behavior" class="input"><option value="customer">عملاء (حساب مدينين وحد ائتماني)</option><option value="supplier">موردون (حساب دائنين)</option><option value="other">تصنيف آخر</option></select>
           <button class="btn btn-primary" :disabled="!newCat.name" @click="addCat">إضافة</button>
         </div>
-      </section>
-
-      <section v-if="tab === 'warehouses'" class="card pm-panel">
-        <h2>أنواع المستودعات</h2>
-        <div v-for="(_, i) in whTypes" :key="i" class="ac-toolbar"><input v-model="whTypes[i]" class="input grow" /><button class="btn btn-sm" @click="whTypes.splice(i, 1)">✕</button></div>
-        <button class="btn btn-sm" @click="whTypes.push('')">+ نوع</button>
-        <div class="modal-actions"><button class="btn btn-primary" :disabled="busy" @click="patch({ warehouseTypes: whTypes })">حفظ</button></div>
       </section>
 
       <AssetSettingsPane v-if="tab === 'assets'" />

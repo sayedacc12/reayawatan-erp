@@ -25,6 +25,7 @@ const paths: Record<string, string> = {
   scale: 'M12 3v18 M5 21h14 M4 7h16 M12 3l-1.5 1.5M12 3l1.5 1.5 M7 7l-3 7a3 3 0 0 0 6 0L7 7z M17 7l-3 7a3 3 0 0 0 6 0l-3-7z',
   handshake: 'M2 11l4-4 4 2 3-3 5 1 4 4 M6 7v6l5 5c.8.8 2 .8 2.8 0l5.2-5.2 M9 14l2 2 M12 11l3 3',
   book: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5 M9 7h7 M9 11h5',
+  box: 'M21 8 12 3 3 8v8l9 5 9-5V8z M3 8l9 5 9-5 M12 13v8 M7.5 5.5l9 5',
   headset: 'M3 14v-2a9 9 0 0 1 18 0v2 M21 14v3a2 2 0 0 1-2 2h-1v-6h3 M3 14v3a2 2 0 0 0 2 2h1v-6H3 M18 19c0 1.5-2 2.5-5 2.5',
 };
 const d = () => paths[props.name ?? ''] ?? paths.grid;

@@ -4,7 +4,7 @@ import { isTypeCode, today } from './acc-core.service';
 import {
   AccountDto, AccountUpdateDto, AnalyticDto, AnalyticUpdateDto, BatchPostDto, CashAccountDto, CategoryDto, EntryDto, EntryUpdateDto,
   InventoryDto, MonthDto, MonthsDto, DocumentTypeDto, PartnerDto, ReasonDto, RequestDecisionDto, SequencesDto, SettingsDto, SetupDto, SetupUpdateDto,
-  VoucherDecisionDto, VoucherDto, VoucherRequestDto, VoucherStagesDto, WarehouseDto,
+  VoucherDecisionDto, VoucherDto, VoucherRequestDto, VoucherStagesDto,
 } from './accounting.dto';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AccountsService } from './accounts.service';
@@ -305,24 +305,6 @@ export class AccountingController {
   @RequirePermissions(P.banks)
   updateCash(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string, @Body() dto: CashAccountDto) {
     return this.masters.updateCash(actor, id, dto);
-  }
-
-  @Get('warehouses')
-  @RequirePermissions(P.read)
-  warehouses(@CurrentOrgUser() actor: OrgUser) {
-    return this.masters.listWarehouses(actor);
-  }
-
-  @Post('warehouses')
-  @RequirePermissions(P.warehouses)
-  createWarehouse(@CurrentOrgUser() actor: OrgUser, @Body() dto: WarehouseDto) {
-    return this.masters.createWarehouse(actor, dto);
-  }
-
-  @Patch('warehouses/:id')
-  @RequirePermissions(P.warehouses)
-  updateWarehouse(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string, @Body() dto: WarehouseDto) {
-    return this.masters.updateWarehouse(actor, id, dto);
   }
 
   // ---------------- القيود والترحيل ----------------
