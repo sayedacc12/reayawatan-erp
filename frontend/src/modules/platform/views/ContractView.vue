@@ -6,6 +6,7 @@ import ContractDocument from '../../../registration/ContractDocument.vue';
 import { useToast } from '../../../stores/toast';
 import ScreensPicker, { type Access } from '../components/ScreensPicker.vue';
 import { CONTRACT_STATUS, copyText, CYCLES, fmtDate, fmtDateTime, HISTORY_STEP, money, uid, type ScreenModule } from '../labels';
+import { waNumber } from '../siteLabels';
 import '../platform.css';
 
 interface Item { key: string; clauseId: string | null; title: string; paragraphs: string[]; mandatory: boolean }
@@ -15,7 +16,9 @@ interface Contract {
   terms: Terms; items: Item[]; rendered: { title: string; paragraphs: string[] }[] | null; contentHash: string | null;
   changeRequest: string | null; sentAt: string | null; signedAt: string | null; signerName: string | null; signerTitle: string | null;
   signerIp: string | null; history: { step: string; by: string; at: string; note?: string }[]; signPath: string | null;
+  recipients: Recipient[];
 }
+interface Recipient { role: string; name: string; phone: string | null; email: string | null }
 interface Clause { id: string; title: string; paragraphs: string[]; isMandatory: boolean; isActive: boolean }
 
 const route = useRoute();
@@ -151,7 +154,8 @@ async function action(path: string, ok: string, json?: unknown) {
     busy.value = false;
   }
 }
-const send = () => confirm('إرسال العقد للجمعية؟ سيُثبَّت النص النهائي ولا يمكن تعديله إلا بسحبه.') && action('send', 'تم إرسال العقد للجمعية');
+const send = () => confirm('اعتماد النص النهائي للعقد وتجهيز رابط التوقيع؟ لا يمكن تعديله بعدها إلا بسحبه.\n\nتنبيه: لا تصل للجمعية رسالة تلقائية، فبعد الاعتماد أرسل لها الرابط عبر واتساب أو البريد من الأزرار التي ستظهر.')
+  && action('send', 'رابط التوقيع جاهز. أرسله الآن للجمعية من الأزرار أعلى الصفحة');
 const withdraw = () => action('withdraw', 'تم سحب العقد وإعادته مسودة');
 function cancel() {
   const note = prompt('سبب إلغاء العقد:');
@@ -159,6 +163,14 @@ function cancel() {
 }
 const signLink = computed(() => (c.value?.signPath ? `${location.origin}${c.value.signPath}` : ''));
 const copyLink = () => { copyText(signLink.value); toast.success('تم نسخ رابط التوقيع'); };
+const inviteText = (r?: Recipient) => `السلام عليكم${r?.name ? ` ${r.name}` : ''}،
+أرسلت إدارة منصة سنابل عقد الاشتراك رقم ${c.value?.number} الخاص بـ${c.value?.organizationName}.
+لمراجعة العقد وتوقيعه إلكترونيًا افتحوا الرابط التالي:
+${signLink.value}
+سيُطلب منكم رقم ترخيص الجمعية للتحقق.`;
+const waHref = (r: Recipient) => `https://wa.me/${waNumber(r.phone!)}?text=${encodeURIComponent(inviteText(r))}`;
+const mailHref = (r: Recipient) => `mailto:${r.email}?subject=${encodeURIComponent(`عقد الاشتراك ${c.value?.number} - منصة سنابل`)}&body=${encodeURIComponent(inviteText(r))}`;
+const copyMessage = () => { copyText(inviteText()); toast.success('تم نسخ الرسالة مع الرابط'); };
 
 const amounts = computed(() => {
   const t = terms.value;
@@ -186,7 +198,7 @@ const ORD = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'ال
           <span :class="['tone', `tone-${CONTRACT_STATUS[c.status].tone}`]">{{ CONTRACT_STATUS[c.status].label }}</span>
           <template v-if="editable">
             <button class="btn btn-ghost-light" :disabled="busy || !dirty" @click="save()">{{ dirty ? 'حفظ التعديلات' : 'محفوظ' }}</button>
-            <button class="btn btn-gold" :disabled="busy" @click="send">إرسال للجمعية للتوقيع ←</button>
+            <button class="btn btn-gold" :disabled="busy" @click="send">اعتماد وتجهيز رابط التوقيع ←</button>
           </template>
           <button v-if="c.status === 'sent'" class="btn btn-ghost-light" :disabled="busy" @click="withdraw">سحب للتعديل</button>
           <button v-if="['draft', 'sent', 'changes_requested'].includes(c.status)" class="btn btn-ghost-light" :disabled="busy" @click="cancel">إلغاء العقد</button>
@@ -201,9 +213,21 @@ const ORD = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'ال
         <div>
           <b>{{ c.status === 'signed' ? 'تم التوقيع إلكترونيًا' : 'رابط مراجعة العقد وتوقيعه للجمعية' }}</b>
           <p v-if="c.status === 'signed'" class="muted">{{ c.signerName }} ({{ c.signerTitle }}) · {{ fmtDateTime(c.signedAt) }}</p>
-          <p v-else class="muted">أرسله للمدير التنفيذي، ويظهر للجمعية كذلك في رابط متابعة طلبها.</p>
+          <p v-else class="muted">لا تصل للجمعية رسالة تلقائية. أرسل لها الرابط بنفسك من الأزرار هنا، ويظهر لها كذلك في صفحة متابعة طلب الاشتراك إن احتفظت برابطها.</p>
         </div>
         <div class="p-link-box"><code>{{ signLink }}</code><button class="btn btn-sm" @click="copyLink">نسخ</button></div>
+        <div v-if="c.status !== 'signed'" class="send-to">
+          <b>إرسال الرابط للجمعية</b>
+          <div v-for="r in c.recipients" :key="r.role" class="send-row">
+            <span><small class="muted">{{ r.role }}</small> {{ r.name }}</span>
+            <span class="send-btns">
+              <a v-if="r.phone" class="btn btn-sm btn-wa" :href="waHref(r)" target="_blank" rel="noopener">واتساب <span dir="ltr">{{ r.phone }}</span></a>
+              <a v-if="r.email" class="btn btn-sm" :href="mailHref(r)">بريد إلكتروني</a>
+            </span>
+          </div>
+          <p v-if="!c.recipients.length" class="muted">لا توجد بيانات تواصل محفوظة لهذه الجمعية، فانسخ الرسالة وأرسلها بالطريقة المناسبة.</p>
+          <button class="btn btn-sm" @click="copyMessage">نسخ رسالة جاهزة مع الرابط</button>
+        </div>
       </div>
 
       <nav class="p-tabs">
@@ -298,6 +322,12 @@ const ORD = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'ال
 .sign-box { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; align-items: center; }
 .sign-box p { margin: 2px 0 0; font-size: .88rem; }
 .sign-box .p-link-box { margin: 0; }
+.send-to { grid-column: 1 / -1; display: grid; gap: 8px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.send-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.send-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.send-to > .btn { justify-self: start; }
+.btn-wa { background: #25d366; color: #fff; border-color: #25d366; }
+@media (max-width: 700px) { .sign-box { grid-template-columns: 1fr; } }
 .editor { display: grid; grid-template-columns: 1fr 240px; gap: 16px; align-items: start; }
 .clauses { display: grid; gap: 12px; }
 .clause { padding: 14px 16px; }
