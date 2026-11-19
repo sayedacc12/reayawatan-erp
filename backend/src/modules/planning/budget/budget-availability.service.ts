@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { r2 } from './budget-calc';
+import { BudgetSources } from './budget-sources.service';
 import { Budget, BudgetCommitment, BudgetLine, BudgetVersion } from './budget.entity';
 
 export interface FundingAvailability {
@@ -8,7 +9,11 @@ export interface FundingAvailability {
 }
 export interface LineAvailability {
   lineId: string; budgetId: string; budgetCode: string; fiscalYear: number; name: string; section: string; unitName: string | null; accountCode: string | null;
-  approved: boolean; budgeted: number; reserved: number; consumed: number; available: number;
+  approved: boolean;
+  /** المعتمد في الإصدار + صافي المناقلات المعتمدة */
+  budgeted: number; transfers: number; reserved: number; consumed: number;
+  /** الفعلي من القيود المرحّلة على حساب البند في السنة (null إن لم يُربط بحساب) */
+  actual: number | null; available: number;
 }
 export interface AvailabilityCheck {
   allowed: boolean;
@@ -27,7 +32,7 @@ export interface AvailabilityCheck {
  */
 @Injectable()
 export class BudgetAvailability {
-  constructor(private readonly db: DataSource) {}
+  constructor(private readonly db: DataSource, private readonly sources: BudgetSources) {}
 
   async funding(org: string, batchId: string, em: EntityManager = this.db.manager): Promise<FundingAvailability> {
     const [b] = await em.query(
@@ -46,7 +51,10 @@ export class BudgetAvailability {
     return Promise.all(rows.map((r) => this.funding(org, r.id)));
   }
 
-  /** المتاح في بند: المعتمد (من آخر إصدار معتمد إن كانت الموازنة قيد تعديل) ناقص المحجوز والمصروف */
+  /**
+   * المتاح في بند: المعتمد (من آخر إصدار معتمد إن كانت الموازنة قيد تعديل) مع المناقلات المعتمدة،
+   * ناقص المحجوز، وناقص المصروف (الأكبر من المصروف من الحجوزات والفعلي في القيود، لأن الصرف يظهر في الاثنين).
+   */
   async line(org: string, lineId: string, em: EntityManager = this.db.manager): Promise<LineAvailability> {
     const l = await em.getRepository(BudgetLine).findOne({ where: { id: lineId, organizationId: org } });
     if (!l) throw new NotFoundException('بند الموازنة غير موجود');
@@ -61,9 +69,17 @@ export class BudgetAvailability {
     const [c] = await em.query(
       `SELECT COALESCE(SUM(CASE WHEN status = 'reserved' THEN amount END), 0)::float AS reserved, COALESCE(SUM(CASE WHEN status = 'consumed' THEN amount END), 0)::float AS consumed
          FROM plan_budget_commitments WHERE line_id = $1`, [l.id]);
+    const [t] = b.version > 0 ? await em.query(
+      `SELECT COALESCE(SUM(CASE WHEN to_line_id = $1 THEN amount ELSE -amount END), 0)::float AS net
+         FROM plan_budget_transfers WHERE status = 'approved' AND (to_line_id = $1 OR from_line_id = $1)`, [l.id]) : [{ net: 0 }];
+    const acc = l.actualMap?.accountIds?.length ? l.actualMap : l.accountId ? { accountIds: [l.accountId], costCenterId: l.costCenterId } : null;
+    const actual = acc && b.version > 0 ? (await this.sources.actualMonthly(org, b.fiscalYear, acc.accountIds, acc.costCenterId ?? null)).reduce((a, x) => a + x, 0) : null;
+    const total = r2(budgeted + t.net);
+    const used = Math.max(c.consumed, actual ?? 0);
     return {
       lineId: l.id, budgetId: b.id, budgetCode: b.code, fiscalYear: b.fiscalYear, name: l.name, section: l.section, unitName: l.unitName, accountCode: l.accountCode,
-      approved: b.version > 0, budgeted: r2(budgeted), reserved: r2(c.reserved), consumed: r2(c.consumed), available: r2(budgeted - c.reserved - c.consumed),
+      approved: b.version > 0, budgeted: total, transfers: r2(t.net), reserved: r2(c.reserved), consumed: r2(c.consumed), actual: actual === null ? null : r2(actual),
+      available: r2(total - c.reserved - used),
     };
   }
 

@@ -8,8 +8,8 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 import { defaultPolicy } from '../src/modules/hr/hr-policy';
-import { computeHist, computeHr, distribute, finalize, historyYears, HistParams, HistSnapshot } from '../src/modules/planning/budget/budget-calc';
-import { DEFAULT_VARIABLES } from '../src/modules/planning/budget/budget-defaults';
+import { applyLevers, computeHist, computeHr, distribute, finalize, historyYears, HistParams, HistSnapshot } from '../src/modules/planning/budget/budget-calc';
+import { DEFAULT_VARIABLES, Lever } from '../src/modules/planning/budget/budget-defaults';
 import { histDefaults } from '../src/modules/planning/budget/budgets.service';
 import { FormulaError, run } from '../src/modules/planning/budget/formula-engine';
 
@@ -18,6 +18,7 @@ import { FormulaError, run } from '../src/modules/planning/budget/formula-engine
  * محرك المعادلات الآمن، واحتساب الرواتب والمصروفات من التاريخ، ثم دورة كاملة عبر الواجهة البرمجية:
  * مكتبة المعادلات بإصدارات، موازنة ببنود يدوية ووظائف جديدة، صلاحية الرواتب، التعديل اليدوي بمبرر،
  * الاعتماد والإصدارات والمقارنة، و«المتاح» للصرف حسب قاعدة مصدر التمويل ثم بند الموازنة، والتقارير.
+ * والمرحلة الثالثة: السيناريوهات بمؤثراتها، ومقارنتها، وتحليل الحساسية، وتحويل السيناريو إلى مشروع موازنة.
  */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 const Y = new Date().getUTCFullYear() + 1;
@@ -76,6 +77,28 @@ describe('Budget calculations', () => {
     const f = finalize(1200, Array(12).fill(100), 600);
     expect(f.amount).toBe(600);
     expect(f.monthly[0]).toBe(50);
+  });
+});
+
+describe('Scenario levers', () => {
+  const line = { id: 'l1', baseLineId: 'b1', section: 'opex' as const, unitId: 'u1', fundingType: 'unrestricted', accountId: null };
+  const lv = (x: Partial<Lever>): Lever => ({ key: 'k', name: 'م', type: 'pct', value: 0, fromMonth: 1, note: null, scope: { sections: [], unitId: null, fundingType: null, accountId: null, lineIds: [] }, ...x } as Lever);
+  const flat = Array.from({ length: 12 }, () => 100);
+
+  it('applies a percentage from its month and a deferral that drops months past December', () => {
+    const p = applyLevers([lv({ value: -10, fromMonth: 7 })], line, flat);
+    expect(p.amount).toBe(1140);
+    expect(p.trace[0].label).toContain('يوليو');
+    const s = applyLevers([lv({ type: 'shift', value: 3 })], line, flat);
+    expect(s.monthly.slice(0, 3)).toEqual([0, 0, 0]);
+    expect(s.amount).toBe(900);
+    expect(s.trace[0].source).toContain('300');
+  });
+
+  it('matches by section, unit and named lines (including the base line id)', () => {
+    expect(applyLevers([lv({ value: 50, scope: { sections: ['revenue'], unitId: null, fundingType: null, accountId: null, lineIds: [] } })], line, flat).amount).toBe(1200);
+    expect(applyLevers([lv({ value: 50, scope: { sections: ['opex'], unitId: 'u2', fundingType: null, accountId: null, lineIds: [] } })], line, flat).amount).toBe(1200);
+    expect(applyLevers([lv({ value: 50, scope: { sections: ['revenue'], unitId: null, fundingType: null, accountId: null, lineIds: ['b1'] } })], line, flat).amount).toBe(1800);
   });
 });
 
@@ -195,8 +218,114 @@ describe('Budgets', () => {
     expect(list.lines.map((l: { lineId: string }) => l.lineId)).toContain(ids.opex);
   });
 
+  it('builds scenarios, compares them, analyses sensitivity and promotes one to a budget draft', async () => {
+    const sc = (await http.post(`${R}/budgets/${ids.b}/scenarios`).set(as(clerk)).send({
+      title: 'متحفظ', levers: [{ name: 'انخفاض الإيرادات', type: 'pct', value: -20, scope: { sections: ['revenue'] } }],
+    }).expect(201)).body;
+    expect(sc).toMatchObject({ isScenario: true, baseBudgetId: ids.b, code: 'SC-001' });
+    expect(sc.base.id).toBe(ids.b);
+    expect(sc.summary.revenues).toBe(400000);
+    await http.post(`${R}/budgets/${sc.id}/submit`).set(as(clerk)).send({}).expect(400);
+    await http.patch(`${R}/budgets/${sc.id}`).set(as(clerk)).send({ levers: [{ name: 'خطأ', type: 'pct', value: 600 }] }).expect(400);
+    // تعديل بند في السيناريو لا يغير الموازنة
+    const scOpex = sc.lines.find((l: { baseLineId: string }) => l.baseLineId === ids.opex);
+    await http.patch(`${R}/budget-lines/${scOpex.id}`).set(as(clerk)).send({ overrideAmount: 80000, overrideNote: 'ترشيد في السيناريو' }).expect(200);
+    let base = (await http.get(`${R}/budgets/${ids.b}`).set(as(clerk)).expect(200)).body;
+    expect(base.status).toBe('approved');
+    expect(base.scenarios).toBe(1);
+    expect(base.lines.find((l: { id: string }) => l.id === ids.opex).amount).toBe(100000);
+    // تأجيل 3 أشهر لبند محدد
+    const sc2 = (await http.post(`${R}/budgets/${ids.b}/scenarios`).set(as(clerk)).send({
+      title: 'تأجيل', levers: [{ name: 'تأجيل الصيانة', type: 'shift', value: 3, scope: { lineIds: [ids.opex] } }],
+    }).expect(201)).body;
+    expect(sc2.lines.find((l: { baseLineId: string }) => l.baseLineId === ids.opex).amount).toBeCloseTo(75000, 0);
+
+    const list = (await http.get(`${R}/budgets/${ids.b}/scenarios`).set(as(clerk)).expect(200)).body;
+    expect(list.scenarios.map((x: { diff: { revenues: number } }) => x.diff.revenues)).toEqual([-100000, 0]);
+    const cmp = (await http.get(`${R}/budgets/${ids.b}/scenarios/compare?ids=${sc.id},${sc2.id}`).set(as(clerk)).expect(200)).body;
+    expect(cmp.columns.map((c: { code: string }) => c.code)).toEqual(['BG-001', 'SC-001', 'SC-002']);
+    expect(cmp.lines.find((l: { name: string }) => l.name === 'منحة').values).toEqual([500000, 400000, 500000]);
+    const maint = cmp.lines.find((l: { name: string }) => l.name === 'صيانة المبنى').values;
+    expect(maint.slice(0, 2)).toEqual([100000, 80000]);
+    expect(maint[2]).toBeCloseTo(75000, 0);
+    // من لا يملك صلاحية الرواتب يرى الموظفين مجمعين، وبنود الوظائف الجديدة كما هي
+    expect(cmp.lines.every((l: { key: string }) => l.key !== 'hr:employees')).toBe(true);
+    await http.get(`${R}/budgets/${ids.b}/scenarios/compare?ids=not-a-uuid`).set(as(clerk)).expect(400);
+
+    const sen = (await http.get(`${R}/budgets/${ids.b}/sensitivity?step=10`).set(as(clerk)).expect(200)).body;
+    expect(sen.drivers.find((d: { key: string }) => d.key === 'section:revenue').impact).toBe(100000);
+    expect(sen.drivers.some((d: { key: string }) => d.key === 'medical_monthly')).toBe(true);
+    expect(sen.drivers[0].impact).toBeGreaterThanOrEqual(sen.drivers[sen.drivers.length - 1].impact);
+
+    // التحويل: الموازنة الأساسية تصبح مسودة تعديل، والإصدار المعتمد يبقى مرجع المتاح
+    await http.post(`${R}/scenarios/${sc.id}/promote`).set(as(clerk)).send({}).expect(400);
+    base = (await http.post(`${R}/scenarios/${sc.id}/promote`).set(as(clerk)).send({ note: 'الأنسب مع توقعات التبرعات' }).expect(201)).body;
+    expect(base.id).toBe(ids.b);
+    expect(base.status).toBe('draft');
+    expect(base.revisionNote).toContain('SC-001');
+    expect(base.summary.revenues).toBe(400000);
+    expect(base.lines.find((l: { id: string }) => l.id === ids.opex).amount).toBe(80000);
+    expect((await http.get(`${R}/availability/lines/${ids.opex}`).set(as(clerk)).expect(200)).body.budgeted).toBe(100000);
+    const after = (await http.get(`${R}/budgets/${ids.b}/scenarios`).set(as(clerk)).expect(200)).body;
+    expect(after.scenarios[0].promotedAt).toBeTruthy();
+    // إلغاء التعديل يعيد الإصدار المعتمد كما هو
+    base = (await http.post(`${R}/budgets/${ids.b}/discard`).set(as(clerk)).expect(201)).body;
+    expect(base.summary.revenues).toBe(500000);
+    expect(base.levers).toEqual([]);
+    await http.delete(`${R}/budgets/${sc2.id}`).set(as(clerk)).expect(200);
+  });
+
+  it('follows execution, maps lines to accounts and approves budget transfers', async () => {
+    const ex = (await http.get(`${R}/budgets/${ids.b}/execution?month=6`).set(as(clerk)).expect(200)).body;
+    expect(ex.month).toBe(6);
+    const row = ex.rows.find((r: { lineId?: string }) => r.lineId === ids.opex);
+    expect(row).toMatchObject({ current: 100000, actual: 0, transfers: 0, available: 100000, status: 'ok' });
+    expect(row.plannedToDate).toBeCloseTo(50000, 0);
+    // البند الجديد للموظفين يُجمع مع الرواتب
+    expect(ex.rows.some((r: { key: string }) => r.key === 'hr:group')).toBe(true);
+    await http.get(`${R}/budgets/${ids.b}/execution/trace?key=bad`).set(as(clerk)).expect(400);
+    const tr = (await http.get(`${R}/budgets/${ids.b}/execution/trace?key=${ids.opex}&month=6`).set(as(clerk)).expect(200)).body;
+    expect(tr.entries).toEqual([]);
+
+    // الربط بحسابات المصروفات فقط
+    await http.post('/api/accounting/chart/install').set(as(admin)).expect(201);
+    const lk = (await http.get(`${R}/budget-lookups`).set(as(clerk)).expect(200)).body;
+    const exp = lk.accounts.find((a: { nature: string }) => a.nature === 'expenses');
+    const rev = lk.accounts.find((a: { nature: string }) => a.nature === 'revenue');
+    expect(exp && rev).toBeTruthy();
+    await http.patch(`${R}/budget-lines/${ids.opex}/mapping`).set(as(clerk)).send({ accountIds: [rev.id] }).expect(400);
+    await http.patch(`${R}/budget-lines/${ids.opex}/mapping`).set(as(clerk)).send({ accountIds: [exp.id] }).expect(200);
+    const mapped = (await http.get(`${R}/budgets/${ids.b}/execution?month=6`).set(as(clerk)).expect(200)).body;
+    expect(mapped.rows.find((r: { lineId?: string }) => r.lineId === ids.opex)).toMatchObject({ mapped: true, actualSource: 'account' });
+    expect((await http.get(`${R}/budgets/${ids.b}`).set(as(clerk)).expect(200)).body.status).toBe('approved');
+
+    // المناقلات: دراسة الأثر ثم الاعتماد بمسار المناقلات
+    const big = (await http.post(`${R}/budgets/${ids.b}/transfers/preview`).set(as(clerk)).send({ kind: 'decrease', fromLineId: ids.opex, amount: 150000, reason: 'خفض' }).expect(201)).body;
+    expect(big.allowed).toBe(false);
+    await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'decrease', fromLineId: ids.opex, amount: 150000, reason: 'خفض' }).expect(409);
+    await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'transfer', fromLineId: ids.opex, toLineId: ids.opex, amount: 10, reason: 'خطأ' }).expect(400);
+    const inc = (await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'increase', toLineId: ids.opex, amount: 20000, fromMonth: 7, reason: 'توسعة الصيانة' }).expect(201)).body;
+    expect(inc).toMatchObject({ code: 'BT-001', status: 'in_review', routeName: 'اعتماد مناقلات الموازنة وتعديلاتها' });
+    await http.post(`${R}/budget-transfers/${inc.id}/decision`).set(as(clerk)).send({ decision: 'approve' }).expect(403);
+    let t = inc;
+    for (let i = 0; i < 5 && t.status === 'in_review'; i++) t = (await http.post(`${R}/budget-transfers/${inc.id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201)).body;
+    expect(t.status).toBe('approved');
+    await http.delete(`${R}/budget-transfers/${inc.id}`).set(as(clerk)).expect(409);
+    const after = (await http.get(`${R}/budgets/${ids.b}/execution?month=6`).set(as(clerk)).expect(200)).body;
+    const r2 = after.rows.find((r: { lineId?: string }) => r.lineId === ids.opex);
+    expect(r2).toMatchObject({ current: 120000, transfers: 20000, available: 120000 });
+    // الزيادة توزع من شهرها: المخطط حتى يونيو لم يتغير
+    expect(r2.plannedToDate).toBeCloseTo(50000, 0);
+    const av = (await http.get(`${R}/availability/lines/${ids.opex}`).set(as(clerk)).expect(200)).body;
+    expect(av).toMatchObject({ budgeted: 120000, transfers: 20000 });
+    // طلب معلق يُلغى
+    const pend = (await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'decrease', fromLineId: ids.opex, amount: 5000, reason: 'وفر' }).expect(201)).body;
+    await http.delete(`${R}/budget-transfers/${pend.id}`).set(as(clerk)).expect(200);
+    expect(after.transfers.map((x: { code: string }) => x.code)).toEqual(['BT-001']);
+  });
+
   it('serves budget reports', async () => {
-    for (const code of ['planning.budget.lines', 'planning.budget.monthly', 'planning.budget.ceilings', 'planning.budget.hr']) {
+    for (const code of ['planning.budget.lines', 'planning.budget.monthly', 'planning.budget.ceilings', 'planning.budget.hr', 'planning.budget.scenarios', 'planning.budget.execution', 'planning.budget.transfers']) {
       const r = (await http.get(`/api/reports/run/${code}?budgetId=${ids.b}`).set(as(admin)).expect(200)).body;
       expect(r.rows.length).toBeGreaterThan(0);
     }

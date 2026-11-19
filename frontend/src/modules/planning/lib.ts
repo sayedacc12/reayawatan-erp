@@ -10,7 +10,7 @@ export const P = {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Level { key: string; name: string; prefix: string }
 export interface Stage { name: string; roleId: string | null }
-export interface Route { key: string; name: string; planKind: 'strategic' | 'operational' | 'budget' | 'any'; unitId: string | null; minCost: number | null; stages: Stage[] }
+export interface Route { key: string; name: string; planKind: 'strategic' | 'operational' | 'budget' | 'transfer' | 'any'; unitId: string | null; minCost: number | null; stages: Stage[] }
 export interface CustomField { key: string; label: string; type: 'text' | 'number' | 'date' | 'select'; options: string[]; appliesTo: 'strategic' | 'operational' | 'all' }
 export interface PlanningConfig {
   strategicLevels: Level[]; operationalLevels: Level[]; relationTypes: { code: string; name: string }[]; kpiUnits: string[];

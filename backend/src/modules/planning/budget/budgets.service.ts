@@ -6,15 +6,15 @@ import { DecideDto } from '../planning.dto';
 import { canDecide, markEdited, pickRoute, wfDecide, wfSubmit } from '../planning-calc';
 import { PlanningCore } from '../planning-core.service';
 import { PLANNING_PERMISSIONS as P } from '../planning.manifest';
-import { ActivityParams, computeActivity, computeHist, computeHr, finalize, FormulaRef, HistParams, HistSnapshot, HrParams, r2 } from './budget-calc';
-import { BUILTIN_VARS, BudgetVariable, Ceiling, DEFAULT_VARIABLES, METHODOLOGY_NAME, RaiseRule, Section, SECTION_NAME, SECTIONS } from './budget-defaults';
+import { ActivityParams, applyLevers, computeActivity, computeHist, computeHr, finalize, FormulaRef, HistParams, HistSnapshot, HrParams, r2 } from './budget-calc';
+import { BUILTIN_VARS, BudgetVariable, Ceiling, DEFAULT_VARIABLES, Lever, METHODOLOGY_NAME, RaiseRule, Section, SECTION_NAME, SECTIONS } from './budget-defaults';
 import { BudgetDto, ImportDto, LineDto, UpdateBudgetDto, UpdateLineDto } from './budget.dto';
 import { Budget, BudgetLine, BudgetSnapshot, BudgetVersion, SnapLine } from './budget.entity';
 import { BudgetSources } from './budget-sources.service';
 import { FormulasService } from './formulas.service';
 import { VAR_KEY } from './formula-engine';
 
-type Ctx = { policy: HrPolicy; formulas: Map<string, FormulaRef & { status: string }> };
+export type Ctx = { policy: HrPolicy; formulas: Map<string, FormulaRef & { status: string }> };
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 const n = (v: unknown, d = 0) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? d : Number(v));
 const month = (v: unknown, d: number) => Math.min(12, Math.max(1, Math.round(n(v, d))));
@@ -25,7 +25,7 @@ const KINDS: Record<Section, string[]> = { hr: ['employee', 'new_position', 'hr_
 // growth متغير في الافتراضات يمكن تخصيصه للبند أو للإدارة، فليس محجوزًا
 const BUILTIN_KEYS = new Set(Object.values(BUILTIN_VARS).flat().map((v) => v.key).filter((k) => k !== 'growth'));
 const LINE_KEYS: (keyof SnapLine)[] = [
-  'id', 'section', 'kind', 'name', 'sourceId', 'sourceRef', 'unitId', 'unitName', 'accountId', 'accountCode', 'accountName', 'costCenterId', 'costCenterName', 'fundingType',
+  'id', 'section', 'kind', 'name', 'sourceId', 'sourceRef', 'baseLineId', 'unitId', 'unitName', 'accountId', 'accountCode', 'accountName', 'costCenterId', 'costCenterName', 'fundingType',
   'methodology', 'params', 'history', 'allocations', 'auto', 'overrideAmount', 'overrideNote', 'amount', 'monthly', 'trace', 'warnings', 'included', 'note', 'sortOrder',
 ];
 
@@ -62,13 +62,13 @@ export class BudgetsService {
   }
 
   /** الموازنة قيد الاعتماد أو المرفوضة لا تُعدّل؛ والمعتمدة تتحول لمسودة تعديل ويبقى إصدارها المعتمد كما هو */
-  private editable(b: Budget, actor: OrgUser) {
+  editable(b: Budget, actor: OrgUser) {
     if (b.status === 'in_review') throw new ConflictException('الموازنة قيد الاعتماد، ولا تُعدّل حتى تُعاد أو تُعتمد');
     if (b.status === 'rejected') throw new ConflictException('الموازنة مرفوضة ولا تُعدّل. يمكنك نسخها في موازنة جديدة');
     markEdited(b, actor.fullName);
   }
 
-  private async ctx(org: string, em: EntityManager = this.db.manager): Promise<Ctx> {
+  async ctx(org: string, em: EntityManager = this.db.manager): Promise<Ctx> {
     const [policy, formulas] = await Promise.all([this.sources.hrPolicy(org), this.formulas.refs(org, em)]);
     return { policy, formulas };
   }
@@ -97,11 +97,15 @@ export class BudgetsService {
     if (line.overrideAmount !== null && line.overrideAmount !== undefined) {
       trace.push({ label: `المبلغ المقترح من الإدارة (الفرق عن الآلي ${r2(line.overrideAmount - r.auto).toLocaleString('en-US')})${line.overrideNote ? `: ${line.overrideNote}` : ''}`, value: line.overrideAmount, source: 'تعديل يدوي بمبرر' });
     }
-    Object.assign(line, { auto: r.auto, amount: fin.amount, monthly: fin.monthly, trace, warnings: r.warnings });
+    const lv = b.levers?.length ? applyLevers(b.levers, line, fin.monthly) : null;
+    if (lv?.trace.length) {
+      trace.push(...lv.trace);
+      Object.assign(line, { auto: r.auto, amount: lv.amount, monthly: lv.monthly, trace, warnings: r.warnings });
+    } else Object.assign(line, { auto: r.auto, amount: fin.amount, monthly: fin.monthly, trace, warnings: r.warnings });
     return line;
   }
 
-  private async recalcAll(em: EntityManager, b: Budget, ctx?: Ctx) {
+  async recalcAll(em: EntityManager, b: Budget, ctx?: Ctx) {
     const c = ctx ?? (await this.ctx(b.organizationId, em));
     const lines = await em.getRepository(BudgetLine).find({ where: { budgetId: b.id } });
     for (const l of lines) this.compute(b, l, c);
@@ -193,7 +197,7 @@ export class BudgetsService {
     return this.get(actor, id);
   }
 
-  private pickLine(l: BudgetLine): SnapLine {
+  pickLine(l: BudgetLine): SnapLine {
     return clone(Object.fromEntries(LINE_KEYS.map((k) => [k, l[k]])) as SnapLine);
   }
 
@@ -210,15 +214,18 @@ export class BudgetsService {
     const checks = await this.checks(org, b, lines, ctx);
     const summary = this.summary(b, lines, capital);
     const hr = this.canHr(actor);
+    const base = b.isScenario && b.baseBudgetId
+      ? await this.db.getRepository(Budget).findOne({ where: { id: b.baseBudgetId, organizationId: org }, select: ['id', 'code', 'title', 'status', 'version'] }) : null;
+    const scenarios = b.isScenario ? 0 : await this.db.getRepository(Budget).count({ where: { organizationId: org, baseBudgetId: b.id, isScenario: true } });
     return {
-      ...b, methodologyName: METHODOLOGY_NAME[b.methodology], canDecide: canDecide(b, d), canHr: hr,
+      ...b, base, scenarios, methodologyName: METHODOLOGY_NAME[b.methodology], canDecide: canDecide(b, d), canHr: hr,
       stageName: b.status === 'in_review' && b.stageIndex !== null ? b.wfStages[b.stageIndex]?.name ?? null : null,
       lines: hr ? lines : this.maskHr(lines), summary, checks, versions, capital,
     };
   }
 
   /** من لا يملك صلاحية رواتب الموازنة يرى تكلفة الموظفين الحاليين مجمعة لكل إدارة */
-  private maskHr(lines: BudgetLine[]) {
+  maskHr(lines: BudgetLine[]) {
     const out: (BudgetLine | Record<string, unknown>)[] = lines.filter((l) => !(l.section === 'hr' && l.kind === 'employee'));
     const groups = new Map<string, BudgetLine[]>();
     for (const l of lines.filter((x) => x.section === 'hr' && x.kind === 'employee')) {
@@ -279,7 +286,7 @@ export class BudgetsService {
   }
 
   /** فحوص السلامة: الازدواج، البيانات القديمة، تجاوز السقوف، العجز، والمعادلات المعدّلة بعد الاحتساب */
-  private async checks(org: string, b: Budget, lines: BudgetLine[], ctx: Ctx) {
+  async checks(org: string, b: Budget, lines: BudgetLine[], ctx: Ctx) {
     const out: { level: 'danger' | 'warning' | 'info'; key: string; text: string; lineIds?: string[] }[] = [];
     const inc = lines.filter((l) => l.included);
     const hasHr = inc.some((l) => l.section === 'hr');
@@ -338,6 +345,7 @@ export class BudgetsService {
       if (dto.variables !== undefined) { b.variables = await this.cleanVariables(org, dto.variables, em); recalc = true; }
       if (dto.raiseRules !== undefined) { b.raiseRules = await this.cleanRules(org, dto.raiseRules, em); recalc = true; }
       if (dto.ceilings !== undefined) b.ceilings = await this.cleanCeilings(org, dto.ceilings, em);
+      if (dto.levers !== undefined) { b.levers = await this.cleanLevers(org, dto.levers, em, b.id); recalc = true; }
       if (dto.hrSetup !== undefined) {
         const refs = await this.formulas.refs(org, em);
         const m = str(dto.hrSetup.monthlyFormula, 40) ?? 'HR_MONTHLY';
@@ -353,7 +361,7 @@ export class BudgetsService {
     return this.get(actor, id);
   }
 
-  private async cleanVariables(org: string, input: unknown[], em: EntityManager): Promise<BudgetVariable[]> {
+  async cleanVariables(org: string, input: unknown[], em: EntityManager): Promise<BudgetVariable[]> {
     const vs = input.map((x) => {
       const v = (x ?? {}) as Record<string, unknown>;
       const key = String(v.key ?? '').trim();
@@ -381,7 +389,7 @@ export class BudgetsService {
     return vs.map((v) => ({ ...v, unitName: v.unitId ? names.get(v.unitId) ?? null : null }));
   }
 
-  private async cleanRules(org: string, input: unknown[], em: EntityManager): Promise<RaiseRule[]> {
+  async cleanRules(org: string, input: unknown[], em: EntityManager): Promise<RaiseRule[]> {
     const rules = input.map((x, i) => {
       const r = (x ?? {}) as Record<string, unknown>;
       const m = (r.match ?? {}) as Record<string, unknown>;
@@ -397,6 +405,39 @@ export class BudgetsService {
     });
     await this.core.unitNames(org, rules.map((r) => r.match.unitId).filter((x): x is string => !!x), em);
     return rules;
+  }
+
+  /** تنظيف مؤثرات السيناريو: نوع وقيمة ونطاق صحيح، والبنود المحددة من نفس الموازنة */
+  async cleanLevers(org: string, input: unknown[], em: EntityManager, budgetId: string | null): Promise<Lever[]> {
+    if (input.length > 30) throw new BadRequestException('الحد الأقصى 30 مؤثرًا للسيناريو');
+    const levers = input.map((x, i) => {
+      const l = (x ?? {}) as Record<string, unknown>;
+      const sc = (l.scope ?? {}) as Record<string, unknown>;
+      const name = str(l.name, 150);
+      if (!name) throw new BadRequestException('اكتب اسم كل مؤثر');
+      const type = l.type === 'shift' ? 'shift' as const : 'pct' as const;
+      const value = Number(l.value);
+      if (!Number.isFinite(value)) throw new BadRequestException(`قيمة المؤثر «${name}» يجب أن تكون رقمًا`);
+      if (type === 'pct' && (value < -100 || value > 500)) throw new BadRequestException(`نسبة المؤثر «${name}» بين -100% و500%`);
+      if (type === 'shift' && (value < 1 || value > 11)) throw new BadRequestException(`التأجيل في «${name}» من شهر إلى 11 شهرًا`);
+      const sections = (Array.isArray(sc.sections) ? sc.sections : []).filter((v): v is Section => SECTIONS.includes(v as Section));
+      const ft = ['restricted', 'unrestricted', 'mixed', 'none'].includes(String(sc.fundingType)) ? String(sc.fundingType) : null;
+      return {
+        key: str(l.key, 40) ?? `lv${i + 1}`, name, type, value: r2(value), fromMonth: month(l.fromMonth, 1),
+        scope: { sections, unitId: str(sc.unitId, 40), fundingType: ft, accountId: str(sc.accountId, 40), lineIds: (Array.isArray(sc.lineIds) ? sc.lineIds : []).map(String).slice(0, 200) },
+        note: str(l.note, 500),
+      } as Lever;
+    });
+    const ids = [...new Set(levers.flatMap((l) => l.scope.lineIds))];
+    if (ids.length && budgetId) {
+      // في السيناريو يُقبل رقم البند فيه أو رقم البند المقابل في الموازنة الأساسية
+      const ok: { id: string; base: string | null }[] = await em.query(
+        'SELECT id, base_line_id AS base FROM plan_budget_lines WHERE budget_id = $1 AND (id = ANY($2) OR base_line_id = ANY($2))', [budgetId, ids]);
+      const known = new Set(ok.flatMap((r) => [r.id, r.base]));
+      if (ids.some((x) => !known.has(x))) throw new BadRequestException('بعض البنود المحددة في المؤثرات ليست من هذه الموازنة');
+    }
+    const names = await this.core.unitNames(org, levers.map((l) => l.scope.unitId).filter((x): x is string => !!x), em);
+    return levers.map((l) => ({ ...l, scope: { ...l.scope, unitName: l.scope.unitId ? names.get(l.scope.unitId) ?? null : null } }));
   }
 
   private async cleanCeilings(org: string, input: unknown[], em: EntityManager): Promise<Ceiling[]> {
@@ -419,8 +460,10 @@ export class BudgetsService {
       if (b.version > 0 || b.status === 'in_review') throw new ConflictException('الموازنة المعتمدة أو قيد الاعتماد لا تُحذف');
       const [{ c }] = await em.query('SELECT COUNT(*)::int AS c FROM plan_budget_commitments WHERE budget_id = $1', [id]);
       if (c) throw new ConflictException('على الموازنة حجوزات من أنظمة أخرى');
-      await em.query('DELETE FROM plan_budget_lines WHERE budget_id = $1', [id]);
-      await em.getRepository(Budget).delete({ id });
+      // سيناريوهات الموازنة تُحذف معها
+      const ids = [id, ...(await em.getRepository(Budget).find({ where: { organizationId: org, baseBudgetId: id, isScenario: true }, select: ['id'] })).map((x) => x.id)];
+      await em.query('DELETE FROM plan_budget_lines WHERE budget_id = ANY($1)', [ids]);
+      await em.getRepository(Budget).delete({ id: In(ids) });
     });
     return { ok: true };
   }
@@ -726,13 +769,13 @@ export class BudgetsService {
 
   // ---------------- الاعتماد والإصدارات ----------------
 
-  private async snapshot(em: EntityManager, b: Budget): Promise<BudgetSnapshot> {
+  async snapshot(em: EntityManager, b: Budget): Promise<BudgetSnapshot> {
     const lines = await em.getRepository(BudgetLine).find({ where: { budgetId: b.id }, order: { section: 'ASC', sortOrder: 'ASC' } });
     const refs = await this.formulas.refs(b.organizationId, em);
     const used = new Set(lines.flatMap((l) => l.trace.map((t) => t.formulaCode).filter((x): x is string => !!x)));
     return clone({
       title: b.title, fiscalYear: b.fiscalYear, description: b.description, methodology: b.methodology, historyYears: b.historyYears,
-      variables: b.variables, raiseRules: b.raiseRules, hrSetup: b.hrSetup, ceilings: b.ceilings,
+      variables: b.variables, raiseRules: b.raiseRules, hrSetup: b.hrSetup, ceilings: b.ceilings, levers: b.levers ?? [],
       lines: lines.map((l) => this.pickLine(l)),
       formulas: [...used].map((c) => refs.get(c)).filter(Boolean).map((f) => ({ code: f!.code, version: f!.version, expression: f!.expression })),
     });
@@ -743,6 +786,7 @@ export class BudgetsService {
     const cfg = await this.core.config(org);
     await this.db.transaction(async (em) => {
       const b = await this.budget(em, org, id, true);
+      if (b.isScenario) throw new BadRequestException('السيناريو لا يُرفع للاعتماد. حوّله إلى مشروع موازنة على الموازنة الأساسية');
       const lines = await em.getRepository(BudgetLine).find({ where: { budgetId: id } });
       if (!lines.length) throw new BadRequestException('أضف بنود الموازنة قبل رفعها للاعتماد');
       const ctx = await this.ctx(org, em);
@@ -802,7 +846,7 @@ export class BudgetsService {
       if (c) throw new ConflictException('على بنود أُضيفت بعد الاعتماد حجوزات من أنظمة أخرى');
       await em.query('DELETE FROM plan_budget_lines WHERE budget_id = $1 AND NOT (id = ANY($2))', [id, [...keep]]);
       for (const sl of s.lines) await em.getRepository(BudgetLine).save(em.getRepository(BudgetLine).create({ ...sl, organizationId: org, budgetId: id }));
-      Object.assign(b, { title: s.title, description: s.description, methodology: s.methodology, historyYears: s.historyYears, variables: s.variables, raiseRules: s.raiseRules, hrSetup: s.hrSetup, ceilings: s.ceilings });
+      Object.assign(b, { title: s.title, description: s.description, methodology: s.methodology, historyYears: s.historyYears, variables: s.variables, raiseRules: s.raiseRules, hrSetup: s.hrSetup, ceilings: s.ceilings, levers: s.levers ?? [] });
       b.status = 'approved';
       b.stageIndex = null;
       b.revisionNote = null;

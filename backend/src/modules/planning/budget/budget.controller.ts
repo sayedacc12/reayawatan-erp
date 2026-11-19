@@ -3,9 +3,11 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { DecideDto, SubmitDto } from '../planning.dto';
 import { PLANNING_PERMISSIONS as P } from '../planning.manifest';
 import { BudgetAvailability } from './budget-availability.service';
-import { AvailabilityCheckDto, BudgetDto, FormulaDto, ImportDto, LineDto, TestFormulaDto, UpdateBudgetDto, UpdateFormulaDto, UpdateLineDto } from './budget.dto';
+import { BudgetExecution, ExecMethod } from './budget-execution.service';
+import { AvailabilityCheckDto, BudgetDto, FormulaDto, ImportDto, LineDto, LineMappingDto, PromoteDto, TransferDto, ScenarioDto, TestFormulaDto, UpdateBudgetDto, UpdateFormulaDto, UpdateLineDto } from './budget.dto';
 import { BudgetsService } from './budgets.service';
 import { FormulasService } from './formulas.service';
+import { ScenariosService } from './scenarios.service';
 
 const uuid = new ParseUUIDPipe();
 const ver = (v: string) => {
@@ -17,7 +19,10 @@ const READ = [P.read, P.budgets];
 /** الموازنات التقديرية ومكتبة المعادلات و«المتاح» للصرف */
 @Controller('planning')
 export class BudgetController {
-  constructor(private readonly budgets: BudgetsService, private readonly formulas: FormulasService, private readonly avail: BudgetAvailability) {}
+  constructor(
+    private readonly budgets: BudgetsService, private readonly formulas: FormulasService, private readonly avail: BudgetAvailability, private readonly scenarios: ScenariosService,
+    private readonly exec: BudgetExecution,
+  ) {}
 
   // ---------------- المعادلات ----------------
 
@@ -90,6 +95,60 @@ export class BudgetController {
   compare(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query('from') from: string, @Query('to') to?: string) {
     return this.budgets.compare(a, id, ver(from), to ? ver(to) : 0);
   }
+
+  // ---------------- السيناريوهات ----------------
+
+  @Get('budgets/:id/scenarios') @RequireAnyPermission(...READ)
+  listScenarios(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.scenarios.list(a, id); }
+
+  @Post('budgets/:id/scenarios') @RequirePermissions(P.budgets)
+  createScenario(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: ScenarioDto) { return this.scenarios.create(a, id, dto); }
+
+  @Get('budgets/:id/scenarios/compare') @RequireAnyPermission(...READ)
+  compareScenarios(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query('ids') ids?: string) {
+    const list = (ids ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (list.some((x) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x))) throw new BadRequestException('أرقام السيناريوهات غير صحيحة');
+    return this.scenarios.compare(a, id, list);
+  }
+
+  @Get('budgets/:id/sensitivity') @RequireAnyPermission(...READ)
+  sensitivity(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query('step') step?: string) {
+    return this.scenarios.sensitivity(a, id, step && /^\d{1,2}$/.test(step) ? Number(step) : 10);
+  }
+
+  @Post('scenarios/:id/promote') @RequirePermissions(P.budgets)
+  promote(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: PromoteDto) { return this.scenarios.promote(a, id, dto); }
+
+  // ---------------- التنفيذ والمناقلات ----------------
+
+  @Get('budgets/:id/execution') @RequireAnyPermission(...READ)
+  execution(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query() q: Record<string, string>) {
+    return this.exec.execution(a, id, {
+      month: q.month && /^\d{1,2}$/.test(q.month) ? Number(q.month) : undefined, method: q.method as ExecMethod,
+      threshold: q.threshold && /^\d{1,3}$/.test(q.threshold) ? Number(q.threshold) : undefined,
+    });
+  }
+
+  @Get('budgets/:id/execution/trace') @RequireAnyPermission(...READ)
+  trace(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query('key') key: string, @Query('month') month?: string) {
+    if (key !== 'hr:group' && !/^[0-9a-f-]{36}$/i.test(key ?? '')) throw new BadRequestException('البند غير صحيح');
+    return this.exec.trace(a, id, key, month && /^\d{1,2}$/.test(month) ? Number(month) : undefined);
+  }
+
+  @Patch('budget-lines/:id/mapping') @RequirePermissions(P.budgets)
+  mapping(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: LineMappingDto) { return this.exec.map(a, id, dto); }
+
+  @Post('budgets/:id/transfers/preview') @RequirePermissions(P.budgets)
+  previewTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: TransferDto) { return this.exec.preview(a, id, dto); }
+
+  @Post('budgets/:id/transfers') @RequirePermissions(P.budgets)
+  requestTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: TransferDto) { return this.exec.request(a, id, dto); }
+
+  @Post('budget-transfers/:id/decision') @RequirePermissions(P.budgetsApprove)
+  decideTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: DecideDto) { return this.exec.decide(a, id, dto); }
+
+  @Delete('budget-transfers/:id') @RequirePermissions(P.budgets)
+  cancelTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.exec.cancel(a, id); }
 
   // ---------------- المتاح للصرف (لنظام المشتريات وغيره) ----------------
 

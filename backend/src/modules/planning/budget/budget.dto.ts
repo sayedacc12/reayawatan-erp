@@ -102,6 +102,30 @@ export class UpdateBudgetDto {
 
   @IsOptional() @IsArray()
   ceilings?: unknown[];
+
+  /** مؤثرات السيناريو */
+  @IsOptional() @IsArray()
+  levers?: unknown[];
+}
+
+export class ScenarioDto {
+  @IsString() @MinLength(3) @MaxLength(250) @trim()
+  title!: string;
+
+  @Opt() @IsString() @MaxLength(2000) @trim()
+  description?: string | null;
+
+  /** نسخ من سيناريو آخر لنفس الموازنة بدل الموازنة الأساسية */
+  @IsOptional() @IsUUID()
+  copyFromId?: string;
+
+  @IsOptional() @IsArray()
+  levers?: unknown[];
+}
+
+export class PromoteDto {
+  @IsString() @MinLength(3) @MaxLength(1000) @trim()
+  note!: string;
 }
 
 export class ImportDto {
@@ -179,4 +203,32 @@ export class AvailabilityCheckDto {
 
   @Opt() @IsUUID('4')
   fundingBatchId?: string | null;
+}
+
+export class LineMappingDto {
+  @IsArray() @IsUUID('4', { each: true })
+  accountIds!: string[];
+
+  @Opt() @IsUUID()
+  costCenterId?: string | null;
+}
+
+export class TransferDto {
+  @IsIn(['transfer', 'increase', 'decrease'], { message: 'نوع الطلب غير صحيح' })
+  kind!: 'transfer' | 'increase' | 'decrease';
+
+  @Opt() @IsUUID()
+  fromLineId?: string | null;
+
+  @Opt() @IsUUID()
+  toLineId?: string | null;
+
+  @Type(() => Number) @IsNumber() @Min(1, { message: 'المبلغ يجب أن يكون ريالًا فأكثر' })
+  amount!: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(12)
+  fromMonth?: number;
+
+  @IsString() @MinLength(3, { message: 'اكتب سبب الطلب' }) @MaxLength(1500) @trim()
+  reason!: string;
 }

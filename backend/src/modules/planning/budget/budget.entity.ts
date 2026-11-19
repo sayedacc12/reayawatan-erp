@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn, ValueTransformer } from 'typeorm';
 import type { WfLog, WfStage, WfStatus } from '../entities/planning.entity';
-import type { BudgetVariable, Ceiling, FormulaTarget, Methodology, RaiseRule, Section } from './budget-defaults';
+import type { BudgetVariable, Ceiling, FormulaTarget, Lever, Methodology, RaiseRule, Section } from './budget-defaults';
 
 const num: ValueTransformer = {
   to: (v?: number | null) => v,
@@ -65,10 +65,12 @@ export interface HrSetup { monthlyFormula: string; annualFormula: string }
 /**
  * الموازنة التقديرية لسنة مالية: افتراضات، وقواعد علاوات، وسقوف للإدارات، وبنود في أقسام
  * (الموارد البشرية، المصروفات التشغيلية، الأنشطة، الإيرادات). تُعتمد بمسار اعتماد وتُحفظ إصداراتها.
- * isScenario وbaseBudgetId محجوزان لمرحلة السيناريوهات.
+ * السيناريو موازنة مستقلة (isScenario) منسوخة من موازنة أساسية (baseBudgetId) بافتراضاتها وبنودها ومؤثراتها،
+ * لا تُعتمد بذاتها، ويمكن تحويلها إلى مشروع موازنة على الأساسية يخضع لمسار الاعتماد.
  */
 @Entity('plan_budgets')
 @Index('UQ_plan_budgets_code', ['organizationId', 'code'], { unique: true })
+@Index('IDX_plan_budgets_base', ['baseBudgetId'])
 export class Budget {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -114,6 +116,17 @@ export class Budget {
 
   @Column({ name: 'base_budget_id', type: 'uuid', nullable: true })
   baseBudgetId!: string | null;
+
+  /** مؤثرات السيناريو (نسب وتأجيلات على البنود المطابقة) */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  levers!: Lever[];
+
+  /** تاريخ تحويل السيناريو إلى مشروع موازنة على الأساسية */
+  @Column({ name: 'promoted_at', type: 'timestamptz', nullable: true })
+  promotedAt!: Date | null;
+
+  @Column({ name: 'promoted_by_name', type: 'varchar', length: 200, nullable: true })
+  promotedByName!: string | null;
 
   @Column({ type: 'varchar', length: 12, default: 'draft' })
   status!: WfStatus;
@@ -189,6 +202,10 @@ export class BudgetLine {
   @Column({ name: 'source_ref', type: 'varchar', length: 120, nullable: true })
   sourceRef!: string | null;
 
+  /** في السيناريو: البند المقابل في الموازنة الأساسية (للمقارنة والتحويل) */
+  @Column({ name: 'base_line_id', type: 'uuid', nullable: true })
+  baseLineId!: string | null;
+
   @Column({ name: 'unit_id', type: 'uuid', nullable: true })
   unitId!: string | null;
 
@@ -250,6 +267,13 @@ export class BudgetLine {
   @Column({ type: 'jsonb', default: () => `'[]'` })
   warnings!: string[];
 
+  /**
+   * ربط البند بالفعلي في النظام المالي أثناء التنفيذ (حسابات ومركز تكلفة)، بدل حساب البند.
+   * بيانات متابعة لا تغيّر محتوى الموازنة المعتمدة، فتُعدّل دون فتح تعديل على الموازنة.
+   */
+  @Column({ name: 'actual_map', type: 'jsonb', nullable: true })
+  actualMap!: { accountIds: string[]; costCenterId: string | null } | null;
+
   /** يُستبعد من الإجمالي (مثل تكلفة مغطاة في بند آخر) */
   @Column({ type: 'boolean', default: true })
   included!: boolean;
@@ -303,10 +327,10 @@ export class BudgetVersion {
 }
 
 /** بند كما حُفظ في لقطة الإصدار (كل حقوله ليمكن الرجوع إليه) */
-export type SnapLine = Omit<BudgetLine, 'organizationId' | 'budgetId' | 'createdAt' | 'updatedAt'>;
+export type SnapLine = Omit<BudgetLine, 'organizationId' | 'budgetId' | 'createdAt' | 'updatedAt' | 'actualMap'>;
 export interface BudgetSnapshot {
   title: string; fiscalYear: number; description: string | null; methodology: Methodology; historyYears: number;
-  variables: BudgetVariable[]; raiseRules: RaiseRule[]; hrSetup: HrSetup; ceilings: Ceiling[];
+  variables: BudgetVariable[]; raiseRules: RaiseRule[]; hrSetup: HrSetup; ceilings: Ceiling[]; levers?: Lever[];
   lines: SnapLine[];
   formulas: { code: string; version: number; expression: string }[];
 }
@@ -363,4 +387,80 @@ export class BudgetCommitment {
   updatedAt!: Date;
 }
 
-export const BUDGET_ENTITIES = [PlanFormula, Budget, BudgetLine, BudgetVersion, BudgetCommitment];
+/**
+ * مناقلة أو زيادة أو تخفيض على موازنة معتمدة أثناء التنفيذ، بمسار اعتماد خاص (planKind = transfer).
+ * لا تُغيّر الإصدار المعتمد، وتُحتسب في «المعدّل» و«المتاح» بعد اعتمادها. impact لقطة دراسة الأثر وقت الطلب.
+ */
+@Entity('plan_budget_transfers')
+@Index('IDX_plan_budget_transfers_budget', ['budgetId', 'status'])
+export class BudgetTransfer {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'budget_id', type: 'uuid' })
+  budgetId!: string;
+
+  @Column({ type: 'varchar', length: 20 })
+  code!: string;
+
+  /** transfer: من بند إلى بند · increase: زيادة بند · decrease: تخفيض بند */
+  @Column({ type: 'varchar', length: 10 })
+  kind!: 'transfer' | 'increase' | 'decrease';
+
+  @Column({ name: 'from_line_id', type: 'uuid', nullable: true })
+  fromLineId!: string | null;
+
+  @Column({ name: 'from_name', type: 'varchar', length: 300, nullable: true })
+  fromName!: string | null;
+
+  @Column({ name: 'to_line_id', type: 'uuid', nullable: true })
+  toLineId!: string | null;
+
+  @Column({ name: 'to_name', type: 'varchar', length: 300, nullable: true })
+  toName!: string | null;
+
+  @Column({ type: 'numeric', precision: 16, scale: 2, transformer: num })
+  amount!: number;
+
+  /** الشهر الذي يسري منه التعديل (يوزَّع على الأشهر المتبقية) */
+  @Column({ name: 'from_month', type: 'int', default: 1 })
+  fromMonth!: number;
+
+  @Column({ type: 'varchar', length: 1500 })
+  reason!: string;
+
+  @Column({ type: 'jsonb', default: () => `'{}'` })
+  impact!: Record<string, unknown>;
+
+  @Column({ type: 'varchar', length: 12, default: 'draft' })
+  status!: WfStatus;
+
+  @Column({ name: 'stage_index', type: 'int', nullable: true })
+  stageIndex!: number | null;
+
+  @Column({ name: 'wf_stages', type: 'jsonb', default: () => `'[]'` })
+  wfStages!: WfStage[];
+
+  @Column({ name: 'route_name', type: 'varchar', length: 150, nullable: true })
+  routeName!: string | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  approvals!: WfLog[];
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
+
+  @Column({ name: 'created_by_name', length: 200 })
+  createdByName!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+export const BUDGET_ENTITIES = [PlanFormula, Budget, BudgetLine, BudgetVersion, BudgetCommitment, BudgetTransfer];

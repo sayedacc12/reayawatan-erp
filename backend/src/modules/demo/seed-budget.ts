@@ -5,6 +5,9 @@ import { Permission, Role } from '../../core/entities';
 import { OrgService } from '../hr/org.service';
 import { BudgetsService } from '../planning/budget/budgets.service';
 import { FormulasService } from '../planning/budget/formulas.service';
+import { ScenariosService } from '../planning/budget/scenarios.service';
+import { BudgetAvailability } from '../planning/budget/budget-availability.service';
+import { BudgetExecution } from '../planning/budget/budget-execution.service';
 import { PLANNING_PERMISSIONS as P } from '../planning/planning.manifest';
 import { PlansService } from '../planning/plans.service';
 import { DemoTeam, daysAgo } from './demo-context';
@@ -15,6 +18,9 @@ import { DemoTeam, daysAgo } from './demo-context';
  * وأنشطة خطة تشغيلية معتمدة للسنة القادمة، وموازنات المشاريع. مع افتراضات بقيم مرحلية، وقواعد علاوات،
  * ومعادلة خاصة، واستبعاد مصروف غير متكرر، وعقد جديد، وتعديل يدوي بمبرر، وسقوف للإدارات.
  * اعتُمد الإصدار الأول ثم عُدّلت نسبة العلاوة واعتُمد الإصدار الثاني (لمقارنة الإصدارات).
+ * وثلاثة سيناريوهات للمقارنة: متحفظ (انخفاض التبرعات وعلاوة أقل وإلغاء وظيفة)، وتوسعي، وتأجيل الأنشطة.
+ * وموازنة معتمدة للسنة الجارية قيد التنفيذ: بنود مربوطة بحسابات عليها قيود فعلية (بعضها متجاوز)، ومناقلة معتمدة وأخرى
+ * بانتظار الاعتماد، وحجز من المشتريات، لعرض المخطط مقابل الفعلي والانحرافات والتوقع لنهاية السنة.
  * كل العمليات عبر خدمات النظام نفسها.
  */
 @Injectable()
@@ -25,6 +31,9 @@ export class BudgetSeed {
     private readonly formulas: FormulasService,
     private readonly plans: PlansService,
     private readonly hrOrg: OrgService,
+    private readonly scenarios: ScenariosService,
+    private readonly exec: BudgetExecution,
+    private readonly avail: BudgetAvailability,
   ) {}
 
   private async grant(team: DemoTeam) {
@@ -39,6 +48,50 @@ export class BudgetSeed {
     let b = await this.budgets.get(admin, id);
     for (let i = 0; i < 8 && b.status === 'in_review'; i++) b = await this.budgets.decide(admin, id, { decision: 'approve', note: null });
     return b;
+  }
+
+  /** موازنة السنة الجارية قيد التنفيذ: تقديرات قريبة من الفعلي مع انحرافات مقصودة */
+  private async current(finance: OrgUser, admin: OrgUser, unit: (n: string) => string | null) {
+    const org = admin.organizationId;
+    const Y = Number(daysAgo(0).slice(0, 4));
+    const month = Number(daysAgo(0).slice(5, 7));
+    const acts: { id: string; code: string; name: string; nature: string; amount: number }[] = await this.db.query(
+      `SELECT a.id, a.code, a.name, a.nature, SUM(CASE WHEN a.nature = 'revenue' THEN l.credit - l.debit ELSE l.debit - l.credit END)::float AS amount
+         FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id JOIN acc_accounts a ON a.id = l.account_id
+        WHERE e.organization_id = $1 AND e.status = 'posted' AND a.nature IN ('expenses', 'revenue') AND EXTRACT(YEAR FROM e.document_date) = $2
+        GROUP BY 1, 2, 3, 4 HAVING SUM(l.debit - l.credit) <> 0 ORDER BY ABS(SUM(l.debit - l.credit)) DESC`, [org, Y]);
+    if (!acts.length) return null;
+    let b = await this.budgets.create(finance, { title: `الموازنة التقديرية لعام ${Y}`, fiscalYear: Y, methodology: 'mixed', description: 'موازنة السنة الجارية المعتمدة، تُتابع بالمخطط مقابل الفعلي من القيود المحاسبية.' });
+    const id = b.id;
+    // تقدير كل حساب من فعليه السنوي المتوقع، بفروق مقصودة: بعض البنود مقدّرة بأقل من الصرف الفعلي
+    const factor = [0.75, 1.1, 1.25, 0.95, 1.4, 1.15, 0.85, 1.2];
+    const exp = acts.filter((a) => a.nature === 'expenses').slice(0, 8), rev = acts.filter((a) => a.nature === 'revenue').slice(0, 5);
+    const lineFor = new Map<string, string>();
+    for (const [i, a] of [...exp, ...rev].entries()) {
+      const annual = Math.round((Math.abs(a.amount) * 12) / Math.max(1, month) * (factor[i % factor.length]) / 1000) * 1000;
+      const l = await this.budgets.addLine(finance, id, {
+        section: a.nature === 'revenue' ? 'revenue' : 'opex', kind: 'manual', name: a.name, unitId: a.nature === 'revenue' ? null : unit('الإدارة المالية') ?? unit('الإدارة التنفيذية'),
+        params: { manualAmount: Math.max(1000, annual) },
+      });
+      lineFor.set(a.id, l.id);
+      await this.exec.map(finance, l.id, { accountIds: [a.id], costCenterId: null });
+    }
+    await this.budgets.addLine(finance, id, { section: 'opex', kind: 'manual', name: 'صيانة وتجهيز المقر', unitId: unit('الإدارة التنفيذية'), params: { manualAmount: 90000 } });
+    await this.budgets.submit(finance, id, null);
+    b = await this.approve(admin, id);
+    // مناقلة معتمدة إلى أكثر بند متجاوز، وطلب زيادة بانتظار الاعتماد، وحجز من المشتريات
+    const ex = await this.exec.execution(finance, id, {});
+    const over = ex.rows.filter((r) => r.section === 'opex' && r.lineId).sort((x, y) => (x.available ?? 0) - (y.available ?? 0))[0];
+    const spare = ex.rows.filter((r) => r.section === 'opex' && r.lineId && r.lineId !== over?.lineId).sort((x, y) => (y.available ?? 0) - (x.available ?? 0))[0];
+    if (over && spare && (spare.available ?? 0) > 2000) {
+      const amount = Math.min(Math.round(((spare.available ?? 0) * 0.5) / 1000) * 1000, 40000) || 1000;
+      const t = await this.exec.request(finance, id, { kind: 'transfer', fromLineId: spare.lineId, toLineId: over.lineId, amount, fromMonth: month, reason: `تغطية الزيادة في «${over.name}» من وفر «${spare.name}»` });
+      for (let i = 0; i < 5; i++) { const r = await this.exec.decide(admin, t.id, { decision: 'approve', note: null }).catch(() => null); if (!r || r.status !== 'in_review') break; }
+      await this.exec.request(finance, id, { kind: 'increase', toLineId: over.lineId, amount: 15000, fromMonth: Math.min(12, month + 1), reason: 'ارتفاع الأسعار في الربع الأخير' });
+    }
+    const maint = ((await this.budgets.get(finance, id)).lines as { id: string; name: string }[]).find((l) => l.name === 'صيانة وتجهيز المقر');
+    if (maint) await this.avail.reserve(org, { amount: 32000, budgetLineId: maint.id, sourceModule: 'procurement', sourceRef: 'أمر شراء PO-0007 أعمال صيانة', note: 'تعميد مورد الصيانة', byName: finance.fullName });
+    return id;
   }
 
   async run(team: DemoTeam, strategicId: string) {
@@ -145,6 +198,28 @@ export class BudgetSeed {
     await this.budgets.submit(finance, id, 'رفع العلاوة العامة إلى 6% بقرار مجلس الإدارة');
     await this.approve(admin, id);
 
-    return { budget: id };
+    // السيناريوهات
+    const setVar = (sc: { variables: { key: string; value: number }[] }, key: string, value: number) => sc.variables.map((v) => (v.key === key ? { ...v, value } : v));
+    let sc = await this.scenarios.create(finance, id, {
+      title: 'متحفظ: انخفاض التبرعات 20%', description: 'تراجع التبرعات مع علاوة أقل وتأجيل التعيين الممول ذاتيًا',
+      levers: [{ name: 'انخفاض الإيرادات', type: 'pct', value: -20, fromMonth: 1, scope: { sections: ['revenue'] }, note: 'تراجع متوقع في التبرعات العامة' }],
+    });
+    await this.scenarios.create(finance, id, {
+      title: 'توسعي: نمو الإيرادات', description: 'نمو الإيرادات 10% مع ارتفاع أسعار التشغيل من يوليو',
+      levers: [
+        { name: 'نمو الإيرادات', type: 'pct', value: 10, fromMonth: 1, scope: { sections: ['revenue'] }, note: null },
+        { name: 'ارتفاع أسعار الخدمات والعقود', type: 'pct', value: 5, fromMonth: 7, scope: { sections: ['opex'] }, note: 'تجديد العقود في يوليو' },
+      ],
+    });
+    await this.scenarios.create(finance, id, {
+      title: 'تأجيل الأنشطة والمشاريع 3 أشهر', description: 'تأخر وصول التمويل المقيد',
+      levers: [{ name: 'تأجيل الأنشطة', type: 'shift', value: 3, fromMonth: 1, scope: { sections: ['activity'] }, note: 'ما يتجاوز ديسمبر ينتقل للسنة التالية' }],
+    });
+    sc = await this.budgets.update(finance, sc.id, { variables: setVar(sc, 'general_raise', 3) });
+    const own = (sc.lines as L[]).find((l) => l.kind === 'new_position' && l.name.includes('تنمية موارد'));
+    if (own) await this.budgets.updateLine(finance, own.id, { included: false, note: 'تأجيل التعيين في السيناريو المتحفظ' });
+
+    const current = await this.current(finance, admin, unit);
+    return { budget: id, current };
   }
 }

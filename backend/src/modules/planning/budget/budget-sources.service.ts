@@ -163,4 +163,27 @@ export class BudgetSources {
          FROM acc_asset_budget_lines l JOIN acc_asset_budgets b ON b.id = l.budget_id JOIN acc_fiscal_years y ON y.id = b.fiscal_year_id
         WHERE l.organization_id = $1 AND y.name = $2::text ORDER BY b.title, l.line_no`, [org, year]));
   }
+
+  /** الفعلي الشهري لسنة على مجموعة حسابات (ومركز تكلفة إن حُدد): مصفوفة 12 شهرًا */
+  async actualMonthly(org: string, year: number, accountIds: string[], costCenterId: string | null): Promise<number[]> {
+    const out = Array(12).fill(0) as number[];
+    if (!accountIds.length) return out;
+    for (const r of await this.actuals(org, year, year, { accountIds, costCenterId })) out[r.m - 1] = r2(out[r.m - 1] + r.amount);
+    return out;
+  }
+
+  /** القيود المرحّلة على حسابات (ومركز تكلفة) في سنة حتى شهر: لتتبع الفعلي إلى مصدره */
+  async entriesFor(org: string, year: number, toMonth: number, accountIds: string[], costCenterId: string | null) {
+    if (!accountIds.length) return [];
+    const params: unknown[] = [org, accountIds, `${year}-01-01`, toMonth >= 12 ? `${year + 1}-01-01` : `${year}-${String(toMonth + 1).padStart(2, '0')}-01`];
+    let share = '1';
+    if (costCenterId) { params.push(costCenterId); share = `COALESCE((SELECT SUM((x->>'percent')::numeric) / 100 FROM jsonb_array_elements(COALESCE(l.analytic, '[]'::jsonb)) x WHERE x->>'analyticId' = $5), 0)`; }
+    const rows: { id: string; entryNo: number; date: string; description: string; voucherId: string | null; voucherType: string; accountCode: string; amount: number }[] = await safe(this.db.query(
+      `SELECT e.id, e.entry_no AS "entryNo", e.document_date::text AS date, e.description, e.voucher_id AS "voucherId", e.voucher_type AS "voucherType", MIN(a.code) AS "accountCode",
+              SUM(CASE WHEN a.nature = 'revenue' THEN l.credit - l.debit ELSE l.debit - l.credit END * ${share})::float AS amount
+         FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id JOIN acc_accounts a ON a.id = l.account_id
+        WHERE e.organization_id = $1 AND l.account_id = ANY($2) AND e.status = 'posted' AND e.document_date >= $3 AND e.document_date < $4
+        GROUP BY e.id ORDER BY e.document_date DESC, e.entry_no DESC LIMIT 300`, params));
+    return rows.map((r) => ({ ...r, amount: r2(r.amount) })).filter((r) => r.amount !== 0);
+  }
 }
