@@ -96,3 +96,14 @@ export const DEFAULT_VARIABLES: BudgetVariable[] = [
 ];
 
 export const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+/**
+ * مؤثر سيناريو: تغيير يُطبّق على نتيجة البنود المطابقة بعد احتسابها (يظهر في خطوات الاحتساب).
+ * pct: زيادة أو خفض بنسبة من شهر معين (انخفاض التبرعات، تضخم الأسعار، تغير أسعار العقود).
+ * shift: تأجيل البنود عددًا من الأشهر؛ ما يتجاوز ديسمبر ينتقل للسنة التالية ويخرج من موازنة السنة.
+ */
+export interface Lever {
+  key: string; name: string; type: 'pct' | 'shift'; value: number; fromMonth: number;
+  scope: { sections: Section[]; unitId: string | null; unitName?: string | null; fundingType: string | null; accountId: string | null; lineIds: string[] };
+  note: string | null;
+}

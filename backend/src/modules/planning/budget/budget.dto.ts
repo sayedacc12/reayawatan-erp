@@ -102,6 +102,30 @@ export class UpdateBudgetDto {
 
   @IsOptional() @IsArray()
   ceilings?: unknown[];
+
+  /** مؤثرات السيناريو */
+  @IsOptional() @IsArray()
+  levers?: unknown[];
+}
+
+export class ScenarioDto {
+  @IsString() @MinLength(3) @MaxLength(250) @trim()
+  title!: string;
+
+  @Opt() @IsString() @MaxLength(2000) @trim()
+  description?: string | null;
+
+  /** نسخ من سيناريو آخر لنفس الموازنة بدل الموازنة الأساسية */
+  @IsOptional() @IsUUID()
+  copyFromId?: string;
+
+  @IsOptional() @IsArray()
+  levers?: unknown[];
+}
+
+export class PromoteDto {
+  @IsString() @MinLength(3) @MaxLength(1000) @trim()
+  note!: string;
 }
 
 export class ImportDto {

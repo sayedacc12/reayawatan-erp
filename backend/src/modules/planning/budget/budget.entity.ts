@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn, ValueTransformer } from 'typeorm';
 import type { WfLog, WfStage, WfStatus } from '../entities/planning.entity';
-import type { BudgetVariable, Ceiling, FormulaTarget, Methodology, RaiseRule, Section } from './budget-defaults';
+import type { BudgetVariable, Ceiling, FormulaTarget, Lever, Methodology, RaiseRule, Section } from './budget-defaults';
 
 const num: ValueTransformer = {
   to: (v?: number | null) => v,
@@ -65,10 +65,12 @@ export interface HrSetup { monthlyFormula: string; annualFormula: string }
 /**
  * الموازنة التقديرية لسنة مالية: افتراضات، وقواعد علاوات، وسقوف للإدارات، وبنود في أقسام
  * (الموارد البشرية، المصروفات التشغيلية، الأنشطة، الإيرادات). تُعتمد بمسار اعتماد وتُحفظ إصداراتها.
- * isScenario وbaseBudgetId محجوزان لمرحلة السيناريوهات.
+ * السيناريو موازنة مستقلة (isScenario) منسوخة من موازنة أساسية (baseBudgetId) بافتراضاتها وبنودها ومؤثراتها،
+ * لا تُعتمد بذاتها، ويمكن تحويلها إلى مشروع موازنة على الأساسية يخضع لمسار الاعتماد.
  */
 @Entity('plan_budgets')
 @Index('UQ_plan_budgets_code', ['organizationId', 'code'], { unique: true })
+@Index('IDX_plan_budgets_base', ['baseBudgetId'])
 export class Budget {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -114,6 +116,17 @@ export class Budget {
 
   @Column({ name: 'base_budget_id', type: 'uuid', nullable: true })
   baseBudgetId!: string | null;
+
+  /** مؤثرات السيناريو (نسب وتأجيلات على البنود المطابقة) */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  levers!: Lever[];
+
+  /** تاريخ تحويل السيناريو إلى مشروع موازنة على الأساسية */
+  @Column({ name: 'promoted_at', type: 'timestamptz', nullable: true })
+  promotedAt!: Date | null;
+
+  @Column({ name: 'promoted_by_name', type: 'varchar', length: 200, nullable: true })
+  promotedByName!: string | null;
 
   @Column({ type: 'varchar', length: 12, default: 'draft' })
   status!: WfStatus;
@@ -188,6 +201,10 @@ export class BudgetLine {
 
   @Column({ name: 'source_ref', type: 'varchar', length: 120, nullable: true })
   sourceRef!: string | null;
+
+  /** في السيناريو: البند المقابل في الموازنة الأساسية (للمقارنة والتحويل) */
+  @Column({ name: 'base_line_id', type: 'uuid', nullable: true })
+  baseLineId!: string | null;
 
   @Column({ name: 'unit_id', type: 'uuid', nullable: true })
   unitId!: string | null;
@@ -306,7 +323,7 @@ export class BudgetVersion {
 export type SnapLine = Omit<BudgetLine, 'organizationId' | 'budgetId' | 'createdAt' | 'updatedAt'>;
 export interface BudgetSnapshot {
   title: string; fiscalYear: number; description: string | null; methodology: Methodology; historyYears: number;
-  variables: BudgetVariable[]; raiseRules: RaiseRule[]; hrSetup: HrSetup; ceilings: Ceiling[];
+  variables: BudgetVariable[]; raiseRules: RaiseRule[]; hrSetup: HrSetup; ceilings: Ceiling[]; levers?: Lever[];
   lines: SnapLine[];
   formulas: { code: string; version: number; expression: string }[];
 }

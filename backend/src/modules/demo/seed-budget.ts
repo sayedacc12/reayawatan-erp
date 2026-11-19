@@ -5,6 +5,7 @@ import { Permission, Role } from '../../core/entities';
 import { OrgService } from '../hr/org.service';
 import { BudgetsService } from '../planning/budget/budgets.service';
 import { FormulasService } from '../planning/budget/formulas.service';
+import { ScenariosService } from '../planning/budget/scenarios.service';
 import { PLANNING_PERMISSIONS as P } from '../planning/planning.manifest';
 import { PlansService } from '../planning/plans.service';
 import { DemoTeam, daysAgo } from './demo-context';
@@ -15,6 +16,7 @@ import { DemoTeam, daysAgo } from './demo-context';
  * وأنشطة خطة تشغيلية معتمدة للسنة القادمة، وموازنات المشاريع. مع افتراضات بقيم مرحلية، وقواعد علاوات،
  * ومعادلة خاصة، واستبعاد مصروف غير متكرر، وعقد جديد، وتعديل يدوي بمبرر، وسقوف للإدارات.
  * اعتُمد الإصدار الأول ثم عُدّلت نسبة العلاوة واعتُمد الإصدار الثاني (لمقارنة الإصدارات).
+ * وثلاثة سيناريوهات للمقارنة: متحفظ (انخفاض التبرعات وعلاوة أقل وإلغاء وظيفة)، وتوسعي، وتأجيل الأنشطة.
  * كل العمليات عبر خدمات النظام نفسها.
  */
 @Injectable()
@@ -25,6 +27,7 @@ export class BudgetSeed {
     private readonly formulas: FormulasService,
     private readonly plans: PlansService,
     private readonly hrOrg: OrgService,
+    private readonly scenarios: ScenariosService,
   ) {}
 
   private async grant(team: DemoTeam) {
@@ -144,6 +147,27 @@ export class BudgetSeed {
     await this.budgets.update(finance, id, { variables: b.variables.map((v) => (v.key === 'general_raise' ? { ...v, value: 6 } : v)) });
     await this.budgets.submit(finance, id, 'رفع العلاوة العامة إلى 6% بقرار مجلس الإدارة');
     await this.approve(admin, id);
+
+    // السيناريوهات
+    const setVar = (sc: { variables: { key: string; value: number }[] }, key: string, value: number) => sc.variables.map((v) => (v.key === key ? { ...v, value } : v));
+    let sc = await this.scenarios.create(finance, id, {
+      title: 'متحفظ: انخفاض التبرعات 20%', description: 'تراجع التبرعات مع علاوة أقل وتأجيل التعيين الممول ذاتيًا',
+      levers: [{ name: 'انخفاض الإيرادات', type: 'pct', value: -20, fromMonth: 1, scope: { sections: ['revenue'] }, note: 'تراجع متوقع في التبرعات العامة' }],
+    });
+    await this.scenarios.create(finance, id, {
+      title: 'توسعي: نمو الإيرادات', description: 'نمو الإيرادات 10% مع ارتفاع أسعار التشغيل من يوليو',
+      levers: [
+        { name: 'نمو الإيرادات', type: 'pct', value: 10, fromMonth: 1, scope: { sections: ['revenue'] }, note: null },
+        { name: 'ارتفاع أسعار الخدمات والعقود', type: 'pct', value: 5, fromMonth: 7, scope: { sections: ['opex'] }, note: 'تجديد العقود في يوليو' },
+      ],
+    });
+    await this.scenarios.create(finance, id, {
+      title: 'تأجيل الأنشطة والمشاريع 3 أشهر', description: 'تأخر وصول التمويل المقيد',
+      levers: [{ name: 'تأجيل الأنشطة', type: 'shift', value: 3, fromMonth: 1, scope: { sections: ['activity'] }, note: 'ما يتجاوز ديسمبر ينتقل للسنة التالية' }],
+    });
+    sc = await this.budgets.update(finance, sc.id, { variables: setVar(sc, 'general_raise', 3) });
+    const own = (sc.lines as L[]).find((l) => l.kind === 'new_position' && l.name.includes('تنمية موارد'));
+    if (own) await this.budgets.updateLine(finance, own.id, { included: false, note: 'تأجيل التعيين في السيناريو المتحفظ' });
 
     return { budget: id };
   }
