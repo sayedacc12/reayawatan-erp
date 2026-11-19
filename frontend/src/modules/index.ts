@@ -18,9 +18,10 @@ import { websiteRoutes } from './website/routes';
 import { partnershipsRoutes } from './partnerships/routes';
 import { commsRoutes } from './comms/routes';
 import { meetingsRoutes } from './meetings/routes';
+import { planningRoutes } from './planning/routes';
 
 /**
  * شاشات كل وحدة تُسجَّل هنا. لإضافة وحدة: أنشئ src/modules/<code>/routes.ts
  * وأضفها للمصفوفة. كل route يحمل meta.permission ومساره يطابق menu في manifest الخلفية.
  */
-export const moduleRoutes: RouteRecordRaw[] = [...platformRoutes, ...supportRoutes, ...beneficiariesRoutes, ...fundraisingRoutes, ...projectsRoutes, ...accountingRoutes, ...hrRoutes, ...riskRoutes, ...governanceRoutes, ...volunteersRoutes, ...qualityRoutes, ...auditRoutes, ...membersRoutes, ...knowledgeRoutes, ...partnershipsRoutes, ...websiteRoutes, ...commsRoutes, ...meetingsRoutes, ...coreRoutes];
+export const moduleRoutes: RouteRecordRaw[] = [...platformRoutes, ...supportRoutes, ...beneficiariesRoutes, ...fundraisingRoutes, ...projectsRoutes, ...accountingRoutes, ...hrRoutes, ...riskRoutes, ...planningRoutes, ...governanceRoutes, ...volunteersRoutes, ...qualityRoutes, ...auditRoutes, ...membersRoutes, ...knowledgeRoutes, ...partnershipsRoutes, ...websiteRoutes, ...commsRoutes, ...meetingsRoutes, ...coreRoutes];
