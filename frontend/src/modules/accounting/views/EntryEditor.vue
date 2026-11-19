@@ -155,6 +155,11 @@ loadDocTypes();
       </div>
     </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
+    <div v-if="entry?.source === 'assets'" class="ro-note no-print">
+      <b>🔒 للاطلاع فقط</b>
+      <span>هذا {{ entry.voucherLabel }} يصدر من الأصول الثابتة، ولا يُنشأ ولا يُعدَّل ولا يُلغى من النظام المالي. إلغاؤه يكون من
+        <RouterLink :to="entry.voucherType === 'depreciation' ? '/accounting/assets/runs' : '/accounting/assets/operations?view=log'" class="pm-link">{{ entry.voucherType === 'depreciation' ? 'سجل حركات الإهلاك' : 'سجل عمليات الأصول' }}</RouterLink>.</span>
+    </div>
 
     <section :class="['card', 'pm-panel', 'sheet', { 'is-void': entry?.status === 'cancelled' }]">
       <div v-if="entry?.status === 'cancelled'" class="stamp">ملغي</div>
@@ -259,4 +264,5 @@ tfoot .tot td { font-weight: 700; border-top: 2px solid var(--border); }
 .audit { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; font-size: .8rem; color: var(--muted); }
 .audit .void { color: var(--danger); }
 @media print { .lines input, .lines select { border: 0; background: none; } }
+.ro-note { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border-radius: 14px; padding: 12px 16px; margin-bottom: 14px; background: #f0f9ff; border: 1px solid #bae6fd; color: #075985; }
 </style>
