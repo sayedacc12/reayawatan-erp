@@ -9,6 +9,7 @@ import { MONTHS_AR, SECTION_NAME } from './budget-defaults';
 import { BudgetsService } from './budgets.service';
 import { FormulasService } from './formulas.service';
 import { ScenariosService } from './scenarios.service';
+import { BudgetExecution } from './budget-execution.service';
 
 const WF: Record<string, string> = { draft: 'مسودة', in_review: 'قيد الاعتماد', returned: 'مُرجعة للتعديل', approved: 'معتمدة', rejected: 'مرفوضة' };
 const FUNDING: Record<string, string> = { restricted: 'مقيد', unrestricted: 'غير مقيد', mixed: 'مختلط' };
@@ -25,6 +26,7 @@ export class BudgetReports implements OnModuleInit {
   constructor(
     private readonly registry: ReportsRegistry, private readonly budgets: BudgetsService,
     private readonly formulas: FormulasService, private readonly avail: BudgetAvailability, private readonly scenarios: ScenariosService,
+    private readonly exec: BudgetExecution,
   ) {}
 
   onModuleInit() {
@@ -170,6 +172,41 @@ export class BudgetReports implements OnModuleInit {
             heads: `${x.headcount.current} + ${x.headcount.new}`, levers: x.levers.map(lv).join('، ') || null,
           });
           return { subtitle: `${r.base.code} ${r.base.title}`, rows: [row(r.base, null), ...r.scenarios.map((x) => row(x, x.diff.balance))] };
+        },
+      },
+      {
+        ...base, code: 'planning.budget.execution', category: 'الموازنات', title: 'تنفيذ الموازنة: المخطط مقابل الفعلي', orientation: 'landscape',
+        description: 'لكل بند: الموازنة الأصلية والمعدلة والمناقلات، والمخطط حتى الشهر، والفعلي من القيود المرحّلة، والمحجوز والمتاح والانحراف والتوقع لنهاية السنة',
+        filters: [budgetFilter, selectFilter('month', 'حتى شهر', Object.fromEntries(MONTHS_AR.map((m, i) => [String(i + 1), m])))],
+        columns: [
+          { key: 'section', label: 'القسم' }, { key: 'name', label: 'البند' }, { key: 'original', label: 'الأصلية', type: 'money', total: true },
+          { key: 'current', label: 'المعدلة', type: 'money', total: true }, { key: 'plannedToDate', label: 'المخطط حتى الشهر', type: 'money', total: true },
+          { key: 'actual', label: 'الفعلي', type: 'money', total: true }, { key: 'variance', label: 'الانحراف', type: 'money', total: true }, { key: 'variancePct', label: 'الانحراف %', type: 'number' },
+          { key: 'reserved', label: 'المحجوز', type: 'money', total: true }, { key: 'available', label: 'المتاح', type: 'money', total: true }, { key: 'forecast', label: 'المتوقع لنهاية السنة', type: 'money', total: true },
+        ],
+        run: async (u, f) => {
+          if (!f.budgetId) throw new BadRequestException('اختر الموازنة');
+          const b = await this.exec.approved(org(u).organizationId, f.budgetId);
+          const r = await this.exec.compute(org(u).organizationId, b, { month: f.month ? Number(f.month) : undefined });
+          return {
+            subtitle: `${b.code} ${b.title} · حتى ${r.monthName ?? 'بداية السنة'}`,
+            rows: r.rows.map((x) => ({ ...x, section: x.sectionName })),
+          };
+        },
+      },
+      {
+        ...base, code: 'planning.budget.transfers', category: 'الموازنات', title: 'مناقلات الموازنة وتعديلاتها',
+        description: 'طلبات المناقلة والزيادة والتخفيض: البنود والمبلغ والسبب والحالة ومن اعتمدها',
+        filters: [budgetFilter],
+        columns: [
+          { key: 'code', label: 'الرقم' }, { key: 'kind', label: 'النوع' }, { key: 'fromName', label: 'من بند' }, { key: 'toName', label: 'إلى بند' },
+          { key: 'amount', label: 'المبلغ', type: 'money', total: true }, { key: 'reason', label: 'السبب' }, { key: 'status', label: 'الحالة' }, { key: 'createdByName', label: 'الطالب' },
+        ],
+        run: async (u, f) => {
+          if (!f.budgetId) throw new BadRequestException('اختر الموازنة');
+          const r = await this.exec.execution(org(u), f.budgetId, {});
+          const K: Record<string, string> = { transfer: 'مناقلة', increase: 'زيادة', decrease: 'تخفيض' };
+          return r.transfers.map((t) => ({ code: t.code, kind: K[t.kind], fromName: t.fromName, toName: t.toName, amount: t.amount, reason: t.reason, status: ar(WF, t.status), createdByName: t.createdByName }));
         },
       },
     ];

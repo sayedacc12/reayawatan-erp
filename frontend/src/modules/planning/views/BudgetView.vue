@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
+import BudgetExecution from '../components/BudgetExecution.vue';
 import BudgetAssumptions from '../components/BudgetAssumptions.vue';
 import BudgetLinePanel from '../components/BudgetLinePanel.vue';
 import PlanWorkflow from '../components/PlanWorkflow.vue';
@@ -18,11 +19,12 @@ import '../planning.css';
 const props = defineProps<{ id: string }>();
 const session = useSession();
 const router = useRouter();
+const route = useRoute();
 const toast = useToast();
 const b = ref<any>(null);
 const lk = ref<any>(null);
 const error = ref('');
-const tab = ref('summary');
+const tab = ref(typeof route.query.tab === 'string' ? route.query.tab : 'summary');
 const selId = ref<string | null>(null);
 const q = ref('');
 const busy = ref('');
@@ -174,6 +176,7 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
       <button :class="['rk-tab', { on: tab === 'monthly' }]" @click="tab = 'monthly'">التوزيع الشهري</button>
       <button v-if="isSc" :class="['rk-tab', { on: tab === 'levers' }]" @click="tab = 'levers'">مؤثرات السيناريو ({{ (b.levers ?? []).length }})</button>
       <template v-else>
+        <button v-if="b.version" :class="['rk-tab', { on: tab === 'execution' }]" @click="tab = 'execution'">التنفيذ والمناقلات</button>
         <button :class="['rk-tab', { on: tab === 'scenarios' }]" @click="tab = 'scenarios'">السيناريوهات والحساسية ({{ b.scenarios }})</button>
         <button :class="['rk-tab', { on: tab === 'approval' }]" @click="tab = 'approval'">الاعتماد والإصدارات ({{ b.versions.length }})</button>
       </template>
@@ -299,6 +302,7 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
     </section>
 
     <ScenarioLevers v-else-if="tab === 'levers' && lk" :budget="b" :lookups="lk" :editable="!!editable" @saved="(v: any) => (b = v)" />
+    <BudgetExecution v-else-if="tab === 'execution' && lk" :key="b.id" :budget="b" :lookups="lk" />
     <ScenariosPanel v-else-if="tab === 'scenarios'" :key="b.id" :budget="b" :can-manage="canManage" />
 
     <!-- الاعتماد والإصدارات -->
