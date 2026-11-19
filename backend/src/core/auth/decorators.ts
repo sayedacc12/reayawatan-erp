@@ -54,3 +54,11 @@ export const CurrentOrgUser = createParamDecorator((_: unknown, ctx: ExecutionCo
   if (!user?.organizationId) throw new ForbiddenException('هذا الإجراء داخل جمعية فقط');
   return user as OrgUser;
 });
+
+export const AUTHENTICATED_ONLY_KEY = 'erp:authenticatedOnly';
+/**
+ * قرار صريح: المسار متاح لأي مستخدم مسجل في جمعيته، والتحقق من الملكية أو العضوية
+ * داخل الخدمة (مثل الخدمة الذاتية /me أو الاجتماعات لأعضائها). السبب إلزامي ويظهر في المراجعة.
+ * لا يغيّر سلوك الحارس، لكنه يمنع فشل اختبار test/security/route-authz.spec.ts.
+ */
+export const AuthenticatedOnly = (reason: string) => SetMetadata(AUTHENTICATED_ONLY_KEY, reason);

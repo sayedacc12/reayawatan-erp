@@ -65,6 +65,15 @@ docker compose up -d --build
 
 أمر واحد بيشغّل النظام مع HTTPS تلقائي. التفاصيل في [deploy/README.md](deploy/README.md).
 
+## الأمان
+
+- قواعد الكود الآمن الإلزامية: [CLAUDE.md](CLAUDE.md)، وسياسة الإبلاغ عن الثغرات: [SECURITY.md](SECURITY.md).
+- نموذج التهديدات ومصفوفة OWASP ASVS وإجراء الاستجابة للحوادث: [docs/security](docs/security/).
+- بوابات الأمان قبل أي دمج (`.github/workflows/security.yml`):
+  - `cd backend && npx jest test/security/route-authz.spec.ts`: كل مسار API له قرار صلاحية صريح.
+  - `cd backend && npx jest test/security/tenant-isolation.e2e-spec.ts`: لا تقرأ جمعية بيانات جمعية أخرى.
+  - Semgrep وGitleaks وnpm audit وTrivy.
+
 ## التطوير
 
 ```bash
