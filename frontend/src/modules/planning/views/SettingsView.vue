@@ -46,7 +46,7 @@ function addLevel(list: PlanningConfig['strategicLevels']) {
   list.push({ key: uid('l'), name: '', prefix: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((c) => !used.has(c)) ?? 'Z' });
 }
 const unitName = (id: string | null) => lookups.value?.units.find((u) => u.id === id)?.name ?? 'كل الإدارات';
-const KIND_OPT = { any: 'كل الخطط', strategic: 'الاستراتيجية', operational: 'التشغيلية', budget: 'الموازنات التقديرية' } as const;
+const KIND_OPT = { any: 'كل الخطط', strategic: 'الاستراتيجية', operational: 'التشغيلية', budget: 'الموازنات التقديرية', transfer: 'مناقلات الموازنة' } as const;
 </script>
 
 <template>

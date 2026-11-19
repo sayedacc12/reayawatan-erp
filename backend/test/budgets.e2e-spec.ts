@@ -275,8 +275,57 @@ describe('Budgets', () => {
     await http.delete(`${R}/budgets/${sc2.id}`).set(as(clerk)).expect(200);
   });
 
+  it('follows execution, maps lines to accounts and approves budget transfers', async () => {
+    const ex = (await http.get(`${R}/budgets/${ids.b}/execution?month=6`).set(as(clerk)).expect(200)).body;
+    expect(ex.month).toBe(6);
+    const row = ex.rows.find((r: { lineId?: string }) => r.lineId === ids.opex);
+    expect(row).toMatchObject({ current: 100000, actual: 0, transfers: 0, available: 100000, status: 'ok' });
+    expect(row.plannedToDate).toBeCloseTo(50000, 0);
+    // البند الجديد للموظفين يُجمع مع الرواتب
+    expect(ex.rows.some((r: { key: string }) => r.key === 'hr:group')).toBe(true);
+    await http.get(`${R}/budgets/${ids.b}/execution/trace?key=bad`).set(as(clerk)).expect(400);
+    const tr = (await http.get(`${R}/budgets/${ids.b}/execution/trace?key=${ids.opex}&month=6`).set(as(clerk)).expect(200)).body;
+    expect(tr.entries).toEqual([]);
+
+    // الربط بحسابات المصروفات فقط
+    await http.post('/api/accounting/chart/install').set(as(admin)).expect(201);
+    const lk = (await http.get(`${R}/budget-lookups`).set(as(clerk)).expect(200)).body;
+    const exp = lk.accounts.find((a: { nature: string }) => a.nature === 'expenses');
+    const rev = lk.accounts.find((a: { nature: string }) => a.nature === 'revenue');
+    expect(exp && rev).toBeTruthy();
+    await http.patch(`${R}/budget-lines/${ids.opex}/mapping`).set(as(clerk)).send({ accountIds: [rev.id] }).expect(400);
+    await http.patch(`${R}/budget-lines/${ids.opex}/mapping`).set(as(clerk)).send({ accountIds: [exp.id] }).expect(200);
+    const mapped = (await http.get(`${R}/budgets/${ids.b}/execution?month=6`).set(as(clerk)).expect(200)).body;
+    expect(mapped.rows.find((r: { lineId?: string }) => r.lineId === ids.opex)).toMatchObject({ mapped: true, actualSource: 'account' });
+    expect((await http.get(`${R}/budgets/${ids.b}`).set(as(clerk)).expect(200)).body.status).toBe('approved');
+
+    // المناقلات: دراسة الأثر ثم الاعتماد بمسار المناقلات
+    const big = (await http.post(`${R}/budgets/${ids.b}/transfers/preview`).set(as(clerk)).send({ kind: 'decrease', fromLineId: ids.opex, amount: 150000, reason: 'خفض' }).expect(201)).body;
+    expect(big.allowed).toBe(false);
+    await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'decrease', fromLineId: ids.opex, amount: 150000, reason: 'خفض' }).expect(409);
+    await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'transfer', fromLineId: ids.opex, toLineId: ids.opex, amount: 10, reason: 'خطأ' }).expect(400);
+    const inc = (await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'increase', toLineId: ids.opex, amount: 20000, fromMonth: 7, reason: 'توسعة الصيانة' }).expect(201)).body;
+    expect(inc).toMatchObject({ code: 'BT-001', status: 'in_review', routeName: 'اعتماد مناقلات الموازنة وتعديلاتها' });
+    await http.post(`${R}/budget-transfers/${inc.id}/decision`).set(as(clerk)).send({ decision: 'approve' }).expect(403);
+    let t = inc;
+    for (let i = 0; i < 5 && t.status === 'in_review'; i++) t = (await http.post(`${R}/budget-transfers/${inc.id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201)).body;
+    expect(t.status).toBe('approved');
+    await http.delete(`${R}/budget-transfers/${inc.id}`).set(as(clerk)).expect(409);
+    const after = (await http.get(`${R}/budgets/${ids.b}/execution?month=6`).set(as(clerk)).expect(200)).body;
+    const r2 = after.rows.find((r: { lineId?: string }) => r.lineId === ids.opex);
+    expect(r2).toMatchObject({ current: 120000, transfers: 20000, available: 120000 });
+    // الزيادة توزع من شهرها: المخطط حتى يونيو لم يتغير
+    expect(r2.plannedToDate).toBeCloseTo(50000, 0);
+    const av = (await http.get(`${R}/availability/lines/${ids.opex}`).set(as(clerk)).expect(200)).body;
+    expect(av).toMatchObject({ budgeted: 120000, transfers: 20000 });
+    // طلب معلق يُلغى
+    const pend = (await http.post(`${R}/budgets/${ids.b}/transfers`).set(as(clerk)).send({ kind: 'decrease', fromLineId: ids.opex, amount: 5000, reason: 'وفر' }).expect(201)).body;
+    await http.delete(`${R}/budget-transfers/${pend.id}`).set(as(clerk)).expect(200);
+    expect(after.transfers.map((x: { code: string }) => x.code)).toEqual(['BT-001']);
+  });
+
   it('serves budget reports', async () => {
-    for (const code of ['planning.budget.lines', 'planning.budget.monthly', 'planning.budget.ceilings', 'planning.budget.hr', 'planning.budget.scenarios']) {
+    for (const code of ['planning.budget.lines', 'planning.budget.monthly', 'planning.budget.ceilings', 'planning.budget.hr', 'planning.budget.scenarios', 'planning.budget.execution', 'planning.budget.transfers']) {
       const r = (await http.get(`/api/reports/run/${code}?budgetId=${ids.b}`).set(as(admin)).expect(200)).body;
       expect(r.rows.length).toBeGreaterThan(0);
     }

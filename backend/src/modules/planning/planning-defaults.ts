@@ -8,7 +8,7 @@ export interface CustomField { key: string; label: string; type: 'text' | 'numbe
  * مسار اعتماد: يُختار آليًا حسب نوع الخطة والإدارة والتكلفة التقديرية الإجمالية.
  * عند تطابق أكثر من مسار يُختار الأكثر تحديدًا (الإدارة ثم أعلى حد تكلفة).
  */
-export interface WorkflowRoute { key: string; name: string; planKind: 'strategic' | 'operational' | 'budget' | 'any'; unitId: string | null; minCost: number | null; stages: WfStage[] }
+export interface WorkflowRoute { key: string; name: string; planKind: 'strategic' | 'operational' | 'budget' | 'transfer' | 'any'; unitId: string | null; minCost: number | null; stages: WfStage[] }
 
 export interface PlanningConfig {
   strategicLevels: PlanLevel[];
@@ -64,6 +64,14 @@ export function defaultConfig(): PlanningConfig {
         key: 'budget', name: 'اعتماد الموازنة التقديرية', planKind: 'budget', unitId: null, minCost: null,
         stages: [{ name: 'مراجعة الإدارة المالية', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
       },
+      {
+        key: 'transfer', name: 'اعتماد مناقلات الموازنة وتعديلاتها', planKind: 'transfer', unitId: null, minCost: null,
+        stages: [{ name: 'مراجعة الإدارة المالية', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
+      },
+      {
+        key: 'transfer-large', name: 'مناقلة أو تعديل بمئتي ألف ريال فأكثر', planKind: 'transfer', unitId: null, minCost: 200_000,
+        stages: [{ name: 'مراجعة الإدارة المالية', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
+      },
     ],
   };
 }
@@ -75,6 +83,8 @@ export function mergeConfig(saved: Partial<PlanningConfig> | null | undefined): 
   const out = { ...d, ...s, thresholds: { ...d.thresholds, ...(s.thresholds ?? {}) } };
   // الإعدادات المحفوظة قبل إضافة الموازنات: يُضاف مسار اعتماد الموازنة المقترح
   if (s.routes && !s.routes.some((r) => r.planKind === 'budget' || r.planKind === 'any')) out.routes = [...s.routes, ...d.routes.filter((r) => r.planKind === 'budget')];
+  // وقبل إضافة المناقلات: يُضاف مساراها المقترحان
+  if (s.routes && !s.routes.some((r) => r.planKind === 'transfer' || r.planKind === 'any')) out.routes = [...out.routes, ...d.routes.filter((r) => r.planKind === 'transfer')];
   return out;
 }
 

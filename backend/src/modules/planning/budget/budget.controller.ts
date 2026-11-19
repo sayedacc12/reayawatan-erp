@@ -3,7 +3,8 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { DecideDto, SubmitDto } from '../planning.dto';
 import { PLANNING_PERMISSIONS as P } from '../planning.manifest';
 import { BudgetAvailability } from './budget-availability.service';
-import { AvailabilityCheckDto, BudgetDto, FormulaDto, ImportDto, LineDto, PromoteDto, ScenarioDto, TestFormulaDto, UpdateBudgetDto, UpdateFormulaDto, UpdateLineDto } from './budget.dto';
+import { BudgetExecution, ExecMethod } from './budget-execution.service';
+import { AvailabilityCheckDto, BudgetDto, FormulaDto, ImportDto, LineDto, LineMappingDto, PromoteDto, TransferDto, ScenarioDto, TestFormulaDto, UpdateBudgetDto, UpdateFormulaDto, UpdateLineDto } from './budget.dto';
 import { BudgetsService } from './budgets.service';
 import { FormulasService } from './formulas.service';
 import { ScenariosService } from './scenarios.service';
@@ -20,6 +21,7 @@ const READ = [P.read, P.budgets];
 export class BudgetController {
   constructor(
     private readonly budgets: BudgetsService, private readonly formulas: FormulasService, private readonly avail: BudgetAvailability, private readonly scenarios: ScenariosService,
+    private readonly exec: BudgetExecution,
   ) {}
 
   // ---------------- المعادلات ----------------
@@ -116,6 +118,37 @@ export class BudgetController {
 
   @Post('scenarios/:id/promote') @RequirePermissions(P.budgets)
   promote(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: PromoteDto) { return this.scenarios.promote(a, id, dto); }
+
+  // ---------------- التنفيذ والمناقلات ----------------
+
+  @Get('budgets/:id/execution') @RequireAnyPermission(...READ)
+  execution(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query() q: Record<string, string>) {
+    return this.exec.execution(a, id, {
+      month: q.month && /^\d{1,2}$/.test(q.month) ? Number(q.month) : undefined, method: q.method as ExecMethod,
+      threshold: q.threshold && /^\d{1,3}$/.test(q.threshold) ? Number(q.threshold) : undefined,
+    });
+  }
+
+  @Get('budgets/:id/execution/trace') @RequireAnyPermission(...READ)
+  trace(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Query('key') key: string, @Query('month') month?: string) {
+    if (key !== 'hr:group' && !/^[0-9a-f-]{36}$/i.test(key ?? '')) throw new BadRequestException('البند غير صحيح');
+    return this.exec.trace(a, id, key, month && /^\d{1,2}$/.test(month) ? Number(month) : undefined);
+  }
+
+  @Patch('budget-lines/:id/mapping') @RequirePermissions(P.budgets)
+  mapping(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: LineMappingDto) { return this.exec.map(a, id, dto); }
+
+  @Post('budgets/:id/transfers/preview') @RequirePermissions(P.budgets)
+  previewTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: TransferDto) { return this.exec.preview(a, id, dto); }
+
+  @Post('budgets/:id/transfers') @RequirePermissions(P.budgets)
+  requestTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: TransferDto) { return this.exec.request(a, id, dto); }
+
+  @Post('budget-transfers/:id/decision') @RequirePermissions(P.budgetsApprove)
+  decideTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: DecideDto) { return this.exec.decide(a, id, dto); }
+
+  @Delete('budget-transfers/:id') @RequirePermissions(P.budgets)
+  cancelTransfer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.exec.cancel(a, id); }
 
   // ---------------- المتاح للصرف (لنظام المشتريات وغيره) ----------------
 

@@ -227,7 +227,7 @@ export function itemCode(prefix: string, parentCode: string | null, siblingCodes
 // ---------------------------------------------------------------- مسارات الاعتماد
 
 /** المسار الأكثر تحديدًا الذي ينطبق على الخطة (الإدارة ثم أعلى حد تكلفة) */
-export function pickRoute(routes: WorkflowRoute[], kind: 'strategic' | 'operational' | 'budget', unitId: string | null, totalCost: number): WorkflowRoute | null {
+export function pickRoute(routes: WorkflowRoute[], kind: 'strategic' | 'operational' | 'budget' | 'transfer', unitId: string | null, totalCost: number): WorkflowRoute | null {
   const ok = routes.filter((r) => (r.planKind === 'any' || r.planKind === kind) && (!r.unitId || r.unitId === unitId) && (r.minCost === null || totalCost >= r.minCost));
   ok.sort((a, b) => (b.unitId ? 2 : 0) - (a.unitId ? 2 : 0) || (b.minCost ?? -1) - (a.minCost ?? -1) || (b.planKind === kind ? 1 : 0) - (a.planKind === kind ? 1 : 0));
   return ok[0] ?? null;
@@ -252,7 +252,7 @@ export function validateConfig(cfg: PlanningConfig) {
   if (!cfg.routes.length) throw new BadRequestException('أضف مسار اعتماد واحدًا على الأقل');
   for (const r of cfg.routes) {
     if (!r.name?.trim()) throw new BadRequestException('اكتب اسم كل مسار اعتماد');
-    if (!['strategic', 'operational', 'budget', 'any'].includes(r.planKind)) throw new BadRequestException('نوع الخطة في مسار الاعتماد غير صحيح');
+    if (!['strategic', 'operational', 'budget', 'transfer', 'any'].includes(r.planKind)) throw new BadRequestException('نوع الخطة في مسار الاعتماد غير صحيح');
     if (r.minCost !== null && !(r.minCost >= 0)) throw new BadRequestException('حد التكلفة في مسار الاعتماد غير صحيح');
     if (r.stages.length > 8) throw new BadRequestException('الحد الأعلى 8 مراحل لكل مسار اعتماد');
     if (r.stages.some((s) => !s.name?.trim())) throw new BadRequestException(`اكتب اسم كل مرحلة في مسار «${r.name}»`);
