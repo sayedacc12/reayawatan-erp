@@ -6,7 +6,9 @@ import { ReportsRegistry } from '../../core/reports/reports.registry';
 import { today } from './acc-core.service';
 import { AssetOpsService } from './asset-ops.service';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
-import { ASSET_STATUS_AR, AssetsService, CUSTODY_AR, MOVE_AR } from './assets.service';
+import { AssetBudgetService } from './asset-budget.service';
+import { AssetMaintenanceService } from './asset-maintenance.service';
+import { ASSET_STATUS_AR, AssetsService, costMove, CUSTODY_AR, DISPOSAL_KINDS, MAINT_AR, MOVE_AR } from './assets.service';
 import { addDays, computeDepreciation, DEP_METHOD_AR, lifeOf, monthEnd, monthStart, monthsEquivalent } from './depreciation';
 import { AssetGroup, AssetMove, DepLine, FixedAsset } from './entities/assets.entity';
 
@@ -22,6 +24,8 @@ export class AssetsReports implements OnModuleInit {
     private readonly db: DataSource,
     private readonly assets: AssetsService,
     private readonly ops: AssetOpsService,
+    private readonly maint: AssetMaintenanceService,
+    private readonly budget: AssetBudgetService,
   ) {}
 
   private groupOptions = async (u: { organizationId: string }) =>
@@ -40,17 +44,18 @@ export class AssetsReports implements OnModuleInit {
     const moves = ids.length ? (await this.db.getRepository(AssetMove).find({ where: { organizationId: orgId, status: 'done' } })).filter((m) => ids.includes(m.assetId)) : [];
     const lines = ids.length ? (await this.db.getRepository(DepLine).find({ where: { organizationId: orgId, active: true } })).filter((l) => ids.includes(l.assetId)) : [];
     const groups = await this.db.getRepository(AssetGroup).find({ where: { organizationId: orgId }, order: { sortOrder: 'ASC' } });
-    const acq = (m: AssetMove) => ['opening', 'purchase', 'donation', 'addition'].includes(m.kind);
-    const disp = (m: AssetMove) => m.kind === 'sale' || m.kind === 'scrap';
+    const acq = (m: AssetMove) => costMove(m);
+    const disp = (m: AssetMove) => DISPOSAL_KINDS.includes(m.kind);
     const sum = (xs: number[]) => r2(xs.reduce((s, x) => s + x, 0));
     const rows = assets.map((a) => {
-      const mv = moves.filter((m) => m.assetId === a.id);
+      const mv = moves.filter((m) => m.assetId === a.id && m.kind !== 'wip');
       const ln = lines.filter((l) => l.assetId === a.id);
       const costOpening = sum(mv.filter((m) => m.date < from).map((m) => m.amount));
       const additions = sum(mv.filter((m) => acq(m) && m.date >= from && m.date <= to).map((m) => m.amount));
       const disposals = sum(mv.filter((m) => disp(m) && m.date >= from && m.date <= to).map((m) => -m.amount));
-      const accumOpening = sum([...mv.filter((m) => (m.kind === 'opening' || disp(m)) && m.date < from).map((m) => m.accumDelta), ...ln.filter((l) => l.toDate < from).map((l) => l.amount)]);
-      const depreciation = sum([...ln.filter((l) => l.toDate >= from && l.toDate <= to).map((l) => l.amount), ...mv.filter((m) => m.kind === 'opening' && m.date >= from && m.date <= to).map((m) => m.accumDelta)]);
+      const accumOpening = sum([...mv.filter((m) => m.date < from).map((m) => m.accumDelta), ...ln.filter((l) => l.toDate < from).map((l) => l.amount)]);
+      // إهلاك الفترة يشمل هبوط القيمة (يُضاف لمجمع الإهلاك)
+      const depreciation = sum([...ln.filter((l) => l.toDate >= from && l.toDate <= to).map((l) => l.amount), ...mv.filter((m) => acq(m) && m.date >= from && m.date <= to).map((m) => m.accumDelta)]);
       const accumDisposed = sum(mv.filter((m) => disp(m) && m.date >= from && m.date <= to).map((m) => -m.accumDelta));
       const costClosing = r2(costOpening + additions - disposals);
       const accumClosing = r2(accumOpening + depreciation - accumDisposed);
@@ -100,7 +105,7 @@ export class AssetsReports implements OnModuleInit {
               for (const r of rs) out.push({ name: `${r.asset.code} ${r.asset.name}`, _level: 1, _skipTotal: true, ...Object.fromEntries(rfKeys.map((k) => [k, r[k]])) });
             }
           }
-          return { rows: out, notes: ['صافي القيمة الدفترية = التكلفة آخر الفترة − مجمع الإهلاك آخر الفترة.'] };
+          return { rows: out, notes: ['صافي القيمة الدفترية = التكلفة آخر الفترة − مجمع الإهلاك آخر الفترة.', 'الإضافات تشمل إعادة التقييم والرسملة، وإهلاك الفترة يشمل هبوط القيمة. الأصول تحت التنفيذ لا تظهر حتى رسملتها.'] };
         },
       },
       {
@@ -146,7 +151,7 @@ export class AssetsReports implements OnModuleInit {
           const a = await this.assets.get(org(u), f.assetId);
           type Ev = { date: string; kind: string; description: string; cost: number; accum: number; dep: number; order: number };
           const ev: Ev[] = [
-            ...a.moves.filter((m) => m.status === 'done').map((m) => ({
+            ...a.moves.filter((m) => m.status === 'done' && m.kind !== 'wip').map((m) => ({
               date: m.date, kind: m.kindLabel, order: m.kind === 'sale' || m.kind === 'scrap' ? 2 : 0,
               description: [m.partyName, m.voucher ? `سند ${m.voucher.kind === 'receipt' ? 'قبض' : 'صرف'} ${m.voucher.serial}` : null, m.notes].filter(Boolean).join(' · '),
               cost: m.amount, accum: m.accumDelta, dep: 0,
@@ -187,7 +192,7 @@ export class AssetsReports implements OnModuleInit {
                     to_char(c.date, 'YYYY-MM-DD') AS since, c.confirmed_at IS NOT NULL AS confirmed
                FROM acc_assets a JOIN acc_asset_groups g ON g.id = a.group_id JOIN hr_employees e ON e.id = a.custodian_employee_id
                LEFT JOIN LATERAL (SELECT date, confirmed_at FROM acc_asset_custody x WHERE x.asset_id = a.id ORDER BY form_no DESC LIMIT 1) c ON true
-              WHERE a.organization_id = $1 AND a.status IN ('draft', 'pending_purchase', 'active', 'pending_sale') AND ($2::uuid IS NULL OR a.custodian_employee_id = $2)
+              WHERE a.organization_id = $1 AND a.status IN ('draft', 'construction', 'pending_purchase', 'active', 'pending_sale') AND ($2::uuid IS NULL OR a.custodian_employee_id = $2)
               ORDER BY e.full_name, a.asset_no`, [org(u).organizationId, f.employeeId || null]);
           return rows as ReportRow[];
         },
@@ -390,6 +395,161 @@ export class AssetsReports implements OnModuleInit {
             ...o, asset: `${o.asset.code} ${o.asset.name}`, amount: o.kind === 'sale' ? o.proceeds : o.amount,
             document: o.voucher ? `سند ${o.voucher.kind === 'receipt' ? 'قبض' : 'صرف'} ${o.voucher.serial}` : o.entry ? `سند أصول ${o.entry.voucherNo}` : '',
           })) as unknown as ReportRow[],
+      },
+      {
+        ...base, code: 'accounting.assets.insurance', title: 'التأمين والضمان على الأصول',
+        description: 'الأصول التي تتطلب تأمينًا أو لها ضمان: الجهة ورقم الوثيقة وتاريخ الانتهاء وحالتها (سارية، تنتهي قريبًا، منتهية، غير مسجلة)',
+        filters: [{ ...selectFilter('kind', 'العرض', { insurance: 'التأمين', warranty: 'الضمان' }, 'التأمين والضمان') }, selectFilter('state', 'الحالة', { missing: 'غير مسجلة', expired: 'منتهية', soon: 'تنتهي قريبًا', valid: 'سارية' })],
+        orientation: 'landscape', link: '/accounting/assets/{assetId}',
+        columns: [
+          { key: 'code', label: 'الترميز' }, { key: 'name', label: 'الأصل' }, { key: 'groupName', label: 'المجموعة' }, { key: 'kindLabel', label: 'النوع' },
+          { key: 'provider', label: 'الجهة' }, { key: 'ref', label: 'رقم الوثيقة' }, { key: 'startDate', label: 'من', type: 'date' }, { key: 'endDate', label: 'إلى', type: 'date' },
+          money('cost', 'القسط'), money('coverage', 'مبلغ التغطية'), money('nbv', 'صافي قيمة الأصل'), { key: 'stateLabel', label: 'الحالة' },
+        ],
+        run: async (u, f) => {
+          const o = org(u).organizationId;
+          const cfg = await this.assets.config(o);
+          const t = today();
+          const soon = addDays(t, cfg.alertDays);
+          const assets = await this.db.getRepository(FixedAsset).find({ where: { organizationId: o }, order: { assetNo: 'ASC' } });
+          const groups = await this.db.getRepository(AssetGroup).find({ where: { organizationId: o } });
+          const st = (end: string | null) => (!end ? 'missing' : end < t ? 'expired' : end <= soon ? 'soon' : 'valid');
+          const STATE: Record<string, string> = { missing: 'غير مسجلة', expired: 'منتهية', soon: 'تنتهي قريبًا', valid: 'سارية' };
+          const out: ReportRow[] = [];
+          for (const a of assets.filter((x) => !['sold', 'scrapped', 'draft'].includes(x.status))) {
+            const base1 = { assetId: a.id, code: a.code, name: a.name, groupName: groups.find((g) => g.id === a.groupId)?.name ?? '', nbv: r2(a.cost - a.accum) };
+            if (a.insuranceRequired && f.kind !== 'warranty') {
+              const s1 = st(a.insurance?.endDate ?? null);
+              out.push({ ...base1, kindLabel: 'تأمين', provider: a.insurance?.provider ?? '', ref: a.insurance?.policyNo ?? '', startDate: a.insurance?.startDate ?? null, endDate: a.insurance?.endDate ?? null,
+                cost: a.insurance?.cost ?? 0, coverage: a.insurance?.coverage ?? 0, state: s1, stateLabel: STATE[s1], _style: s1 === 'missing' || s1 === 'expired' ? 'strong' : undefined });
+            }
+            if (a.warrantyRequired && f.kind !== 'insurance') {
+              const s1 = st(a.warranty?.endDate ?? null);
+              out.push({ ...base1, kindLabel: 'ضمان', provider: a.warranty?.provider ?? '', ref: '', startDate: a.warranty?.startDate ?? null, endDate: a.warranty?.endDate ?? null,
+                cost: 0, coverage: 0, state: s1, stateLabel: STATE[s1] });
+            }
+          }
+          return out.filter((r) => !f.state || r.state === f.state);
+        },
+      },
+      {
+        ...base, code: 'accounting.assets.maintenance', title: 'سجل الصيانة وتكاليفها',
+        description: 'كل أعمال الصيانة الوقائية وإصلاح الأعطال في الفترة: الأصل والجهة المنفذة والتكلفة وأيام التوقف وسند الصرف',
+        filters: [...periodFilters(), selectFilter('kind', 'النوع', MAINT_AR), dynamicFilter('assetId', 'الأصل', this.assetOptions)],
+        orientation: 'landscape', link: '/accounting/assets/{assetId}',
+        columns: [
+          { key: 'recordNo', label: 'الرقم' }, { key: 'date', label: 'التاريخ', type: 'date' }, { key: 'kindLabel', label: 'النوع' }, { key: 'asset', label: 'الأصل' },
+          { key: 'groupName', label: 'المجموعة' }, { key: 'description', label: 'البيان' }, { key: 'vendor', label: 'الجهة المنفذة' },
+          { key: 'downtimeDays', label: 'أيام التوقف', type: 'number', total: true }, money('cost', 'التكلفة'), { key: 'voucher', label: 'سند الصرف' },
+        ],
+        run: async (u, f) => (await this.maint.list(org(u), { kind: f.kind, assetId: f.assetId, from: f.from, to: f.to })).map((r) => ({
+          ...r, assetId: r.asset.id, asset: `${r.asset.code} ${r.asset.name}`, groupName: r.asset.groupName, voucher: r.voucher ? `صرف ${r.voucher.serial}` : 'مسجلة للمتابعة',
+        })) as unknown as ReportRow[],
+      },
+      {
+        ...base, code: 'accounting.assets.failures', title: 'الأصول كثيرة الأعطال',
+        description: `عدد الأعطال وتكلفة الصيانة ونسبتها من تكلفة الأصل وأيام التوقف لكل أصل. يُعلَّم الأصل إن تكررت أعطاله 3 مرات أو بلغت صيانته 30% من تكلفته`,
+        filters: [...periodFilters(), dynamicFilter('groupId', 'المجموعة', this.groupOptions)],
+        orientation: 'landscape', link: '/accounting/assets/{assetId}',
+        columns: [
+          { key: 'code', label: 'الترميز' }, { key: 'name', label: 'الأصل' }, { key: 'groupName', label: 'المجموعة' }, { key: 'repairs', label: 'الأعطال', type: 'number', total: true },
+          { key: 'preventive', label: 'صيانة وقائية', type: 'number', total: true }, money('repairCost', 'تكلفة الإصلاح'), money('maintenanceCost', 'إجمالي الصيانة'),
+          money('cost', 'تكلفة الأصل'), { key: 'ratio', label: 'النسبة %', type: 'number' }, { key: 'downtimeDays', label: 'أيام التوقف', type: 'number', total: true },
+          { key: 'advice', label: 'التوصية' },
+        ],
+        run: async (u, f) => (await this.maint.failures(org(u), { from: f.from, to: f.to, groupId: f.groupId })).rows
+          .map((r) => ({ ...r, _style: r.frequent ? 'strong' : undefined })) as unknown as ReportRow[],
+      },
+      {
+        ...base, code: 'accounting.assets.revaluations', title: 'إعادة التقييم وهبوط القيمة',
+        description: 'عمليات إعادة التقييم (زيادة القيمة مقابل فائض إعادة التقييم) وهبوط القيمة (خسارة تُضاف لمجمع الإهلاك) في الفترة',
+        filters: [...periodFilters(), selectFilter('kind', 'النوع', { revaluation: 'إعادة تقييم', impairment: 'هبوط قيمة' })],
+        orientation: 'landscape', link: '/accounting/assets/{assetId}',
+        columns: [
+          { key: 'date', label: 'التاريخ', type: 'date' }, { key: 'kindLabel', label: 'النوع' }, { key: 'asset', label: 'الأصل' }, { key: 'groupName', label: 'المجموعة' },
+          money('newValue', 'القيمة العادلة / القابلة للاسترداد', false), money('increase', 'الزيادة'), money('loss', 'الخسارة'), { key: 'partyName', label: 'المقيّم / السبب' },
+          { key: 'document', label: 'سند الأصول' }, { key: 'statusLabel', label: 'الحالة' },
+        ],
+        run: async (u, f) => (await this.ops.operations(org(u), { kind: f.kind }))
+          .filter((o) => (o.kind === 'revaluation' || o.kind === 'impairment') && String(o.date) >= f.from! && String(o.date) <= f.to!)
+          .map((o) => ({
+            ...o, assetId: o.asset.id, asset: `${o.asset.code} ${o.asset.name}`, groupName: o.asset.groupName, newValue: o.proceeds,
+            increase: o.kind === 'revaluation' && o.status !== 'cancelled' ? o.amount : 0, loss: o.kind === 'impairment' && o.status !== 'cancelled' ? Math.abs(o.gainLoss) : 0,
+            partyName: o.kind === 'revaluation' ? o.partyName : o.notes, document: o.entry ? o.entry.voucherNo : '',
+          })) as unknown as ReportRow[],
+      },
+      {
+        ...base, code: 'accounting.assets.wip', title: 'الأصول تحت التنفيذ',
+        description: 'لكل أصل تحت التنفيذ أو رُسمل في الفترة: الدفعات المعتمدة والمعلقة، وتاريخ الرسملة وقيمتها، والرصيد في حساب المشروعات تحت التنفيذ',
+        filters: [{ ...selectFilter('state', 'العرض', { open: 'تحت التنفيذ حاليًا', done: 'المرسملة' }, 'الكل') }],
+        orientation: 'landscape', link: '/accounting/assets/{assetId}',
+        columns: [
+          { key: 'code', label: 'الترميز' }, { key: 'name', label: 'الأصل' }, { key: 'groupName', label: 'المجموعة' }, { key: 'payments', label: 'الدفعات', type: 'number' },
+          { key: 'firstDate', label: 'أول دفعة', type: 'date' }, money('paid', 'المعتمد'), money('pending', 'ينتظر الاعتماد'), { key: 'capitalizedAt', label: 'تاريخ الرسملة', type: 'date' },
+          money('capitalized', 'المرسمل'), money('balance', 'رصيد تحت التنفيذ'),
+        ],
+        run: async (u, f) => {
+          const rows: Record<string, string | number | null>[] = await this.db.query(
+            `SELECT a.id, a.code, a.name, g.name AS group_name, COUNT(*) FILTER (WHERE m.kind = 'wip')::int AS payments, to_char(MIN(m.date) FILTER (WHERE m.kind = 'wip'), 'YYYY-MM-DD') AS first_date,
+                    COALESCE(SUM(m.amount) FILTER (WHERE m.kind = 'wip' AND m.status = 'done'), 0) AS paid, COALESCE(SUM(m.amount) FILTER (WHERE m.kind = 'wip' AND m.status = 'pending'), 0) AS pending,
+                    to_char(MAX(m.date) FILTER (WHERE m.kind = 'capitalize' AND m.status = 'done'), 'YYYY-MM-DD') AS cap_date,
+                    COALESCE(SUM(m.amount) FILTER (WHERE m.kind = 'capitalize' AND m.status = 'done'), 0) AS capitalized
+               FROM acc_assets a JOIN acc_asset_groups g ON g.id = a.group_id JOIN acc_asset_moves m ON m.asset_id = a.id AND m.status <> 'cancelled' AND m.kind IN ('wip', 'capitalize')
+              WHERE a.organization_id = $1 GROUP BY a.id, g.name ORDER BY a.asset_no`, [org(u).organizationId]);
+          return rows.map((r) => ({
+            assetId: r.id, code: r.code, name: r.name, groupName: r.group_name, payments: r.payments, firstDate: r.first_date, paid: Number(r.paid), pending: Number(r.pending),
+            capitalizedAt: r.cap_date, capitalized: Number(r.capitalized), balance: r2(Number(r.paid) - Number(r.capitalized)),
+          })).filter((r) => !f.state || (f.state === 'open' ? !r.capitalizedAt : !!r.capitalizedAt));
+        },
+      },
+      {
+        ...base, code: 'accounting.assets.funded', title: 'الأصول الممولة من منح ومشاريع',
+        description: 'مشتريات الأصول الممولة من منحة أو مشروع: المبلغ الممول وقيد تخفيض صافي الأصول المقيدة الصادر عند اعتماد الشراء',
+        filters: [...periodFilters()],
+        orientation: 'landscape', link: '/accounting/assets/{assetId}',
+        columns: [
+          { key: 'date', label: 'التاريخ', type: 'date' }, { key: 'kindLabel', label: 'العملية' }, { key: 'asset', label: 'الأصل' }, { key: 'fundingName', label: 'المنحة / المشروع' },
+          money('amount', 'مبلغ الشراء'), money('funded', 'الممول من المنحة'), { key: 'release', label: 'قيد تحرير القيد' }, { key: 'statusLabel', label: 'الحالة' },
+        ],
+        run: async (u, f) => (await this.ops.operations(org(u), {}))
+          .filter((o) => o.funding && String(o.date) >= f.from! && String(o.date) <= f.to!)
+          .map((o) => ({
+            ...o, assetId: o.asset.id, asset: `${o.asset.code} ${o.asset.name}`, fundingName: o.funding!.name, funded: o.status === 'cancelled' ? 0 : o.funding!.amount,
+            release: o.funding!.entry ? `قيد ${o.funding!.entry.entryNo}${o.funding!.entry.status === 'cancelled' ? ' (ملغي)' : ''}` : 'يصدر عند اعتماد السند',
+          })) as unknown as ReportRow[],
+      },
+      {
+        ...base, code: 'accounting.assets.capital-budget', title: 'الموازنة الرأسمالية: المخطط والفعلي',
+        description: 'لكل بند في الموازنة الرأسمالية: المخطط والملتزم به (سندات تنتظر الاعتماد) والفعلي والمتبقي ونسبة التنفيذ، ثم الإنفاق غير المدرج في الموازنة',
+        filters: [dynamicFilter('budgetId', 'الموازنة', async (u) => (await this.db.query(
+          `SELECT b.id AS value, b.title || ' (' || y.name || ')' AS label FROM acc_asset_budgets b JOIN acc_fiscal_years y ON y.id = b.fiscal_year_id WHERE b.organization_id = $1 ORDER BY y.start_date DESC`,
+          [u.organizationId])) as { value: string; label: string }[], 'أحدث موازنة')],
+        orientation: 'landscape', indentColumn: 'description',
+        columns: [
+          { key: 'description', label: 'البند' }, { key: 'groupName', label: 'المجموعة' }, { key: 'quarter', label: 'الربع' }, money('amount', 'المخطط'), money('committed', 'ملتزم به'),
+          money('actual', 'الفعلي'), money('remaining', 'المتبقي'), { key: 'usedPct', label: 'التنفيذ %', type: 'number' }, { key: 'externalRef', label: 'مرجع الخطة' },
+        ],
+        run: async (u, f) => {
+          const list = await this.budget.list(org(u));
+          const id = f.budgetId || (list[0]?.id as string | undefined);
+          if (!id) return [];
+          const b = await this.budget.get(org(u), id);
+          const rows: ReportRow[] = b.lines.map((l) => ({ ...l, quarter: l.quarter ? `ر${l.quarter}` : '', _style: l.over ? 'strong' as const : undefined }));
+          if (b.unbudgeted.length) {
+            rows.push({ description: 'إنفاق رأسمالي غير مدرج في الموازنة', _style: 'group', _skipTotal: true });
+            for (const m of b.unbudgeted) {
+              rows.push({ description: `${m.kindLabel}: ${m.asset.code} ${m.asset.name}`, groupName: m.groupName, _level: 2, _skipTotal: true, amount: 0,
+                committed: m.status === 'pending' ? m.amount : 0, actual: m.status === 'done' ? m.amount : 0, remaining: null });
+            }
+          }
+          return {
+            rows, subtitle: `${b.title} · ${b.statusLabel}`,
+            summary: [
+              { label: 'المخطط', value: b.planned, type: 'money' }, { label: 'الفعلي', value: b.actual, type: 'money' },
+              { label: 'ملتزم به', value: b.committed, type: 'money' }, { label: 'غير مدرج في الموازنة', value: b.unbudgetedTotal, type: 'money' },
+            ],
+          };
+        },
       },
       {
         ...base, code: 'accounting.assets.methods', title: 'سياسات الإهلاك المطبقة',

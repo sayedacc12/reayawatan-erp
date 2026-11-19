@@ -41,7 +41,7 @@ const allPicked = computed({
   set: (v: boolean) => { picked.value = v ? rows.value.map((r) => r.id) : []; },
 });
 const printLabels = () => router.push({ path: '/accounting/assets/labels', query: { ids: picked.value.join(',') } });
-const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purchase: 'شراء', donation: 'تبرع عيني' };
+const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purchase: 'شراء', donation: 'تبرع عيني', capitalize: 'رسملة أصل تحت التنفيذ' };
 </script>
 
 <template>
@@ -54,6 +54,7 @@ const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purcha
       </div>
       <div class="pm-actions">
         <button v-if="session.can(P.assetsManage)" class="btn ac-glow" @click="showForm = true">أصل جديد</button>
+        <RouterLink v-if="session.can(P.assetsManage)" to="/accounting/assets/import" class="btn ac-ghost">استيراد من Excel</RouterLink>
         <button class="btn ac-ghost" :disabled="!picked.length" @click="printLabels">طباعة ملصقات QR ({{ picked.length }})</button>
       </div>
     </section>

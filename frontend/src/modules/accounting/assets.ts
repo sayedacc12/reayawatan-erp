@@ -17,6 +17,15 @@ export interface AssetRow {
   location: string | null; unitId: string | null; unitName: string | null; custodianId: string | null; custodianName: string | null; custodianNo: number | null;
   cost: number; accum: number; nbv: number; inServiceDate: string | null; depreciatedThrough: string | null; acquisition: string | null; hasImage: boolean;
   disposedAt: string | null; isTangible: boolean;
+  insuranceRequired: boolean; insuranceEnd: string | null; warrantyRequired: boolean; warrantyEnd: string | null; nextMaintenance: string | null;
+}
+export interface Insurance { provider: string; policyNo: string | null; startDate: string; endDate: string; cost: number | null; coverage: number | null; notes: string | null }
+export interface Warranty { provider: string; startDate: string | null; endDate: string; notes: string | null }
+export interface MaintPlan { intervalMonths: number; nextDate: string; notes: string | null }
+export interface MaintRecord {
+  id: string; recordNo: number; date: string; kind: 'preventive' | 'repair'; kindLabel: string; description: string; vendor: string | null; cost: number;
+  downtimeDays: number; notes: string | null; createdByName: string; voucher: { id: string; serial: number; status: string } | null;
+  asset?: { id: string; code: string; name: string; groupName: string };
 }
 export interface Maint { id?: string; provider: string; startDate: string; endDate: string; cost: number | null; notes?: string | null }
 export interface CustodyForm {
@@ -30,6 +39,9 @@ export interface Move {
   asset?: { id: string; code: string; name: string; groupName: string };
   voucher: { id: string; kind: string; serial: number; status: string } | null; entry: { id: string; entryNo: number; voucherNo?: string } | null;
   depRun?: { id: string; runNo: number } | null;
+  funding?: { name: string; amount: number; entry: { id: string; entryNo: number; status: string } | null } | null;
+  budgetLine?: { id: string; description: string } | null;
+  fundingName?: string | null; fundedAmount?: number;
 }
 export interface AssetDetail extends AssetRow {
   description: string | null; fieldValues: Record<string, string | number | null>; maintenance: Maint[]; salvageValue: number;
@@ -39,13 +51,22 @@ export interface AssetDetail extends AssetRow {
   moves: Move[];
   depreciation: { id: string; runId: string; runNo: number; kind: string; period: string; from: string; to: string; amount: number; accumBefore: number; active: boolean; entryId: string | null; entryNo: number | null }[];
   custody: CustodyForm[]; alerts: Alert[]; createdByName: string; createdAt: string;
+  insurance: Insurance | null; warranty: Warranty | null; maintenancePlan: MaintPlan | null; maintenanceLog: MaintRecord[];
+  wip: { total: number; pending: number; count: number };
 }
 export interface Alert { kind: string; label: string; date: string; expired: boolean; assetId?: string; code?: string; name?: string }
 export interface Emp { id: string; fullName: string; employeeNo: number; unitId: string | null; status: string }
-export interface AssetConfig { prefix: string; requireCustody: boolean; alertDays: number; partialMonth: 'days' | 'next_month'; donationAccountId: string | null; donationAccount?: AccRef | null }
+export interface AssetConfig {
+  prefix: string; requireCustody: boolean; alertDays: number; partialMonth: 'days' | 'next_month'; donationAccountId: string | null; donationAccount?: AccRef | null;
+  revaluationAccountId: string | null; impairmentAccountId: string | null; wipAccountId: string | null; grantReleaseAccountId: string | null;
+  maintenanceAccountId: string | null; budgetControl: 'warn' | 'block';
+  revaluationAccount?: AccRef | null; impairmentAccount?: AccRef | null; wipAccount?: AccRef | null; grantReleaseAccount?: AccRef | null; maintenanceAccount?: AccRef | null;
+}
+export interface BudgetOption { id: string; description: string; groupId: string; amount: number; remaining: number; year: string; start: string; end: string }
 export interface Lookups {
   groups: Group[]; employees: Emp[]; units: { id: string; name: string }[]; analytic: AccRef[]; cash: { id: string; name: string; kind: 'bank' | 'cash' }[];
   partners: { id: string; name: string; accountId: string | null }[]; config: AssetConfig; methods: { value: string; label: string }[];
+  years: { id: string; name: number; start: string; end: string }[];
 }
 export interface ReportRow {
   costOpening: number; additions: number; disposals: number; costClosing: number; accumOpening: number; depreciation: number; otherDepreciation: number;
@@ -72,10 +93,10 @@ export interface Recon {
 }
 
 export const STATUS_COLOR: Record<string, string> = {
-  draft: '#64748b', pending_purchase: '#6366f1', active: '#10b981', pending_sale: '#f59e0b', sold: '#0ea5e9', scrapped: '#b91c1c',
+  draft: '#64748b', construction: '#d97706', pending_purchase: '#6366f1', active: '#10b981', pending_sale: '#f59e0b', sold: '#0ea5e9', scrapped: '#b91c1c',
 };
 export const STATUSES = [
-  { value: 'books', label: 'في الدفاتر' }, { value: 'active', label: 'في الخدمة' }, { value: 'draft', label: 'مسجل بلا قيمة' },
+  { value: 'books', label: 'في الدفاتر' }, { value: 'active', label: 'في الخدمة' }, { value: 'draft', label: 'مسجل بلا قيمة' }, { value: 'construction', label: 'تحت التنفيذ' },
   { value: 'pending_purchase', label: 'ينتظر اعتماد الشراء' }, { value: 'pending_sale', label: 'ينتظر اعتماد البيع' }, { value: 'disposed', label: 'مستبعد (مباع أو مخرد)' },
 ];
 export const FIELD_TYPES = [{ value: 'text', label: 'نص' }, { value: 'number', label: 'رقم' }, { value: 'date', label: 'تاريخ' }, { value: 'select', label: 'قائمة اختيار' }];
@@ -99,6 +120,19 @@ export const prevMonth = () => {
   d.setUTCMonth(d.getUTCMonth() - 1);
   return ym(d);
 };
+
+/** ملف محمي بالدخول يُنزَّل باسمه (مثل نموذج الاستيراد) */
+export async function downloadFile(path: string, name: string) {
+  const t = token.get();
+  const res = await fetch(`/api${path}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+  if (!res.ok) throw new Error('تعذر تنزيل الملف');
+  const url = URL.createObjectURL(await res.blob());
+  const el = document.createElement('a');
+  el.href = url;
+  el.download = name;
+  el.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 /** صورة الأصل محمية بالدخول، فتُحمَّل كملف ثم تُعرض */
 export async function imageUrl(assetId: string) {

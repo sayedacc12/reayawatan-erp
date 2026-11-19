@@ -10,6 +10,7 @@ export const P = {
   reopenPeriods: 'accounting.periods.reopen', reports: 'accounting.reports.read', settings: 'accounting.settings.manage',
   assetsRead: 'accounting.assets.read', assetsManage: 'accounting.assets.manage', assetsOperate: 'accounting.assets.operate',
   assetsDepreciate: 'accounting.assets.depreciate', assetsReverse: 'accounting.assets.reverse', assetsCustody: 'accounting.assets.custody',
+  assetsMaintain: 'accounting.assets.maintain', assetsBudget: 'accounting.assets.budget',
 } as const;
 
 export interface Account {

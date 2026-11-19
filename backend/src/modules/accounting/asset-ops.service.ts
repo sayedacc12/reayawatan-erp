@@ -6,7 +6,7 @@ import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { LineDto } from './accounting.dto';
 import { AccountsService } from './accounts.service';
 import {
-  amountOf, ASSET_STATUS_AR, AssetsService, bad, dateOf, idOf, IN_BOOKS, MOVE_AR, optId, str,
+  amountOf, ASSET_STATUS_AR, AssetsService, bad, costMove, dateOf, DISPOSAL_KINDS, FIRST_KINDS, idOf, IN_BOOKS, MOVE_AR, optId, str,
 } from './assets.service';
 import { addDays, CalcResult, computeDepreciation, DEP_METHOD_AR, monthEnd, monthStart, PartialRule } from './depreciation';
 import { CashAccount, FiscalYear, Partner, Voucher, VoucherStatus } from './entities/accounting.entity';
@@ -61,11 +61,11 @@ export class AssetOpsService implements OnModuleInit {
     };
   }
 
-  private async movesOf(em: EntityManager, ids: string[]) {
+  private async movesOf(em: EntityManager, ids: string[]): Promise<AssetMove[]> {
     return ids.length ? em.getRepository(AssetMove).find({ where: { assetId: In(ids) }, order: { date: 'ASC', moveNo: 'ASC' } }) : [];
   }
 
-  private async linesOf(em: EntityManager, ids: string[]) {
+  private async linesOf(em: EntityManager, ids: string[]): Promise<DepLine[]> {
     return ids.length ? em.getRepository(DepLine).find({ where: { assetId: In(ids), active: true }, order: { toDate: 'ASC' } }) : [];
   }
 
@@ -75,10 +75,10 @@ export class AssetOpsService implements OnModuleInit {
     const done = moves.filter((m) => m.assetId === a.id && m.status === 'done');
     return computeDepreciation({
       inServiceDate: a.inServiceDate!, depreciatedThrough: a.depreciatedThrough, salvage: a.salvageValue, method: pol.method, rate: pol.rate, lifeYears: pol.lifeYears,
-      costMoves: done.filter((m) => ['opening', 'purchase', 'donation', 'addition'].includes(m.kind)).map((m) => ({ date: m.date, amount: m.amount })),
+      costMoves: done.filter(costMove).map((m) => ({ date: m.date, amount: m.amount })),
       accum: a.accum,
       accumHistory: [
-        ...done.filter((m) => m.kind === 'opening').map((m) => ({ date: m.date, amount: m.accumDelta })),
+        ...done.filter((m) => costMove(m) && m.accumDelta !== 0).map((m) => ({ date: m.date, amount: m.accumDelta })),
         ...lines.filter((l) => l.assetId === a.id).map((l) => ({ date: l.toDate, amount: l.amount })),
       ],
       yearStartOf, partial,
@@ -101,50 +101,112 @@ export class AssetOpsService implements OnModuleInit {
 
   // ---------------- الشراء والإضافات والتبرع العيني ----------------
 
-  /** شراء أصل جديد أو إضافة على أصل قائم: سند صرف بمراحل الاعتماد، ولا يدخل الأصل الدفاتر إلا باعتماده النهائي */
+  /**
+   * شراء أصل جديد أو إضافة على أصل قائم أو دفعة على أصل تحت التنفيذ: سند صرف بمراحل الاعتماد، ولا يدخل المبلغ الدفاتر إلا باعتماده النهائي.
+   * إن موّلت الشراءَ منحةٌ أو مشروع يُحرَّر القيد عن المبلغ الممول بمجرد اعتماد الشراء (وليس مع الإهلاك).
+   */
   async purchase(actor: OrgUser, input: Record<string, unknown>) {
     this.assets.need(actor, P.assetsOperate, 'ليست لديك صلاحية عمليات الأصول');
     const org = actor.organizationId;
-    const kind = input.kind === 'addition' ? 'addition' : 'purchase';
+    const kind = input.kind === 'addition' ? 'addition' : input.kind === 'wip' ? 'wip' : 'purchase';
     let moveId = '';
     await this.db.transaction(async (em) => {
       await this.assets.lock(em, org);
       const a = await this.assets.load(em, org, idOf(input.assetId, 'الأصل'));
       const g = await this.assets.group(org, a.groupId, em);
       const moves = await this.movesOf(em, [a.id]);
+      const cfg = await this.assets.config(org, em);
       if (kind === 'purchase') {
-        if (a.status !== 'draft') bad(a.status === 'pending_purchase' ? 'للأصل سند شراء ينتظر الاعتماد' : 'الأصل مسجل بقيمته بالفعل. للتحسينات اختر «إضافة على أصل»');
-        const cfg = await this.assets.config(org, em);
+        if (a.status !== 'draft') bad(a.status === 'pending_purchase' ? 'للأصل سند شراء ينتظر الاعتماد' : a.status === 'construction' ? 'الأصل تحت التنفيذ: سجّل دفعاته ثم رسمله عند اكتماله' : 'الأصل مسجل بقيمته بالفعل. للتحسينات اختر «إضافة على أصل»');
         if (g.isTangible && cfg.requireCustody && !a.custodianEmployeeId) bad('سلّم الأصل لموظف أولًا (الأصول المادية يجب أن تكون في عهدة موظف)');
+      } else if (kind === 'wip') {
+        if (a.status !== 'draft' && a.status !== 'construction') bad('دفعات «تحت التنفيذ» لأصل لم يدخل الخدمة بعد (مسجل بلا قيمة أو تحت التنفيذ)');
+        if (!cfg.wipAccountId) bad('حدد حساب المشروعات تحت التنفيذ في إعدادات الأصول الثابتة أولًا');
       } else {
         if (a.status !== 'active') bad('الإضافة والتحسين على أصل في الخدمة فقط');
         if (moves.some((m) => m.status === 'pending')) bad('للأصل عملية تنتظر اعتماد سندها');
       }
-      const date = dateOf(input.date, kind === 'purchase' ? 'تاريخ الشراء' : 'تاريخ الإضافة');
+      const date = dateOf(input.date, kind === 'purchase' ? 'تاريخ الشراء' : kind === 'wip' ? 'تاريخ الدفعة' : 'تاريخ الإضافة');
       if (date > today()) bad('التاريخ في المستقبل');
       if (kind === 'addition' && a.depreciatedThrough && date <= a.depreciatedThrough) {
         bad(`احتُسب إهلاك الأصل حتى ${a.depreciatedThrough}، فتكون الإضافة بعد هذا التاريخ ليُعاد احتساب الإهلاك على العمر المتبقي`);
       }
       const amount = amountOf(input.amount, 'المبلغ');
       const pay = await this.payment(em, org, input);
-      const label = `${kind === 'purchase' ? 'شراء أصل ثابت' : 'إضافة وتحسين على الأصل'} ${a.code} ${a.name}`;
+      const funding = await this.fundingOf(em, org, input, amount, a, g);
+      const budgetLineId = await this.budgetCheck(em, org, input.budgetLineId, date, amount, g.id);
+      const label = `${kind === 'purchase' ? 'شراء أصل ثابت' : kind === 'wip' ? 'دفعة على أصل تحت التنفيذ' : 'إضافة وتحسين على الأصل'} ${a.code} ${a.name}`;
+      const debitAccount = kind === 'wip' ? cfg.wipAccountId! : g.assetAccountId;
       const lines = [
-        await this.line(em, org, g.assetAccountId, amount, 0, label, null, `مجموعة «${g.name}»`),
+        await this.line(em, org, debitAccount, amount, 0, label, null, kind === 'wip' ? 'إعدادات الأصول' : `مجموعة «${g.name}»`),
         { accountId: pay.accountId!, debit: 0, credit: amount, label, partnerId: pay.partnerId },
       ];
       const v = await this.vouchers.insertSystemDraft(em, actor, 'payment', {
         voucherDate: date, partyName: str(input.partyName, 250) ?? pay.partyName ?? 'المورد', partnerId: pay.partnerId, amount, purpose: str(input.notes, 600) ? `${label}: ${str(input.notes, 600)}` : label,
-        sourceType: 'assets', sourceRef: a.code, method: pay.voucherMethod, cashAccountId: pay.cashAccountId, counterAccountId: g.assetAccountId, lines,
+        sourceType: 'assets', sourceRef: a.code, method: pay.voucherMethod, cashAccountId: pay.cashAccountId, counterAccountId: debitAccount, lines,
       });
       const m = await this.newMove(em, actor, {
         assetId: a.id, kind, date, amount, status: 'pending', method: pay.method, cashAccountId: pay.cashAccountId, partnerId: pay.partnerId,
-        partyName: v.partyName, voucherId: v.id, notes: str(input.notes, 1000),
+        partyName: v.partyName, voucherId: v.id, notes: str(input.notes, 1000), budgetLineId, ...funding,
       });
       moveId = m.id;
       if (v.status === 'approved') await this.onVoucher(em, v, 'approved');
       await this.assets.refresh(em, org, a.id);
     });
     return this.operation(actor, moveId);
+  }
+
+  /** التمويل من منحة أو مشروع: الحساب المقيد الذي يُخفَّض والمبلغ الممول (كل المبلغ افتراضيًا) */
+  private async fundingOf(em: EntityManager, org: string, input: Record<string, unknown>, amount: number, a: FixedAsset, g: AssetGroup) {
+    const accountId = optId(input.fundingAccountId);
+    if (!accountId) return { fundingAccountId: null, fundingName: null, fundedAmount: 0 };
+    const cfg = await this.assets.config(org, em);
+    if (!cfg.grantReleaseAccountId) bad('حدد حساب «تحرير القيود» في إعدادات الأصول الثابتة أولًا، ليُخفَّض المقيد عند الشراء');
+    const fundedAmount = input.fundedAmount === undefined || input.fundedAmount === null || input.fundedAmount === '' ? amount : amountOf(input.fundedAmount, 'المبلغ الممول');
+    if (cents(fundedAmount) > cents(amount)) bad('المبلغ الممول من المنحة أكبر من مبلغ الشراء');
+    if (accountId === cfg.grantReleaseAccountId) bad('الحساب المقيد هو نفسه حساب تحرير القيود');
+    const analytic = a.analyticId ?? g.analyticId;
+    // تحقق مبكر من صلاحية الحسابين ومراكز التكلفة حتى لا يفشل اعتماد السند لاحقًا
+    await this.line(em, org, accountId, fundedAmount, 0, '', analytic, `مجموعة «${g.name}» أو بطاقة الأصل`);
+    await this.line(em, org, cfg.grantReleaseAccountId!, 0, fundedAmount, '', analytic, `مجموعة «${g.name}» أو بطاقة الأصل`);
+    return { fundingAccountId: accountId, fundingName: str(input.fundingName, 250) ?? bad('اكتب اسم المنحة أو المشروع الممول'), fundedAmount };
+  }
+
+  /** قيد تحرير القيد عن المبلغ الممول: مدين الحساب المقيد، دائن تحويلات وإعادة تصنيف ــ قيود استخدام */
+  private async fundingEntry(em: EntityManager, m: AssetMove) {
+    const org = m.organizationId;
+    const cfg = await this.assets.config(org, em);
+    const a = await this.assets.load(em, org, m.assetId, false);
+    const g = await this.assets.group(org, a.groupId, em);
+    const analytic = a.analyticId ?? g.analyticId;
+    const label = `تحرير قيد ${m.fundingName} مقابل ${MOVE_AR[m.kind]} الأصل ${a.code} ${a.name}`;
+    const who = `مجموعة «${g.name}» أو بطاقة الأصل`;
+    const e = await this.entries.createAssetEntry(em, { id: null, fullName: 'النظام المالي', organizationId: org }, 'asset', { documentDate: m.date, description: label, counterparty: m.fundingName }, [
+      await this.line(em, org, m.fundingAccountId!, m.fundedAmount, 0, label, analytic, who),
+      await this.line(em, org, cfg.grantReleaseAccountId ?? bad('حدد حساب تحرير القيود في إعدادات الأصول'), 0, m.fundedAmount, label, analytic, who),
+    ]);
+    await em.getRepository(AssetMove).update({ id: m.id }, { fundingEntryId: e.id });
+  }
+
+  /** بند الموازنة الرأسمالية: معتمد، وفي سنة تاريخ العملية، ولنفس مجموعة الأصل، والرقابة على التجاوز حسب الإعدادات */
+  private async budgetCheck(em: EntityManager, org: string, v: unknown, date: string, amount: number, groupId: string, excludeMoveId?: string) {
+    const id = optId(v);
+    if (!id) return null;
+    const [l] = await em.query(
+      `SELECT l.id, l.description, l.amount, l.group_id, b.status, to_char(y.start_date, 'YYYY-MM-DD') AS start, to_char(y.end_date, 'YYYY-MM-DD') AS "end", y.name AS year
+         FROM acc_asset_budget_lines l JOIN acc_asset_budgets b ON b.id = l.budget_id JOIN acc_fiscal_years y ON y.id = b.fiscal_year_id
+        WHERE l.id = $1 AND l.organization_id = $2`, [id, org]);
+    if (!l) bad('بند الموازنة الرأسمالية غير موجود');
+    if (l.status !== 'approved') bad('الموازنة الرأسمالية لم تُعتمد بعد');
+    if (date < l.start || date > l.end) bad(`بند الموازنة من موازنة سنة ${l.year}، وتاريخ العملية خارجها`);
+    if (l.group_id !== groupId) bad('بند الموازنة لمجموعة أصول أخرى');
+    const [u] = await em.query(`SELECT COALESCE(SUM(amount), 0) AS used FROM acc_asset_moves WHERE budget_line_id = $1 AND status <> 'cancelled' AND ($2::uuid IS NULL OR id <> $2)`, [id, excludeMoveId ?? null]);
+    const remaining = cents(l.amount) - cents(u.used);
+    if (cents(amount) > remaining) {
+      const cfg = await this.assets.config(org, em);
+      if (cfg.budgetControl === 'block') bad(`المبلغ يتجاوز المتبقي في بند الموازنة «${l.description}» (المتبقي ${fromCents(remaining).toLocaleString('en')} ريال)`);
+    }
+    return id;
   }
 
   /** طريقة السداد أو التحصيل: نقدي أو بنكي (حساب من البنوك والنقدية) أو آجل (حساب الشريك) */
@@ -189,6 +251,124 @@ export class AssetOpsService implements OnModuleInit {
         await this.line(em, org, counter, 0, value, label, analytic, `مجموعة «${g.name}»`),
       ]);
       const m = await this.newMove(em, actor, { assetId: a.id, kind: 'donation', date, amount: value, counterAccountId: counter, partyName: donor, entryId: entry.id, notes: str(input.notes, 1000) });
+      moveId = m.id;
+      await this.assets.refresh(em, org, a.id);
+    });
+    return this.operation(actor, moveId);
+  }
+
+  // ---------------- إعادة التقييم وهبوط القيمة والرسملة ----------------
+
+  /** شروط عمليات القيمة: أصل في الخدمة بلا عمليات معلقة، وتاريخ بعد آخر إهلاك، وإهلاك الأشهر السابقة مرحّل */
+  private async valueGuard(em: EntityManager, org: string, a: FixedAsset, g: AssetGroup, date: string, label: string) {
+    if (a.status !== 'active') bad(`${label} لأصل في الخدمة فقط`);
+    const moves = await this.movesOf(em, [a.id]);
+    if (moves.some((m) => m.status === 'pending')) bad('للأصل عملية تنتظر اعتماد سندها');
+    if (date > today()) bad('التاريخ في المستقبل');
+    if (a.inServiceDate && date < a.inServiceDate) bad('التاريخ قبل تاريخ شراء الأصل');
+    if (a.depreciatedThrough && date <= a.depreciatedThrough) bad(`احتُسب إهلاك الأصل حتى ${a.depreciatedThrough}، فيكون تاريخ ${label} بعده`);
+    const prevEnd = addDays(monthStart(date), -1);
+    if (a.inServiceDate && prevEnd >= a.inServiceDate) {
+      const cfg = await this.assets.config(org, em);
+      const res = this.calc(a, g, moves, await this.linesOf(em, [a.id]), cfg.partialMonth, await this.yearStartFn(org, em), prevEnd);
+      if (res.amount > 0) bad(`رحّل إهلاك الأصل حتى ${prevEnd} أولًا، حتى تكون صافي القيمة الدفترية قبل ${label} صحيحة`);
+    }
+  }
+
+  /** إعادة تقييم بالزيادة: الفرق بين القيمة العادلة وصافي القيمة الدفترية يزيد تكلفة الأصل مقابل فائض إعادة التقييم، ويُهلك على العمر المتبقي */
+  async revalue(actor: OrgUser, input: Record<string, unknown>) {
+    this.assets.need(actor, P.assetsOperate, 'ليست لديك صلاحية عمليات الأصول');
+    const org = actor.organizationId;
+    let moveId = '';
+    await this.db.transaction(async (em) => {
+      await this.assets.lock(em, org);
+      const a = await this.assets.load(em, org, idOf(input.assetId, 'الأصل'));
+      const g = await this.assets.group(org, a.groupId, em);
+      const date = dateOf(input.date, 'تاريخ إعادة التقييم');
+      await this.valueGuard(em, org, a, g, date, 'إعادة التقييم');
+      const cfg = await this.assets.config(org, em);
+      const account = cfg.revaluationAccountId ?? bad('حدد حساب فائض إعادة التقييم في إعدادات الأصول الثابتة أولًا');
+      const fair = amountOf(input.fairValue, 'القيمة العادلة');
+      const nbv = r2(a.cost - a.accum);
+      const diff = r2(fair - nbv);
+      if (diff <= 0) bad(`القيمة العادلة لا تزيد على صافي القيمة الدفترية (${nbv.toLocaleString('en')} ريال). للانخفاض سجّل «هبوط قيمة»`);
+      const valuer = str(input.partyName, 250) ?? bad('اكتب جهة التقييم (المقيّم المعتمد)');
+      const label = `إعادة تقييم الأصل ${a.code} ${a.name} بقيمة عادلة ${fair.toLocaleString('en')} ريال (${valuer})`;
+      const analytic = a.analyticId ?? g.analyticId;
+      const entry = await this.entries.createAssetEntry(em, actor, 'asset', { documentDate: date, description: label, counterparty: valuer }, [
+        await this.line(em, org, g.assetAccountId, diff, 0, label, analytic, `مجموعة «${g.name}»`),
+        await this.line(em, org, account, 0, diff, label, analytic, `مجموعة «${g.name}»`),
+      ]);
+      const m = await this.newMove(em, actor, { assetId: a.id, kind: 'revaluation', date, amount: diff, proceeds: fair, counterAccountId: account, partyName: valuer, entryId: entry.id, notes: str(input.notes, 1000) });
+      moveId = m.id;
+      await this.assets.refresh(em, org, a.id);
+    });
+    return this.operation(actor, moveId);
+  }
+
+  /** هبوط القيمة: الفرق بين صافي القيمة الدفترية والقيمة القابلة للاسترداد خسارة تُضاف لمجمع الإهلاك (وتُخفض تكلفة الأصول التي لا تُهلك كالأراضي) */
+  async impair(actor: OrgUser, input: Record<string, unknown>) {
+    this.assets.need(actor, P.assetsOperate, 'ليست لديك صلاحية عمليات الأصول');
+    const org = actor.organizationId;
+    let moveId = '';
+    await this.db.transaction(async (em) => {
+      await this.assets.lock(em, org);
+      const a = await this.assets.load(em, org, idOf(input.assetId, 'الأصل'));
+      const g = await this.assets.group(org, a.groupId, em);
+      const date = dateOf(input.date, 'تاريخ هبوط القيمة');
+      await this.valueGuard(em, org, a, g, date, 'هبوط القيمة');
+      const cfg = await this.assets.config(org, em);
+      const account = cfg.impairmentAccountId ?? bad('حدد حساب خسائر هبوط القيمة في إعدادات الأصول الثابتة أولًا');
+      const recoverable = amountOf(input.recoverable, 'القيمة القابلة للاسترداد', 1);
+      const nbv = r2(a.cost - a.accum);
+      const loss = r2(nbv - recoverable);
+      if (loss <= 0) bad(`القيمة القابلة للاسترداد لا تقل عن صافي القيمة الدفترية (${nbv.toLocaleString('en')} ريال)، فلا يوجد هبوط`);
+      const reason = str(input.notes, 1000) ?? bad('اكتب سبب هبوط القيمة');
+      const label = `هبوط قيمة الأصل ${a.code} ${a.name}: ${reason}`;
+      const analytic = a.analyticId ?? g.analyticId;
+      const credit = g.accumAccountId ?? g.assetAccountId;
+      const entry = await this.entries.createAssetEntry(em, actor, 'asset', { documentDate: date, description: label }, [
+        await this.line(em, org, account, loss, 0, label, analytic, `مجموعة «${g.name}» أو بطاقة الأصل`),
+        await this.line(em, org, credit, 0, loss, label, analytic, `مجموعة «${g.name}»`),
+      ]);
+      const m = await this.newMove(em, actor, {
+        assetId: a.id, kind: 'impairment', date, amount: g.accumAccountId ? 0 : -loss, accumDelta: g.accumAccountId ? loss : 0, gainLoss: -loss, proceeds: recoverable,
+        counterAccountId: account, entryId: entry.id, notes: reason,
+      });
+      moveId = m.id;
+      await this.assets.refresh(em, org, a.id);
+    });
+    return this.operation(actor, moveId);
+  }
+
+  /** رسملة أصل تحت التنفيذ: تُنقل دفعاته المعتمدة من حساب المشروعات تحت التنفيذ إلى حساب الأصل، ويبدأ إهلاكه من تاريخ الرسملة */
+  async capitalize(actor: OrgUser, input: Record<string, unknown>) {
+    this.assets.need(actor, P.assetsOperate, 'ليست لديك صلاحية عمليات الأصول');
+    const org = actor.organizationId;
+    let moveId = '';
+    await this.db.transaction(async (em) => {
+      await this.assets.lock(em, org);
+      const a = await this.assets.load(em, org, idOf(input.assetId, 'الأصل'));
+      if (a.status !== 'construction') bad('الرسملة لأصل تحت التنفيذ فقط');
+      const g = await this.assets.group(org, a.groupId, em);
+      const cfg = await this.assets.config(org, em);
+      const moves = await this.movesOf(em, [a.id]);
+      if (moves.some((m) => m.status === 'pending')) bad('للأصل دفعة تنتظر اعتماد سندها. اعتمدها أو ألغها قبل الرسملة');
+      const wip = moves.filter((m) => m.kind === 'wip' && m.status === 'done');
+      const total = r2(wip.reduce((s, m) => s + m.amount, 0));
+      if (total <= 0) bad('لا توجد دفعات معتمدة على الأصل');
+      const date = dateOf(input.date, 'تاريخ الرسملة (بدء الاستخدام)');
+      if (date > today()) bad('التاريخ في المستقبل');
+      const last = wip.map((m) => m.date).sort().at(-1)!;
+      if (date < last) bad(`تاريخ الرسملة قبل آخر دفعة (${last})`);
+      if (g.isTangible && cfg.requireCustody && !a.custodianEmployeeId) bad('سلّم الأصل لموظف أولًا (الأصول المادية يجب أن تكون في عهدة موظف)');
+      const label = `رسملة الأصل ${a.code} ${a.name} بعد اكتمال تنفيذه (${wip.length} دفعة)`;
+      const analytic = a.analyticId ?? g.analyticId;
+      const entry = await this.entries.createAssetEntry(em, actor, 'asset', { documentDate: date, description: label }, [
+        await this.line(em, org, g.assetAccountId, total, 0, label, analytic, `مجموعة «${g.name}»`),
+        await this.line(em, org, cfg.wipAccountId ?? bad('حدد حساب المشروعات تحت التنفيذ في إعدادات الأصول'), 0, total, label, analytic, 'إعدادات الأصول'),
+      ]);
+      const m = await this.newMove(em, actor, { assetId: a.id, kind: 'capitalize', date, amount: total, counterAccountId: cfg.wipAccountId, entryId: entry.id, notes: str(input.notes, 1000) });
       moveId = m.id;
       await this.assets.refresh(em, org, a.id);
     });
@@ -316,11 +496,11 @@ export class AssetOpsService implements OnModuleInit {
       if (m.status === 'cancelled') bad('العملية ملغاة بالفعل');
       if (m.voucherId) bad('هذه العملية بسند قبض أو صرف، وتُلغى من شاشة السند في النظام المالي حسب صلاحيات السندات');
       if (m.kind === 'opening') bad('الرصيد الافتتاحي يُعدَّل أو يُحذف من شاشة الأرصدة الافتتاحية');
-      if (m.kind === 'donation') {
-        const lines = await this.linesOf(em, [m.assetId]);
-        if (lines.length) bad('احتُسب إهلاك للأصل بعد استلامه، فلا يُلغى التبرع إلا بعد إلغاء حركات الإهلاك');
-        const later = await em.getRepository(AssetMove).count({ where: { assetId: m.assetId, status: In(['pending', 'done']) } });
-        if (later > 1) bad('للأصل عمليات بعد التبرع، فلا يُلغى');
+      if (['donation', 'capitalize', 'revaluation', 'impairment'].includes(m.kind)) {
+        const lines = (await this.linesOf(em, [m.assetId])).filter((l) => l.toDate >= m.date);
+        if (lines.length) bad(`احتُسب إهلاك للأصل بعد ${MOVE_AR[m.kind]}، فلا تُلغى العملية إلا بعد إلغاء حركات الإهلاك اللاحقة`);
+        const later = (await this.movesOf(em, [m.assetId])).filter((x) => x.id !== m.id && x.status !== 'cancelled' && x.kind !== 'wip' && x.moveNo > m.moveNo);
+        if (later.length) bad(`للأصل عمليات بعد ${MOVE_AR[m.kind]} (${MOVE_AR[later[0].kind]})، فلا تُلغى`);
       }
       if (m.entryId) await this.entries.cancelAssetEntry(em, actor, m.entryId, `إلغاء ${MOVE_AR[m.kind]} من الأصول الثابتة: ${reason}`);
       await em.getRepository(AssetMove).update({ id }, { status: 'cancelled', cancelledByName: actor.fullName, cancelReason: reason });
@@ -346,6 +526,14 @@ export class AssetOpsService implements OnModuleInit {
       if (next === 'done') await this.release(em, who, a, m.date, 'إنهاء العهدة ببيع الأصل');
       else if (m.status === 'done') await this.restoreCustody(em, who, m.assetId, today(), 'إعادة العهدة بعد إلغاء سند البيع');
     }
+    // تخفيض المقيد عن الأصل الممول من منحة أو مشروع بمجرد اعتماد الشراء، وإلغاؤه إن أُلغي السند
+    if (m.fundingAccountId && m.fundedAmount > 0) {
+      if (next === 'done' && !m.fundingEntryId) await this.fundingEntry(em, m);
+      else if (next !== 'done' && m.fundingEntryId) {
+        await this.entries.cancelAssetEntry(em, who, m.fundingEntryId, `إلغاء سند الصرف رقم ${v.serial}`);
+        await em.getRepository(AssetMove).update({ id: m.id }, { fundingEntryId: null });
+      }
+    }
     await this.assets.refresh(em, m.organizationId, m.assetId);
   }
 
@@ -357,6 +545,10 @@ export class AssetOpsService implements OnModuleInit {
     if (dep.n) throw new ConflictException('احتُسب إهلاك للأصل بعد هذا السند، فلا يُعكس إلا بعد إلغاء حركات الإهلاك من سجل حركات الإهلاك في الأصول الثابتة');
     const [d] = await em.query(`SELECT COUNT(*)::int AS n FROM acc_asset_moves WHERE asset_id = $1 AND kind IN ('sale', 'scrap') AND status <> 'cancelled'`, [m.assetId]);
     if (d.n) throw new ConflictException('الأصل مستبعد بالبيع أو التخريد، فلا يُعكس سند شرائه');
+    if (m.kind === 'wip') {
+      const [c] = await em.query(`SELECT COUNT(*)::int AS n FROM acc_asset_moves WHERE asset_id = $1 AND kind = 'capitalize' AND status = 'done'`, [m.assetId]);
+      if (c.n) throw new ConflictException('رُسمل الأصل بعد هذه الدفعة، فلا يُعكس سندها إلا بعد إلغاء الرسملة من عمليات الأصول');
+    }
   }
 
   // ---------------- سجل العمليات ----------------
@@ -383,8 +575,10 @@ export class AssetOpsService implements OnModuleInit {
               m.notes, m.created_by_name, m.cancel_reason, m.asset_id, a.code, a.name, g.name AS group_name,
               v.id AS voucher_id, v.kind AS voucher_kind, v.serial AS voucher_serial, v.status AS voucher_status,
               e.id AS entry_id, e.entry_no, e.voucher_type, e.voucher_serial AS entry_serial, e.status AS entry_status, y.name AS year,
-              r.id AS run_id, r.run_no, r.total AS run_total
+              r.id AS run_id, r.run_no, r.total AS run_total, m.funding_name, m.funded_amount, fe.entry_no AS funding_entry_no, fe.status AS funding_entry_status, fe.id AS funding_entry_id,
+              bl.id AS budget_line_id, bl.description AS budget_line
          FROM acc_asset_moves m JOIN acc_assets a ON a.id = m.asset_id JOIN acc_asset_groups g ON g.id = a.group_id
+         LEFT JOIN acc_entries fe ON fe.id = m.funding_entry_id LEFT JOIN acc_asset_budget_lines bl ON bl.id = m.budget_line_id
          LEFT JOIN acc_vouchers v ON v.id = m.voucher_id LEFT JOIN acc_entries e ON e.id = m.entry_id LEFT JOIN acc_fiscal_years y ON y.id = e.fiscal_year_id
          LEFT JOIN acc_asset_dep_runs r ON r.id = m.dep_run_id
         WHERE m.organization_id = $1 AND m.id = ANY($2) ORDER BY m.date DESC, m.move_no DESC`, [org, ids]);
@@ -396,6 +590,8 @@ export class AssetOpsService implements OnModuleInit {
       voucher: r.voucher_id ? { id: r.voucher_id, kind: r.voucher_kind, serial: r.voucher_serial, status: r.voucher_status } : null,
       entry: r.entry_id ? { id: r.entry_id, entryNo: r.entry_no, voucherNo: `${r.entry_serial}/${r.year}`, status: r.entry_status } : null,
       depRun: r.run_id ? { id: r.run_id, runNo: r.run_no, total: Number(r.run_total) } : null,
+      funding: r.funding_name ? { name: r.funding_name, amount: Number(r.funded_amount), entry: r.funding_entry_id ? { id: r.funding_entry_id, entryNo: r.funding_entry_no, status: r.funding_entry_status } : null } : null,
+      budgetLine: r.budget_line_id ? { id: r.budget_line_id, description: r.budget_line } : null,
     }));
   }
 
@@ -548,27 +744,26 @@ export class AssetOpsService implements OnModuleInit {
       const mv = moves.filter((m) => m.assetId === a.id);
       const ln = lines.filter((l) => l.assetId === a.id);
       const d = dep.find((x) => x.assetId === a.id);
-      const isAcq = (m: AssetMove) => ['opening', 'purchase', 'donation', 'addition'].includes(m.kind);
-      const isDisp = (m: AssetMove) => m.kind === 'sale' || m.kind === 'scrap';
+      const isAcq = costMove;
+      const isDisp = (m: AssetMove) => DISPOSAL_KINDS.includes(m.kind);
       const sum = (xs: number[]) => r2(xs.reduce((s, x) => s + x, 0));
-      const costOpening = sum(mv.filter((m) => m.date < ps).map((m) => m.amount));
+      const costOpening = sum(mv.filter((m) => m.kind !== 'wip' && m.date < ps).map((m) => m.amount));
       const additions = sum(mv.filter((m) => isAcq(m) && m.date >= ps && m.date <= pe).map((m) => m.amount));
       const disposals = sum(mv.filter((m) => isDisp(m) && m.date >= ps && m.date <= pe).map((m) => -m.amount));
       const inBooksDuringPeriod = costOpening !== 0 || additions !== 0 || disposals !== 0;
       if (!inBooksDuringPeriod && !d) continue;
       // في التقرير المعروض قبل الترحيل: الإهلاك المحتسب لم يُرحَّل بعد، وبعد الترحيل يُستبعد من «إهلاك آخر» حتى لا يتكرر
       const runLines = d ? ln.filter((l) => l.toDate === d.to && l.fromDate === d.from && runLineIds.has(a.id)) : [];
-      const accumOpening = sum([...mv.filter((m) => m.kind === 'opening' && m.date < ps).map((m) => m.accumDelta), ...ln.filter((l) => l.toDate < ps).map((l) => l.amount),
-        ...mv.filter((m) => isDisp(m) && m.date < ps).map((m) => m.accumDelta)]);
+      const accumOpening = sum([...mv.filter((m) => m.date < ps).map((m) => m.accumDelta), ...ln.filter((l) => l.toDate < ps).map((l) => l.amount)]);
       const otherDepreciation = sum([...ln.filter((l) => l.toDate >= ps && l.toDate <= pe && !runLines.includes(l)).map((l) => l.amount),
-        ...mv.filter((m) => m.kind === 'opening' && m.date >= ps && m.date <= pe).map((m) => m.accumDelta)]);
+        ...mv.filter((m) => isAcq(m) && m.date >= ps && m.date <= pe).map((m) => m.accumDelta)]);
       const depreciation = d?.amount ?? 0;
       const accumDisposed = sum(mv.filter((m) => isDisp(m) && m.date >= ps && m.date <= pe).map((m) => -m.accumDelta));
       // إهلاك يسبق الفترة لم يُرحَّل وقت عرضه (احتساب متأخر) يدخل في الإهلاك المحتسب، فأول الفترة كما هو في الدفاتر
       const costClosing = r2(costOpening + additions - disposals);
       const accumClosing = r2(accumOpening + depreciation + otherDepreciation - accumDisposed);
       const pol = this.assets.policy(a, g);
-      const firstAcq = mv.find((m) => m.kind !== 'addition' && isAcq(m));
+      const firstAcq = mv.find((m) => FIRST_KINDS.includes(m.kind));
       rows.push({
         assetId: a.id, code: a.code, name: a.name, groupId: g.id, groupName: g.name, status: ASSET_STATUS_AR[a.status],
         custodianName: emps.find((e) => e.id === a.custodianEmployeeId)?.fullName ?? null, location: a.location,
@@ -670,8 +865,7 @@ export class AssetOpsService implements OnModuleInit {
   /** قيمة الأصول ومجمع إهلاكها لكل مجموعة في تاريخ */
   async subledger(org: string, asOf: string, em: EntityManager = this.db.manager) {
     const rows: { group_id: string; cost: string; accum: string; n: number }[] = await em.query(
-      `WITH c AS (SELECT a.group_id, a.id, COALESCE(SUM(m.amount), 0) AS cost,
-                         COALESCE(SUM(m.accum_delta) FILTER (WHERE m.kind IN ('opening', 'sale', 'scrap')), 0) AS acc
+      `WITH c AS (SELECT a.group_id, a.id, COALESCE(SUM(m.amount) FILTER (WHERE m.kind <> 'wip'), 0) AS cost, COALESCE(SUM(m.accum_delta), 0) AS acc
                     FROM acc_assets a JOIN acc_asset_moves m ON m.asset_id = a.id AND m.status = 'done' AND m.date <= $2
                    WHERE a.organization_id = $1 GROUP BY 1, 2),
             d AS (SELECT l.asset_id, SUM(l.amount) AS dep FROM acc_asset_dep_lines l WHERE l.organization_id = $1 AND l.active AND l.to_date <= $2 GROUP BY 1)
@@ -685,7 +879,9 @@ export class AssetOpsService implements OnModuleInit {
     const asOf = asOfIn ? dateOf(asOfIn, 'تاريخ المطابقة') : today();
     const groups = await this.db.getRepository(AssetGroup).find({ where: { organizationId: org }, order: { sortOrder: 'ASC' } });
     const sub = await this.subledger(org, asOf);
-    const accIds = [...new Set(groups.flatMap((g) => [g.assetAccountId, g.accumAccountId]).filter(Boolean))] as string[];
+    const cfg = await this.assets.config(org);
+    const wipId = cfg.wipAccountId && !groups.some((g) => g.assetAccountId === cfg.wipAccountId || g.accumAccountId === cfg.wipAccountId) ? cfg.wipAccountId : null;
+    const accIds = [...new Set([...groups.flatMap((g) => [g.assetAccountId, g.accumAccountId]), wipId].filter(Boolean))] as string[];
     if (!accIds.length) return { asOf, accounts: [], groups: [], ok: true, issues: 0 };
     const gl: { account_id: string; bal: string; opening: string }[] = await this.db.query(
       `SELECT l.account_id, SUM(l.debit - l.credit) AS bal, COALESCE(SUM(l.debit - l.credit) FILTER (WHERE e.voucher_type = 'opening'), 0) AS opening
@@ -701,7 +897,27 @@ export class AssetOpsService implements OnModuleInit {
         WHERE e.organization_id = $1 AND e.status = 'posted' AND e.document_date <= $2 AND l.account_id = ANY($3) AND e.voucher_type <> 'opening'
           AND e.source <> 'assets' AND NOT (e.source = 'voucher' AND COALESCE(v.source_type, '') = 'assets')
         ORDER BY e.document_date, e.entry_no LIMIT 200`, [org, asOf, accIds]);
+    // المشروعات تحت التنفيذ: الدفعات المعتمدة ناقص ما رُسمل
+    const [wipSub] = wipId ? await this.db.query(
+      `SELECT COALESCE(SUM(amount) FILTER (WHERE kind = 'wip'), 0) - COALESCE(SUM(amount) FILTER (WHERE kind = 'capitalize'), 0) AS bal
+         FROM acc_asset_moves WHERE organization_id = $1 AND status = 'done' AND date <= $2 AND kind IN ('wip', 'capitalize')`, [org, asOf]) : [{ bal: 0 }];
     const accounts = accIds.map((id) => {
+      if (id === wipId) {
+        const glBal = r2(Number(gl.find((x) => x.account_id === id)?.bal ?? 0));
+        const subTotal = r2(Number(wipSub.bal));
+        const diff = r2(glBal - subTotal);
+        const a = accs.find((x) => x.id === id);
+        const fe = foreign.filter((x) => x.account_id === id);
+        const problems = diff === 0 ? [] : [
+          ...fe.slice(0, 10).map((f) => `قيد رقم ${f.entry_no} بتاريخ ${f.date} بمبلغ ${Math.abs(Number(f.amount)).toLocaleString('en')} ريال لم يصدر من الأصول الثابتة: ${f.description}`),
+          ...(fe.length ? [] : ['راجع حركات الحساب في كشف الحساب مقارنة بدفعات الأصول تحت التنفيذ']),
+        ];
+        return {
+          accountId: id, code: a?.code ?? '', name: a?.name ?? '', kind: 'wip', kindLabel: 'حساب المشروعات تحت التنفيذ', groups: ['الأصول تحت التنفيذ'],
+          gl: glBal, subledger: subTotal, diff, ok: diff === 0, problems,
+          foreignEntries: fe.map((f) => ({ id: f.entry_id, entryNo: f.entry_no, date: f.date, description: f.description, amount: Number(f.amount) })),
+        };
+      }
       const asCost = groups.filter((g) => g.assetAccountId === id);
       const asAccum = groups.filter((g) => g.accumAccountId === id);
       const sign = asCost.length ? 1 : -1;
@@ -761,7 +977,7 @@ export class AssetOpsService implements OnModuleInit {
     const rec = await this.reconcile(actor);
     const cfg = await this.assets.config(org);
     const allGroups = await this.db.getRepository(AssetGroup).find({ where: { organizationId: org } });
-    const held = await this.db.getRepository(FixedAsset).find({ where: { organizationId: org, status: In(['draft', 'pending_purchase', 'active', 'pending_sale']) } });
+    const held = await this.db.getRepository(FixedAsset).find({ where: { organizationId: org, status: In(['draft', 'construction', 'pending_purchase', 'active', 'pending_sale']) } });
     const alerts = held.flatMap((a) => this.assets.alerts(a, allGroups.find((g) => g.id === a.groupId)!, cfg.alertDays).map((x) => ({ ...x, assetId: a.id, code: a.code, name: a.name })))
       .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 30);
     const noCustody = held.filter((a) => !a.custodianEmployeeId && allGroups.find((g) => g.id === a.groupId)?.isTangible).length;
@@ -773,11 +989,24 @@ export class AssetOpsService implements OnModuleInit {
         WHERE organization_id = $1 AND status = 'done' AND kind IN ('sale', 'scrap') AND date BETWEEN $2 AND $3 GROUP BY 1`, [org, year.startDate, year.endDate]) : [];
     const cost = Number(k.cost);
     const accum = Number(k.accum);
+    const [wip] = await this.db.query(
+      `SELECT COUNT(DISTINCT a.id)::int AS n, COALESCE(SUM(m.amount) FILTER (WHERE m.status = 'done'), 0) AS amount
+         FROM acc_assets a JOIN acc_asset_moves m ON m.asset_id = a.id AND m.kind = 'wip' AND m.status <> 'cancelled'
+        WHERE a.organization_id = $1 AND a.status = 'construction'`, [org]);
+    const [mt] = year ? await this.db.query(
+      `SELECT COALESCE(SUM(cost), 0) AS cost, COUNT(*) FILTER (WHERE kind = 'repair')::int AS repairs FROM acc_asset_maintenance
+        WHERE organization_id = $1 AND date BETWEEN $2 AND $3`, [org, year.startDate, year.endDate]) : [{ cost: 0, repairs: 0 }];
+    const [bud] = year ? await this.db.query(
+      `SELECT b.id, b.status, COALESCE((SELECT SUM(amount) FROM acc_asset_budget_lines WHERE budget_id = b.id), 0) AS planned,
+              COALESCE((SELECT SUM(m.amount) FROM acc_asset_moves m JOIN acc_asset_budget_lines l ON l.id = m.budget_line_id WHERE l.budget_id = b.id AND m.status = 'done'), 0) AS actual
+         FROM acc_asset_budgets b WHERE b.organization_id = $1 AND b.fiscal_year_id = $2`, [org, year.id]) : [];
     return {
       kpis: {
         inBooks: k.books, draft: k.draft, pending: k.pending, disposed: k.disposed, cost, accum, nbv: r2(cost - accum), fully: k.fully,
         depYear: Number(dep.y), year: year?.name ?? null, noCustody, openStocktakes: st.open, consumed: cost ? Math.round((accum / cost) * 1000) / 10 : 0,
+        wipCount: wip.n, wipAmount: Number(wip.amount), maintenanceYear: Number(mt.cost), repairsYear: mt.repairs,
       },
+      budget: bud ? { id: bud.id, status: bud.status, planned: Number(bud.planned), actual: Number(bud.actual) } : null,
       monthly: monthly.map((m) => ({ month: m.m, amount: Number(m.amount) })),
       groups, reconciliation: rec, behind, alerts, pendingOps, lastRuns,
       disposals: disposals.map((d) => ({ kind: d.kind, label: d.kind === 'sale' ? 'مبيعات' : 'تخريد', count: d.n, gainLoss: Number(d.gain), proceeds: Number(d.proceeds) })),

@@ -25,6 +25,8 @@ export const ACC_PERMISSIONS = {
   assetsDepreciate: 'accounting.assets.depreciate',
   assetsReverse: 'accounting.assets.reverse',
   assetsCustody: 'accounting.assets.custody',
+  assetsMaintain: 'accounting.assets.maintain',
+  assetsBudget: 'accounting.assets.budget',
 } as const;
 
 const P = ACC_PERMISSIONS;
@@ -62,6 +64,8 @@ export const accountingManifest: ErpModuleManifest = {
     { code: P.assetsDepreciate, name: 'الأصول الثابتة: احتساب الإهلاك وترحيل قيده' },
     { code: P.assetsReverse, name: 'الأصول الثابتة: إلغاء حركات الإهلاك والعمليات' },
     { code: P.assetsCustody, name: 'الأصول الثابتة: تسليم العهد ونقلها واستلامها والجرد الدوري' },
+    { code: P.assetsMaintain, name: 'الأصول الثابتة: سجل الصيانة وتكاليفها وخطط الصيانة الوقائية' },
+    { code: P.assetsBudget, name: 'الأصول الثابتة: إعداد الموازنة الرأسمالية واعتمادها' },
   ],
   settingsPermission: P.settings,
   menu: [
@@ -90,6 +94,9 @@ export const accountingManifest: ErpModuleManifest = {
     { label: 'سجل حركات الإهلاك', path: '/accounting/assets/runs', permission: P.assetsRead, group: 'الأصول الثابتة' },
     { label: 'العهد', path: '/accounting/assets/custody', permission: P.assetsRead, group: 'الأصول الثابتة' },
     { label: 'الجرد الدوري', path: '/accounting/assets/stocktakes', permission: P.assetsRead, group: 'الأصول الثابتة' },
+    { label: 'الصيانة', path: '/accounting/assets/maintenance', permission: P.assetsRead, group: 'الأصول الثابتة' },
+    { label: 'الموازنة الرأسمالية', path: '/accounting/assets/budget', permission: P.assetsRead, group: 'الأصول الثابتة' },
+    { label: 'استيراد الأصول من Excel', path: '/accounting/assets/import', permission: P.assetsManage, group: 'الأصول الثابتة' },
     { label: 'التقارير', path: '/accounting/reports', permission: P.reports, anyOf: [P.assetsRead] },
     { label: 'الإعدادات', path: '/accounting/settings', permission: P.settings },
   ],

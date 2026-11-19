@@ -40,6 +40,18 @@ export interface AssetConfig {
   partialMonth?: 'days' | 'next_month';
   /** الحساب الافتراضي للتبرعات العينية من الأصول */
   donationAccountId?: string | null;
+  /** فائض إعادة التقييم (ضمن صافي الأصول) */
+  revaluationAccountId?: string | null;
+  /** خسائر هبوط قيمة الأصول (مصروف) */
+  impairmentAccountId?: string | null;
+  /** المشروعات تحت التنفيذ (تتراكم فيه تكاليف الأصول حتى رسملتها) */
+  wipAccountId?: string | null;
+  /** الحساب الدائن عند تحرير القيد عن شراء أصل من منحة أو مشروع (تحويلات وإعادة تصنيف ــ قيود استخدام) */
+  grantReleaseAccountId?: string | null;
+  /** مصروف الصيانة الافتراضي حين تُسدد تكلفة الصيانة من الأصول الثابتة */
+  maintenanceAccountId?: string | null;
+  /** عند تجاوز بند الموازنة الرأسمالية: warn تنبيه فقط، block منع */
+  budgetControl?: 'warn' | 'block';
 }
 
 /** إعدادات النظام المحاسبي لكل جمعية */

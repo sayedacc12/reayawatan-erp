@@ -5,7 +5,7 @@ const meta = (title: string, permission: string = P.read, anyPermission?: string
   ({ permission: anyPermission ? undefined : permission, anyPermission, title, app: 'accounting' });
 
 /** أي صلاحية من صلاحيات الأصول تكفي للاطلاع */
-const ASSET_READ = [P.assetsRead, P.assetsManage, P.assetsOperate, P.assetsDepreciate, P.assetsCustody];
+const ASSET_READ = [P.assetsRead, P.assetsManage, P.assetsOperate, P.assetsDepreciate, P.assetsCustody, P.assetsMaintain, P.assetsBudget];
 
 export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة النظام المالي') },
@@ -39,6 +39,10 @@ export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting/assets/custody/forms/:id', component: () => import('./views/assets/CustodyFormView.vue'), props: true, meta: meta('نموذج العهدة', P.assetsRead, ASSET_READ) },
   { path: '/accounting/assets/stocktakes', component: () => import('./views/assets/StocktakesView.vue'), meta: meta('الجرد الدوري', P.assetsRead, ASSET_READ) },
   { path: '/accounting/assets/stocktakes/:id', component: () => import('./views/assets/StocktakeView.vue'), props: true, meta: meta('الجرد', P.assetsRead, ASSET_READ) },
+  { path: '/accounting/assets/maintenance', component: () => import('./views/assets/MaintenanceView.vue'), meta: meta('صيانة الأصول', P.assetsRead, ASSET_READ) },
+  { path: '/accounting/assets/budget', component: () => import('./views/assets/CapitalBudgetView.vue'), meta: meta('الموازنة الرأسمالية', P.assetsRead, ASSET_READ) },
+  { path: '/accounting/assets/budget/:id', component: () => import('./views/assets/CapitalBudgetView.vue'), props: true, meta: meta('الموازنة الرأسمالية', P.assetsRead, ASSET_READ) },
+  { path: '/accounting/assets/import', component: () => import('./views/assets/AssetImportView.vue'), meta: meta('استيراد الأصول من Excel', P.assetsManage) },
   { path: '/accounting/assets/labels', component: () => import('./views/assets/LabelsView.vue'), meta: meta('ملصقات الأصول', P.assetsRead, ASSET_READ) },
   { path: '/accounting/assets/a/:code', component: () => import('./views/assets/AssetByCode.vue'), props: true, meta: meta('الأصل', P.assetsRead, ASSET_READ) },
   { path: '/accounting/assets/:id', component: () => import('./views/assets/AssetDetailView.vue'), props: true, meta: meta('بطاقة الأصل', P.assetsRead, ASSET_READ) },

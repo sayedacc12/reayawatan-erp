@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** نموذج إضافة أصل أو تعديله: بياناته ومجموعته والجهة المسؤولة وحقول المجموعة المرنة وعقود الصيانة وإعدادات الإهلاك الخاصة */
+/** نموذج إضافة أصل أو تعديله: بياناته ومجموعته والجهة المسؤولة وحقول المجموعة المرنة والتأمين والضمان وخطة الصيانة وعقودها وإعدادات الإهلاك الخاصة */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
@@ -21,6 +21,12 @@ const form = reactive({
   maintenance: (a?.maintenance ?? []).map((m) => ({ ...m })) as Maint[],
   override: !!(a && (a.method || a.rate !== null || a.lifeYears !== null)), method: a?.method ?? '', rate: a?.rate ?? null as number | null,
   lifeYears: a?.lifeYears ?? null as number | null, salvageValue: a?.salvageValue ?? 0, analyticId: a?.analyticId ?? '',
+  insuranceRequired: a?.insuranceRequired ?? false,
+  insurance: { provider: '', policyNo: '', startDate: todayStr(), endDate: '', cost: null as number | null, coverage: null as number | null, notes: '', ...(a?.insurance ?? {}) },
+  warrantyRequired: a?.warrantyRequired ?? false,
+  warranty: { provider: '', startDate: '', endDate: '', notes: '', ...(a?.warranty ?? {}) },
+  planOn: !!a?.maintenancePlan,
+  plan: { intervalMonths: 6 as number, nextDate: '', notes: '', ...(a?.maintenancePlan ?? {}) },
 });
 const busy = ref(false);
 const groups = computed(() => (lookups.value?.groups ?? []).filter((g) => g.isActive || g.id === form.groupId));
@@ -41,6 +47,11 @@ async function save() {
     method: form.override ? form.method || null : null, rate: form.override && form.rate !== null && String(form.rate) !== '' ? Number(form.rate) : null,
     lifeYears: form.override && form.lifeYears !== null && String(form.lifeYears) !== '' ? Number(form.lifeYears) : null,
     salvageValue: Number(form.salvageValue || 0), analyticId: form.analyticId || null,
+    insuranceRequired: form.insuranceRequired,
+    insurance: form.insuranceRequired && form.insurance.provider ? { ...form.insurance, policyNo: form.insurance.policyNo || null, notes: form.insurance.notes || null } : null,
+    warrantyRequired: form.warrantyRequired,
+    warranty: form.warrantyRequired && form.warranty.provider ? { ...form.warranty, startDate: form.warranty.startDate || null, notes: form.warranty.notes || null } : null,
+    maintenancePlan: form.planOn ? { intervalMonths: Number(form.plan.intervalMonths), nextDate: form.plan.nextDate, notes: form.plan.notes || null } : null,
   };
   if (!a) Object.assign(body, { custodianEmployeeId: form.custodianEmployeeId, custodyDate: form.custodyDate, condition: form.condition });
   try {
@@ -98,7 +109,42 @@ async function save() {
         </div>
       </template>
 
-      <h3 class="sec">عقود الصيانة</h3>
+      <h3 class="sec">التأمين والضمان</h3>
+      <div class="field-row">
+        <label class="fa-check"><input v-model="form.insuranceRequired" type="checkbox" /> الأصل يتطلب تأمينًا</label>
+        <label class="fa-check"><input v-model="form.warrantyRequired" type="checkbox" /> الأصل له ضمان من المورد أو المصنّع</label>
+      </div>
+      <div v-if="form.insuranceRequired" class="fa-box">
+        <b>وثيقة التأمين</b><small class="pm-muted"> (إن لم تُسجل الوثيقة يظهر تنبيه «يتطلب تأمينًا ولا توجد وثيقة»)</small>
+        <div class="field-row">
+          <label class="field"><span>شركة التأمين</span><input v-model="form.insurance.provider" class="input" /></label>
+          <label class="field"><span>رقم الوثيقة</span><input v-model="form.insurance.policyNo" class="input ac-code" /></label>
+          <label class="field"><span>من</span><input v-model="form.insurance.startDate" type="date" class="input" :required="!!form.insurance.provider" /></label>
+          <label class="field"><span>إلى</span><input v-model="form.insurance.endDate" type="date" class="input" :required="!!form.insurance.provider" /></label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>القسط السنوي (ريال)</span><input v-model.number="form.insurance.cost" type="number" min="0" step="0.01" class="input" /></label>
+          <label class="field"><span>مبلغ التغطية (ريال)</span><input v-model.number="form.insurance.coverage" type="number" min="0" step="0.01" class="input" /></label>
+          <label class="field"><span>نوع التغطية وملاحظات</span><input v-model="form.insurance.notes" class="input" placeholder="شامل، ضد الغير، حريق..." /></label>
+        </div>
+      </div>
+      <div v-if="form.warrantyRequired" class="fa-box">
+        <b>الضمان</b>
+        <div class="field-row">
+          <label class="field"><span>جهة الضمان</span><input v-model="form.warranty.provider" class="input" /></label>
+          <label class="field"><span>من</span><input v-model="form.warranty.startDate" type="date" class="input" /></label>
+          <label class="field"><span>ينتهي في</span><input v-model="form.warranty.endDate" type="date" class="input" :required="!!form.warranty.provider" /></label>
+          <label class="field"><span>ملاحظات</span><input v-model="form.warranty.notes" class="input" /></label>
+        </div>
+      </div>
+
+      <h3 class="sec">الصيانة الوقائية وعقود الصيانة</h3>
+      <label class="fa-check"><input v-model="form.planOn" type="checkbox" /> للأصل صيانة وقائية دورية (يظهر تنبيه عند حلول موعدها)</label>
+      <div v-if="form.planOn" class="field-row">
+        <label class="field"><span>كل (أشهر)</span><input v-model.number="form.plan.intervalMonths" type="number" min="1" max="60" class="input" required /></label>
+        <label class="field"><span>موعد الصيانة القادمة</span><input v-model="form.plan.nextDate" type="date" class="input" required /></label>
+        <label class="field"><span>ما يشمله</span><input v-model="form.plan.notes" class="input" placeholder="تغيير الزيت، فحص التكييف..." /></label>
+      </div>
       <div class="fa-rows">
         <div v-for="(m, i) in form.maintenance" :key="i" class="fa-row">
           <input v-model="m.provider" class="input" placeholder="الجهة المنفذة" required />
@@ -130,4 +176,6 @@ async function save() {
 
 <style scoped>
 .sec { font-size: .92rem; margin: 14px 0 8px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.fa-box { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+.fa-check { display: flex; align-items: center; gap: 8px; }
 </style>
