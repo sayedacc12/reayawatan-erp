@@ -44,3 +44,6 @@ DOMAIN=sanabelerp.com bash deploy/setup.sh
 ```bash
 git pull && bash deploy/setup.sh
 ```
+
+## النسخ الاحتياطي
+`setup.sh` يجهّز نسخة يومية تلقائية. بقي ربط وجهتي التخزين مرة واحدة: اتبع [BACKUP.md](BACKUP.md).
