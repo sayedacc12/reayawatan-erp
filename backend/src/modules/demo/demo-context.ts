@@ -15,6 +15,7 @@ import { WEBSITE_PERMISSIONS } from '../website/website.manifest';
 import { PARTNERSHIP_PERMISSIONS } from '../partnerships/partnerships.manifest';
 import { COMMS_PERMISSIONS } from '../comms/comms.manifest';
 import { MEETINGS_PERMISSIONS } from '../meetings/meetings.manifest';
+import { PLANNING_PERMISSIONS } from '../planning/planning.manifest';
 
 export const DEMO_SLUG = 'demo';
 /** بريد الحسابات وطلبات الاشتراك التجريبية (تُحذف كلها عند إعادة إنشاء الجمعية التجريبية) */
@@ -28,6 +29,7 @@ export const ALL_PERMISSIONS = [
   ...Object.values(ACC_PERMISSIONS), ...Object.values(HR_PERMISSIONS), ...Object.values(RISK_PERMISSIONS), ...Object.values(VOL_PERMISSIONS), ...Object.values(QUALITY_PERMISSIONS), ...Object.values(AUDIT_PERMISSIONS), ...Object.values(MEMBER_PERMISSIONS),
   ...Object.values(GOV_PERMISSIONS),
   ...Object.values(KNOWLEDGE_PERMISSIONS), ...Object.values(WEBSITE_PERMISSIONS), ...Object.values(COMMS_PERMISSIONS), ...Object.values(MEETINGS_PERMISSIONS), ...Object.values(PARTNERSHIP_PERMISSIONS),
+  ...Object.values(PLANNING_PERMISSIONS),
 ];
 
 /** مستخدم تجريبي بصيغة المستخدم الحالي، لتنفيذ العمليات عبر خدمات الوحدات كما لو نفذها بنفسه */

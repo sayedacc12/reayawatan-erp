@@ -60,6 +60,29 @@ describe('Demo association across all modules', () => {
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(409);
   }, 90000);
 
+  it('planning: approved strategic plan with two versions, operational plans in every state, links, readings and a carried activity', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/planning/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.strategic.version).toBe(2);
+    expect(d.strategic.pillars).toHaveLength(4);
+    expect(d.operational.length).toBeGreaterThanOrEqual(2);
+    expect(d.execution.completed).toBeGreaterThan(0);
+    expect(d.execution.delayed + d.execution.atRisk).toBeGreaterThan(0);
+    expect(d.kpis.green + d.kpis.amber + d.kpis.red).toBeGreaterThan(5);
+    const plans = (await http.get('/api/planning/plans').set(as(admin)).expect(200)).body;
+    expect(plans.map((p: { status: string }) => p.status)).toEqual(expect.arrayContaining(['approved', 'in_review', 'draft']));
+    const sp = (await http.get(`/api/planning/plans/${d.strategic.id}`).set(as(admin)).expect(200)).body;
+    expect(sp.items.filter((i: { progressSource: string }) => i.progressSource === 'links').length).toBeGreaterThanOrEqual(5);
+    expect(sp.items.flatMap((i: { refs: unknown[] }) => i.refs).length).toBeGreaterThanOrEqual(1);
+    const cmp = (await http.get(`/api/planning/plans/${d.strategic.id}/compare?from=1&to=2`).set(as(admin)).expect(200)).body;
+    expect(cmp.rows.length).toBeGreaterThanOrEqual(3);
+    const ex = (await http.get('/api/planning/execution').set(as(admin)).expect(200)).body;
+    expect(ex.rows.some((r: { correctiveAction: string | null }) => r.correctiveAction)).toBe(true);
+    const all = await Promise.all(plans.map((p: { id: string }) => http.get(`/api/planning/plans/${p.id}`).set(as(admin)).then((r) => r.body)));
+    expect(all.flatMap((p: { items: { carriedFromId: string | null }[] }) => p.items).some((i) => i.carriedFromId)).toBe(true);
+    expect((await http.get('/api/planning/approvals').set(as(admin)).expect(200)).body.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('risk: register with reviews, changes with tasks, compliance, continuity and an active crisis', async () => {
     const admin = await staff('admin');
     const d = (await http.get('/api/risk/dashboard').set(as(admin)).expect(200)).body;
