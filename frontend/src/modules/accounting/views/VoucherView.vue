@@ -9,14 +9,15 @@ import '../acc.css';
 
 interface V {
   id: string; kind: 'receipt' | 'payment'; kindLabel: string; serial: number; fiscalYear: number; voucherDate: string; partyName: string; partnerId: string | null; partnerName: string | null;
-  amount: number; amountWords: string; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms'; sourceRef: string | null; projectName: string | null;
-  method: string; methodLabel: string; methodRef: string | null; cashAccountId: string; cashAccountName: string; cashKind: string; cashGl: string;
+  amount: number; amountWords: string; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms' | 'assets'; sourceRef: string | null; projectName: string | null;
+  method: string; methodLabel: string; methodRef: string | null; cashAccountId: string | null; cashAccountName: string | null; cashKind: string; cashGl: string;
   counterAccountId: string; counterAccountCode: string; counterAccountName: string; analytic: { analyticId: string; percent: number; code: string; name: string }[];
   status: string; statusLabel: string; stages: { id: string; name: string; instructions: string | null }[]; currentStageId: string | null; stageName: string | null;
   request: { kind: 'draft' | 'cancel'; byName: string; reason: string; at: string } | null;
   entries: { id: string; entryNo: number; status: string; cancelReason: string | null; postedAt: string | null; cancelledAt: string | null }[];
   entryId: string | null; approvedAt: string | null; createdByName: string; createdAt: string; organization: { name: string; taxNumber: string | null };
   actions: { id: string; action: string; label: string; stageName: string | null; note: string | null; actorName: string; at: string }[];
+  lockedSource?: boolean; lines?: { accountCode: string; accountName: string; debit: number; credit: number; label: string | null }[] | null;
   can: { edit: boolean; submit: boolean; decide: boolean; approveDirect: boolean; cancelDraft: boolean; request: boolean; decideRequest: boolean };
 }
 const props = defineProps<{ id: string }>();
@@ -136,11 +137,15 @@ function saved() {
         <p class="row"><span>{{ isR ? 'من السادة' : 'إلى السادة' }}</span><b>{{ v.partyName }}</b></p>
         <p class="row"><span>مبلغ وقدره</span><b class="words">{{ v.amountWords }}</b></p>
         <p class="row"><span>وهو قيمة</span><b>{{ v.purpose }}</b></p>
-        <p class="row"><span>{{ v.methodLabel }}</span><b>{{ v.cashAccountName }}<template v-if="v.methodRef"> · رقم {{ v.methodRef }}</template></b></p>
-        <p class="row"><span>{{ isR ? 'الحساب الدائن' : 'الحساب المدين' }}</span><b><span class="ac-code">{{ v.counterAccountCode }}</span> {{ v.counterAccountName }}</b></p>
+        <p class="row"><span>{{ v.methodLabel }}</span><b>{{ v.cashAccountName || (v.partnerName ? `على حساب ${v.partnerName}` : '—') }}<template v-if="v.methodRef"> · رقم {{ v.methodRef }}</template></b></p>
+        <p v-if="!v.lines" class="row"><span>{{ isR ? 'الحساب الدائن' : 'الحساب المدين' }}</span><b><span class="ac-code">{{ v.counterAccountCode }}</span> {{ v.counterAccountName }}</b></p>
         <p v-if="v.analytic.length" class="row"><span>التحليلي</span><b>{{ v.analytic.map((a) => `${a.name}${v!.analytic.length > 1 ? ` ${a.percent}%` : ''}`).join('، ') }}</b></p>
         <p v-if="v.projectName" class="row"><span>المشروع</span><b>{{ v.projectName }}</b></p>
-        <p v-if="v.sourceType !== 'manual'" class="row"><span>المصدر</span><b>{{ v.sourceType === 'opportunity' ? 'فرصة تبرع' : v.sourceType === 'payroll' ? 'مسير رواتب شهر' : v.sourceType === 'membership' ? 'اشتراك عضوية، مطالبة' : v.sourceType === 'separation' ? 'مستحقات نهاية خدمة، ملف' : v.sourceType === 'comms' ? 'المعاملة الإدارية رقم' : 'مشروع المتجر' }} {{ v.sourceRef }}</b></p>
+        <p v-if="v.sourceType !== 'manual'" class="row"><span>المصدر</span><b>{{ v.sourceType === 'opportunity' ? 'فرصة تبرع' : v.sourceType === 'payroll' ? 'مسير رواتب شهر' : v.sourceType === 'membership' ? 'اشتراك عضوية، مطالبة' : v.sourceType === 'separation' ? 'مستحقات نهاية خدمة، ملف' : v.sourceType === 'comms' ? 'المعاملة الإدارية رقم' : v.sourceType === 'assets' ? 'الأصول الثابتة، الأصل' : 'مشروع المتجر' }} {{ v.sourceRef }}</b></p>
+        <table v-if="v.lines" class="vlines">
+          <thead><tr><th>الحساب</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead>
+          <tbody><tr v-for="(l, i) in v.lines" :key="i"><td><span class="ac-code">{{ l.accountCode }}</span> {{ l.accountName }}</td><td>{{ l.label }}</td><td class="ac-num">{{ l.debit ? money(l.debit) : '' }}</td><td class="ac-num">{{ l.credit ? money(l.credit) : '' }}</td></tr></tbody>
+        </table>
         <footer>
           <div><span>المحاسب</span><b>{{ v.createdByName }}</b></div>
           <div><span>المراجع</span><b>&nbsp;</b></div>
@@ -150,6 +155,7 @@ function saved() {
       </article>
 
       <aside class="side no-print">
+        <div v-if="v.lockedSource" class="ac-warn">هذا السند صادر من الأصول الثابتة، فلا يُعدَّل من النظام المالي. يُعتمد أو يُرفض بالمراحل المعتادة، وأثره يظهر على الأصل مباشرة.</div>
         <section class="card pm-panel">
           <h2>القيود الناتجة</h2>
           <p v-if="!v.entries.length" class="pm-empty">يصدر القيد عند الاعتماد النهائي</p>
@@ -182,6 +188,8 @@ function saved() {
 </template>
 
 <style scoped>
+.vlines { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: .85rem; }
+.vlines th, .vlines td { border-bottom: 1px solid var(--border); padding: 5px 6px; text-align: start; }
 .ac-hero.payment::before { background: radial-gradient(460px 220px at 88% -10%, rgba(251,146,60,.45), transparent 70%), radial-gradient(520px 260px at 5% 130%, rgba(180,83,9,.5), transparent 70%); }
 .stepper { display: flex; gap: 0; margin-bottom: 18px; overflow-x: auto; }
 .step { flex: 1; min-width: 120px; display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; color: var(--muted); font-size: .84rem; }

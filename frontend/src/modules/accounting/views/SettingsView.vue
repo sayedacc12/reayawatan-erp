@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
+import AssetSettingsPane from '../components/AssetSettingsPane.vue';
 import { useToast } from '../../../stores/toast';
 import SearchSelect from '../../fundraising/components/SearchSelect.vue';
 import { docTypes, dt, loadDocTypes, useAccounts, type DocType } from '../lib';
@@ -14,10 +15,10 @@ interface ChartInfo { name: string; accounts: number; postingAccounts: number; l
 interface Stage { id?: string | null; name: string; instructions: string | null; roleId: string | null; pending?: number }
 
 const toast = useToast();
-type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'doctypes' | 'categories' | 'warehouses' | 'permissions';
+type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'doctypes' | 'categories' | 'warehouses' | 'assets' | 'permissions';
 const tabs: { key: Tab; label: string }[] = [
   { key: 'general', label: 'عام' }, { key: 'chart', label: 'الدليل الموحد' }, { key: 'receipt', label: 'مراحل اعتماد القبض' }, { key: 'payment', label: 'مراحل اعتماد الصرف' }, { key: 'doctypes', label: 'أنواع السندات' },
-  { key: 'categories', label: 'تصنيفات العملاء والموردين' }, { key: 'warehouses', label: 'أنواع المستودعات' }, { key: 'permissions', label: 'الصلاحيات' },
+  { key: 'categories', label: 'تصنيفات العملاء والموردين' }, { key: 'warehouses', label: 'أنواع المستودعات' }, { key: 'assets', label: 'الأصول الثابتة' }, { key: 'permissions', label: 'الصلاحيات' },
 ];
 const tab = ref<Tab>('general');
 const s = ref<Settings | null>(null);
@@ -274,6 +275,7 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy" @click="patch({ warehouseTypes: whTypes })">حفظ</button></div>
       </section>
 
+      <AssetSettingsPane v-if="tab === 'assets'" />
       <ModulePermissionsPane v-if="tab === 'permissions'" module="accounting" />
     </template>
 

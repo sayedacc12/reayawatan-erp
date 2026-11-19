@@ -9,7 +9,7 @@ import { tafqeet } from '../tafqeet';
 import AnalyticPicker, { type Share } from './AnalyticPicker.vue';
 
 export interface VoucherInput {
-  id?: string; voucherDate: string; partyName: string; partnerId: string | null; amount: number | null; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms';
+  id?: string; voucherDate: string; partyName: string; partnerId: string | null; amount: number | null; purpose: string; sourceType: 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms' | 'assets';
   sourceRef: string | null; projectName: string | null; method: string; methodRef: string | null; cashAccountId: string | null; counterAccountId: string | null; analytic: Share[];
 }
 const props = defineProps<{ kind: 'receipt' | 'payment'; initial?: Partial<VoucherInput> & { counterAccountCode?: string; counterAccountName?: string }; orgName: string }>();

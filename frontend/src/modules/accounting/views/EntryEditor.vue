@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import AccountCell from '../components/AccountCell.vue';
 import AnalyticPicker, { type Share } from '../components/AnalyticPicker.vue';
-import { ENTRY_STATUS, P, VOUCHER_TYPES, allTypes, docTypes, dt, loadDocTypes, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
+import { ASSET_TYPES, ENTRY_STATUS, P, VOUCHER_TYPES, allTypes, docTypes, dt, loadDocTypes, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -131,7 +131,7 @@ function cancelEntry() {
   const reason = prompt('سبب إلغاء القيد (يبقى رقمه ويظهر ملغيًا):');
   if (reason) action('cancel', 'أُلغي القيد', { reason });
 }
-const types = computed(() => [...VOUCHER_TYPES.filter((t) => t.value !== 'receipt' && t.value !== 'payment'), ...docTypes.value.filter((d) => d.isActive).map((d) => ({ value: d.code, label: d.name }))]);
+const types = computed(() => [...VOUCHER_TYPES.filter((t) => t.value !== 'receipt' && t.value !== 'payment' && !ASSET_TYPES.includes(t.value)), ...docTypes.value.filter((d) => d.isActive).map((d) => ({ value: d.code, label: d.name }))]);
 loadDocTypes();
 </script>
 
@@ -165,6 +165,7 @@ loadDocTypes();
           <span>رقم المستند <b class="ac-code">{{ entry.voucherNo }}</b></span>
           <span v-if="entry.source === 'voucher'" class="pm-tag">ناتج عن سند</span>
           <span v-if="entry.source === 'system'" class="pm-tag">قيد آلي</span>
+          <span v-if="entry.source === 'assets'" class="pm-tag">من الأصول الثابتة</span>
           <span v-if="entry.periodLocked" class="pm-tag">الفترة مغلقة</span>
         </div>
         <div class="field-row">

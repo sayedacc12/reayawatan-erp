@@ -26,6 +26,8 @@ export interface SepDetail extends Omit<SepRow, 'items'> {
   stages: { name: string; current: boolean; done: boolean }[];
   entry: { id: string; entryNo: number } | null; voucher: { id: string; serial: number; amount: number; status: string; statusLabel: string } | null;
   approvedAt: string | null; createdByName: string;
+  /** عهدة أصول ثابتة لدى الموظف: تمنع إخلاء الطرف حتى تُستلم منه أو تُنقل */
+  assetCustody?: { id: string; code: string; name: string; status: string }[];
   history: { action: string; label: string; note: string | null; actorName: string; at: string; stageName?: string | null }[];
   viewer: { hr: boolean; owner: boolean; responsible: boolean };
   can: { settle: boolean; decide: boolean; decideReason: string | null; pay: boolean; cancel: boolean };

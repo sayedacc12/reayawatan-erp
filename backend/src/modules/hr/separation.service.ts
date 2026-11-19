@@ -5,6 +5,7 @@ import { AccCore } from '../accounting/acc-core.service';
 import { LineDto } from '../accounting/accounting.dto';
 import { EntriesService } from '../accounting/entries.service';
 import { VouchersService, VOUCHER_STATUS_AR } from '../accounting/vouchers.service';
+import { AssetsService } from '../accounting/assets.service';
 import {
   ClearanceItem, ClearanceItemDef, HrAdvanceRepayment, HrEmployee, HrJob, HrLeaveRequest, HrSeparation, HrSettings, HrUnit,
   SeparationConfig, SeparationHistory, Settlement, SettlementAdjustment,
@@ -67,6 +68,7 @@ export class SeparationService implements OnModuleInit {
     private readonly accCore: AccCore,
     private readonly entries: EntriesService,
     private readonly vouchers: VouchersService,
+    private readonly assets: AssetsService,
   ) {}
 
   onModuleInit() {
@@ -287,6 +289,8 @@ export class SeparationService implements OnModuleInit {
       if (s.status === 'clearance') {
         const open = s.items.filter((i) => i.status !== 'cleared');
         if (open.length) bad(`لا يُعد بيان المستحقات قبل إخلاء كل البنود: ${open.map((i) => i.name).join('، ')}`);
+        // عهدة الأصول الثابتة: لا يُخلى طرف الموظف حتى تُستلم منه أو تُنقل لموظف آخر
+        await this.assets.assertNoCustody(org, s.employeeId, em);
       } else if (s.status !== 'settlement' || (s.stageIndex ?? 0) > 0) {
         throw new ConflictException('لا يُعدل البيان بعد بدء اعتماده. يُرجعه المعتمد للتعديل أولًا');
       }
@@ -350,6 +354,7 @@ export class SeparationService implements OnModuleInit {
   private async finalize(em: EntityManager, actor: OrgUser, s: HrSeparation, history: SeparationHistory[]) {
     const org = actor.organizationId;
     const set = s.settlement!;
+    await this.assets.assertNoCustody(org, s.employeeId, em);
     if (set.net < 0) bad(`المستقطعات أكبر من المستحقات بمبلغ ${Math.abs(set.net)} ريال. سوّها مع الموظف وعدّل البيان قبل الاعتماد`);
     // السلف التي سُددت أو أُضيفت بعد إعداد البيان تجعل البيان قديمًا
     const fresh = await this.requests.advances(org, { employeeId: s.employeeId });
@@ -527,6 +532,7 @@ export class SeparationService implements OnModuleInit {
       voucher = v ? { ...v, statusLabel: VOUCHER_STATUS_AR[v.status as keyof typeof VOUCHER_STATUS_AR] ?? v.status } : null;
     }
     const preview = s.status === 'clearance' && a.hr ? await this.compute(org, s, [], actor) : null;
+    const assetCustody = ['clearance', 'settlement', 'approved'].includes(s.status) ? await this.assets.heldBy(org, s.employeeId) : [];
     const plan = s.settlement && ['settlement', 'approved'].includes(s.status) && a.hr ? await this.plan(org, s) : null;
     const salaries = actor.isSuperadmin || actor.permissions.includes(P.salaries) || a.owner || actor.permissions.includes(P.approveSeparations);
     return {
@@ -543,7 +549,7 @@ export class SeparationService implements OnModuleInit {
       }),
       settlement: salaries ? s.settlement : null, preview: salaries ? preview : null, plan,
       stages: stages.map((st, i) => ({ name: st.name, current: s.status === 'settlement' && i === s.stageIndex, done: s.status === 'approved' || s.status === 'paid' || (s.stageIndex !== null && i < s.stageIndex) })),
-      entry, voucher, approvedAt: s.approvedAt, createdByName: s.createdByName,
+      entry, voucher, approvedAt: s.approvedAt, createdByName: s.createdByName, assetCustody,
       history: s.history.map((h) => ({ ...h, label: ACTION_AR[h.action] ?? h.action })),
       viewer: { hr: a.hr, owner: a.owner, responsible: a.responsible },
       can: {

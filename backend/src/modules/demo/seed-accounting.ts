@@ -15,6 +15,8 @@ import { DemoTeam } from './demo-context';
  */
 @Injectable()
 export class AccountingSeed {
+  private yearId = '';
+
   constructor(
     private readonly db: DataSource,
     private readonly accounts: AccountsService,
@@ -213,9 +215,16 @@ export class AccountingSeed {
       });
     }
 
-    // إغلاق الشهور السابقة بالتسلسل (حتى الشهر قبل الماضي)
+    this.yearId = yearId;
+  }
+
+  /** إغلاق الشهور السابقة بالتسلسل (حتى الشهر قبل الماضي). يُستدعى بعد الأنظمة التي ترحّل قيودًا في الشهور السابقة (الأصول الثابتة) */
+  async closeMonths(team: DemoTeam) {
+    const now = today();
+    const year = Number(now.slice(0, 4));
+    const month = Number(now.slice(5, 7));
     for (let m = 1; m < month - 1; m++) {
-      await this.setup.closeMonth(admin, yearId, `${year}-${String(m).padStart(2, '0')}`);
+      await this.setup.closeMonth(team.admin, this.yearId, `${year}-${String(m).padStart(2, '0')}`);
     }
   }
 }

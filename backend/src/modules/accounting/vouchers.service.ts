@@ -6,16 +6,25 @@ import { AccCore, cents, fromCents, VOUCHER_LABEL } from './acc-core.service';
 import { LineDto, RequestDecisionDto, VoucherDecisionDto, VoucherDto, VoucherRequestDto, VoucherStagesDto } from './accounting.dto';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import {
-  CashAccount, JournalEntry, Voucher, VoucherAction, VoucherKind, VoucherStage, VoucherStatus,
+  CashAccount, JournalEntry, Voucher, VoucherAction, VoucherKind, VoucherMethod, VoucherSource, VoucherStage, VoucherStatus,
   Partner,
 } from './entities/accounting.entity';
+
+/** سند تنشئه وحدة أخرى بسطور قيد ثابتة (مثل شراء أصل ثابت أو بيعه) */
+export interface SystemVoucherInput {
+  voucherDate: string; partyName: string; partnerId: string | null; amount: number; purpose: string;
+  sourceType: VoucherSource; sourceRef: string | null; method: VoucherMethod; cashAccountId: string | null; counterAccountId: string;
+  lines: LineDto[];
+}
+type VoucherListener = (em: EntityManager, v: Voucher, status: VoucherStatus) => Promise<void>;
+type VoucherGuard = (em: EntityManager, v: Voucher) => Promise<void>;
 import { EntriesService } from './entries.service';
 import { tafqeetSar } from './tafqeet';
 
 export const VOUCHER_STATUS_AR: Record<VoucherStatus, string> = {
   draft: 'مسودة', pending: 'قيد الاعتماد', returned: 'معاد للتعديل', approved: 'معتمد ومرحّل', rejected: 'مرفوض', cancelled: 'ملغي',
 };
-const METHOD_AR = { cash: 'نقدًا', transfer: 'حوالة بنكية', cheque: 'شيك', card: 'شبكة / بطاقة' } as const;
+const METHOD_AR = { cash: 'نقدًا', transfer: 'حوالة بنكية', cheque: 'شيك', card: 'شبكة / بطاقة', credit: 'آجل' } as const;
 const ACTION_AR: Record<string, string> = {
   create: 'إنشاء السند', update: 'تعديل السند', submit: 'إرسال للاعتماد', approve: 'موافقة', final: 'اعتماد نهائي وترحيل القيد',
   reject: 'رفض', return: 'إرجاع للتعديل', request_draft: 'طلب إعادة للمسودة', request_cancel: 'طلب إلغاء',
@@ -32,6 +41,25 @@ export interface VoucherFilters { status?: VoucherStatus; q?: string; dateFrom?:
 @Injectable()
 export class VouchersService {
   constructor(private readonly db: DataSource, private readonly core: AccCore, private readonly entries: EntriesService) {}
+
+  private readonly listeners = new Map<VoucherSource, VoucherListener>();
+  private readonly guards = new Map<VoucherSource, VoucherGuard>();
+
+  /** تُبلَّغ الوحدة المصدر بتغير حالة سنداتها داخل المعاملة نفسها (اعتماد، رفض، إرجاع، إلغاء، إعادة للمسودة) */
+  onStatusChange(source: VoucherSource, fn: VoucherListener) {
+    this.listeners.set(source, fn);
+  }
+
+  /** تتحقق الوحدة المصدر قبل عكس قيد سند معتمد (مثل منع إلغاء شراء أصل احتُسب له إهلاك) */
+  onBeforeReverse(source: VoucherSource, fn: VoucherGuard) {
+    this.guards.set(source, fn);
+  }
+
+  private async notify(em: EntityManager, id: string) {
+    const v = await em.getRepository(Voucher).findOneOrFail({ where: { id } });
+    const fn = this.listeners.get(v.sourceType);
+    if (fn) await fn(em, v, v.status);
+  }
 
   private managePerm(kind: VoucherKind) {
     return kind === 'receipt' ? P.receipts : P.payments;
@@ -178,10 +206,12 @@ export class VouchersService {
       request: v.requestKind && { kind: v.requestKind, byName: v.requestByName, reason: v.requestReason, at: v.requestAt },
       entries: entries.map((e) => ({ id: e.id, entryNo: e.entryNo, status: e.status, cancelReason: e.cancelReason, postedAt: e.postedAt, cancelledAt: e.cancelledAt })),
       entryId: v.entryId, approvedAt: v.approvedAt, createdByName: v.createdByName, createdAt: v.createdAt,
+      lockedSource: v.sourceType === 'assets',
+      lines: v.customLines ? await this.linesView(v.customLines) : null,
       organization: { name: orgRow.name, taxNumber: (orgRow as Organization & { taxNumber?: string | null }).taxNumber ?? null },
       actions: actions.map((a) => ({ id: a.id, action: a.action, label: ACTION_AR[a.action] ?? a.action, stageName: a.stageName, note: a.note, actorName: a.actorName, at: a.createdAt })),
       can: {
-        edit: editable && manage,
+        edit: editable && manage && v.sourceType !== 'assets',
         submit: editable && manage,
         decide: v.status === 'pending' && this.canDecideStage(actor, stage, roles),
         approveDirect: editable && !stages.length && actor.permissions.includes(P.approveVouchers),
@@ -191,6 +221,15 @@ export class VouchersService {
         decideRequest: !!v.requestKind && actor.permissions.includes(P.approveReceiptCancel) && v.requestById !== actor.id,
       },
     };
+  }
+
+  private async linesView(lines: NonNullable<Voucher['customLines']>) {
+    const ids = [...new Set(lines.map((l) => l.accountId))];
+    const accs: { id: string; code: string; name: string }[] = await this.db.query('SELECT id, code, name FROM acc_accounts WHERE id = ANY($1)', [ids]);
+    return lines.map((l) => {
+      const a = accs.find((x) => x.id === l.accountId);
+      return { accountCode: a?.code ?? '', accountName: a?.name ?? '', debit: l.debit, credit: l.credit, label: l.label };
+    });
   }
 
   /** المعتمد النهائي: صاحب قرار المرحلة الأخيرة (أو صاحب صلاحية الاعتماد إن لم تُعرَّف مراحل) */
@@ -267,12 +306,39 @@ export class VouchersService {
     return v;
   }
 
+  /**
+   * سند بسطور قيد ثابتة تنشئه وحدة أخرى (الأصول الثابتة): يُتحقق من سطوره بقواعد القيود، ثم يُرسل لمراحل الاعتماد مباشرة
+   * إن وُجدت مراحل، وإلا يبقى مسودة يعتمدها صاحب صلاحية اعتماد السندات. لا يُعدَّل من النظام المالي.
+   */
+  async insertSystemDraft(em: EntityManager, actor: OrgUser, kind: VoucherKind, d: SystemVoucherInput) {
+    const org = actor.organizationId;
+    const year = await this.core.assertWritable(org, d.voucherDate, em);
+    await this.entries.assertNoApprovedInventory(em, year);
+    await this.entries.cleanLines(org, kind, d.lines, em, d.method !== 'credit');
+    const serial = await this.entries.reserveSerial(em, year, kind);
+    const v = await em.getRepository(Voucher).save(em.create(Voucher, {
+      organizationId: org, kind, fiscalYearId: year.id, serial, voucherDate: d.voucherDate, partyName: d.partyName, partnerId: d.partnerId,
+      amount: fromCents(cents(d.amount)), purpose: d.purpose, sourceType: d.sourceType, sourceRef: d.sourceRef, projectName: null,
+      method: d.method, methodRef: null, cashAccountId: d.cashAccountId, counterAccountId: d.counterAccountId, analytic: [],
+      customLines: d.lines.map((l) => ({ accountId: l.accountId, debit: l.debit, credit: l.credit, label: l.label ?? null, partnerId: l.partnerId ?? null, analytic: l.analytic ?? [] })),
+      status: 'draft', createdById: actor.id, createdByName: actor.fullName,
+    }));
+    await this.log(em, actor, v, 'create');
+    const stages = await this.stages(org, kind, em);
+    if (stages.length) {
+      await em.getRepository(Voucher).update({ id: v.id }, { status: 'pending', currentStageId: stages[0].id });
+      await this.log(em, actor, v, 'submit', null, stages[0].name);
+    }
+    return em.getRepository(Voucher).findOneOrFail({ where: { id: v.id } });
+  }
+
   async update(actor: OrgUser, id: string, dto: VoucherDto) {
     const org = actor.organizationId;
     await this.db.transaction(async (em) => {
       const v = await this.load(em, org, id);
       this.assertManage(actor, v.kind);
       if (v.status !== 'draft' && v.status !== 'returned') throw new ConflictException('لا يُعدَّل السند إلا وهو مسودة أو معاد للتعديل');
+      if (v.sourceType === 'assets') throw new ConflictException('هذا السند صادر من الأصول الثابتة ولا يُعدَّل من النظام المالي. يمكن إرساله للاعتماد أو إلغاؤه');
       const year = await this.core.assertWritable(org, dto.voucherDate, em);
       if (year.id !== v.fiscalYearId) throw new BadRequestException('لا يمكن نقل السند إلى سنة مالية أخرى، لأن رقمه محجوز في سنته');
       const f = await this.fields(em, org, dto);
@@ -321,9 +387,11 @@ export class VouchersService {
       if (dto.decision === 'reject') {
         await repo.update({ id }, { status: 'rejected', currentStageId: null });
         await this.log(em, actor, v, 'reject', dto.note ?? null, stage?.name ?? null);
+        await this.notify(em, id);
       } else if (dto.decision === 'return') {
         await repo.update({ id }, { status: 'returned', currentStageId: null });
         await this.log(em, actor, v, 'return', dto.note ?? null, stage?.name ?? null);
+        await this.notify(em, id);
       } else if (idx >= 0 && idx < stages.length - 1) {
         await repo.update({ id }, { currentStageId: stages[idx + 1].id });
         await this.log(em, actor, v, 'approve', dto.note ?? null, stage.name);
@@ -338,12 +406,15 @@ export class VouchersService {
   /** الاعتماد النهائي: قيد يومية مرحّل برقم السند */
   private async finalize(em: EntityManager, actor: OrgUser, v: Voucher, stageName: string | null) {
     const year = await this.core.assertWritable(v.organizationId, v.voucherDate, em);
-    const lines = await this.buildLines(em, v.organizationId, v.kind, v);
+    const lines: LineDto[] = v.customLines
+      ? v.customLines.map((l) => ({ accountId: l.accountId, debit: l.debit, credit: l.credit, label: l.label ?? undefined, partnerId: l.partnerId ?? undefined, analytic: l.analytic ?? [] }))
+      : await this.buildLines(em, v.organizationId, v.kind, { ...v, cashAccountId: v.cashAccountId ?? '' });
     const entry = await this.entries.createVoucherEntry(em, actor, year, v.kind, { id: v.id, serial: v.serial }, {
       documentDate: v.voucherDate, description: `${VOUCHER_LABEL[v.kind]} رقم ${v.serial}: ${v.purpose}`, counterparty: v.partyName,
-    }, lines);
+    }, lines, v.method !== 'credit');
     await em.getRepository(Voucher).update({ id: v.id }, { status: 'approved', currentStageId: null, entryId: entry.id, approvedAt: new Date() });
     await this.log(em, actor, v, 'final', `القيد رقم ${entry.entryNo}`, stageName);
+    await this.notify(em, v.id);
   }
 
   // ---------------- الإعادة للمسودة والإلغاء ----------------
@@ -358,11 +429,13 @@ export class VouchersService {
         if (dto.kind !== 'cancel') throw new ConflictException('السند مسودة بالفعل');
         await em.getRepository(Voucher).update({ id }, { status: 'cancelled' });
         await this.log(em, actor, v, 'cancel', dto.reason);
+        await this.notify(em, id);
         return;
       }
       if (v.status !== 'approved') throw new ConflictException('لا يُعاد للمسودة أو يُلغى إلا السند المعتمد أو المسودة');
       if (v.requestKind) throw new ConflictException('على السند طلب معلق بالفعل');
       await this.core.assertWritable(org, v.voucherDate, em);
+      await this.guards.get(v.sourceType)?.(em, v);
       if (v.kind === 'payment') {
         const stages = await this.stages(org, v.kind, em);
         if (!this.isFinalApprover(actor, stages, await this.roleIds(actor))) {
@@ -401,11 +474,13 @@ export class VouchersService {
 
   /** عكس القيد (يبقى رقمه ويظهر ملغيًا) ثم إعادة السند للمسودة أو إلغاؤه */
   private async execute(em: EntityManager, actor: OrgUser, v: Voucher, kind: 'draft' | 'cancel', reason: string) {
+    await this.guards.get(v.sourceType)?.(em, v);
     if (v.entryId) await this.entries.reverseVoucherEntry(em, actor, v.entryId, `إلغاء سند: ${VOUCHER_LABEL[v.kind]} رقم ${v.serial}. ${reason}`);
     await em.getRepository(Voucher).update({ id: v.id }, {
       status: kind === 'draft' ? 'draft' : 'cancelled', entryId: null, currentStageId: null, approvedAt: null,
       requestKind: null, requestById: null, requestByName: null, requestReason: null, requestAt: null,
     });
     await this.log(em, actor, v, kind === 'draft' ? 'to_draft' : 'cancel', reason);
+    await this.notify(em, v.id);
   }
 }
