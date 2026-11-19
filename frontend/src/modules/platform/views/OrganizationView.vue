@@ -5,6 +5,8 @@ import { api, openProtectedFile } from '../../../api';
 import RegistrationForm, { type MainData } from '../../../registration/RegistrationForm.vue';
 import { useToast } from '../../../stores/toast';
 import ScreensPicker, { type Access } from '../components/ScreensPicker.vue';
+import SampleDataResult, { type SampleResult } from '../../../components/SampleDataResult.vue';
+import { NOTICE_REASON, daysLabel, downloadExport, inDays, reminderText, reminderWa, type DeletionNotice } from '../lifecycle';
 import { CONTRACT_STATUS, copyText, cycleLabel, fmtDate, money, ORG_STATE, type ScreenModule } from '../labels';
 import { waNumber } from '../siteLabels';
 import '../platform.css';
@@ -42,6 +44,8 @@ async function load() {
     contracts.value = d.contracts;
     catalog.value = screens;
     admins.value = await api<Admin[]>(`/platform/organizations/${id}/admins`).catch(() => []);
+    sample.value = await api<SampleStatus>(`/platform/organizations/${id}/sample-data`).catch(() => null);
+    life.value = await api<LifeStatus>(`/platform/organizations/${id}/lifecycle`).catch(() => null);
     access.value = { allScreens: !d.organization.allowedScreens, screens: d.organization.allowedScreens ?? [], modules: d.organization.modules };
     Object.assign(sub, {
       status: d.organization.subscriptionStatus, trialEndsOn: d.organization.trialEndsOn ?? '',
@@ -144,6 +148,106 @@ const credsText = () => creds.value ? `السلام عليكم،
 ننصح بتغيير كلمة المرور بعد أول دخول من قائمة الحساب.` : '';
 const directorPhone = () => profile.value?.data.directorPhone || profile.value?.data.orgPhone || '';
 const credsWa = () => `https://wa.me/${waNumber(directorPhone())}?text=${encodeURIComponent(credsText())}`;
+// ---- البيانات التجريبية: إضافتها في فترة التجربة، ثم التحويل لجمعية فعلية بحذفها ----
+interface SampleEvent { at: string; by: string; action: 'loaded' | 'failed' | 'cleared'; note?: string; counts?: Record<string, number> }
+interface SampleStatus { status: 'none' | 'loading' | 'stalled' | 'loaded' | 'cleared'; canLoad: boolean; isTrial: boolean; loadedAt: string | null; clearedAt: string | null; log: SampleEvent[] }
+interface SystemCount { system: string; count: number }
+interface SamplePreview { sample: { total: number; systems: SystemCount[] }; own: { total: number; systems: SystemCount[] }; keptPeople: { users: number; roles: number } }
+const sample = ref<SampleStatus | null>(null);
+const sampleBusy = ref(false);
+const sampleResult = ref<SampleResult | null>(null);
+const preview = ref<SamplePreview | null>(null);
+const confirmSlug = ref('');
+const SAMPLE_STATE: Record<SampleStatus['status'], { label: string; tone: string }> = {
+  none: { label: 'لا توجد', tone: 'muted' }, loading: { label: 'جارٍ الإضافة', tone: 'warn' }, stalled: { label: 'توقفت الإضافة قبل اكتمالها', tone: 'danger' },
+  loaded: { label: 'موجودة', tone: 'warn' }, cleared: { label: 'حُذفت (جمعية فعلية)', tone: 'ok' },
+};
+const SAMPLE_ACTION = { loaded: 'أُضيفت البيانات التجريبية', failed: 'تعذرت الإضافة', cleared: 'التحويل إلى جمعية فعلية' };
+const num = (n: number) => n.toLocaleString('ar-SA');
+const keptText = (p: SamplePreview) => {
+  const parts = ['الجمعية واشتراكها وعقودها والشاشات المسموحة', 'ومدير نظامها'];
+  if (p.keptPeople.users) parts.push(`و${num(p.keptPeople.users)} حساب موظف أضافته الجمعية`);
+  if (p.keptPeople.roles) parts.push(`و${num(p.keptPeople.roles)} دور أنشأته الجمعية`);
+  return `${parts.join(' ')}. وتعود إعدادات الأنظمة كما كانت قبل إضافة البيانات التجريبية.`;
+};
+async function loadSample() {
+  if (!confirm('إضافة بيانات تجريبية مترابطة في كل أنظمة هذه الجمعية؟ تستغرق دقيقة أو دقيقتين.')) return;
+  sampleBusy.value = true;
+  try {
+    sampleResult.value = await api<SampleResult>(`/platform/organizations/${id}/sample-data`, { method: 'POST' });
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    sampleBusy.value = false;
+  }
+}
+async function openConvert() {
+  sampleBusy.value = true;
+  try {
+    confirmSlug.value = '';
+    preview.value = await api<SamplePreview>(`/platform/organizations/${id}/sample-data/preview`);
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    sampleBusy.value = false;
+  }
+}
+async function convert() {
+  sampleBusy.value = true;
+  try {
+    const r = await api<{ deleted: number }>(`/platform/organizations/${id}/sample-data/clear`, { method: 'POST', json: { confirm: confirmSlug.value } });
+    preview.value = null;
+    toast.success(`تم التحويل إلى جمعية فعلية، وحُذف ${num(r.deleted)} سجلًا`);
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    sampleBusy.value = false;
+  }
+}
+// ---- إنهاء العقد بالتراضي وموعد الحذف والتصدير ----
+interface Closure { id: string; reason: 'mutual' | 'trial_expired'; status: string; deleteOn: string; agreement: { date: string; charityRep: string; note: string | null } | null; requestedBy: string; log: { at: string; by: string; action: string; note?: string }[] }
+interface LifeStatus { notice: DeletionNotice | null; scheduled: Closure | null; history: Closure[] }
+const life = ref<LifeStatus | null>(null);
+const lifeBusy = ref(false);
+const termOpen = ref(false);
+const term = reactive({ agreementDate: new Date().toISOString().slice(0, 10), charityRep: '', note: '', graceDays: 7, confirm: '' });
+const delOpen = ref(false);
+const delConfirm = ref('');
+const CLOSURE_ACTION: Record<string, string> = { scheduled: 'جدولة الإنهاء', cancelled: 'إلغاء الإنهاء', deleted: 'الحذف', exported: 'تصدير البيانات' };
+async function lifeRun(fn: () => Promise<unknown>, ok: string) {
+  lifeBusy.value = true;
+  try {
+    await fn();
+    toast.success(ok);
+    termOpen.value = false;
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    lifeBusy.value = false;
+  }
+}
+const terminate = () => lifeRun(() => api(`/platform/organizations/${id}/terminate`, { method: 'POST', json: { ...term, graceDays: Number(term.graceDays) } }), 'تم إنهاء العقد بالتراضي وجدولة الحذف');
+const cancelTermination = () => {
+  if (!confirm('إلغاء إنهاء العقد؟ تعود الجمعية نشطة ويعود دخول موظفيها.')) return;
+  return lifeRun(() => api(`/platform/organizations/${id}/terminate/cancel`, { method: 'POST' }), 'أُلغي الإنهاء وعادت الجمعية نشطة');
+};
+async function deleteNow() {
+  lifeBusy.value = true;
+  try {
+    const r = await api<{ deleted: number }>(`/platform/organizations/${id}/delete`, { method: 'POST', json: { confirm: delConfirm.value } });
+    toast.success(`حُذفت الجمعية وكل بياناتها (${r.deleted.toLocaleString('ar-SA')} سجلًا)`);
+    router.push('/platform/lifecycle');
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    lifeBusy.value = false;
+  }
+}
+const exportData = () => org.value && downloadExport(id, org.value.slug).catch((e) => toast.error((e as Error).message));
+const reminder = () => (org.value && life.value?.notice ? reminderText(org.value.name, life.value.notice) : '');
 const STATUS_OPTIONS = [
   { value: 'trial', label: 'فترة تجريبية' }, { value: 'awaiting_contract', label: 'بانتظار توقيع العقد' }, { value: 'active', label: 'اشتراك ساري' },
 ];
@@ -162,7 +266,7 @@ const STATUS_OPTIONS = [
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
           <span :class="['tone', `tone-${ORG_STATE[org.state]?.tone}`]">{{ ORG_STATE[org.state]?.label }}</span>
-          <button :class="['btn', 'btn-ghost-light']" :disabled="busy" @click="toggleActive">{{ org.isActive ? 'إيقاف الجمعية' : 'تفعيل الجمعية' }}</button>
+          <button v-if="!life?.scheduled" :class="['btn', 'btn-ghost-light']" :disabled="busy" @click="toggleActive">{{ org.isActive ? 'إيقاف الجمعية' : 'تفعيل الجمعية' }}</button>
         </div>
       </section>
 
@@ -211,6 +315,55 @@ const STATUS_OPTIONS = [
               <button class="btn btn-sm" :disabled="busy" @click="resetPassword(a)">كلمة مرور مؤقتة جديدة</button>
             </div>
             <p v-if="!admins.length" class="muted small">لا يوجد حساب مدير نظام لهذه الجمعية.</p>
+          </section>
+          <section v-if="life" class="card p-panel">
+            <h2>إنهاء الاشتراك وحذف البيانات</h2>
+            <template v-if="life.notice">
+              <dl class="p-dl">
+                <dt>السبب</dt><dd><span :class="['tone', life.notice.reason === 'trial' ? 'tone-info' : 'tone-bad']">{{ NOTICE_REASON[life.notice.reason] }}</span></dd>
+                <dt v-if="life.notice.trialEndsOn">نهاية التجربة</dt><dd v-if="life.notice.trialEndsOn">{{ fmtDate(life.notice.trialEndsOn) }}</dd>
+                <dt>موعد الحذف</dt><dd><b>{{ fmtDate(life.notice.deleteOn) }}</b> <small class="muted">({{ inDays(life.notice.daysToDelete) }})</small></dd>
+              </dl>
+              <p v-if="life.scheduled?.agreement" class="muted small">اتفاق بتاريخ {{ fmtDate(life.scheduled.agreement.date) }} مع {{ life.scheduled.agreement.charityRep }}<template v-if="life.scheduled.agreement.note"> · {{ life.scheduled.agreement.note }}</template></p>
+              <p v-if="life.notice.reason === 'trial'" class="muted small">لتجنب الحذف: مدّد التجربة أو حوّل حالة الاشتراك من «تعديل يدوي».</p>
+            </template>
+            <p v-else class="muted small">لا يوجد موعد حذف لهذه الجمعية. عند اتفاق الطرفين على إنهاء العقد، سجّل الإنهاء هنا: يتوقف الدخول فورًا وتُحذف البيانات بعد المهلة.</p>
+            <div class="sample-actions">
+              <a v-if="life.notice && directorPhone()" class="btn btn-sm" :href="reminderWa(directorPhone(), reminder())" target="_blank" rel="noopener">تذكير عبر واتساب</a>
+              <button class="btn btn-sm" @click="exportData">تصدير بيانات الجمعية</button>
+              <button v-if="!life.scheduled" class="btn btn-sm btn-convert" @click="termOpen = true">إنهاء العقد بالتراضي</button>
+              <button v-if="life.scheduled" class="btn btn-sm" :disabled="lifeBusy" @click="cancelTermination">إلغاء الإنهاء</button>
+              <button v-if="life.notice && life.notice.reason !== 'trial'" class="btn btn-sm btn-convert" @click="delOpen = true; delConfirm = ''">احذف الآن</button>
+            </div>
+            <ul v-if="life.history.length" class="sample-log">
+              <template v-for="c in life.history" :key="c.id">
+                <li v-for="(e, i) in c.log" :key="c.id + i"><b>{{ CLOSURE_ACTION[e.action] ?? e.action }}</b> · {{ e.by }} · {{ fmtDate(e.at) }}<div v-if="e.note" class="muted">{{ e.note }}</div></li>
+              </template>
+            </ul>
+          </section>
+          <section v-if="sample" class="card p-panel">
+            <h2>البيانات التجريبية</h2>
+            <dl class="p-dl">
+              <dt>الحالة</dt><dd><span :class="['tone', `tone-${SAMPLE_STATE[sample.status].tone}`]">{{ SAMPLE_STATE[sample.status].label }}</span></dd>
+            </dl>
+            <p v-if="sample.status === 'none'" class="muted small">
+              {{ sample.isTrial ? 'يستطيع مدير نظام الجمعية إضافتها بنفسه من شريط يظهر له عند الدخول، أو تضيفها له من هنا.' : 'تتاح للجمعيات في الفترة التجريبية فقط.' }}
+            </p>
+            <p v-else-if="sample.status === 'loaded' || sample.status === 'stalled'" class="muted small">
+              عند اتفاق الجمعية على بدء العمل الفعلي، حوّلها لجمعية فعلية: تُحذف البيانات التجريبية من كل الأنظمة، وتبقى الجمعية واشتراكها وعقودها وحسابات موظفيها.
+            </p>
+            <div class="sample-actions">
+              <button v-if="sample.canLoad" class="btn btn-primary btn-sm" :disabled="sampleBusy" @click="loadSample">{{ sampleBusy ? 'جارٍ الإضافة...' : 'إضافة بيانات تجريبية' }}</button>
+              <button v-if="sample.status === 'loaded' || sample.status === 'stalled'" class="btn btn-sm btn-convert" :disabled="sampleBusy" @click="openConvert">تحويل إلى جمعية فعلية (حذف البيانات التجريبية)</button>
+            </div>
+            <ul v-if="sample.log.length" class="sample-log">
+              <li v-for="(e, i) in sample.log" :key="i">
+                <b>{{ SAMPLE_ACTION[e.action] }}</b> · {{ e.by }} · {{ fmtDate(e.at) }}
+                <span v-if="e.action === 'loaded' && e.counts" class="muted"> · {{ num(e.counts.records ?? 0) }} سجلًا</span>
+                <span v-if="e.action === 'cleared' && e.counts" class="muted"> · حُذف {{ num(e.counts.deleted ?? 0) }} سجلًا</span>
+                <div v-if="e.note" class="muted">{{ e.note }}</div>
+              </li>
+            </ul>
           </section>
         </div>
       </template>
@@ -279,6 +432,68 @@ const STATUS_OPTIONS = [
         </div>
       </section>
     </template>
+    <div v-if="sampleResult" class="modal-backdrop">
+      <div class="modal card sample-modal">
+        <h3>أُضيفت البيانات التجريبية</h3>
+        <SampleDataResult :result="sampleResult" :slug="org?.slug ?? ''" />
+        <div class="modal-actions"><button class="btn" @click="sampleResult = null">إغلاق</button></div>
+      </div>
+    </div>
+    <div v-if="preview" class="modal-backdrop" @click.self="preview = null">
+      <div class="modal card sample-modal">
+        <h3>تحويل «{{ org?.name }}» إلى جمعية فعلية</h3>
+        <p>سيُحذف من كل الأنظمة <b>{{ num(preview.sample.total) }}</b> سجلًا تجريبيًا، وتصبح الجمعية بلا بيانات لتبدأ عملها الفعلي.</p>
+        <ul class="sys-list">
+          <li v-for="s in preview.sample.systems" :key="s.system">{{ s.system }} <small>{{ num(s.count) }}</small></li>
+        </ul>
+        <div v-if="preview.own.total" class="alert alert-error">
+          <b>انتبه:</b> أضافت الجمعية بنفسها {{ num(preview.own.total) }} سجلًا بعد البيانات التجريبية، وستُحذف هي أيضًا:
+          <span v-for="(s, i) in preview.own.systems" :key="s.system">{{ i ? '، ' : '' }}{{ s.system }} ({{ num(s.count) }})</span>.
+          إن كانت الجمعية تحتاجها فاطلب منها تصديرها أولًا.
+        </div>
+        <div class="keep">
+          <b>يبقى كما هو:</b> {{ keptText(preview) }}
+        </div>
+        <p class="danger-note">لا يمكن التراجع عن هذه العملية. للتأكيد اكتب معرّف الجمعية: <code dir="ltr">{{ org?.slug }}</code></p>
+        <input v-model="confirmSlug" class="input" dir="ltr" :placeholder="org?.slug" autocomplete="off" />
+        <div class="modal-actions">
+          <button class="btn btn-delete" :disabled="sampleBusy || confirmSlug.trim().toLowerCase() !== org?.slug" @click="convert">{{ sampleBusy ? 'جارٍ الحذف...' : 'حذف البيانات التجريبية والتحويل' }}</button>
+          <button class="btn" :disabled="sampleBusy" @click="preview = null">إلغاء</button>
+        </div>
+      </div>
+    </div>
+    <div v-if="termOpen" class="modal-backdrop" @click.self="termOpen = false">
+      <form class="modal card sample-modal" @submit.prevent="terminate">
+        <h3>إنهاء عقد «{{ org?.name }}» بالتراضي</h3>
+        <p class="muted small">يُسجَّل الاتفاق، ويتوقف دخول الجمعية وبوابتها فورًا، وتُلغى العقود غير الموقعة. ثم تُحذف الجمعية وكل بياناتها نهائيًا بعد المهلة. يمكنك إلغاء الإنهاء خلال المهلة، وتصدير بياناتها لتسليمها لها.</p>
+        <div class="p-row-2">
+          <div class="field"><label>تاريخ الاتفاق</label><input v-model="term.agreementDate" class="input" type="date" required /></div>
+          <div class="field"><label>مهلة الحذف (بالأيام)</label><input v-model.number="term.graceDays" class="input" type="number" min="0" max="365" required /></div>
+        </div>
+        <div class="field"><label>ممثل الجمعية في الاتفاق</label><input v-model="term.charityRep" class="input" required placeholder="الاسم والصفة" /></div>
+        <div class="field"><label>ملاحظات (اختياري)</label><textarea v-model="term.note" class="input" rows="2" placeholder="مثل: رقم خطاب الطلب، أو تسوية المستحقات" /></div>
+        <p class="muted small">تُحذف البيانات في: <b>{{ fmtDate(new Date(Date.now() + Number(term.graceDays || 0) * 86400000).toISOString()) }}</b> ({{ Number(term.graceDays) ? `بعد ${daysLabel(Number(term.graceDays))}` : 'خلال ساعة' }})</p>
+        <p class="danger-note">للتأكيد اكتب معرّف الجمعية: <code dir="ltr">{{ org?.slug }}</code></p>
+        <input v-model="term.confirm" class="input" dir="ltr" :placeholder="org?.slug" autocomplete="off" />
+        <div class="modal-actions">
+          <button class="btn btn-delete" :disabled="lifeBusy || term.confirm.trim().toLowerCase() !== org?.slug">إنهاء العقد وجدولة الحذف</button>
+          <button type="button" class="btn" @click="termOpen = false">إلغاء</button>
+        </div>
+      </form>
+    </div>
+    <div v-if="delOpen" class="modal-backdrop" @click.self="delOpen = false">
+      <div class="modal card sample-modal">
+        <h3>حذف «{{ org?.name }}» نهائيًا الآن</h3>
+        <p>ستُحذف الجمعية وكل بياناتها في كل الأنظمة، ومستخدموها واشتراكها وعقودها. يبقى في المنصة سجل بأن الجمعية حُذفت ومتى ومن نفذ الحذف فقط.</p>
+        <p class="muted small">إن كانت الجمعية تحتاج بياناتها فصدّرها أولًا. <button class="link-inline" @click="exportData">تصدير الآن</button></p>
+        <p class="danger-note">لا يمكن التراجع. للتأكيد اكتب معرّف الجمعية: <code dir="ltr">{{ org?.slug }}</code></p>
+        <input v-model="delConfirm" class="input" dir="ltr" :placeholder="org?.slug" autocomplete="off" />
+        <div class="modal-actions">
+          <button class="btn btn-delete" :disabled="lifeBusy || delConfirm.trim().toLowerCase() !== org?.slug" @click="deleteNow">احذف الجمعية نهائيًا</button>
+          <button class="btn" @click="delOpen = false">إلغاء</button>
+        </div>
+      </div>
+    </div>
     <div v-if="creds" class="modal-backdrop" @click.self="creds = null">
       <div class="modal card">
         <h3>بيانات الدخول الجديدة</h3>
@@ -304,4 +519,18 @@ const STATUS_OPTIONS = [
 .p-link-box span { min-width: 110px; font-weight: 500; }
 .click { cursor: pointer; }
 .p-tab .tone { margin-inline-start: 4px; }
+.sample-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.btn-convert { color: var(--danger); border-color: #f3c4bf; }
+.btn-convert:hover { background: var(--danger-soft); }
+.sample-log { list-style: none; padding: 0; margin: 12px 0 0; border-top: 1px dashed var(--border); font-size: .86rem; }
+.sample-log li { padding: 6px 0; }
+.sample-modal { max-width: 640px; width: 100%; }
+.sys-list { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+.sys-list li { background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; font-size: .86rem; }
+.sys-list small { color: var(--muted); margin-inline-start: 4px; }
+.keep { background: var(--success-soft); color: var(--success); border-radius: 8px; padding: 10px 14px; font-size: .9rem; line-height: 1.8; margin-bottom: 12px; }
+.danger-note { color: var(--danger); font-weight: 600; font-size: .92rem; }
+.link-inline { background: none; border: 0; color: var(--primary); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+.btn-delete { background: var(--danger); color: #fff; border-color: transparent; }
+.btn-delete:hover:not(:disabled) { background: #912018; }
 </style>

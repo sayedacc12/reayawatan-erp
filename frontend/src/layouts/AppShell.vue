@@ -2,7 +2,9 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
+import SampleDataBanner from '../components/SampleDataBanner.vue';
 import SideNav from '../components/SideNav.vue';
+import TrialNoticeBanner from '../components/TrialNoticeBanner.vue';
 import TasksBell from '../components/TasksBell.vue';
 import HelpMenu from '../onboarding/HelpMenu.vue';
 import OnboardingHost from '../onboarding/OnboardingHost.vue';
@@ -115,6 +117,8 @@ function logout() {
         </nav>
       </Transition>
       <main class="content">
+        <TrialNoticeBanner v-if="isOrgUser" />
+        <SampleDataBanner v-if="isOrgUser" />
         <RouterView v-slot="{ Component, route: r }">
           <Transition name="page" mode="out-in">
             <component :is="Component" :key="(r.meta.layoutKey as string | undefined) ?? r.path" />

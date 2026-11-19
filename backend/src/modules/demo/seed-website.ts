@@ -359,9 +359,9 @@ export class WebsiteSeed {
 
     // ---- التبرعات عبر المتجر (البيئة التجريبية): إيصالات وسندات قبض حقيقية
     const give = async (programId: string | null, amount: number, name: string | null, phone: string, extra: Record<string, unknown> = {}, ago = 0) => {
-      const r = await this.store.donate('demo', { programId, amount, name: name ?? undefined, phone, ...extra } as never, origin);
-      const info = await this.store.payInfo('demo', r.token);
-      await this.store.sandboxPay('demo', r.token, info.gatewayId!);
+      const r = await this.store.donate(admin.organizationSlug!, { programId, amount, name: name ?? undefined, phone, ...extra } as never, origin);
+      const info = await this.store.payInfo(admin.organizationSlug!, r.token);
+      await this.store.sandboxPay(admin.organizationSlug!, r.token, info.gatewayId!);
       if (ago) {
         const at = new Date(Date.now() - ago * 86400000 - (amount % 7) * 3600000);
         const res = await this.db.query('UPDATE web_donations SET paid_at = $2, created_at = $2 WHERE pay_token = $1 RETURNING voucher_id', [r.token, at]);
@@ -385,7 +385,7 @@ export class WebsiteSeed {
     await give(orphans.id, 400, 'خالد الشمري', '0551234513', {}, 1);
     await give(ramadan.id, 300, 'هند القحطاني', '0551234514', {}, 0);
     // تبرع بدأه زائر ولم يكمل الدفع
-    await this.store.donate('demo', { programId: orphans.id, amount: 250, name: 'زائر', phone: '0551234515' } as never, origin);
+    await this.store.donate(admin.organizationSlug!, { programId: orphans.id, amount: 250, name: 'زائر', phone: '0551234515' } as never, origin);
     // اشتراك شهري حل موعده: يُصدر له رابط سداد
     await this.db.query(`UPDATE web_subscriptions SET next_due = $2 WHERE organization_id = $1 AND donor_phone = '0551234501'`, [org, daysAgo(1)]);
     await this.store.processDue(org);
@@ -397,7 +397,7 @@ export class WebsiteSeed {
       { name: 'عبدالله', phone: '0562223344', topic: 'suggestion', body: 'أقترح إضافة خيار التبرع عبر Apple Pay في المتجر لتسهيل التبرع.' },
       { name: 'متبرع', phone: '0563334455', topic: 'complaint', body: 'لم يصلني إيصال التبرع على الجوال بعد الدفع، أرجو المساعدة.' },
     ];
-    for (const m of msgs) await this.site.contact('demo', m as never);
+    for (const m of msgs) await this.site.contact(admin.organizationSlug!, m as never);
     const [done] = await this.db.query(`SELECT id FROM web_messages WHERE organization_id = $1 AND topic = 'complaint'`, [org]);
     if (done) await this.site.updateMessage(admin, done.id, { status: 'closed', replyNote: 'تواصلنا مع المتبرع وأرسلنا له رابط الإيصال، والإيصال متاح دائمًا من صفحة الإيصال.' });
   }

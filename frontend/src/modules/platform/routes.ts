@@ -7,6 +7,7 @@ const SITE = 'platform.site.manage';
 export const platformRoutes: RouteRecordRaw[] = [
   { path: '/platform/organizations', component: () => import('./views/OrganizationsView.vue'), meta: { permission: ORGS, title: 'الجمعيات' } },
   { path: '/platform/organizations/:id', component: () => import('./views/OrganizationView.vue'), meta: { permission: SUBS, title: 'ملف الجمعية' } },
+  { path: '/platform/lifecycle', component: () => import('./views/LifecycleView.vue'), meta: { permission: ORGS, title: 'مواعيد الحذف' } },
   { path: '/platform/applications', component: () => import('./views/ApplicationsView.vue'), meta: { permission: SUBS, title: 'طلبات الاشتراك' } },
   { path: '/platform/applications/:id', component: () => import('./views/ApplicationView.vue'), meta: { permission: SUBS, title: 'طلب اشتراك' } },
   { path: '/platform/contracts', component: () => import('./views/ContractsView.vue'), meta: { permission: SUBS, title: 'العقود' } },

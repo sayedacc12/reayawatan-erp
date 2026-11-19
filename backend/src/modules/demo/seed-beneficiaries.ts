@@ -11,7 +11,7 @@ import { FUNDRAISING_PERMISSIONS as F } from '../fundraising/fundraising.manifes
 import { PROJECT_PERMISSIONS as PR } from '../projects/projects.manifest';
 import { QUALITY_PERMISSIONS as Q } from '../quality/quality.manifest';
 import { PARTNERSHIP_PERMISSIONS as PT } from '../partnerships/partnerships.manifest';
-import { ALL_PERMISSIONS, DEMO_EMAIL, DemoTeam, DemoTree, actorOf, daysAgo } from './demo-context';
+import { ALL_PERMISSIONS, DemoTeam, DemoTree, SeedTarget, actorOf, daysAgo } from './demo-context';
 
 /** نموذج تجريبي عدّى على مسار الاعتماد كله (إنشاء ← مراجعة الجودة ← اعتماد مدير الشاشة) */
 function approvedDemo(qualityCode: string) {
@@ -50,7 +50,7 @@ export class BeneficiariesSeed {
     private readonly requests: RequestsService,
   ) {}
 
-  async setup(em: EntityManager, orgId: string, password: string): Promise<{ team: DemoTeam; tree: DemoTree; accounts: { role: string; email: string }[] }> {
+  async setup(em: EntityManager, orgId: string, password: string, target: SeedTarget): Promise<{ team: DemoTeam; tree: DemoTree; accounts: { role: string; email: string }[] }> {
     const hash = await bcrypt.hash(password, 12);
     const perms = (codes: string[]) => em.find(Permission, { where: { code: In(codes) } });
     const role = async (name: string, description: string, codes: string[]) =>
@@ -77,13 +77,14 @@ export class BeneficiariesSeed {
     const user = (fullName: string, email: string, extra: Partial<User>) => em.save(em.create(User, {
       organizationId: orgId, fullName, email, passwordHash: hash, ...extra,
     }));
-    const admin = await user('مدير الجمعية التجريبية', DEMO_EMAIL('admin'), { isSuperadmin: true });
-    const researcher = await user('منى عبد الرحمن', DEMO_EMAIL('researcher'), { roles: [researcherRole] });
-    const caseManager = await user('خالد إبراهيم', DEMO_EMAIL('manager'), { roles: [managerRole] });
-    const quality = await user('هبة سمير', DEMO_EMAIL('quality'), { roles: [qualityRole] });
-    const fundraiser = await user('سارة القحطاني', DEMO_EMAIL('fundraising'), { roles: [fundraiserRole] });
-    const finance = await user('عبدالله الشهري', DEMO_EMAIL('finance'), { roles: [financeRole] });
-    const projectsManager = await user('ريم الدوسري', DEMO_EMAIL('projects'), { roles: [projectsRole] });
+    const E = target.email;
+    const admin = target.admin ?? await user('مدير الجمعية التجريبية', E('admin'), { isSuperadmin: true });
+    const researcher = await user('منى عبد الرحمن', E('researcher'), { roles: [researcherRole] });
+    const caseManager = await user('خالد إبراهيم', E('manager'), { roles: [managerRole] });
+    const quality = await user('هبة سمير', E('quality'), { roles: [qualityRole] });
+    const fundraiser = await user('سارة القحطاني', E('fundraising'), { roles: [fundraiserRole] });
+    const finance = await user('عبدالله الشهري', E('finance'), { roles: [financeRole] });
+    const projectsManager = await user('ريم الدوسري', E('projects'), { roles: [projectsRole] });
 
     const appForm = await em.save(em.create(DynamicForm, {
       organizationId: orgId, ...approvedDemo('QF-BEN-01'), name: 'نموذج بيانات الطلب', description: 'يعبّئه المستفيد عند التقديم',
@@ -163,14 +164,16 @@ export class BeneficiariesSeed {
       contributionDescription: 'مساهمة مستفيد في تكلفة الحالة',
     }));
 
+    const actor = (u: { id: string; fullName: string; email: string }, codes: string[], sa = false) => actorOf(orgId, u, codes, sa, target.slug);
     const team: DemoTeam = {
-      admin: actorOf(orgId, admin, ALL_PERMISSIONS, true),
-      researcher: actorOf(orgId, researcher, roleCodes.researcher),
-      caseManager: actorOf(orgId, caseManager, roleCodes.caseManager),
-      quality: actorOf(orgId, quality, roleCodes.quality),
-      fundraiser: actorOf(orgId, fundraiser, roleCodes.fundraiser),
-      finance: actorOf(orgId, finance, roleCodes.finance),
-      projectsManager: actorOf(orgId, projectsManager, roleCodes.projectsManager),
+      slug: target.slug, email: E,
+      admin: actor(admin, ALL_PERMISSIONS, true),
+      researcher: actor(researcher, roleCodes.researcher),
+      caseManager: actor(caseManager, roleCodes.caseManager),
+      quality: actor(quality, roleCodes.quality),
+      fundraiser: actor(fundraiser, roleCodes.fundraiser),
+      finance: actor(finance, roleCodes.finance),
+      projectsManager: actor(projectsManager, roleCodes.projectsManager),
       roles: {
         researcher: researcherRole.id, caseManager: managerRole.id, quality: qualityRole.id,
         fundraiser: fundraiserRole.id, finance: financeRole.id, projectsManager: projectsRole.id,
@@ -184,7 +187,7 @@ export class BeneficiariesSeed {
         projects: { orphans: orphans.id, widows: widows.id, ramadan: ramadan.id, surgery: surgery.id, school: school.id },
       },
       accounts: [
-        { role: 'مدير الجمعية (كل الصلاحيات)', email: admin.email },
+        ...(target.admin ? [] : [{ role: 'مدير الجمعية (كل الصلاحيات)', email: admin.email }]),
         { role: 'باحث اجتماعي', email: researcher.email },
         { role: 'مدير الحالات', email: caseManager.email },
         { role: 'مراجع الجودة', email: quality.email },

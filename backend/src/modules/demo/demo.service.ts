@@ -4,7 +4,8 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AuthUser } from '../../core/auth/decorators';
 import { Organization } from '../../core/entities';
 import { FileStore } from '../../core/files/file-store.service';
-import { DEMO_SLUG } from './demo-context';
+import { deleteOrganization } from '../../core/lifecycle/org-data';
+import { DEMO_EMAIL, DEMO_SLUG, SeedTarget } from './demo-context';
 import { AccountingSeed } from './seed-accounting';
 import { AssetsSeed } from './seed-assets';
 import { AuditSeed } from './seed-audit';
@@ -63,39 +64,16 @@ export class DemoService {
     const portalPassword = `Portal-${randomBytes(3).toString('hex')}`;
     const org = await this.db.getRepository(Organization).save({ name: 'جمعية سنابل الخير (تجريبية)', slug: DEMO_SLUG });
     try {
-      const { team, tree, accounts } = await this.db.transaction((em) => this.beneficiaries.setup(em, org.id, staffPassword));
-      const extra = await this.projects.run(team, tree);
-      const cases = await this.beneficiaries.cases(org.id, team, tree, portalPassword);
-      await this.finance.run(team, tree, extra, cases);
-      await this.accounting.run(team);
-      await this.hr.run(team);
-      await this.assets.run(team);
-      await this.accounting.closeMonths(team);
-      await this.risk.run(team);
-      await this.volunteers.run(team);
-      await this.quality.run(team);
-      // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
-      const auditor = await this.audit.run(team, staffPassword);
-      await this.members.run(team);
-      // الشراكات قبل الموقع: الشركاء المعتمدون يظهرون في صفحة الشركاء
-      await this.partnerships.run(team);
-      // الاتصالات الإدارية والمهام، ثم الاجتماعات (الجمعية العمومية من أعضاء العضوية، والتوصيات تتحول إلى مهام)
-      const commsTeam = await this.comms.grant(team);
-      await this.comms.run(commsTeam);
-      await this.meetings.run(commsTeam, staffPassword, origin);
-      // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
-      await this.website.run(team, tree, origin);
-      // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
-      await this.governance.run(team);
+      const built = await this.build(org.id, { slug: DEMO_SLUG, email: DEMO_EMAIL }, staffPassword, portalPassword, origin);
       await this.platform.run(org, platformUser, origin);
       // فريق الدعم الفني يدخل من صفحة دخول المنصة بنفس كلمة مرور الموظفين
-      const supportTeam = await this.support.run(team, staffPassword);
+      const supportTeam = await this.support.run(built.team, staffPassword);
       return {
         organization: { name: org.name, slug: org.slug },
         staffPassword,
-        staff: [...accounts, auditor],
+        staff: built.staff,
         portalPassword,
-        portalUsers: cases.portalUsers,
+        portalUsers: built.portalUsers,
         supportTeam,
       };
     } catch (e) {
@@ -103,6 +81,38 @@ export class DemoService {
       await this.remove().catch((err) => this.logger.error(`Demo cleanup failed: ${(err as Error).message}`));
       throw e;
     }
+  }
+
+  /**
+   * بناء البيانات المترابطة لكل الأنظمة داخل جمعية: تُستخدم للجمعية التجريبية الكاملة (demo)،
+   * ولزر «إضافة بيانات تجريبية» في جمعية مشتركة خلال فترة التجربة (بلا بيانات المنصة والدعم الفني).
+   */
+  async build(orgId: string, target: SeedTarget, staffPassword: string, portalPassword: string, origin: string) {
+    const { team, tree, accounts } = await this.db.transaction((em) => this.beneficiaries.setup(em, orgId, staffPassword, target));
+    const extra = await this.projects.run(team, tree);
+    const cases = await this.beneficiaries.cases(orgId, team, tree, portalPassword);
+    await this.finance.run(team, tree, extra, cases);
+    await this.accounting.run(team);
+    await this.hr.run(team);
+    await this.assets.run(team);
+    await this.accounting.closeMonths(team);
+    await this.risk.run(team);
+    await this.volunteers.run(team);
+    await this.quality.run(team);
+    // المراجعة الداخلية بعد الموارد البشرية (تعتمد على الهيكل التنظيمي)
+    const auditor = await this.audit.run(team, staffPassword);
+    await this.members.run(team);
+    // الشراكات قبل الموقع: الشركاء المعتمدون يظهرون في صفحة الشركاء
+    await this.partnerships.run(team);
+    // الاتصالات الإدارية والمهام، ثم الاجتماعات (الجمعية العمومية من أعضاء العضوية، والتوصيات تتحول إلى مهام)
+    const commsTeam = await this.comms.grant(team);
+    await this.comms.run(commsTeam);
+    await this.meetings.run(commsTeam, staffPassword, origin, target.admin ? [target.admin.id] : []);
+    // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
+    await this.website.run(team, tree, origin);
+    // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
+    await this.governance.run(team);
+    return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers };
   }
 
   /** حذف الجمعية التجريبية وكل بياناتها وطلبات الاشتراك التجريبية، لإعادة إنشائها بأحدث بيانات */
@@ -124,29 +134,7 @@ export class DemoService {
     await Promise.all(keys.map((k) => this.files.remove(k).catch(() => undefined)));
   }
 
-  /**
-   * حذف كل بيانات الجمعية من كل الجداول. بعض العلاقات بين الجداول تمنع الحذف المنفرد عمدًا
-   * (مثل حذف مستفيد له طلبات)، فيُحذف كل جدول بعد الجداول المعتمدة عليه، بالمحاولة المتكررة.
-   */
   private async purge(em: EntityManager, orgId: string) {
-    let tables: string[] = (await em.query(
-      `SELECT table_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'organization_id' ORDER BY table_name`,
-    )).map((r: { table_name: string }) => r.table_name);
-    while (tables.length) {
-      const failed: string[] = [];
-      for (const t of tables) {
-        await em.query('SAVEPOINT demo_purge');
-        try {
-          await em.query(`DELETE FROM "${t}" WHERE organization_id = $1`, [orgId]);
-          await em.query('RELEASE SAVEPOINT demo_purge');
-        } catch {
-          await em.query('ROLLBACK TO SAVEPOINT demo_purge');
-          failed.push(t);
-        }
-      }
-      if (failed.length === tables.length) throw new ConflictException(`تعذر حذف بيانات الجمعية التجريبية من: ${failed.join('، ')}`);
-      tables = failed;
-    }
-    await em.query('DELETE FROM organizations WHERE id = $1', [orgId]);
+    await deleteOrganization(em, orgId);
   }
 }
