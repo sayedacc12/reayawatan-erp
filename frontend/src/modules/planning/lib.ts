@@ -4,12 +4,13 @@ import { api } from '../../api';
 export const P = {
   read: 'planning.dashboard.read', strategic: 'planning.strategic.manage', operational: 'planning.operational.manage', kpis: 'planning.kpis.manage',
   progress: 'planning.progress.update', approve: 'planning.plans.approve', reports: 'planning.reports.read', settings: 'planning.settings.manage',
+  budgets: 'planning.budgets.manage', budgetsHr: 'planning.budgets.hr', budgetsApprove: 'planning.budgets.approve', formulas: 'planning.formulas.manage',
 } as const;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Level { key: string; name: string; prefix: string }
 export interface Stage { name: string; roleId: string | null }
-export interface Route { key: string; name: string; planKind: 'strategic' | 'operational' | 'any'; unitId: string | null; minCost: number | null; stages: Stage[] }
+export interface Route { key: string; name: string; planKind: 'strategic' | 'operational' | 'budget' | 'any'; unitId: string | null; minCost: number | null; stages: Stage[] }
 export interface CustomField { key: string; label: string; type: 'text' | 'number' | 'date' | 'select'; options: string[]; appliesTo: 'strategic' | 'operational' | 'all' }
 export interface PlanningConfig {
   strategicLevels: Level[]; operationalLevels: Level[]; relationTypes: { code: string; name: string }[]; kpiUnits: string[];
@@ -90,3 +91,32 @@ export interface Item {
   rolledProgress: number; plannedProgress: number | null; rolledCost: number; rolledCostByYear: Record<string, number>; execStatus: string; progressSource: 'own' | 'children' | 'links';
   performance: number | null; refs: any[]; updates: any[]; hasChildren: boolean;
 }
+
+// ---------------- الموازنات ----------------
+export const SECTIONS: Record<string, { label: string; color: string; icon: string }> = {
+  hr: { label: 'الموارد البشرية', color: '#0ea5e9', icon: '👥' }, opex: { label: 'المصروفات التشغيلية', color: '#f59e0b', icon: '🧾' },
+  activity: { label: 'الأنشطة والمشاريع', color: '#10b981', icon: '🎯' }, revenue: { label: 'الإيرادات والتمويل', color: '#a78bfa', icon: '💰' },
+};
+export const LINE_KIND: Record<string, string> = {
+  employee: 'موظف حالي', employee_group: 'موظفون حاليون', new_position: 'وظيفة جديدة', hr_other: 'مصروف موارد بشرية', account: 'من المحاسبة', activity: 'نشاط من الخطة', project: 'مشروع', manual: 'بند يدوي',
+};
+export const AVG_TYPES: Record<string, string> = { mean: 'المتوسط البسيط', weighted: 'متوسط مرجح (الأحدث أثقل)', median: 'الوسيط', last: 'آخر سنة فقط' };
+export const DISTRIBUTION: Record<string, string> = { even: 'بالتساوي على الأشهر', seasonal: 'حسب النمط الموسمي التاريخي', custom: 'بأوزان أحددها' };
+export const HIST_METHOD: Record<string, string> = { formula: 'بمعادلة من التاريخ', manual: 'مبلغ أحدده', zero: 'صفرية (من العقود فقط)' };
+export const FORMULA_TARGET: Record<string, string> = { hr_monthly: 'التكلفة الشهرية للموظف', hr_annual: 'التكاليف السنوية للموظف', opex: 'المصروفات', revenue: 'الإيرادات', any: 'عامة' };
+export const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+export const IMPORTS: { key: string; label: string; hint: string; hr?: boolean }[] = [
+  { key: 'employees', label: 'الموظفون الحاليون', hint: 'الرواتب والبدلات وآخر تقييم أداء من الموارد البشرية', hr: true },
+  { key: 'staffing', label: 'خطة التعيين', hint: 'الوظائف الجديدة المعتمدة للسنة بشهر التعيين وراتب الدرجة', hr: true },
+  { key: 'expenses', label: 'المصروفات الفعلية', hint: 'كل حساب مصروف عليه حركة، بتاريخه الشهري (حسابات الرواتب تُستبعد تلقائيًا)' },
+  { key: 'revenues', label: 'الإيرادات الفعلية', hint: 'حسابات الإيرادات بتاريخها الشهري' },
+  { key: 'activities', label: 'أنشطة الخطط التشغيلية', hint: 'تكلفة السنة لكل نشاط في الخطط المعتمدة، ويُحدَّث ما تغير' },
+  { key: 'projects', label: 'موازنات المشاريع', hint: 'نصيب السنة من موازنة كل مشروع بالتناسب الزمني' },
+];
+export const short = (n: number | null | undefined) => {
+  if (n === null || n === undefined) return '—';
+  const a = Math.abs(n);
+  if (a >= 1e6) return `${(n / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 })} مليون`;
+  if (a >= 1e3) return `${(n / 1e3).toLocaleString('en-US', { maximumFractionDigits: 0 })} ألف`;
+  return Math.round(n).toLocaleString('en-US');
+};

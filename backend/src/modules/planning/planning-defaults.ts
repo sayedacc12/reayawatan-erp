@@ -8,7 +8,7 @@ export interface CustomField { key: string; label: string; type: 'text' | 'numbe
  * مسار اعتماد: يُختار آليًا حسب نوع الخطة والإدارة والتكلفة التقديرية الإجمالية.
  * عند تطابق أكثر من مسار يُختار الأكثر تحديدًا (الإدارة ثم أعلى حد تكلفة).
  */
-export interface WorkflowRoute { key: string; name: string; planKind: 'strategic' | 'operational' | 'any'; unitId: string | null; minCost: number | null; stages: WfStage[] }
+export interface WorkflowRoute { key: string; name: string; planKind: 'strategic' | 'operational' | 'budget' | 'any'; unitId: string | null; minCost: number | null; stages: WfStage[] }
 
 export interface PlanningConfig {
   strategicLevels: PlanLevel[];
@@ -60,6 +60,10 @@ export function defaultConfig(): PlanningConfig {
         key: 'operational-large', name: 'خطة تشغيلية بتكلفة مليون ريال فأكثر', planKind: 'operational', unitId: null, minCost: 1_000_000,
         stages: [{ name: 'اعتماد مدير الإدارة', roleId: null }, { name: 'مراجعة إدارة التخطيط والأداء', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
       },
+      {
+        key: 'budget', name: 'اعتماد الموازنة التقديرية', planKind: 'budget', unitId: null, minCost: null,
+        stages: [{ name: 'مراجعة الإدارة المالية', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
+      },
     ],
   };
 }
@@ -68,7 +72,10 @@ export function defaultConfig(): PlanningConfig {
 export function mergeConfig(saved: Partial<PlanningConfig> | null | undefined): PlanningConfig {
   const d = defaultConfig();
   const s = saved ?? {};
-  return { ...d, ...s, thresholds: { ...d.thresholds, ...(s.thresholds ?? {}) } };
+  const out = { ...d, ...s, thresholds: { ...d.thresholds, ...(s.thresholds ?? {}) } };
+  // الإعدادات المحفوظة قبل إضافة الموازنات: يُضاف مسار اعتماد الموازنة المقترح
+  if (s.routes && !s.routes.some((r) => r.planKind === 'budget' || r.planKind === 'any')) out.routes = [...s.routes, ...d.routes.filter((r) => r.planKind === 'budget')];
+  return out;
 }
 
 // ---------------------------------------------------------------- القوالب الجاهزة
@@ -197,10 +204,13 @@ export const CONFIGURABLE = [
   'حقول إضافية لعناصر الخطط (نص، رقم، تاريخ، قائمة)',
   'مسارات اعتماد مختلفة حسب نوع الخطة والإدارة والتكلفة الإجمالية، ومراحلها والأدوار المخولة',
   'هامش التأخر المسموح قبل اعتبار النشاط متأخرًا',
+  'معادلات احتساب الموازنة (حسابية وشرطية) بإصدارات، واختبارها قبل تفعيلها، دون تعديل برمجي',
+  'متغيرات وافتراضات الموازنة (عامة أو لإدارة، وبقيم مرحلية خلال السنة) وقواعد العلاوات حسب الإدارة والمرتبة والوظيفة والتقييم والجنسية',
+  'طريقة تقدير كل بند: عدد سنوات التاريخ، طريقة المتوسط، الاستبعادات، نسبة الزيادة، العقود الجديدة والمنتهية، والتوزيع الشهري',
+  'منهجية كل بند (أنشطة، أداء، تاريخية، صفرية، من الأعلى، من الأسفل) وسقوف الإدارات',
   'صلاحيات كل دور في النظام',
 ];
 export const NEEDS_DEVELOPMENT = [
-  'محرك المعادلات والافتراضات وموازنة الموارد البشرية والمصروفات (المرحلة الثانية)',
   'السيناريوهات وتحليل الحساسية (المرحلة الثالثة)',
   'تصدير الموازنة المعتمدة للنظام المالي ومتابعة الصرف والمناقلات (المرحلة الرابعة)',
   'الربط بالمخاطر والمراجعة الداخلية والأداء الوظيفي وPESTEL وSWOT (المرحلة الخامسة)',

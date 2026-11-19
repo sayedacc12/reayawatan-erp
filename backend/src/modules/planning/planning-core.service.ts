@@ -73,9 +73,9 @@ export class PlanningCore {
     return `${prefix}-${String(row.n).padStart(3, '0')}`;
   }
 
-  async decider(actor: OrgUser): Promise<Decider> {
+  async decider(actor: OrgUser, permission: string = P.approve): Promise<Decider> {
     const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM user_roles WHERE user_id = $1', [actor.id]);
-    return { name: actor.fullName, isSuperadmin: actor.isSuperadmin, hasPermission: actor.permissions.includes(P.approve), roleIds: new Set(rows.map((r) => r.role_id)) };
+    return { name: actor.fullName, isSuperadmin: actor.isSuperadmin, hasPermission: actor.permissions.includes(permission), roleIds: new Set(rows.map((r) => r.role_id)) };
   }
 
   // ---------------- القوائم من الأنظمة الأخرى (قراءة فقط) ----------------
