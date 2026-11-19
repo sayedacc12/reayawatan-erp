@@ -116,6 +116,18 @@ export class AdminApplicationDto extends ApplicationDto {
   organizationId?: string;
 }
 
+export class SendContractDto {
+  /** إرسال رابط التوقيع بالبريد لجهات التواصل (افتراضيًا نعم) */
+  @IsOptional() @IsBoolean()
+  email?: boolean;
+}
+
+export class ResetPasswordDto {
+  /** إرسال كلمة المرور المؤقتة إلى بريد مدير النظام */
+  @IsOptional() @IsBoolean()
+  sendEmail?: boolean;
+}
+
 export class NoteDto {
   @trim() @IsString() @MinLength(3, { message: 'اكتب السبب بوضوح' }) @MaxLength(2000)
   note!: string;

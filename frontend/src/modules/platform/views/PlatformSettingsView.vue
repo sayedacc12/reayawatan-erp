@@ -91,6 +91,7 @@ const copy = (u: string) => { copyText(u); toast.success('تم نسخ الراب
           <div class="p-link-box"><code>{{ l.url }}</code><button class="btn btn-sm" type="button" @click="copy(l.url)">نسخ</button></div>
         </div>
         <h2 style="margin-top: 20px">إعدادات أخرى</h2>
+        <RouterLink class="more" to="/platform/mail">البريد الإلكتروني: الإعدادات والرسالة التجريبية وسجل الرسائل ←</RouterLink>
         <RouterLink class="more" to="/platform/inquiries">طلبات الخدمات الواردة من الصفحة الرئيسية ←</RouterLink>
         <RouterLink class="more" to="/platform/contract-clauses">بيانات مقدم الخدمة وبنود العقد ←</RouterLink>
       </section>

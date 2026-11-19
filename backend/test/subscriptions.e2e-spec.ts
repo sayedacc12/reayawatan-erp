@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { MailService } from '../src/core/mail/mail.service';
 import { configureApp } from '../src/main';
 import { DEFAULT_CLAUSES } from '../src/core/subscriptions/contract-defaults';
 
@@ -29,6 +30,8 @@ describe('Association subscriptions & e-contracts', () => {
     process.env.PLATFORM_ADMIN_EMAIL = 'platform@test.org';
     process.env.PLATFORM_ADMIN_PASSWORD = 'Platform123';
     process.env.UPLOAD_DIR = '/tmp/sanabel-test-uploads';
+    process.env.MAIL_TRANSPORT = 'test';
+    process.env.PUBLIC_URL = 'https://sanabel.test';
     const { DataSource: DS } = await import('typeorm');
     const reset = new DS({ type: 'postgres', url: DB });
     await reset.initialize();
@@ -42,6 +45,8 @@ describe('Association subscriptions & e-contracts', () => {
   });
 
   afterAll(async () => {
+    delete process.env.MAIL_TRANSPORT;
+    delete process.env.PUBLIC_URL;
     await app.get(DataSource).destroy();
     await app.close();
   });
@@ -127,6 +132,12 @@ describe('Association subscriptions & e-contracts', () => {
     const res = await http.post(`/api/platform/applications/${appId}/approve`).set(as(platform)).send(body).expect(200);
     expect(res.body.links).toEqual({ staff: '/o/al-namaa', portal: '/portal/al-namaa' });
     expect(res.body.generatedPassword).toBeNull();
+    // رسالة ترحيب لمدير النظام برابط الدخول، بلا كلمة مرور لأنه اختارها بنفسه
+    expect(res.body.emailedTo).toBe('admin@namaa.org');
+    await app.get(MailService).processQueue();
+    const welcome = app.get(MailService).sentTo('admin@namaa.org')[0];
+    expect(welcome.html).toContain('https://sanabel.test/o/al-namaa');
+    expect(welcome.text).not.toContain('Namaa12345');
     orgId = res.body.organizationId;
     contractId = res.body.contractId;
     await http.post(`/api/platform/applications/${appId}/approve`).set(as(platform)).send(body).expect(400);
@@ -183,6 +194,10 @@ describe('Association subscriptions & e-contracts', () => {
     expect(sent.body.status).toBe('sent');
     expect(sent.body.contentHash).toMatch(/^[a-f0-9]{64}$/);
     signPath = sent.body.signPath;
+    // رابط التوقيع يصل بالبريد للمدير التنفيذي وعضو المجلس وبريد الجمعية
+    expect([...sent.body.emailed].sort()).toEqual(['ceo@namaa.org', 'chair@namaa.org', 'info@namaa.org']);
+    await app.get(MailService).processQueue();
+    expect(app.get(MailService).sentTo('chair@namaa.org')[0].html).toContain(`https://sanabel.test${signPath}`);
     const tok = signPath.split('/').pop()!;
     await http.put(`/api/platform/contracts/${contractId}`).set(as(platform)).send({ items: [] }).expect(400);
 
@@ -206,7 +221,7 @@ describe('Association subscriptions & e-contracts', () => {
     await http.post(`/api/public/contracts/${tok}/sign`).send({ ...sign, licenseNumber: '5678' }).expect(400);
 
     c = (await http.get(`/api/platform/contracts/${contractId}`).set(as(platform))).body;
-    expect(c.history.map((h: { step: string }) => h.step)).toEqual(['created', 'edited', 'sent', 'changes_requested', 'edited', 'sent', 'signed']);
+    expect(c.history.map((h: { step: string }) => h.step)).toEqual(['created', 'edited', 'sent', 'emailed', 'changes_requested', 'edited', 'sent', 'emailed', 'signed']);
     const org = (await http.get(`/api/platform/organizations/${orgId}/details`).set(as(platform))).body.organization;
     expect(org.state).toBe('active');
     expect(org.subscriptionStartsOn).toBe('2026-12-01');

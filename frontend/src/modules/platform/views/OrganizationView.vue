@@ -127,13 +127,13 @@ const origin = location.origin;
 const copy = (s: string) => { copyText(s); toast.success('تم النسخ'); };
 
 // بيانات دخول مدير نظام الجمعية: كلمة مرور مؤقتة تظهر مرة واحدة وتُرسل للجمعية
-const creds = ref<{ name: string; login: string; password: string } | null>(null);
+const creds = ref<{ name: string; login: string; password: string; emailedTo: string | null } | null>(null);
 async function resetPassword(a: Admin) {
-  if (!confirm(`إنشاء كلمة مرور جديدة لحساب "${a.fullName}"؟ ستتوقف كلمة المرور الحالية فورًا.`)) return;
+  if (!confirm(`إنشاء كلمة مرور جديدة لحساب "${a.fullName}"؟ ستتوقف كلمة المرور الحالية فورًا، وتُرسل الجديدة إلى بريده ${a.email}.`)) return;
   busy.value = true;
   try {
-    const r = await api<{ password: string; login: string }>(`/platform/organizations/${id}/admins/${a.id}/reset-password`, { method: 'POST' });
-    creds.value = { name: a.fullName, login: r.login, password: r.password };
+    const r = await api<{ password: string; login: string; emailedTo: string | null }>(`/platform/organizations/${id}/admins/${a.id}/reset-password`, { method: 'POST', json: { sendEmail: true } });
+    creds.value = { name: a.fullName, login: r.login, password: r.password, emailedTo: r.emailedTo };
   } catch (e) {
     toast.error((e as Error).message);
   } finally {
@@ -497,7 +497,8 @@ const STATUS_OPTIONS = [
     <div v-if="creds" class="modal-backdrop" @click.self="creds = null">
       <div class="modal card">
         <h3>بيانات الدخول الجديدة</h3>
-        <p class="muted small">انسخها الآن، فكلمة المرور لن تظهر مرة أخرى.</p>
+        <p v-if="creds.emailedTo" class="alert alert-success small">أُرسلت بيانات الدخول بالبريد إلى <span dir="ltr">{{ creds.emailedTo }}</span>.</p>
+        <p v-else class="muted small">لم تُرسل بالبريد (البريد غير مفعّل في المنصة). انسخها الآن، فكلمة المرور لن تظهر مرة أخرى.</p>
         <div class="p-link-box"><span>رابط الدخول</span><code>{{ origin }}/o/{{ org?.slug }}</code></div>
         <div class="p-link-box"><span>اسم الدخول</span><code>{{ creds.login }}</code></div>
         <div class="p-link-box"><span>كلمة المرور</span><code>{{ creds.password }}</code></div>

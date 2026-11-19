@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
-import { RequirePermissions } from '../auth/decorators';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { AuthUser, CurrentUser, RequirePermissions } from '../auth/decorators';
+import { originOf } from '../subscriptions/subscriptions.controller';
+import { ResetPasswordDto } from '../subscriptions/subscriptions.dto';
 import { PLATFORM_PERMISSIONS } from '../core.manifest';
 import { CreateOrganizationDto, SetOrganizationModulesDto, UpdateOrganizationDto } from './organizations.dto';
 import { OrganizationsService } from './organizations.service';
@@ -35,8 +38,11 @@ export class OrganizationsController {
   }
 
   @Post('organizations/:id/admins/:userId/reset-password')
-  resetAdminPassword(@Param('id', ParseUUIDPipe) id: string, @Param('userId', ParseUUIDPipe) userId: string) {
-    return this.orgs.resetAdminPassword(id, userId);
+  resetAdminPassword(
+    @Param('id', ParseUUIDPipe) id: string, @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: ResetPasswordDto, @CurrentUser() actor: AuthUser, @Req() req: Request,
+  ) {
+    return this.orgs.resetAdminPassword(id, userId, { sendEmail: dto?.sendEmail, actor: actor.fullName, origin: originOf(req) });
   }
 
   /** تفعيل/إيقاف الوحدات الاختيارية لجمعية */
