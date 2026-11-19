@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { gosi, HrPolicy, monthlyEosProvision, wageFor } from '../../hr/hr-policy';
 import type { Budget, BudgetLine, TraceStep } from './budget.entity';
-import type { BudgetVariable, RaiseRule } from './budget-defaults';
+import type { BudgetVariable, Lever, RaiseRule } from './budget-defaults';
 import { FormulaError, run } from './formula-engine';
 
 /**
@@ -245,4 +245,49 @@ export function finalize(auto: number, monthly: number[], override: number | nul
   const last = out.map((x, i) => (x ? i : -1)).filter((i) => i >= 0).pop() ?? 11;
   out[last] = r2(out[last] + diff);
   return { amount: r2(override), monthly: out };
+}
+
+const MONTH_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+/** هل ينطبق المؤثر على البند: البنود المحددة بالاسم، وإلا الأقسام والإدارة ونوع التمويل والحساب */
+export function leverMatches(l: Lever, line: Pick<BudgetLine, 'id' | 'baseLineId' | 'section' | 'unitId' | 'fundingType' | 'accountId'>) {
+  const sc = l.scope;
+  if (sc.lineIds?.length) return sc.lineIds.includes(line.id) || (!!line.baseLineId && sc.lineIds.includes(line.baseLineId));
+  if (sc.sections?.length && !sc.sections.includes(line.section)) return false;
+  if (sc.unitId && sc.unitId !== line.unitId) return false;
+  if (sc.fundingType && sc.fundingType !== (line.fundingType ?? 'none')) return false;
+  if (sc.accountId && sc.accountId !== line.accountId) return false;
+  return true;
+}
+
+/**
+ * تطبيق مؤثرات السيناريو على التوزيع الشهري بعد الاحتساب (وبعد تعديل الإدارة).
+ * النسبة تسري من شهرها، والتأجيل يزيح التوزيع، وما يتجاوز ديسمبر يخرج من موازنة السنة.
+ */
+export function applyLevers(levers: Lever[], line: Pick<BudgetLine, 'id' | 'baseLineId' | 'section' | 'unitId' | 'fundingType' | 'accountId'>, monthly: number[]) {
+  let m = [...monthly];
+  const trace: TraceStep[] = [];
+  for (const l of levers ?? []) {
+    if (!leverMatches(l, line)) continue;
+    const before = r2(m.reduce((a, b) => a + b, 0));
+    if (l.type === 'pct') {
+      const from = Math.min(12, Math.max(1, l.fromMonth || 1));
+      const raw = m.map((x, i) => (i + 1 >= from ? x * (1 + l.value / 100) : x));
+      m = raw.map(r2);
+      // فرق التقريب يُضاف لآخر شهر فيه مبلغ حتى يطابق الإجمالي النسبة تمامًا
+      const diff = r2(r2(raw.reduce((a, b) => a + b, 0)) - m.reduce((a, b) => a + b, 0));
+      const last = m.map((x, i) => (x ? i : -1)).filter((i) => i >= 0).pop();
+      if (diff && last !== undefined) m[last] = r2(m[last] + diff);
+      const after = r2(m.reduce((a, b) => a + b, 0));
+      trace.push({ label: `مؤثر السيناريو «${l.name}»: ${l.value > 0 ? '+' : ''}${l.value}%${from > 1 ? ` من ${MONTH_AR[from - 1]}` : ''}`, value: after, source: `الفرق ${r2(after - before).toLocaleString('en-US')}` });
+    } else {
+      const k = Math.min(11, Math.max(1, Math.round(l.value)));
+      const out = Array.from({ length: 12 }, () => 0);
+      m.forEach((x, i) => { if (i + k < 12) out[i + k] = r2(out[i + k] + x); });
+      m = out;
+      const after = r2(m.reduce((a, b) => a + b, 0));
+      trace.push({ label: `مؤثر السيناريو «${l.name}»: تأجيل ${k} ${k > 2 ? 'أشهر' : k === 2 ? 'شهرين' : 'شهر'}`, value: after, source: before !== after ? `ينتقل للسنة التالية ${r2(before - after).toLocaleString('en-US')}` : null });
+    }
+  }
+  return { monthly: m, amount: r2(m.reduce((a, b) => a + b, 0)), trace };
 }

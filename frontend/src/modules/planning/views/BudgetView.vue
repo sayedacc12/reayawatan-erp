@@ -7,6 +7,8 @@ import { useToast } from '../../../stores/toast';
 import BudgetAssumptions from '../components/BudgetAssumptions.vue';
 import BudgetLinePanel from '../components/BudgetLinePanel.vue';
 import PlanWorkflow from '../components/PlanWorkflow.vue';
+import ScenarioLevers from '../components/ScenarioLevers.vue';
+import ScenariosPanel from '../components/ScenariosPanel.vue';
 import { errMsg, fmtDateTime, FUNDING, IMPORTS, LINE_KIND, money, MONTHS, num, P, SECTIONS, short, WF_STATUS } from '../lib';
 import '../../projects/projects.css';
 import '../../risk/risk.css';
@@ -26,6 +28,7 @@ const q = ref('');
 const busy = ref('');
 const canManage = computed(() => session.can(P.budgets));
 const editable = computed(() => canManage.value && b.value && ['draft', 'returned', 'approved'].includes(b.value.status));
+const isSc = computed(() => !!b.value?.isScenario);
 const LEVEL: Record<string, string> = { danger: '#ef4444', warning: '#f59e0b', info: '#0ea5e9' };
 
 async function load() {
@@ -38,7 +41,7 @@ async function load() {
 onMounted(async () => {
   [lk.value] = await Promise.all([api<any>('/planning/budget-lookups'), load()]);
 });
-watch(() => props.id, load);
+watch(() => props.id, () => { tab.value = 'summary'; selId.value = null; load(); });
 
 const flow = computed(() => b.value && { ...b.value, stages: (b.value.wfStages ?? []).map((s: any) => s.name) });
 const lines = (section: string) => (b.value?.lines ?? []).filter((l: any) => l.section === section && (!q.value || `${l.name} ${l.unitName ?? ''} ${l.accountCode ?? ''}`.includes(q.value)));
@@ -76,7 +79,18 @@ async function toggle(l: any) {
 }
 async function removeBudget() {
   if (!confirm('حذف الموازنة وكل بنودها؟')) return;
-  try { await api(`/planning/budgets/${props.id}`, { method: 'DELETE' }); router.push('/planning/budgets'); } catch (e) { toast.error(errMsg(e)); }
+  try { await api(`/planning/budgets/${props.id}`, { method: 'DELETE' }); router.push(isSc.value ? `/planning/budgets/${b.value.base.id}` : '/planning/budgets'); } catch (e) { toast.error(errMsg(e)); }
+}
+// تحويل السيناريو إلى مشروع موازنة على الأساسية
+const promo = reactive<any>({ open: false, note: '', busy: false });
+async function promote() {
+  promo.busy = true;
+  try {
+    const r = await api<any>(`/planning/scenarios/${props.id}/promote`, { method: 'POST', json: { note: promo.note } });
+    promo.open = false;
+    toast.success('نُقل السيناريو إلى الموازنة الأساسية كمسودة. راجعها ثم ارفعها للاعتماد');
+    router.push(`/planning/budgets/${r.id}`);
+  } catch (e) { toast.error(errMsg(e)); } finally { promo.busy = false; }
 }
 function showCheck(c: any) {
   highlight.value = new Set(c.lineIds ?? []);
@@ -125,15 +139,21 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
   <div v-else-if="b">
     <section class="pm-hero pl-hero bg-hero">
       <div>
-        <p class="pm-kicker">{{ b.code }} · الموازنة التقديرية · السنة المالية {{ b.fiscalYear }}</p>
+        <p v-if="isSc" class="pm-kicker">{{ b.code }} · سيناريو مبني على <router-link :to="`/planning/budgets/${b.base?.id}`" class="sc-link">{{ b.base?.code }} {{ b.base?.title }}</router-link> · السنة المالية {{ b.fiscalYear }}</p>
+        <p v-else class="pm-kicker">{{ b.code }} · الموازنة التقديرية · السنة المالية {{ b.fiscalYear }}</p>
         <h1>{{ b.title }}</h1>
-        <p class="pm-sub">
+        <p v-if="isSc" class="pm-sub">
+          <span class="pm-pill" style="--c: #a78bfa">سيناريو للدراسة</span> · لا يؤثر على الموازنة حتى يُحوَّل إليها · آخر احتساب {{ fmtDateTime(b.calculatedAt) }}
+          <template v-if="b.promotedAt"> · <span class="pm-pill" style="--c: #10b981">حُوّل إلى الموازنة {{ fmtDateTime(b.promotedAt) }}</span></template>
+        </p>
+        <p v-else class="pm-sub">
           <span class="pm-pill" :style="{ '--c': WF_STATUS[b.status]?.color }">{{ WF_STATUS[b.status]?.label }}</span>
           <template v-if="b.version"> · الإصدار المعتمد {{ b.version }}</template> · منهجية {{ b.methodologyName }} · آخر احتساب {{ fmtDateTime(b.calculatedAt) }}
         </p>
       </div>
       <div class="pm-actions">
         <button v-if="editable" class="btn rk-ghost" :disabled="!!busy" @click="recalc">{{ busy === 'recalc' ? 'جارٍ الاحتساب…' : 'إعادة الاحتساب' }}</button>
+        <button v-if="isSc && canManage" class="btn pl-glow" @click="promo.open = true">تحويل إلى مشروع موازنة</button>
         <button v-if="canManage && !b.version && b.status !== 'in_review'" class="btn rk-ghost" @click="removeBudget">حذف</button>
       </div>
     </section>
@@ -152,7 +172,11 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
       <button :class="['rk-tab', { on: tab === 'assumptions' }]" @click="tab = 'assumptions'">الافتراضات والعلاوات</button>
       <button v-for="(s, k) in SECTIONS" :key="k" :class="['rk-tab', { on: tab === k }]" @click="tab = String(k); selId = null">{{ s.label }} <small>{{ short(secTotal(String(k))) }}</small></button>
       <button :class="['rk-tab', { on: tab === 'monthly' }]" @click="tab = 'monthly'">التوزيع الشهري</button>
-      <button :class="['rk-tab', { on: tab === 'approval' }]" @click="tab = 'approval'">الاعتماد والإصدارات ({{ b.versions.length }})</button>
+      <button v-if="isSc" :class="['rk-tab', { on: tab === 'levers' }]" @click="tab = 'levers'">مؤثرات السيناريو ({{ (b.levers ?? []).length }})</button>
+      <template v-else>
+        <button :class="['rk-tab', { on: tab === 'scenarios' }]" @click="tab = 'scenarios'">السيناريوهات والحساسية ({{ b.scenarios }})</button>
+        <button :class="['rk-tab', { on: tab === 'approval' }]" @click="tab = 'approval'">الاعتماد والإصدارات ({{ b.versions.length }})</button>
+      </template>
     </div>
 
     <!-- الملخص -->
@@ -274,6 +298,9 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
       </div>
     </section>
 
+    <ScenarioLevers v-else-if="tab === 'levers' && lk" :budget="b" :lookups="lk" :editable="!!editable" @saved="(v: any) => (b = v)" />
+    <ScenariosPanel v-else-if="tab === 'scenarios'" :key="b.id" :budget="b" :can-manage="canManage" />
+
     <!-- الاعتماد والإصدارات -->
     <template v-else-if="tab === 'approval'">
       <PlanWorkflow :plan="flow" :can-manage="canManage" base="/planning/budgets" noun="الموازنة" @changed="(v: any) => (b = v)" />
@@ -305,6 +332,16 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
         </template>
       </section>
     </template>
+
+    <div v-if="promo.open" class="modal-backdrop" @click.self="promo.open = false">
+      <form class="card modal" @submit.prevent="promote">
+        <h2>تحويل السيناريو إلى مشروع موازنة</h2>
+        <p>تُنقل افتراضات هذا السيناريو وبنوده ومؤثراته إلى «{{ b.base?.title }}»، فتصبح مسودة{{ b.base?.version ? ' تعديل على الإصدار المعتمد' : '' }} تُرفع للاعتماد بمسارها المعتاد.
+          {{ b.base?.version ? 'الإصدار المعتمد الحالي يبقى ساريًا حتى يُعتمد التعديل، ويمكن إلغاء التعديل والعودة إليه.' : '' }}</p>
+        <label class="field"><span>سبب اختيار هذا السيناريو</span><textarea v-model="promo.note" class="input" rows="3" required minlength="3" /></label>
+        <div class="modal-actions"><button class="btn btn-primary" :disabled="promo.busy">تحويل</button><button type="button" class="btn" @click="promo.open = false">إلغاء</button></div>
+      </form>
+    </div>
 
     <div v-if="add.open" class="modal-backdrop" @click.self="add.open = false">
       <form class="card modal" @submit.prevent="saveAdd">

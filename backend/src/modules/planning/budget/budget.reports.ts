@@ -8,6 +8,7 @@ import { HrParams } from './budget-calc';
 import { MONTHS_AR, SECTION_NAME } from './budget-defaults';
 import { BudgetsService } from './budgets.service';
 import { FormulasService } from './formulas.service';
+import { ScenariosService } from './scenarios.service';
 
 const WF: Record<string, string> = { draft: 'مسودة', in_review: 'قيد الاعتماد', returned: 'مُرجعة للتعديل', approved: 'معتمدة', rejected: 'مرفوضة' };
 const FUNDING: Record<string, string> = { restricted: 'مقيد', unrestricted: 'غير مقيد', mixed: 'مختلط' };
@@ -23,7 +24,7 @@ const MONTH_COLS = MONTHS_AR.map((label, i) => ({ key: `m${i + 1}`, label, type:
 export class BudgetReports implements OnModuleInit {
   constructor(
     private readonly registry: ReportsRegistry, private readonly budgets: BudgetsService,
-    private readonly formulas: FormulasService, private readonly avail: BudgetAvailability,
+    private readonly formulas: FormulasService, private readonly avail: BudgetAvailability, private readonly scenarios: ScenariosService,
   ) {}
 
   onModuleInit() {
@@ -150,6 +151,25 @@ export class BudgetReports implements OnModuleInit {
             subtitle: r.budget ? `${r.budget.code} ${r.budget.title} · الإصدار ${r.budget.version}` : `لا توجد موازنة معتمدة لسنة ${y}`,
             rows: r.lines.map((l) => ({ ...l, section: ar(SECTION_NAME, l.section) })),
           };
+        },
+      },
+      {
+        ...base, code: 'planning.budget.scenarios', category: 'الموازنات', title: 'مقارنة السيناريوهات', orientation: 'landscape',
+        description: 'الموازنة وسيناريوهاتها: الإيرادات والمصروفات والفائض أو العجز والفرق عن الموازنة، والمؤثرات المطبقة',
+        filters: [budgetFilter],
+        columns: [
+          { key: 'code', label: 'الرمز' }, { key: 'title', label: 'السيناريو' }, { key: 'revenues', label: 'الإيرادات', type: 'money' }, { key: 'expenses', label: 'المصروفات', type: 'money' },
+          { key: 'balance', label: 'الفائض أو العجز', type: 'money' }, { key: 'diff', label: 'الفرق عن الموازنة', type: 'money' }, { key: 'heads', label: 'القوى العاملة' }, { key: 'levers', label: 'المؤثرات' },
+        ],
+        run: async (u, f) => {
+          if (!f.budgetId) throw new BadRequestException('اختر الموازنة');
+          const r = await this.scenarios.list(org(u), f.budgetId);
+          const lv = (x: { name: string; type: string; value: number }) => `${x.name} (${x.type === 'pct' ? `${x.value}%` : `تأجيل ${x.value} شهر`})`;
+          const row = (x: (typeof r)['base'], diff: number | null) => ({
+            code: x.code, title: x.isScenario ? x.title : 'الموازنة الأساسية', revenues: x.revenues, expenses: x.expenses, balance: x.balance, diff,
+            heads: `${x.headcount.current} + ${x.headcount.new}`, levers: x.levers.map(lv).join('، ') || null,
+          });
+          return { subtitle: `${r.base.code} ${r.base.title}`, rows: [row(r.base, null), ...r.scenarios.map((x) => row(x, x.diff.balance))] };
         },
       },
     ];
