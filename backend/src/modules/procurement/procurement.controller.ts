@@ -61,7 +61,20 @@ export class ProcurementController {
     const activities = await this.db.query(
       `SELECT a AS name, COUNT(*)::int AS n FROM pr_suppliers s, jsonb_array_elements_text(s.activities) a
         WHERE s.organization_id = $1 AND s.status = 'approved' GROUP BY a ORDER BY n DESC LIMIT 8`, [org]);
+    const [[req], [rfq], [ord]] = await Promise.all([
+      this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'submitted')::int AS submitted, COUNT(*) FILTER (WHERE status = 'approved')::int AS approved,
+                            COUNT(*) FILTER (WHERE status = 'sourcing')::int AS sourcing, COUNT(*) FILTER (WHERE status = 'ordered')::int AS ordered
+                       FROM pr_requests WHERE organization_id = $1`, [org]),
+      this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'published' AND closes_at > now())::int AS open, COUNT(*) FILTER (WHERE status = 'published' AND closes_at <= now())::int AS "toOpen",
+                            COUNT(*) FILTER (WHERE status IN ('opened', 'recommended'))::int AS evaluating FROM pr_rfqs WHERE organization_id = $1`, [org]),
+      this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'pending')::int AS pending,
+                            COUNT(*) FILTER (WHERE status IN ('issued', 'acknowledged', 'accepted', 'clarification'))::int AS live,
+                            COALESCE(SUM(total) FILTER (WHERE status IN ('issued', 'acknowledged', 'accepted', 'clarification')), 0)::float AS "liveTotal",
+                            COUNT(*) FILTER (WHERE status IN ('issued', 'acknowledged', 'accepted') AND delivery_date < CURRENT_DATE)::int AS late
+                       FROM pr_orders WHERE organization_id = $1`, [org]),
+    ]);
     return {
+      sourcing: { requests: req, rfqs: rfq, orders: ord },
       items, warehouses: wh, suppliers: Object.fromEntries(sup.map((r: { status: string; n: number }) => [r.status, r.n])),
       expiring, approvals: { suppliers: approvals.suppliers.length, docs: approvals.docs.length, banks: approvals.banks.length },
       groups, activities, portalUrl: await this.suppliers.portalUrl(org),

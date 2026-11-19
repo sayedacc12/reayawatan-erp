@@ -46,3 +46,23 @@ export const DEFAULT_ITEM_GROUPS: { code: string; name: string; kind: 'stock' | 
   { code: 'FA', name: 'أصناف تُسجل أصولًا ثابتة', kind: 'asset' },
   { code: 'SRV', name: 'الخدمات', kind: 'service' },
 ];
+
+/** مصفوفة اعتماد التعميدات المقترحة: كل تعميد يعتمده المستوى الأول، وما بلغ 50 ألفًا يعتمده المستوى الأعلى أيضًا */
+export const DEFAULT_APPROVAL_LEVELS = [
+  { name: 'مدير المشتريات أو المدير المالي', minAmount: 0, permission: 'procurement.orders.approve' },
+  { name: 'المدير التنفيذي', minAmount: 50000, permission: 'procurement.orders.approve_high' },
+];
+
+/** معايير تقييم العروض المقترحة (مجموع الأوزان 100) */
+export const DEFAULT_EVAL_CRITERIA: { key: string; name: string; weight: number; kind: 'price' | 'technical' }[] = [
+  { key: 'price', name: 'السعر', weight: 60, kind: 'price' },
+  { key: 'quality', name: 'المطابقة للمواصفات والجودة', weight: 25, kind: 'technical' },
+  { key: 'delivery', name: 'مدة التوريد أو التنفيذ', weight: 15, kind: 'technical' },
+];
+
+export const DEFAULT_ORDER_TERMS = [
+  'يلتزم المورد بتوريد الأصناف أو تنفيذ الخدمات وفق المواصفات والكميات والأسعار الواردة في هذا التعميد.',
+  'لا تُقبل الفاتورة إلا بعد الاستلام والفحص، ويُذكر فيها رقم التعميد.',
+  'للجمعية رفض ما يخالف المواصفات، وعلى المورد استبداله على نفقته.',
+  'أي تعديل على التعميد لا يُعتد به إلا إذا صدر كتابيًا عبر بوابة الموردين.',
+].join('\n');

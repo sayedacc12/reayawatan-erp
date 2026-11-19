@@ -95,6 +95,20 @@ export class PrSettings {
   @Column({ name: 'partner_category_id', type: 'uuid', nullable: true }) partnerCategoryId!: string | null;
   /** حساب الدائنين الافتراضي للموردين في الدليل */
   @Column({ name: 'payables_account_id', type: 'uuid', nullable: true }) payablesAccountId!: string | null;
+  /** حدود أسلوب الشراء بالقيمة التقديرية: حتى direct شراء مباشر، وحتى quotes طلب عروض أسعار، وما فوقه منافسة عامة */
+  @Column({ name: 'method_limits', type: 'jsonb', default: () => `'{"direct": 10000, "quotes": 100000}'` }) methodLimits!: { direct: number; quotes: number };
+  /** أقل عدد من الموردين المدعوين في طلب عروض الأسعار */
+  @Column({ name: 'min_quotes', type: 'int', default: 3 }) minQuotes!: number;
+  /** مصفوفة اعتماد التعميدات بالقيمة */
+  @Column({ name: 'approval_levels', type: 'jsonb', default: () => `'[]'` }) approvalLevels!: { name: string; minAmount: number; permission: string }[];
+  /** معايير تقييم العروض الافتراضية وأوزانها */
+  @Column({ name: 'eval_criteria', type: 'jsonb', default: () => `'[]'` }) evalCriteria!: { key: string; name: string; weight: number; kind: 'price' | 'technical' }[];
+  /** الحد الأدنى الافتراضي للدرجة الفنية */
+  @Column({ name: 'technical_pass', type: 'int', default: 60 }) technicalPass!: number;
+  /** الشروط العامة التي تُطبع في التعميد */
+  @Column({ name: 'order_terms', type: 'text', nullable: true }) orderTerms!: string | null;
+  /** إظهار اسم المورد الفائز لباقي المتنافسين في البوابة */
+  @Column({ name: 'disclose_winner', default: false }) discloseWinner!: boolean;
 }
 
 // ---------------- الأصناف ----------------
