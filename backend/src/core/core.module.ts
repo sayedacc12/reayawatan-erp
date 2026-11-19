@@ -12,6 +12,9 @@ import { CORE_ENTITIES } from './entities';
 import { FileStore } from './files/file-store.service';
 import { IdentityController, PublicIdentityController } from './identity/identity.controller';
 import { IdentityService } from './identity/identity.service';
+import { OrganizationClosure } from './lifecycle/closure.entity';
+import { OrgLifecycleController, PlatformLifecycleController } from './lifecycle/lifecycle.controller';
+import { LifecycleService } from './lifecycle/lifecycle.service';
 import { LookupsController } from './lookups/lookups.controller';
 import { LookupsService } from './lookups/lookups.service';
 import { ApplicationsService } from './subscriptions/applications.service';
@@ -44,7 +47,7 @@ import { UsersService } from './users/users.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry]),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, OrganizationClosure]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -56,11 +59,11 @@ import { UsersService } from './users/users.service';
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
     SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
-    PublicSiteController, PlatformSiteController,
+    PublicSiteController, PlatformSiteController, OrgLifecycleController, PlatformLifecycleController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, LifecycleService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],

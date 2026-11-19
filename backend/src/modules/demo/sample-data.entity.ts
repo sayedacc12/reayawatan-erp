@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { Organization } from '../../core/entities';
-import type { Snapshot } from './org-data';
+import type { Snapshot } from '../../core/lifecycle/org-data';
 
 export type SampleDataStatus = 'loading' | 'loaded' | 'cleared';
 export interface SampleDataEvent { at: string; by: string; action: 'loaded' | 'failed' | 'cleared'; note?: string; counts?: Record<string, number> }

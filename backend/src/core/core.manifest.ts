@@ -58,6 +58,7 @@ export const platformManifest: ErpModuleManifest = {
   ],
   menu: [
     { label: 'الجمعيات', path: '/platform/organizations', permission: PLATFORM_PERMISSIONS.organizationsManage },
+    { label: 'مواعيد الحذف', path: '/platform/lifecycle', permission: PLATFORM_PERMISSIONS.organizationsManage },
     { label: 'طلبات الاشتراك', path: '/platform/applications', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'العقود', path: '/platform/contracts', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'بنود العقد', path: '/platform/contract-clauses', permission: PLATFORM_PERMISSIONS.subscriptionsManage },

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import SampleDataBanner from '../components/SampleDataBanner.vue';
 import SideNav from '../components/SideNav.vue';
+import TrialNoticeBanner from '../components/TrialNoticeBanner.vue';
 import TasksBell from '../components/TasksBell.vue';
 import { ess, loadSummary, resetEss } from '../modules/hr/self/ess';
 import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
@@ -110,6 +111,7 @@ function logout() {
         </nav>
       </Transition>
       <main class="content">
+        <TrialNoticeBanner v-if="isOrgUser" />
         <SampleDataBanner v-if="isOrgUser" />
         <RouterView v-slot="{ Component, route: r }">
           <Transition name="page" mode="out-in">

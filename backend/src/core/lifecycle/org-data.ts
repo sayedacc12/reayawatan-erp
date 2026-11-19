@@ -7,7 +7,7 @@ import { EntityManager } from 'typeorm';
  */
 
 /** جداول لا تُمس أبدًا: اشتراك الجمعية وعقودها ووحداتها وتذاكر الدعم الفني مع المنصة */
-export const PROTECTED_TABLES = new Set(['organization_sample_data', 'organization_modules', 'subscription_applications', 'subscription_contracts', 'support_tickets']);
+export const PROTECTED_TABLES = new Set(['organization_sample_data', 'organization_closures', 'organization_modules', 'subscription_applications', 'subscription_contracts', 'support_tickets']);
 
 /** جداول يُحذف منها التجريبي فقط ويبقى ما أنشأته الجمعية بنفسها (حسابات الموظفين وأدوارهم) */
 export const PEOPLE_TABLES = new Set(['users', 'roles']);
@@ -140,4 +140,55 @@ export function bySystem(m: Record<string, string[] | number>) {
     if (n) out[systemOf(t)] = (out[systemOf(t)] ?? 0) + n;
   }
   return Object.entries(out).map(([system, count]) => ({ system, count })).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * حذف الجمعية نهائيًا بكل بياناتها من كل الجداول (بما فيها اشتراكها وعقودها وتذاكر دعمها)، ثم صف الجمعية.
+ * يعيد عدد السجلات المحذوفة. داخل معاملة واحدة: إما يُحذف كل شيء أو لا شيء.
+ */
+export async function deleteOrganization(em: EntityManager, orgId: string): Promise<number> {
+  let tables: string[] = (await em.query(
+    `SELECT c.table_name FROM information_schema.columns c
+       JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+      WHERE c.table_schema = 'public' AND c.column_name = 'organization_id' AND c.table_name <> 'organization_closures'
+      ORDER BY c.table_name`,
+  )).map((r: { table_name: string }) => r.table_name);
+  let total = 0;
+  while (tables.length) {
+    const failed: string[] = [];
+    for (const t of tables) {
+      await em.query('SAVEPOINT org_delete');
+      try {
+        const res = await em.query(`DELETE FROM ${q(t)} WHERE organization_id = $1`, [orgId]);
+        total += Array.isArray(res) ? Number(res[1] ?? 0) : 0;
+        await em.query('RELEASE SAVEPOINT org_delete');
+      } catch {
+        await em.query('ROLLBACK TO SAVEPOINT org_delete');
+        failed.push(t);
+      }
+    }
+    if (failed.length === tables.length) throw new ConflictException(`تعذر حذف بيانات الجمعية من: ${failed.join('، ')}. لم يُحذف شيء.`);
+    tables = failed;
+  }
+  await em.query('DELETE FROM organizations WHERE id = $1', [orgId]);
+  return total;
+}
+
+/** تصدير كل بيانات الجمعية (عدا كلمات المرور والرموز السرية) لتسليمها قبل الحذف */
+export async function exportOrganization(em: EntityManager, orgId: string): Promise<Record<string, unknown[]>> {
+  const SECRET = /password|token|secret|hash/i;
+  const tables: { table_name: string }[] = await em.query(
+    `SELECT c.table_name FROM information_schema.columns c
+       JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+      WHERE c.table_schema = 'public' AND c.column_name = 'organization_id' AND c.table_name NOT IN ('organization_closures', 'organization_sample_data')
+      ORDER BY c.table_name`);
+  const out: Record<string, unknown[]> = {};
+  const [org] = await em.query('SELECT * FROM organizations WHERE id = $1', [orgId]);
+  out.organizations = org ? [org] : [];
+  for (const { table_name: t } of tables) {
+    const rows: Record<string, unknown>[] = await em.query(`SELECT * FROM ${q(t)} WHERE organization_id = $1`, [orgId]);
+    if (!rows.length) continue;
+    out[t] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !SECRET.test(k))));
+  }
+  return out;
 }

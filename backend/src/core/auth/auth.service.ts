@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Organization, User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { accessProblem } from '../organizations/org-access';
+import { deletionNotice, loginDeletionText } from '../lifecycle/lifecycle-rules';
 import { AuthUser } from './decorators';
 import { PermissionResolver } from './permission-resolver.service';
 
@@ -49,7 +50,11 @@ export class AuthService {
     }
     // الجمعية الموقوفة أو المنتهي اشتراكها: رسالة توضح السبب
     const problem = org ? accessProblem(org) : null;
-    if (problem) throw new UnauthorizedException(problem);
+    if (problem) {
+      // إن كان للجمعية موعد حذف (انتهاء التجربة أو إنهاء بالتراضي) توضح الرسالة موعده
+      const notice = await deletionNotice(this.users.manager, org!);
+      throw new UnauthorizedException(notice && notice.reason !== 'trial' ? loginDeletionText(notice) : problem);
+    }
     // يتحقق من أن الحساب والجمعية نشطان
     if (!(await this.resolver.resolve(user.id))) {
       throw new UnauthorizedException('الحساب أو الجمعية موقوف، تواصل مع الإدارة');

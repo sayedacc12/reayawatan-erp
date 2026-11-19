@@ -4,6 +4,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { AuthUser } from '../../core/auth/decorators';
 import { Organization } from '../../core/entities';
 import { FileStore } from '../../core/files/file-store.service';
+import { deleteOrganization } from '../../core/lifecycle/org-data';
 import { DEMO_EMAIL, DEMO_SLUG, SeedTarget } from './demo-context';
 import { AccountingSeed } from './seed-accounting';
 import { AssetsSeed } from './seed-assets';
@@ -133,29 +134,7 @@ export class DemoService {
     await Promise.all(keys.map((k) => this.files.remove(k).catch(() => undefined)));
   }
 
-  /**
-   * حذف كل بيانات الجمعية من كل الجداول. بعض العلاقات بين الجداول تمنع الحذف المنفرد عمدًا
-   * (مثل حذف مستفيد له طلبات)، فيُحذف كل جدول بعد الجداول المعتمدة عليه، بالمحاولة المتكررة.
-   */
   private async purge(em: EntityManager, orgId: string) {
-    let tables: string[] = (await em.query(
-      `SELECT table_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'organization_id' ORDER BY table_name`,
-    )).map((r: { table_name: string }) => r.table_name);
-    while (tables.length) {
-      const failed: string[] = [];
-      for (const t of tables) {
-        await em.query('SAVEPOINT demo_purge');
-        try {
-          await em.query(`DELETE FROM "${t}" WHERE organization_id = $1`, [orgId]);
-          await em.query('RELEASE SAVEPOINT demo_purge');
-        } catch {
-          await em.query('ROLLBACK TO SAVEPOINT demo_purge');
-          failed.push(t);
-        }
-      }
-      if (failed.length === tables.length) throw new ConflictException(`تعذر حذف بيانات الجمعية التجريبية من: ${failed.join('، ')}`);
-      tables = failed;
-    }
-    await em.query('DELETE FROM organizations WHERE id = $1', [orgId]);
+    await deleteOrganization(em, orgId);
   }
 }

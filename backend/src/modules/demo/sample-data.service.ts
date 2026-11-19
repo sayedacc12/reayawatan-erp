@@ -5,7 +5,7 @@ import { AuthUser } from '../../core/auth/decorators';
 import { Organization, User } from '../../core/entities';
 import { DEMO_SLUG, SAMPLE_EMAIL } from './demo-context';
 import { DemoService } from './demo.service';
-import { PEOPLE_TABLES, Snapshot, bySystem, countOf, diff, orgTables, purgeExcept, snapshot } from './org-data';
+import { PEOPLE_TABLES, Snapshot, bySystem, countOf, diff, orgTables, purgeExcept, snapshot } from '../../core/lifecycle/org-data';
 import { OrganizationSampleData, SampleDataEvent } from './sample-data.entity';
 
 /** إذا بقيت الإضافة «جارية» أكثر من هذا (توقف الخادم مثلًا) تُعامل كمتوقفة */
