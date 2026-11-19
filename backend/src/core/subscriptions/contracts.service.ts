@@ -190,7 +190,24 @@ export class ContractsService implements OnApplicationBootstrap {
       changeRequest: c.changeRequest, signerTitle: c.signerTitle, signerIp: c.signerIp, history: c.history,
       // رابط التوقيع يظهر لمدير المنصة فقط ليرسله للجمعية
       signPath: c.status === 'draft' ? null : `/contract/${c.token}`,
+      recipients: await this.recipients(c),
     };
+  }
+
+  /** جهات التواصل في الجمعية التي يُرسَل لها رابط العقد (من طلب الاشتراك) — لا يوجد إشعار تلقائي */
+  private async recipients(c: SubscriptionContract) {
+    const repo = this.db.getRepository(SubscriptionApplication);
+    const app = (c.applicationId ? await repo.findOne({ where: { id: c.applicationId } }) : null)
+      ?? await repo.findOne({ where: { organizationId: c.organizationId }, order: { createdAt: 'DESC' } });
+    if (!app) return [];
+    const list = [
+      { role: 'المدير التنفيذي', name: app.executiveDirector?.name, phone: app.executiveDirector?.phone, email: app.executiveDirector?.email },
+      { role: app.boardMember?.position || 'عضو مجلس الإدارة', name: app.boardMember?.name, phone: app.boardMember?.phone, email: app.boardMember?.email },
+      { role: 'الجمعية', name: app.orgName, phone: app.orgPhone, email: app.orgEmail },
+    ];
+    return list
+      .filter((r) => r.phone || r.email)
+      .map((r) => ({ role: r.role, name: r.name ?? '', phone: r.phone || null, email: r.email || null }));
   }
 
   /** كل أعمدة العقد مع الرمز السري (select: false افتراضيًا) */
