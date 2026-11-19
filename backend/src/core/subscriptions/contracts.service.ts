@@ -4,6 +4,8 @@ import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthUser } from '../auth/decorators';
 import { normalizeLicense } from '../contact-validation';
 import { Organization } from '../entities';
+import { MailService } from '../mail/mail.service';
+import { publicOrigin, templates } from '../mail/mail-templates';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { addMonths, todayRiyadh } from '../organizations/org-access';
 import { CONTRACT_VARIABLES, DEFAULT_CLAUSES, DEFAULT_PROVIDER, ProviderInfo } from './contract-defaults';
@@ -35,7 +37,7 @@ export async function nextNumber(em: EntityManager, table: string, prefix: strin
 export class ContractsService implements OnApplicationBootstrap {
   private readonly logger = new Logger('Contracts');
 
-  constructor(private readonly db: DataSource, private readonly catalog: ModuleCatalogService) {}
+  constructor(private readonly db: DataSource, private readonly catalog: ModuleCatalogService, private readonly mail: MailService) {}
 
   /** أول تشغيل: مكتبة البنود فارغة، فننشئ المسودة المقترحة */
   async onApplicationBootstrap() {
@@ -195,7 +197,7 @@ export class ContractsService implements OnApplicationBootstrap {
     };
   }
 
-  /** جهات التواصل في الجمعية التي يُرسَل لها رابط العقد (من طلب الاشتراك) — لا يوجد إشعار تلقائي */
+  /** جهات التواصل في الجمعية التي يُرسَل لها رابط العقد (من طلب الاشتراك) */
   private async recipients(c: SubscriptionContract) {
     const repo = this.db.getRepository(SubscriptionApplication);
     const app = (c.applicationId ? await repo.findOne({ where: { id: c.applicationId } }) : null)
@@ -282,8 +284,8 @@ export class ContractsService implements OnApplicationBootstrap {
     });
   }
 
-  /** إرسال العقد للجمعية: يُثبَّت النص النهائي وبصمته ويظهر رابط التوقيع */
-  async send(id: string, actor: AuthUser, origin: string) {
+  /** إرسال العقد للجمعية: يُثبَّت النص النهائي وبصمته ويظهر رابط التوقيع، ويُرسل الرابط بالبريد لجهات التواصل */
+  async send(id: string, actor: AuthUser, origin: string, email = true) {
     await this.db.transaction(async (em) => {
       const c = await em.findOne(SubscriptionContract, { where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!c) throw new NotFoundException('العقد غير موجود');
@@ -300,7 +302,26 @@ export class ContractsService implements OnApplicationBootstrap {
       c.history = [...c.history, event('sent', actor.fullName)];
       await em.save(c);
     });
-    return this.get(id);
+    const emailed = email ? await this.emailLink(id, actor, origin) : [];
+    return { ...(await this.get(id)), emailed };
+  }
+
+  /** يرسل رابط توقيع العقد بالبريد لكل جهة تواصل لها بريد (المدير التنفيذي وعضو المجلس وبريد الجمعية) */
+  async emailLink(id: string, actor: AuthUser, origin: string) {
+    const c = await this.db.getRepository(SubscriptionContract).findOne({ where: { id }, relations: { organization: true }, select: this.withToken() });
+    if (!c) throw new NotFoundException('العقد غير موجود');
+    if (c.status !== 'sent') throw new BadRequestException('يُرسل الرابط بعد إرسال العقد وقبل توقيعه');
+    const recipients = (await this.recipients(c)).filter((r) => r.email);
+    const sent: string[] = [];
+    for (const r of recipients) {
+      const t = templates.contractLink({ orgName: c.organization?.name ?? '', number: c.number, name: r.name, path: `/contract/${c.token}`, origin: publicOrigin() ?? origin });
+      sent.push(...await this.mail.queue({ to: [r.email], kind: 'contract_link', event: 'contracts', organizationId: c.organizationId, sensitive: true, createdBy: actor.fullName, ...t }));
+    }
+    if (sent.length) {
+      await this.db.query(`UPDATE subscription_contracts SET history = history || $2::jsonb WHERE id = $1`,
+        [id, JSON.stringify([event('emailed', actor.fullName, sent.join('، '))])]);
+    }
+    return sent;
   }
 
   /** سحب العقد المرسل قبل توقيعه وإعادته مسودة */

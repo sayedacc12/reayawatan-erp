@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
 import { DataSource, Repository } from 'typeorm';
 import { Organization, OrganizationModule, User } from '../entities';
+import { MailService } from '../mail/mail.service';
+import { publicOrigin, templates } from '../mail/mail-templates';
 import { PasswordResetService } from '../auth/password-reset.service';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { SubscriptionDto } from '../subscriptions/subscriptions.dto';
@@ -17,6 +19,7 @@ export class OrganizationsService {
     @InjectRepository(Organization) private readonly orgs: Repository<Organization>,
     private readonly catalog: ModuleCatalogService,
     private readonly resets: PasswordResetService,
+    private readonly mail: MailService,
   ) {}
 
   /** الوحدات الاختيارية المتاحة للتفعيل (مثل الموقع ومنصة التبرعات مستقبلًا) */
@@ -131,14 +134,21 @@ export class OrganizationsService {
   }
 
   /**
-   * كلمة مرور مؤقتة جديدة لمدير نظام الجمعية، تظهر لمدير المنصة مرة واحدة ليرسلها للجمعية.
+   * كلمة مرور مؤقتة جديدة لمدير نظام الجمعية، تظهر لمدير المنصة مرة واحدة ليرسلها للجمعية، وتُرسل لبريده إن طُلب.
    * صالحة 24 ساعة ويغيّرها المدير عند أول دخول، وتغلق طلب «نسيت كلمة المرور» إن وُجد.
    */
-  async resetAdminPassword(organizationId: string, userId: string, issuedBy: string) {
+  async resetAdminPassword(organizationId: string, userId: string, issuedBy: string, opts: { sendEmail?: boolean; origin?: string } = {}) {
     const user = await this.db.getRepository(User).findOne({ where: { id: userId, organizationId, isSuperadmin: true } });
     if (!user) throw new NotFoundException('حساب مدير النظام غير موجود في هذه الجمعية');
     const { password, login, expiresAt } = await this.resets.issueForUser(user.id, issuedBy);
-    return { password, login, expiresAt };
+    let emailedTo: string | null = null;
+    if (opts.sendEmail && user.email) {
+      const org = await this.orgs.findOneOrFail({ where: { id: organizationId } });
+      const t = templates.tempPassword({ orgName: org.name, name: user.fullName, login, password, path: `/o/${org.slug}`, origin: publicOrigin() ?? opts.origin });
+      const [to] = await this.mail.queue({ to: user.email, kind: 'temp_password', event: 'accounts', organizationId, sensitive: true, createdBy: issuedBy, ...t });
+      emailedTo = to ?? null;
+    }
+    return { password, login, expiresAt, emailedTo };
   }
 
   async get(id: string) {

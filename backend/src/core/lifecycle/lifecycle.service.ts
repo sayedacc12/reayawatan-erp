@@ -3,9 +3,11 @@ import { DataSource } from 'typeorm';
 import { AuthUser } from '../auth/decorators';
 import { Organization } from '../entities';
 import { addDays, todayRiyadh } from '../organizations/org-access';
+import { MailService } from '../mail/mail.service';
+import { templates } from '../mail/mail-templates';
 import { PlatformSetting } from '../subscriptions/entities';
 import { ClosureEvent, OrganizationClosure } from './closure.entity';
-import { DEFAULT_LIFECYCLE, LifecycleSettings, deletionNotice, lifecycleSettings } from './lifecycle-rules';
+import { DEFAULT_LIFECYCLE, DeletionNotice, LifecycleSettings, deletionNotice, lifecycleSettings } from './lifecycle-rules';
 import { deleteOrganization, exportOrganization } from './org-data';
 
 /** فحص الحذف المجدول كل ساعة (يتوقف في الاختبارات) */
@@ -24,7 +26,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
   private readonly logger = new Logger('Lifecycle');
   private timer: NodeJS.Timeout | null = null;
 
-  constructor(private readonly db: DataSource) {}
+  constructor(private readonly db: DataSource, private readonly mail: MailService) {}
 
   onApplicationBootstrap() {
     if (process.env.JEST_WORKER_ID || process.env.LIFECYCLE_SWEEP === 'off') return;
@@ -78,6 +80,13 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
    * المهلة 0 تعني الحذف في أول فحص (خلال ساعة) أو بزر «احذف الآن».
    */
   async terminate(orgId: string, dto: { agreementDate: string; charityRep: string; note?: string; graceDays: number; confirm: string }, actor: AuthUser) {
+    const closure = await this.scheduleTermination(orgId, dto, actor);
+    const org = await this.org(orgId);
+    await this.remindOrg(org).catch((e) => this.logger.error(`Termination mail failed: ${(e as Error).message}`));
+    return closure;
+  }
+
+  private async scheduleTermination(orgId: string, dto: { agreementDate: string; charityRep: string; note?: string; graceDays: number; confirm: string }, actor: AuthUser) {
     const org = await this.org(orgId);
     this.assertConfirm(org, dto.confirm);
     if (org.slug === 'demo') throw new BadRequestException('الجمعية التجريبية العامة تُحذف من شاشة الجمعيات');
@@ -160,10 +169,51 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
     return { deleted, organization: { name: org.name, slug: org.slug } };
   }
 
-  /** الفحص الدوري: يحذف كل جمعية حلّ يوم حذفها */
+  /** بريد الجمعية للتذكيرات: حسابات مدير النظام، والمدير التنفيذي وبريد الجمعية من طلب الاشتراك */
+  private async orgEmails(orgId: string): Promise<string[]> {
+    const rows: { email: string | null }[] = await this.db.query(
+      `SELECT email FROM users WHERE organization_id = $1 AND is_superadmin AND is_active
+       UNION SELECT * FROM (SELECT executive_director->>'email' FROM subscription_applications WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 1) d
+       UNION SELECT * FROM (SELECT org_email FROM subscription_applications WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 1) o`, [orgId]);
+    return rows.map((r) => r.email).filter((e): e is string => !!e);
+  }
+
+  /**
+   * التذكير بالبريد قبل حذف الجمعية (مرة واحدة لكل مرحلة وموعد):
+   * قرب نهاية التجربة (3 أيام)، وبعد انتهائها، وعند الإنهاء بالتراضي، وتنبيه أخير قبل الحذف بيوم.
+   */
+  async remindOrg(org: Organization, today = todayRiyadh(), known?: DeletionNotice | null) {
+    const n = known === undefined ? await deletionNotice(this.db, org, today) : known;
+    if (!n) return [];
+    const stages: ('trial_ending' | 'trial_expired' | 'mutual' | 'final')[] = [];
+    if (n.reason === 'trial' && n.daysToTrialEnd !== null && n.daysToTrialEnd <= 3) stages.push('trial_ending');
+    if (n.reason === 'trial_expired' && n.daysToDelete > 1) stages.push('trial_expired');
+    if (n.reason === 'mutual') stages.push('mutual');
+    if (n.reason !== 'trial' && n.daysToDelete === 1) stages.push('final');
+    if (!stages.length) return [];
+    const to = await this.orgEmails(org.id);
+    const sent: string[] = [];
+    for (const stage of stages) {
+      const t = templates.lifecycle({ orgName: org.name, stage, endsOn: n.trialEndsOn, deleteOn: n.deleteOn, days: n.daysToDelete, slug: org.slug });
+      sent.push(...await this.mail.queue({
+        to, kind: `lifecycle_${stage}`, event: 'lifecycle', organizationId: org.id, createdBy: 'التذكير التلقائي',
+        dedupeKey: `lifecycle:${org.id}:${stage}:${stage === 'trial_ending' ? n.trialEndsOn : n.deleteOn}`, ...t,
+      }));
+    }
+    return sent;
+  }
+
+  /** الفحص الدوري: يرسل التذكيرات ثم يحذف كل جمعية حلّ يوم حذفها */
   async sweep(today = todayRiyadh()) {
     const orgs = await this.db.getRepository(Organization).find();
     const done: string[] = [];
+    for (const org of orgs) {
+      try {
+        await this.remindOrg(org, today);
+      } catch (e) {
+        this.logger.error(`Could not remind ${org.slug}: ${(e as Error).message}`);
+      }
+    }
     for (const org of orgs) {
       const n = await deletionNotice(this.db, org, today);
       if (!n || n.reason === 'trial' || n.deleteOn > today) continue;

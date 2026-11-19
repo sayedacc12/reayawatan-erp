@@ -145,8 +145,9 @@ async function action(path: string, ok: string, json?: unknown) {
   if (dirty.value && !(await save(true))) return;
   busy.value = true;
   try {
-    apply(await api<Contract>(`/platform/contracts/${id}/${path}`, { method: 'POST', json }));
-    toast.success(ok);
+    const res = await api<Contract & { emailed?: string[] }>(`/platform/contracts/${id}/${path}`, { method: 'POST', json });
+    apply(res);
+    toast.success(res.emailed?.length ? `${ok}. وأُرسل الرابط بالبريد إلى: ${res.emailed.join('، ')}` : ok);
     if (!editable.value) await openTab('preview');
   } catch (e) {
     toast.error((e as Error).message);
@@ -154,8 +155,21 @@ async function action(path: string, ok: string, json?: unknown) {
     busy.value = false;
   }
 }
-const send = () => confirm('اعتماد النص النهائي للعقد وتجهيز رابط التوقيع؟ لا يمكن تعديله بعدها إلا بسحبه.\n\nتنبيه: لا تصل للجمعية رسالة تلقائية، فبعد الاعتماد أرسل لها الرابط عبر واتساب أو البريد من الأزرار التي ستظهر.')
-  && action('send', 'رابط التوقيع جاهز. أرسله الآن للجمعية من الأزرار أعلى الصفحة');
+const send = () => confirm('اعتماد النص النهائي للعقد وتجهيز رابط التوقيع؟ لا يمكن تعديله بعدها إلا بسحبه.\n\nسيُرسل الرابط تلقائيًا بالبريد لجهات التواصل في الجمعية التي لها بريد، ويمكنك إرساله أيضًا عبر واتساب من الأزرار التي ستظهر.')
+  && action('send', 'رابط التوقيع جاهز');
+async function emailAgain() {
+  busy.value = true;
+  try {
+    const r = await api<{ emailed: string[] }>(`/platform/contracts/${id}/email`, { method: 'POST' });
+    if (r.emailed.length) toast.success(`أُرسل الرابط بالبريد إلى: ${r.emailed.join('، ')}`);
+    else toast.error('لم يُرسل البريد. تأكد من ضبط البريد في «البريد الإلكتروني» بإدارة المنصة، ومن وجود بريد لجهات التواصل');
+    apply(await api<Contract>(`/platform/contracts/${id}`));
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    busy.value = false;
+  }
+}
 const withdraw = () => action('withdraw', 'تم سحب العقد وإعادته مسودة');
 function cancel() {
   const note = prompt('سبب إلغاء العقد:');
@@ -213,7 +227,7 @@ const ORD = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'ال
         <div>
           <b>{{ c.status === 'signed' ? 'تم التوقيع إلكترونيًا' : 'رابط مراجعة العقد وتوقيعه للجمعية' }}</b>
           <p v-if="c.status === 'signed'" class="muted">{{ c.signerName }} ({{ c.signerTitle }}) · {{ fmtDateTime(c.signedAt) }}</p>
-          <p v-else class="muted">لا تصل للجمعية رسالة تلقائية. أرسل لها الرابط بنفسك من الأزرار هنا، ويظهر لها كذلك في صفحة متابعة طلب الاشتراك إن احتفظت برابطها.</p>
+          <p v-else class="muted">يُرسل الرابط بالبريد تلقائيًا عند الاعتماد لجهات التواصل التي لها بريد. يمكنك إعادة إرساله بالبريد أو إرساله عبر واتساب من هنا، ويظهر للجمعية كذلك في صفحة متابعة طلب الاشتراك.</p>
         </div>
         <div class="p-link-box"><code>{{ signLink }}</code><button class="btn btn-sm" @click="copyLink">نسخ</button></div>
         <div v-if="c.status !== 'signed'" class="send-to">
@@ -222,11 +236,14 @@ const ORD = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'ال
             <span><small class="muted">{{ r.role }}</small> {{ r.name }}</span>
             <span class="send-btns">
               <a v-if="r.phone" class="btn btn-sm btn-wa" :href="waHref(r)" target="_blank" rel="noopener">واتساب <span dir="ltr">{{ r.phone }}</span></a>
-              <a v-if="r.email" class="btn btn-sm" :href="mailHref(r)">بريد إلكتروني</a>
+              <a v-if="r.email" class="btn btn-sm" :href="mailHref(r)" title="فتح برنامج البريد على جهازك"><span dir="ltr">{{ r.email }}</span></a>
             </span>
           </div>
           <p v-if="!c.recipients.length" class="muted">لا توجد بيانات تواصل محفوظة لهذه الجمعية، فانسخ الرسالة وأرسلها بالطريقة المناسبة.</p>
-          <button class="btn btn-sm" @click="copyMessage">نسخ رسالة جاهزة مع الرابط</button>
+          <div class="send-btns">
+            <button v-if="c.status === 'sent' && c.recipients.some((r) => r.email)" class="btn btn-sm btn-primary" :disabled="busy" @click="emailAgain">إعادة إرسال الرابط بالبريد من سنابل</button>
+            <button class="btn btn-sm" @click="copyMessage">نسخ رسالة جاهزة مع الرابط</button>
+          </div>
         </div>
       </div>
 

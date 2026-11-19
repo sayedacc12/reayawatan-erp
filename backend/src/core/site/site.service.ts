@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthUser } from '../auth/decorators';
 import { PlatformSetting } from '../subscriptions/entities';
+import { MailService } from '../mail/mail.service';
+import { templates } from '../mail/mail-templates';
 import { InquiryDto, InquiryUpdateDto, SiteContactDto } from './site.dto';
 import { INQUIRY_STATUSES, InquiryStatus, SITE_SERVICES, SiteInquiry } from './site.entity';
 
@@ -23,11 +25,15 @@ const DEFAULT_CONTACT: SiteContact = {
   address: 'المملكة العربية السعودية',
 };
 const CONTACT_KEY = 'site_contact';
+const KIND_LABELS: Record<string, string> = { consultation: 'استشارة مجانية', quote: 'طلب عرض سعر', demo: 'عرض تجريبي لمنصة سنابل' };
 
 /** الصفحة التعريفية للمنصة: بيانات التواصل وطلبات الخدمات الواردة */
 @Injectable()
 export class SiteService {
+  private readonly logger = new Logger('Site');
+
   constructor(
+    private readonly mail: MailService,
     @InjectRepository(SiteInquiry) private readonly inquiries: Repository<SiteInquiry>,
     @InjectRepository(PlatformSetting) private readonly settings: Repository<PlatformSetting>,
   ) {}
@@ -65,7 +71,21 @@ export class SiteService {
       status: 'new',
       log: [],
     }));
+    await this.notify(row).catch((e) => this.logger.error(`Inquiry mail failed: ${(e as Error).message}`));
     return { number: row.number };
+  }
+
+  /** إشعار الإدارة بالطلب الجديد، وتأكيد الاستلام لمقدمه إن كتب بريده */
+  private async notify(row: SiteInquiry) {
+    const kindLabel = KIND_LABELS[row.kind] ?? row.kind;
+    const serviceLabel = SITE_SERVICES.find((x) => x.code === row.serviceCode)?.name ?? null;
+    await this.mail.queue({
+      to: await this.mail.adminRecipients(), kind: 'inquiry_admin', event: 'inquiries',
+      ...templates.inquiryAdmin({ ...row, kindLabel, serviceLabel }),
+    });
+    if (row.email) {
+      await this.mail.queue({ to: row.email, kind: 'inquiry_ack', event: 'inquiryAck', ...templates.inquiryAck({ number: row.number, contactName: row.contactName, kindLabel }) });
+    }
   }
 
   async list(status?: string) {

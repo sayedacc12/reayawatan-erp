@@ -26,7 +26,7 @@ export interface ContractTerms {
 }
 
 export interface ContractEvent {
-  step: 'created' | 'edited' | 'sent' | 'withdrawn' | 'changes_requested' | 'signed' | 'cancelled';
+  step: 'created' | 'edited' | 'sent' | 'emailed' | 'withdrawn' | 'changes_requested' | 'signed' | 'cancelled';
   by: string;
   at: string;
   note?: string;
