@@ -172,7 +172,7 @@ export class SupplierPortalService {
     const t = prToday();
     return {
       organization: { name: o.name, slug: o.slug },
-      user: { id: p.userId, fullName: p.fullName, email: p.email, role: p.role, roleLabel: PORTAL_ROLES[p.role] },
+      user: { id: p.userId, fullName: p.fullName, email: p.email, role: p.role, roleLabel: PORTAL_ROLES[p.role], mustChangePassword: p.mustChangePassword },
       supplier: {
         id: sup.id, code: supplierCode(sup.supplierNo), name: sup.name, nameEn: sup.nameEn, entityType: sup.entityType, entityTypeLabel: ENTITY_TYPES[sup.entityType],
         supplierKind: sup.supplierKind, kindLabel: SUPPLIER_KINDS[sup.supplierKind], categoryIds: sup.categoryIds,

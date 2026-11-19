@@ -13,7 +13,7 @@ describe('Demo association across all modules', () => {
   let app: NestExpressApplication;
   let http: ReturnType<typeof request>;
   let platform: string;
-  let demo: { staffPassword: string; portalPassword: string; portalUsers: { nationalId: string }[]; staff: { email: string }[]; supportTeam: { email: string }[] };
+  let demo: { staffPassword: string; portalPassword: string; portalUsers: { nationalId: string }[]; staff: { email: string }[]; supportTeam: { email: string }[]; supplierPortal: { url: string; users: { email: string; status: string }[] } };
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
   const login = async (login: string, password: string, organization?: string) =>
     (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
@@ -264,6 +264,27 @@ describe('Demo association across all modules', () => {
     const st = (await http.get('/api/quality/standard').set(as(q)).expect(200)).body;
     const gaps = st.sections.flatMap((s: { clauses: { code: string; status: string }[] }) => s.clauses).filter((c: { status: string }) => c.status === 'gap');
     expect(gaps.map((c: { code: string }) => c.code)).toEqual([]);
+  });
+
+  it('procurement: items with accounts, warehouses with locations, and suppliers in every state with portal logins', async () => {
+    const admin = await staff('admin');
+    const d = (await http.get('/api/procurement/dashboard').set(as(admin)).expect(200)).body;
+    expect(d.items.active).toBeGreaterThanOrEqual(15);
+    expect(d.warehouses.active).toBeGreaterThanOrEqual(2);
+    expect(d.suppliers).toMatchObject({ approved: 3, pending: 1, returned: 1, draft: 1 });
+    expect(d.expiring.length).toBeGreaterThan(0);
+    expect(d.approvals.banks).toBe(1);
+    const groups = (await http.get('/api/procurement/groups').set(as(admin)).expect(200)).body as { code: string; inventoryAccount: unknown; assetGroup: unknown }[];
+    expect(groups.find((g) => g.code === 'FOOD')!.inventoryAccount).toBeTruthy();
+    expect(groups.find((g) => g.code === 'FA')!.assetGroup).toBeTruthy();
+    const sups = (await http.get('/api/procurement/suppliers?status=approved').set(as(admin)).expect(200)).body as { accPartnerId: string | null; hasBank: boolean }[];
+    expect(sups.every((x) => x.accPartnerId)).toBe(true);
+    expect(sups.filter((x) => x.hasBank)).toHaveLength(2);
+    // كل حسابات البوابة تدخل بكلمة مرور البوابة التجريبية
+    expect(demo.supplierPortal.users).toHaveLength(4);
+    for (const u of demo.supplierPortal.users) {
+      await http.post('/api/supplier-portal/o/demo/login').send({ email: u.email, password: demo.portalPassword }).expect(200);
+    }
   });
 
   it('members: registry in every status, applications in every stage, payments as receipt vouchers', async () => {

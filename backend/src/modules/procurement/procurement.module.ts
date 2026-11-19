@@ -31,6 +31,6 @@ import { WarehousesService } from './warehouses.service';
   ],
   controllers: [ProcurementController, SupplierPortalController],
   providers: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SupplierPortalGuard, ProcurementTasks, ProcurementReports],
-  exports: [ProcurementCore, CatalogService, WarehousesService, SuppliersService],
+  exports: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService],
 })
 export class ProcurementModule {}

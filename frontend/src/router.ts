@@ -3,6 +3,7 @@ import { moduleRoutes } from './modules';
 import { loginPath, useSession } from './stores/session';
 import AppShell from './layouts/AppShell.vue';
 import { usePortal } from './portal/portal';
+import { useSupplierPortal } from './supplier/supplier';
 import { volunteersPublicRoutes } from './modules/volunteers/routes';
 import { membersPublicRoutes } from './modules/members/routes';
 
@@ -65,6 +66,20 @@ export const router = createRouter({
         { path: 'profile', component: () => import('./portal/PortalProfileView.vue'), meta: { portal: true, portalAuth: true, title: 'بياناتي' } },
       ],
     },
+    // بوابة الموردين: مستقلة عن دخول الموظفين وعن بوابة المستفيدين
+    {
+      path: '/supplier/:slug',
+      component: () => import('./supplier/SupplierShell.vue'),
+      meta: { supplier: true },
+      children: [
+        { path: '', component: () => import('./supplier/SupplierAuthView.vue'), meta: { supplier: true, title: 'بوابة الموردين' } },
+        { path: 'home', component: () => import('./supplier/SupplierHomeView.vue'), meta: { supplier: true, supplierAuth: true, title: 'حالة الطلب' } },
+        { path: 'profile', component: () => import('./supplier/SupplierProfileView.vue'), meta: { supplier: true, supplierAuth: true, title: 'بيانات المنشأة' } },
+        { path: 'docs', component: () => import('./supplier/SupplierDocsView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المستندات' } },
+        { path: 'banks', component: () => import('./supplier/SupplierBanksView.vue'), meta: { supplier: true, supplierAuth: true, title: 'الحساب البنكي' } },
+        { path: 'users', component: () => import('./supplier/SupplierUsersView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المستخدمون' } },
+      ],
+    },
     {
       path: '/',
       component: AppShell,
@@ -91,6 +106,11 @@ async function homeOrDashboard() {
 
 router.beforeEach(async (to) => {
   if (to.meta.open) return true;
+  if (to.meta.supplier) {
+    const sp = useSupplierPortal(to.params.slug as string);
+    if (to.meta.supplierAuth && !sp.token) return `/supplier/${to.params.slug}`;
+    return true;
+  }
   if (to.meta.portal) {
     const portal = usePortal(to.params.slug as string);
     if (to.meta.portalAuth && !portal.token) return `/portal/${to.params.slug}`;

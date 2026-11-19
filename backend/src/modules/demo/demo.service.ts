@@ -22,6 +22,7 @@ import { SupportSeed } from './seed-support';
 import { VolunteersSeed } from './seed-volunteers';
 import { WebsiteSeed } from './seed-website';
 import { PartnershipsSeed } from './seed-partnerships';
+import { ProcurementSeed } from './seed-procurement';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
 import { PlanningSeed } from './seed-planning';
@@ -58,6 +59,7 @@ export class DemoService {
     private readonly meetings: MeetingsSeed,
     private readonly planning: PlanningSeed,
     private readonly budget: BudgetSeed,
+    private readonly procurement: ProcurementSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -78,6 +80,7 @@ export class DemoService {
         staff: built.staff,
         portalPassword,
         portalUsers: built.portalUsers,
+        supplierPortal: built.supplierPortal,
         supportTeam,
       };
     } catch (e) {
@@ -108,6 +111,8 @@ export class DemoService {
     await this.members.run(team);
     // الشراكات قبل الموقع: الشركاء المعتمدون يظهرون في صفحة الشركاء
     await this.partnerships.run(team);
+    // المشتريات والمستودعات بعد المالي والأصول (الحسابات ومجموعات الأصول) والمشاريع (المستودع الميداني)
+    const supplierPortal = await this.procurement.run(team, portalPassword);
     // الاتصالات الإدارية والمهام، ثم الاجتماعات (الجمعية العمومية من أعضاء العضوية، والتوصيات تتحول إلى مهام)
     const commsTeam = await this.comms.grant(team);
     await this.comms.run(commsTeam);
@@ -119,7 +124,7 @@ export class DemoService {
     await this.budget.run(team, planning.strategic);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
-    return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers };
+    return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers, supplierPortal };
   }
 
   /** حذف الجمعية التجريبية وكل بياناتها وطلبات الاشتراك التجريبية، لإعادة إنشائها بأحدث بيانات */

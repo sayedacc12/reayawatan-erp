@@ -14,6 +14,7 @@ export interface SupplierPortalUser {
   email: string;
   role: PortalRole;
   supplierStatus: SupplierStatus;
+  mustChangePassword: boolean;
 }
 
 /** حارس بوابة الموردين: رمز دخول من نوع supplier، والمستخدم نشط، والجمعية متاحة */
@@ -48,6 +49,7 @@ export class SupplierPortalGuard implements CanActivate {
     }
     req.supplier = {
       userId: row.id, supplierId: row.supplier_id, organizationId: row.organization_id, fullName: row.full_name, email: row.email, role: row.role, supplierStatus: row.status,
+      mustChangePassword: !!row.must,
     } satisfies SupplierPortalUser;
     return true;
   }

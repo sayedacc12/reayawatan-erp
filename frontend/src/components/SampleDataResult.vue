@@ -7,6 +7,7 @@ export interface SampleResult {
   staff: { role: string; email: string }[];
   portalPassword: string;
   portalUsers: { fullName: string; nationalId: string }[];
+  supplierPortal?: { url: string; users: { supplier: string; status: string; fullName: string; email: string }[] };
 }
 defineProps<{ result: SampleResult; slug: string }>();
 const origin = location.origin;
@@ -34,6 +35,16 @@ const origin = location.origin;
         <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ result.portalPassword }}</code></td></tr>
       </table>
     </div>
+    <template v-if="result.supplierPortal?.users.length">
+      <h4>موردون تجريبيون في بوابة الموردين</h4>
+      <p class="muted small">يدخلون من <code dir="ltr">{{ origin }}/supplier/{{ slug }}</code> بالبريد الإلكتروني</p>
+      <div class="table-wrap">
+        <table class="table">
+          <tr v-for="u in result.supplierPortal.users" :key="u.email"><td>{{ u.supplier }} <small class="muted">({{ u.status }})</small></td><td dir="ltr"><code>{{ u.email }}</code></td></tr>
+          <tr><td>كلمة المرور للكل</td><td dir="ltr"><code>{{ result.portalPassword }}</code></td></tr>
+        </table>
+      </div>
+    </template>
   </div>
 </template>
 
