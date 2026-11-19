@@ -11,7 +11,9 @@ import '../../acc.css';
 import './assets.css';
 
 interface Dash {
-  kpis: { inBooks: number; draft: number; pending: number; disposed: number; cost: number; accum: number; nbv: number; fully: number; depYear: number; year: number; noCustody: number; openStocktakes: number; consumed: number };
+  kpis: { inBooks: number; draft: number; pending: number; disposed: number; cost: number; accum: number; nbv: number; fully: number; depYear: number; year: number; noCustody: number; openStocktakes: number; consumed: number;
+    wipCount: number; wipAmount: number; maintenanceYear: number; repairsYear: number };
+  budget: { id: string; status: string; planned: number; actual: number } | null;
   monthly: { month: string; amount: number }[];
   groups: Group[];
   reconciliation: Recon;
@@ -80,6 +82,11 @@ const badAccounts = computed(() => d.value?.reconciliation.accounts.filter((a) =
         <div class="pm-kpi" style="--a: #8b5cf6; --i: 3"><span>إهلاك {{ d.kpis.year }}</span><strong><CountUp :value="d.kpis.depYear" :decimals="2" /></strong><small>مرحّل بسندات الإهلاك</small></div>
         <div class="pm-kpi" style="--a: #6366f1; --i: 4"><span>عمليات تنتظر الاعتماد</span><strong><CountUp :value="d.kpis.pending" /></strong><small>{{ d.kpis.draft }} أصل مسجل بلا قيمة</small></div>
         <div class="pm-kpi" style="--a: #ef4444; --i: 5"><span>أصول بلا عهدة</span><strong><CountUp :value="d.kpis.noCustody" /></strong><small>{{ d.kpis.fully }} أصل مُهلك بالكامل</small></div>
+        <RouterLink to="/accounting/assets/register?status=construction" class="pm-kpi" style="--a: #d97706; --i: 6"><span>تحت التنفيذ</span><strong><CountUp :value="d.kpis.wipAmount" :decimals="2" /></strong><small>{{ d.kpis.wipCount }} أصل لم يُرسمل بعد</small></RouterLink>
+        <RouterLink to="/accounting/assets/maintenance" class="pm-kpi" style="--a: #0891b2; --i: 7"><span>صيانة {{ d.kpis.year }}</span><strong><CountUp :value="d.kpis.maintenanceYear" :decimals="2" /></strong><small>{{ d.kpis.repairsYear }} إصلاح عطل</small></RouterLink>
+        <RouterLink :to="d.budget ? `/accounting/assets/budget/${d.budget.id}` : '/accounting/assets/budget'" class="pm-kpi" style="--a: #4f46e5; --i: 8"><span>الموازنة الرأسمالية {{ d.kpis.year }}</span>
+          <template v-if="d.budget"><strong>{{ d.budget.planned ? Math.round((d.budget.actual / d.budget.planned) * 100) : 0 }}%</strong><small>منفذ {{ sar(d.budget.actual) }} من {{ sar(d.budget.planned) }}{{ d.budget.status === 'draft' ? ' · مسودة' : '' }}</small></template>
+          <template v-else><strong>—</strong><small>لا توجد موازنة لهذه السنة</small></template></RouterLink>
       </div>
 
       <div class="fa-dash">
@@ -165,4 +172,5 @@ const badAccounts = computed(() => d.value?.reconciliation.accounts.filter((a) =
 .gain { color: #047857; }
 .loss { color: #b91c1c; }
 @media (max-width: 900px) { .fa-dash { grid-template-columns: 1fr; } .fa-dash .wide, .fa-dash .full { grid-column: auto; } }
+a.pm-kpi { color: inherit; text-decoration: none; }
 </style>

@@ -4,18 +4,28 @@ import { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { MAX_UPLOAD_BYTES } from '../../core/files/file-store.service';
+import { AssetBudgetService } from './asset-budget.service';
+import { AssetImportService } from './asset-import.service';
+import { AssetMaintenanceService } from './asset-maintenance.service';
 import { AssetOpsService } from './asset-ops.service';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AssetsService } from './assets.service';
 
 const uuid = new ParseUUIDPipe();
 type Dto = Record<string, unknown>;
-const READ = [P.assetsRead, P.assetsManage, P.assetsOperate, P.assetsDepreciate, P.assetsCustody];
+const READ = [P.assetsRead, P.assetsManage, P.assetsOperate, P.assetsDepreciate, P.assetsCustody, P.assetsMaintain, P.assetsBudget];
+const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /** الأصول الثابتة داخل النظام المالي */
 @Controller('accounting/assets')
 export class AssetsController {
-  constructor(private readonly assets: AssetsService, private readonly ops: AssetOpsService) {}
+  constructor(
+    private readonly assets: AssetsService,
+    private readonly ops: AssetOpsService,
+    private readonly maint: AssetMaintenanceService,
+    private readonly budget: AssetBudgetService,
+    private readonly importer: AssetImportService,
+  ) {}
 
   // ---------------- اللوحة والإعدادات ----------------
 
@@ -127,6 +137,24 @@ export class AssetsController {
     return this.ops.scrap(a, b);
   }
 
+  @Post('operations/revaluation')
+  @RequirePermissions(P.assetsOperate)
+  revalue(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {
+    return this.ops.revalue(a, b);
+  }
+
+  @Post('operations/impairment')
+  @RequirePermissions(P.assetsOperate)
+  impair(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {
+    return this.ops.impair(a, b);
+  }
+
+  @Post('operations/capitalize')
+  @RequirePermissions(P.assetsOperate)
+  capitalize(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {
+    return this.ops.capitalize(a, b);
+  }
+
   @Post('operations/:id/cancel')
   @RequirePermissions(P.assetsReverse)
   cancelOp(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body('reason') reason: unknown) {
@@ -163,6 +191,112 @@ export class AssetsController {
   @RequirePermissions(P.assetsReverse)
   cancelRun(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body('reason') reason: unknown) {
     return this.ops.cancelRun(a, id, reason);
+  }
+
+  // ---------------- الصيانة ----------------
+
+  @Get('maintenance')
+  @RequireAnyPermission(...READ)
+  maintenance(@CurrentOrgUser() a: OrgUser, @Query() q: Record<string, string>) {
+    return this.maint.list(a, { assetId: q.assetId, kind: q.kind, from: q.from, to: q.to });
+  }
+
+  @Get('maintenance/failures')
+  @RequireAnyPermission(...READ)
+  failures(@CurrentOrgUser() a: OrgUser, @Query() q: Record<string, string>) {
+    return this.maint.failures(a, { from: q.from, to: q.to, groupId: q.groupId });
+  }
+
+  @Get('maintenance/due')
+  @RequireAnyPermission(...READ)
+  due(@CurrentOrgUser() a: OrgUser) {
+    return this.maint.due(a);
+  }
+
+  @Post('maintenance')
+  @RequirePermissions(P.assetsMaintain)
+  recordMaintenance(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {
+    return this.maint.record(a, b);
+  }
+
+  @Delete('maintenance/:id')
+  @RequirePermissions(P.assetsMaintain)
+  removeMaintenance(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
+    return this.maint.remove(a, id);
+  }
+
+  // ---------------- الموازنة الرأسمالية ----------------
+
+  @Get('budgets')
+  @RequireAnyPermission(...READ)
+  budgets(@CurrentOrgUser() a: OrgUser) {
+    return this.budget.list(a);
+  }
+
+  @Get('budgets/options')
+  @RequireAnyPermission(...READ)
+  budgetOptions(@CurrentOrgUser() a: OrgUser) {
+    return this.budget.options(a);
+  }
+
+  @Get('budgets/:id')
+  @RequireAnyPermission(...READ)
+  budgetOne(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
+    return this.budget.get(a, id);
+  }
+
+  @Post('budgets')
+  @RequirePermissions(P.assetsBudget)
+  createBudget(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {
+    return this.budget.create(a, b);
+  }
+
+  @Put('budgets/:id')
+  @RequirePermissions(P.assetsBudget)
+  updateBudget(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() b: Dto) {
+    return this.budget.update(a, id, b);
+  }
+
+  @Post('budgets/:id/approve')
+  @RequirePermissions(P.assetsBudget)
+  approveBudget(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
+    return this.budget.approve(a, id);
+  }
+
+  @Post('budgets/:id/reopen')
+  @RequirePermissions(P.assetsBudget)
+  reopenBudget(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
+    return this.budget.reopen(a, id);
+  }
+
+  @Delete('budgets/:id')
+  @RequirePermissions(P.assetsBudget)
+  removeBudget(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
+    return this.budget.remove(a, id);
+  }
+
+  // ---------------- الاستيراد من Excel ----------------
+
+  @Get('import/template')
+  @RequirePermissions(P.assetsManage)
+  async importTemplate(@CurrentOrgUser() a: OrgUser, @Res() res: Response) {
+    const buf = await this.importer.template(a);
+    res.setHeader('Content-Type', XLSX);
+    res.setHeader('Content-Disposition', `attachment; filename="assets-import-template.xlsx"; filename*=UTF-8''${encodeURIComponent('نموذج استيراد الأصول.xlsx')}`);
+    res.send(buf);
+  }
+
+  @Get('import')
+  @RequirePermissions(P.assetsManage)
+  importHistory(@CurrentOrgUser() a: OrgUser) {
+    return this.importer.history(a);
+  }
+
+  @Post('import')
+  @RequirePermissions(P.assetsManage)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
+  importFile(@CurrentOrgUser() a: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
+    return this.importer.import(a, file, mode ?? 'partial');
   }
 
   // ---------------- العهد ----------------

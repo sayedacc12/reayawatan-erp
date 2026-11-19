@@ -10,8 +10,8 @@ import { AccountsService } from './accounts.service';
 import { DEP_METHOD_AR, lifeOf } from './depreciation';
 import { AssetConfig } from './entities/accounting.entity';
 import {
-  AssetCustody, AssetFieldDef, AssetGroup, AssetMove, AssetStatus, AssetStocktake, DEP_METHODS, DepLine, DepMethod, FIELD_TYPES, FixedAsset,
-  MaintenanceContract, StocktakeLine,
+  AssetCustody, AssetFieldDef, AssetGroup, AssetInsurance, AssetMaintenance, AssetMove, AssetMoveKind, AssetStatus, AssetStocktake, AssetWarranty, DEP_METHODS,
+  DepLine, DepMethod, FIELD_TYPES, FixedAsset, MaintenanceContract, MaintenancePlan, StocktakeLine,
 } from './entities/assets.entity';
 
 export const bad = (m: string): never => {
@@ -30,16 +30,28 @@ export const idOf = (v: unknown, label: string) => (typeof v === 'string' && uui
 export const optId = (v: unknown) => (typeof v === 'string' && uuidRe.test(v) ? v : null);
 
 export const ASSET_STATUS_AR: Record<AssetStatus, string> = {
-  draft: 'مسجل بلا قيمة', pending_purchase: 'بانتظار اعتماد سند الشراء', active: 'في الخدمة', pending_sale: 'بانتظار اعتماد سند البيع',
+  draft: 'مسجل بلا قيمة', construction: 'تحت التنفيذ', pending_purchase: 'بانتظار اعتماد سند الشراء', active: 'في الخدمة', pending_sale: 'بانتظار اعتماد سند البيع',
   sold: 'مُباع', scrapped: 'مُخرَّد',
 };
 export const CUSTODY_AR: Record<string, string> = { issue: 'تسليم عهدة', transfer: 'نقل عهدة', return: 'استلام عهدة من الموظف', release: 'إنهاء العهدة' };
 /** الحالات التي يكون فيها الأصل في دفاتر الجمعية */
 export const IN_BOOKS: AssetStatus[] = ['active', 'pending_sale'];
 /** الحالات التي يكون فيها الأصل في حيازة الجمعية (يحتاج عهدة) */
-export const HELD: AssetStatus[] = ['draft', 'pending_purchase', 'active', 'pending_sale'];
+export const HELD: AssetStatus[] = ['draft', 'construction', 'pending_purchase', 'active', 'pending_sale'];
 
-const DEFAULT_CONFIG: Required<AssetConfig> = { prefix: 'FA', requireCustody: true, alertDays: 30, partialMonth: 'days', donationAccountId: null };
+/** حركات الاستبعاد */
+export const DISPOSAL_KINDS: AssetMoveKind[] = ['sale', 'scrap'];
+/** الحركات التي تُدخل الأصل الدفاتر لأول مرة */
+export const FIRST_KINDS: AssetMoveKind[] = ['opening', 'purchase', 'donation', 'capitalize'];
+/** حركة تغيّر تكلفة الأصل في الدفاتر (دفعات تحت التنفيذ لا تدخل التكلفة حتى الرسملة) */
+export const costMove = (m: { kind: AssetMoveKind }) => m.kind !== 'wip' && !DISPOSAL_KINDS.includes(m.kind);
+
+const DEFAULT_CONFIG: Required<AssetConfig> = {
+  prefix: 'FA', requireCustody: true, alertDays: 30, partialMonth: 'days', donationAccountId: null, revaluationAccountId: null, impairmentAccountId: null,
+  wipAccountId: null, grantReleaseAccountId: null, maintenanceAccountId: null, budgetControl: 'warn',
+};
+/** حسابات الإعدادات */
+export const CONFIG_ACCOUNTS = ['donationAccountId', 'revaluationAccountId', 'impairmentAccountId', 'wipAccountId', 'grantReleaseAccountId', 'maintenanceAccountId'] as const;
 
 export interface Emp { id: string; fullName: string; employeeNo: number; unitId: string | null; status: string }
 
@@ -73,8 +85,13 @@ export class AssetsService {
 
   async getConfig(actor: OrgUser) {
     const c = await this.config(actor.organizationId);
-    const acc = c.donationAccountId ? (await this.db.query('SELECT id, code, name FROM acc_accounts WHERE id = $1', [c.donationAccountId]))[0] ?? null : null;
-    return { ...c, donationAccount: acc };
+    const ids = CONFIG_ACCOUNTS.map((k) => c[k]).filter(Boolean) as string[];
+    const accs: { id: string; code: string; name: string }[] = ids.length ? await this.db.query('SELECT id, code, name FROM acc_accounts WHERE id = ANY($1)', [ids]) : [];
+    const acc = (id: string | null) => (id ? accs.find((a) => a.id === id) ?? null : null);
+    return {
+      ...c, donationAccount: acc(c.donationAccountId), revaluationAccount: acc(c.revaluationAccountId), impairmentAccount: acc(c.impairmentAccountId),
+      wipAccount: acc(c.wipAccountId), grantReleaseAccount: acc(c.grantReleaseAccountId), maintenanceAccount: acc(c.maintenanceAccountId),
+    };
   }
 
   async saveConfig(actor: OrgUser, input: Partial<AssetConfig>) {
@@ -90,10 +107,18 @@ export class AssetsService {
       const [r] = await this.db.query('SELECT COUNT(*)::int AS n FROM acc_asset_dep_lines WHERE organization_id = $1 AND active', [org]);
       if (r.n) bad('لا تُغيَّر قاعدة الشهر الجزئي بعد ترحيل إهلاك، حتى لا تختلف طريقة الاحتساب بين الفترات');
     }
-    let donationAccountId = input.donationAccountId === undefined ? cur.donationAccountId : optId(input.donationAccountId);
-    if (donationAccountId) donationAccountId = (await this.accounts.postable(org, donationAccountId)).id;
+    const accs = {} as Record<(typeof CONFIG_ACCOUNTS)[number], string | null>;
+    for (const k of CONFIG_ACCOUNTS) {
+      const id = input[k] === undefined ? cur[k] : optId(input[k]);
+      accs[k] = id ? (await this.accounts.postable(org, id)).id : null;
+    }
+    if (cur.wipAccountId && accs.wipAccountId !== cur.wipAccountId) {
+      const [w] = await this.db.query(`SELECT COUNT(*)::int AS n FROM acc_asset_moves WHERE organization_id = $1 AND kind = 'wip' AND status <> 'cancelled'`, [org]);
+      if (w.n) bad('لا يُغيَّر حساب المشروعات تحت التنفيذ بعد تسجيل دفعات عليه، حتى لا تختل المطابقة مع الدليل');
+    }
+    const budgetControl = input.budgetControl === undefined ? cur.budgetControl : input.budgetControl === 'block' ? 'block' : 'warn';
     const assetConfig: AssetConfig = {
-      prefix, alertDays, partialMonth, donationAccountId, requireCustody: input.requireCustody === undefined ? cur.requireCustody : input.requireCustody === true,
+      prefix, alertDays, partialMonth, ...accs, budgetControl, requireCustody: input.requireCustody === undefined ? cur.requireCustody : input.requireCustody === true,
     };
     await this.core.settings(org);
     await this.db.query('UPDATE acc_settings SET asset_config = $2 WHERE organization_id = $1', [org, JSON.stringify(assetConfig)]);
@@ -132,15 +157,16 @@ export class AssetsService {
   /** قوائم الشاشات: المجموعات والموظفون والوحدات والحسابات التحليلية والبنوك والشركاء */
   async lookups(actor: OrgUser) {
     const org = actor.organizationId;
-    const [groups, employees, units, analytic, cash, partners, config] = await Promise.all([
+    const [groups, employees, units, analytic, cash, partners, config, years] = await Promise.all([
       this.listGroups(actor), this.employees(org), this.units(org),
       this.db.query(`SELECT id, code, name FROM acc_analytic_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active ORDER BY code`, [org]),
       this.db.query(`SELECT id, name, kind FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]),
       this.db.query(`SELECT p.id, p.name, p.account_id AS "accountId" FROM acc_partners p WHERE p.organization_id = $1 AND p.is_active ORDER BY p.name`, [org]),
-      this.getConfig(actor),
+      this.getConfig(actor), this.core.years(org),
     ]);
     return {
       groups, employees: employees.filter((e) => e.status === 'active'), units, analytic, cash, partners, config,
+      years: years.map((y) => ({ id: y.id, name: y.name, start: y.startDate, end: y.endDate })),
       methods: DEP_METHODS.map((m) => ({ value: m, label: DEP_METHOD_AR[m] })),
     };
   }
@@ -324,6 +350,8 @@ export class AssetsService {
         custodianId: a.custodianEmployeeId, custodianName: e?.fullName ?? null, custodianNo: e?.employeeNo ?? null,
         cost: a.cost, accum: a.accum, nbv: this.nbv(a), inServiceDate: a.inServiceDate, depreciatedThrough: a.depreciatedThrough, acquisition: a.acquisition,
         hasImage: !!a.image, disposedAt: a.disposedAt, isTangible: g?.isTangible ?? true,
+        insuranceRequired: a.insuranceRequired, insuranceEnd: a.insurance?.endDate ?? null, warrantyRequired: a.warrantyRequired, warrantyEnd: a.warranty?.endDate ?? null,
+        nextMaintenance: a.maintenancePlan?.nextDate ?? null,
       };
     });
   }
@@ -346,8 +374,18 @@ export class AssetsService {
     const custody = await this.custodyOf(org, [id]);
     const pol = this.policy(a, g);
     const cfg = await this.config(org);
+    const log = await this.db.getRepository(AssetMaintenance).find({ where: { assetId: id }, order: { date: 'DESC', recordNo: 'DESC' } });
+    const lv: { id: string; serial: number; status: string }[] = log.some((l) => l.voucherId)
+      ? await this.db.query('SELECT id, serial, status FROM acc_vouchers WHERE id = ANY($1)', [log.map((l) => l.voucherId).filter(Boolean)]) : [];
+    const wip = moves.filter((m) => m.kind === 'wip' && m.status !== 'cancelled');
     return {
       ...row, description: a.description, fieldValues: a.fieldValues, maintenance: a.maintenance, salvageValue: a.salvageValue,
+      insuranceRequired: a.insuranceRequired, insurance: a.insurance, warrantyRequired: a.warrantyRequired, warranty: a.warranty, maintenancePlan: a.maintenancePlan,
+      maintenanceLog: log.map((l) => ({
+        id: l.id, recordNo: l.recordNo, date: l.date, kind: l.kind, kindLabel: MAINT_AR[l.kind], description: l.description, vendor: l.vendor, cost: l.cost,
+        downtimeDays: l.downtimeDays, notes: l.notes, createdByName: l.createdByName, voucher: lv.find((v) => v.id === l.voucherId) ?? null,
+      })),
+      wip: { total: fromCents(wip.filter((m) => m.status === 'done').reduce((s, m) => s + cents(m.amount), 0)), pending: wip.filter((m) => m.status === 'pending').length, count: wip.length },
       method: a.method, rate: a.rate, lifeYears: a.lifeYears, analyticId: a.analyticId,
       effective: { method: pol.method, methodLabel: DEP_METHOD_AR[pol.method], rate: pol.rate, lifeYears: pol.life ? Math.round(pol.life * 100) / 100 : null, monthlyApprox: pol.life ? fromCents(cents((a.cost - a.salvageValue) / (pol.life * 12))) : 0 },
       group: { id: g.id, name: g.name, code: g.code, fields: g.fields, isTangible: g.isTangible, method: g.method, rate: g.rate, lifeYears: g.lifeYears },
@@ -357,6 +395,7 @@ export class AssetsService {
         return {
           id: m.id, moveNo: m.moveNo, kind: m.kind, kindLabel: MOVE_AR[m.kind], date: m.date, amount: m.amount, accumDelta: m.accumDelta, proceeds: m.proceeds,
           gainLoss: m.gainLoss, status: m.status, partyName: m.partyName, notes: m.notes, createdByName: m.createdByName, cancelReason: m.cancelReason,
+          fundingName: m.fundingName, fundedAmount: m.fundedAmount,
           voucher: v ? { id: v.id, kind: v.kind, serial: v.serial, status: v.status } : null, entry: e ? { id: e.id, entryNo: e.entry_no, serial: e.voucher_serial, status: e.status } : null,
         };
       }),
@@ -370,11 +409,23 @@ export class AssetsService {
     };
   }
 
-  /** تنبيهات الأصل: تراخيص وعقود صيانة تنتهي قريبًا أو انتهت */
+  /** تنبيهات الأصل: تراخيص وعقود صيانة وتأمين وضمان تنتهي قريبًا أو انتهت، وصيانة وقائية حان موعدها */
   alerts(a: FixedAsset, g: AssetGroup, days: number) {
     const t = today();
     const limit = new Date(Date.parse(`${t}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
     const out: { kind: string; label: string; date: string; expired: boolean }[] = [];
+    if (a.insuranceRequired && a.status !== 'draft') {
+      if (!a.insurance) out.push({ kind: 'insurance', label: 'يتطلب تأمينًا ولا توجد وثيقة مسجلة', date: t, expired: true });
+      else if (a.insurance.endDate <= limit) out.push({ kind: 'insurance', label: `وثيقة التأمين لدى ${a.insurance.provider}`, date: a.insurance.endDate, expired: a.insurance.endDate < t });
+    }
+    // الضمان المنتهي منذ مدة لا يُنبَّه عليه، فالضمان لا يُجدَّد عادة
+    if (a.warrantyRequired && a.warranty && a.warranty.endDate <= limit && a.warranty.endDate >= addDaysIso(t, -days)) {
+      out.push({ kind: 'warranty', label: `ضمان ${a.warranty.provider}`, date: a.warranty.endDate, expired: a.warranty.endDate < t });
+    }
+    if (a.warrantyRequired && !a.warranty) out.push({ kind: 'warranty', label: 'له ضمان ولم تُسجل بياناته', date: t, expired: true });
+    if (a.maintenancePlan && a.maintenancePlan.nextDate <= limit && a.status !== 'draft') {
+      out.push({ kind: 'plan', label: 'موعد الصيانة الوقائية', date: a.maintenancePlan.nextDate, expired: a.maintenancePlan.nextDate < t });
+    }
     for (const f of g.fields.filter((x) => x.type === 'date' && x.expiry)) {
       const v = a.fieldValues?.[f.key];
       if (typeof v === 'string' && v <= limit) out.push({ kind: 'field', label: f.label, date: v, expired: v < t });
@@ -385,7 +436,7 @@ export class AssetsService {
     return out;
   }
 
-  private async assetData(org: string, input: Record<string, unknown>, g: AssetGroup) {
+  async assetData(org: string, input: Record<string, unknown>, g: AssetGroup) {
     const name = str(input.name, 250) ?? bad('اكتب اسم الأصل');
     const values: Record<string, string | number | null> = {};
     const raw = (input.fieldValues ?? {}) as Record<string, unknown>;
@@ -422,9 +473,14 @@ export class AssetsService {
       if (endDate < startDate) bad(`نهاية عقد الصيانة ${i + 1} قبل بدايته`);
       return { id: typeof m.id === 'string' && m.id ? m.id.slice(0, 40) : randomUUID(), provider, startDate, endDate, cost: m.cost ? amountOf(m.cost, 'قيمة العقد', 0) : 0, notes: str(m.notes, 500) };
     });
+    const insuranceRequired = input.insuranceRequired === true;
+    const warrantyRequired = input.warrantyRequired === true;
     return {
       name, description: str(input.description, 2000), serialNumber: str(input.serialNumber, 120), location: str(input.location, 250), unitId,
       fieldValues: values, method, rate, lifeYears, salvageValue, analyticId, maintenance,
+      insuranceRequired, insurance: insuranceRequired ? insuranceOf(input.insurance) : null,
+      warrantyRequired, warranty: warrantyRequired ? warrantyOf(input.warranty) : null,
+      maintenancePlan: planOf(input.maintenancePlan),
     };
   }
 
@@ -484,6 +540,7 @@ export class AssetsService {
       if (m.n || a.status !== 'draft') bad('لا يُحذف أصل له حركات مالية. يُستبعد بالبيع أو التخريد');
       if (a.image) await this.files.remove(a.image.key);
       await em.getRepository(AssetCustody).delete({ assetId: id });
+      await em.getRepository(AssetMaintenance).delete({ assetId: id });
       await em.getRepository(FixedAsset).delete({ id });
     });
     return { ok: true };
@@ -544,23 +601,26 @@ export class AssetsService {
     const moves = await em.getRepository(AssetMove).find({ where: { assetId: id }, order: { date: 'ASC', moveNo: 'ASC' } });
     const lines = await em.getRepository(DepLine).find({ where: { assetId: id, active: true } });
     const done = moves.filter((m) => m.status === 'done');
-    const acq = done.filter((m) => ['opening', 'purchase', 'donation', 'addition'].includes(m.kind));
-    const disposal = done.find((m) => m.kind === 'sale' || m.kind === 'scrap');
+    const disposal = done.find((m) => DISPOSAL_KINDS.includes(m.kind));
     const pendingSale = moves.find((m) => m.kind === 'sale' && m.status === 'pending');
     const pendingPurchase = moves.find((m) => m.kind === 'purchase' && m.status === 'pending');
-    const first = acq.find((m) => m.kind !== 'addition');
+    const wip = moves.some((m) => m.kind === 'wip' && m.status !== 'cancelled');
+    const first = done.find((m) => FIRST_KINDS.includes(m.kind));
     let status: AssetStatus = 'draft';
     if (disposal) status = disposal.kind === 'sale' ? 'sold' : 'scrapped';
     else if (pendingSale && first) status = 'pending_sale';
     else if (first) status = 'active';
     else if (pendingPurchase) status = 'pending_purchase';
-    const cost = acq.reduce((s, m) => s + cents(m.amount), 0);
-    const accum = done.filter((m) => m.kind === 'opening').reduce((s, m) => s + cents(m.accumDelta), 0) + lines.reduce((s, l) => s + cents(l.amount), 0);
+    else if (wip) status = 'construction';
+    // التكلفة: الاقتناء والإضافات وإعادة التقييم والرسملة (ويبقى رقمها بعد الاستبعاد للعرض)
+    const cost = done.filter(costMove).reduce((s, m) => s + cents(m.amount), 0);
+    // مجمع الإهلاك: الرصيد الافتتاحي وهبوط القيمة والإهلاك المرحّل
+    const accum = done.filter(costMove).reduce((s, m) => s + cents(m.accumDelta), 0) + lines.reduce((s, l) => s + cents(l.amount), 0);
     const opening = done.find((m) => m.kind === 'opening');
     const through = [opening?.date, ...lines.map((l) => l.toDate)].filter(Boolean).sort().at(-1) ?? null;
     const patch: Partial<FixedAsset> = {
       status, cost: fromCents(cost), accum: fromCents(accum), depreciatedThrough: through, disposedAt: disposal?.date ?? null,
-      acquisition: first ? (first.kind as 'purchase' | 'donation' | 'opening') : null,
+      acquisition: first ? (first.kind as FixedAsset['acquisition']) : null,
     };
     if (first && first.kind !== 'opening') patch.inServiceDate = first.date;
     if (!first) patch.inServiceDate = null;
@@ -735,7 +795,7 @@ export class AssetsService {
     const org = actor.organizationId;
     const rows: { custodian_employee_id: string; n: number; cost: string; nbv: string }[] = await this.db.query(
       `SELECT custodian_employee_id, COUNT(*)::int AS n, COALESCE(SUM(cost), 0) AS cost, COALESCE(SUM(cost - accum), 0) AS nbv
-         FROM acc_assets WHERE organization_id = $1 AND custodian_employee_id IS NOT NULL AND status IN ('draft', 'pending_purchase', 'active', 'pending_sale')
+         FROM acc_assets WHERE organization_id = $1 AND custodian_employee_id IS NOT NULL AND status IN ('draft', 'construction', 'pending_purchase', 'active', 'pending_sale')
         GROUP BY 1`, [org]);
     const emps = await this.employees(org, rows.map((r) => r.custodian_employee_id));
     const units = await this.units(org);
@@ -745,7 +805,7 @@ export class AssetsService {
           AND c.form_no = (SELECT MAX(form_no) FROM acc_asset_custody x WHERE x.asset_id = c.asset_id) GROUP BY 1`, [org]);
     const [none] = await this.db.query(
       `SELECT COUNT(*)::int AS n FROM acc_assets a JOIN acc_asset_groups g ON g.id = a.group_id
-        WHERE a.organization_id = $1 AND g.is_tangible AND a.custodian_employee_id IS NULL AND a.status IN ('draft', 'pending_purchase', 'active', 'pending_sale')`, [org]);
+        WHERE a.organization_id = $1 AND g.is_tangible AND a.custodian_employee_id IS NULL AND a.status IN ('draft', 'construction', 'pending_purchase', 'active', 'pending_sale')`, [org]);
     return {
       employees: rows.map((r) => {
         const e = emps.find((x) => x.id === r.custodian_employee_id);
@@ -763,7 +823,7 @@ export class AssetsService {
   async heldBy(org: string, employeeId: string, em: EntityManager = this.db.manager) {
     const rows: { id: string; code: string; name: string; status: AssetStatus }[] = await em.query(
       `SELECT id, code, name, status FROM acc_assets WHERE organization_id = $1 AND custodian_employee_id = $2
-          AND status IN ('draft', 'pending_purchase', 'active', 'pending_sale') ORDER BY asset_no`, [org, employeeId]);
+          AND status IN ('draft', 'construction', 'pending_purchase', 'active', 'pending_sale') ORDER BY asset_no`, [org, employeeId]);
     return rows;
   }
 
@@ -799,7 +859,7 @@ export class AssetsService {
     const groupIds = (Array.isArray(input.groupIds) ? input.groupIds : []).map(optId).filter(Boolean) as string[];
     const location = str(input.location, 250);
     const qb = this.db.getRepository(FixedAsset).createQueryBuilder('a').where('a.organization_id = :org', { org })
-      .andWhere(`a.status IN ('draft', 'pending_purchase', 'active', 'pending_sale')`);
+      .andWhere(`a.status IN ('draft', 'construction', 'pending_purchase', 'active', 'pending_sale')`);
     if (groupIds.length) qb.andWhere('a.group_id IN (:...g)', { g: groupIds });
     if (location) qb.andWhere('a.location ILIKE :l', { l: `%${location}%` });
     const assets = await qb.orderBy('a.asset_no', 'ASC').getMany();
@@ -872,8 +932,47 @@ export class AssetsService {
 }
 
 export const MOVE_AR: Record<string, string> = {
-  opening: 'رصيد افتتاحي', purchase: 'شراء', donation: 'تبرع عيني', addition: 'إضافة وتحسين', sale: 'بيع', scrap: 'تخريد',
+  opening: 'رصيد افتتاحي', purchase: 'شراء', donation: 'تبرع عيني', addition: 'إضافة وتحسين', revaluation: 'إعادة تقييم', impairment: 'هبوط قيمة',
+  wip: 'دفعة أصل تحت التنفيذ', capitalize: 'رسملة أصل تحت التنفيذ', sale: 'بيع', scrap: 'تخريد',
 };
+export const MAINT_AR: Record<string, string> = { preventive: 'صيانة وقائية', repair: 'إصلاح عطل' };
+
+const optDate = (v: unknown, label: string) => (v === undefined || v === null || v === '' ? null : dateOf(v, label));
+const optAmount = (v: unknown, label: string) => (v === undefined || v === null || v === '' ? 0 : amountOf(v, label, 0));
+
+function insuranceOf(v: unknown): AssetInsurance | null {
+  if (!v || typeof v !== 'object') return null;
+  const i = v as Record<string, unknown>;
+  const provider = str(i.provider, 200);
+  if (!provider && !i.endDate) return null;
+  const startDate = dateOf(i.startDate, 'بداية وثيقة التأمين');
+  const endDate = dateOf(i.endDate, 'نهاية وثيقة التأمين');
+  if (endDate < startDate) bad('نهاية وثيقة التأمين قبل بدايتها');
+  return {
+    provider: provider ?? bad('اكتب شركة التأمين'), policyNo: str(i.policyNo, 80), startDate, endDate,
+    cost: optAmount(i.cost, 'قسط التأمين'), coverage: optAmount(i.coverage, 'مبلغ التغطية'), notes: str(i.notes, 500),
+  };
+}
+
+function warrantyOf(v: unknown): AssetWarranty | null {
+  if (!v || typeof v !== 'object') return null;
+  const w = v as Record<string, unknown>;
+  const provider = str(w.provider, 200);
+  if (!provider && !w.endDate) return null;
+  const startDate = optDate(w.startDate, 'بداية الضمان');
+  const endDate = dateOf(w.endDate, 'نهاية الضمان');
+  if (startDate && endDate < startDate) bad('نهاية الضمان قبل بدايته');
+  return { provider: provider ?? bad('اكتب جهة الضمان (المورد أو المصنّع)'), startDate, endDate, notes: str(w.notes, 500) };
+}
+
+function planOf(v: unknown): MaintenancePlan | null {
+  if (!v || typeof v !== 'object') return null;
+  const p = v as Record<string, unknown>;
+  if (!p.intervalMonths && !p.nextDate) return null;
+  const intervalMonths = Number(p.intervalMonths);
+  if (!Number.isInteger(intervalMonths) || intervalMonths < 1 || intervalMonths > 60) bad('دورية الصيانة الوقائية بين شهر و60 شهرًا');
+  return { intervalMonths, nextDate: dateOf(p.nextDate, 'موعد الصيانة القادمة'), notes: str(p.notes, 500) };
+}
 export const dateOrToday = (v: unknown) => (v ? dateOf(v, 'التاريخ') : today());
 export const addDaysIso = (s: string, n: number) => {
   const d = new Date(`${s}T00:00:00Z`);

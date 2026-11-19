@@ -41,6 +41,32 @@ export interface MaintenanceContract {
 
 export interface StoredImage { key: string; mime: string; name: string }
 
+/** وثيقة تأمين الأصل */
+export interface AssetInsurance {
+  provider: string;
+  policyNo: string | null;
+  startDate: string;
+  endDate: string;
+  cost: number;
+  coverage: number;
+  notes: string | null;
+}
+
+/** ضمان المورد أو الشركة المصنعة */
+export interface AssetWarranty {
+  provider: string;
+  startDate: string | null;
+  endDate: string;
+  notes: string | null;
+}
+
+/** خطة الصيانة الوقائية: كل كم شهر، وموعد الصيانة القادمة */
+export interface MaintenancePlan {
+  intervalMonths: number;
+  nextDate: string;
+  notes: string | null;
+}
+
 /** مجموعة أصول: مباني، سيارات، أجهزة حاسب... */
 @Entity('acc_asset_groups')
 @Index('UQ_acc_asset_groups_code', ['organizationId', 'code'], { unique: true })
@@ -109,8 +135,11 @@ export class AssetGroup {
   createdAt!: Date;
 }
 
-/** draft مسجل بلا قيمة، pending_purchase ينتظر اعتماد سند الشراء، active في الدفاتر، pending_sale ينتظر اعتماد سند البيع */
-export type AssetStatus = 'draft' | 'pending_purchase' | 'active' | 'pending_sale' | 'sold' | 'scrapped';
+/**
+ * draft مسجل بلا قيمة، construction تحت التنفيذ (تتراكم تكاليفه في حساب المشروعات تحت التنفيذ حتى رسملته)،
+ * pending_purchase ينتظر اعتماد سند الشراء، active في الدفاتر، pending_sale ينتظر اعتماد سند البيع
+ */
+export type AssetStatus = 'draft' | 'construction' | 'pending_purchase' | 'active' | 'pending_sale' | 'sold' | 'scrapped';
 
 /** بطاقة الأصل */
 @Entity('acc_assets')
@@ -167,6 +196,23 @@ export class FixedAsset {
   @Column({ type: 'jsonb', default: () => `'[]'` })
   maintenance!: MaintenanceContract[];
 
+  /** الأصل يتطلب تأمينًا: يظهر تنبيه إن لم تُسجل له وثيقة سارية */
+  @Column({ name: 'insurance_required', default: false })
+  insuranceRequired!: boolean;
+
+  @Column({ type: 'jsonb', nullable: true })
+  insurance!: AssetInsurance | null;
+
+  /** الأصل له ضمان من المورد أو المصنّع يُتابع انتهاؤه */
+  @Column({ name: 'warranty_required', default: false })
+  warrantyRequired!: boolean;
+
+  @Column({ type: 'jsonb', nullable: true })
+  warranty!: AssetWarranty | null;
+
+  @Column({ name: 'maintenance_plan', type: 'jsonb', nullable: true })
+  maintenancePlan!: MaintenancePlan | null;
+
   /** طريقة الإهلاك ونسبته وعمره إن اختلفت عن المجموعة */
   @Column({ type: 'varchar', length: 16, nullable: true })
   method!: DepMethod | null;
@@ -200,9 +246,9 @@ export class FixedAsset {
   @Column({ name: 'depreciated_through', type: 'date', nullable: true })
   depreciatedThrough!: string | null;
 
-  /** طريقة الاقتناء: شراء أو تبرع عيني أو رصيد افتتاحي */
-  @Column({ name: 'acquisition', type: 'varchar', length: 10, nullable: true })
-  acquisition!: 'purchase' | 'donation' | 'opening' | null;
+  /** طريقة الاقتناء: شراء أو تبرع عيني أو رصيد افتتاحي أو رسملة أصل تحت التنفيذ */
+  @Column({ name: 'acquisition', type: 'varchar', length: 12, nullable: true })
+  acquisition!: 'purchase' | 'donation' | 'opening' | 'capitalize' | null;
 
   @Column({ name: 'disposed_at', type: 'date', nullable: true })
   disposedAt!: string | null;
@@ -217,11 +263,14 @@ export class FixedAsset {
   updatedAt!: Date;
 }
 
-export type AssetMoveKind = 'opening' | 'purchase' | 'donation' | 'addition' | 'sale' | 'scrap';
+export type AssetMoveKind = 'opening' | 'purchase' | 'donation' | 'addition' | 'revaluation' | 'impairment' | 'wip' | 'capitalize' | 'sale' | 'scrap';
 export type AssetMoveStatus = 'pending' | 'done' | 'cancelled';
 export type AssetPayMethod = 'cash' | 'bank' | 'credit';
 
-/** حركة على تكلفة الأصل أو مجمع إهلاكه: رصيد افتتاحي، شراء، تبرع عيني، إضافة، بيع، تخريد */
+/**
+ * حركة على تكلفة الأصل أو مجمع إهلاكه: رصيد افتتاحي، شراء، تبرع عيني، إضافة، إعادة تقييم (تزيد التكلفة)،
+ * هبوط قيمة (يزيد مجمع الإهلاك)، دفعة تحت التنفيذ (لا تدخل التكلفة حتى الرسملة)، رسملة، بيع، تخريد
+ */
 @Entity('acc_asset_moves')
 @Index('IDX_acc_asset_moves_asset', ['assetId', 'date'])
 @Index('IDX_acc_asset_moves_voucher', ['voucherId'])
@@ -238,7 +287,7 @@ export class AssetMove {
   @Column({ name: 'asset_id', type: 'uuid' })
   assetId!: string;
 
-  @Column({ type: 'varchar', length: 10 })
+  @Column({ type: 'varchar', length: 12 })
   kind!: AssetMoveKind;
 
   @Column({ type: 'date' })
@@ -287,6 +336,26 @@ export class AssetMove {
   /** حركة الإهلاك الجزئي حتى تاريخ البيع أو التخريد */
   @Column({ name: 'dep_run_id', type: 'uuid', nullable: true })
   depRunId!: string | null;
+
+  /** تمويل من منحة أو مشروع: الحساب المقيد الذي يُخفَّض عند اعتماد الشراء */
+  @Column({ name: 'funding_account_id', type: 'uuid', nullable: true })
+  fundingAccountId!: string | null;
+
+  /** اسم المنحة أو المشروع أو الجهة المانحة */
+  @Column({ name: 'funding_name', type: 'varchar', length: 250, nullable: true })
+  fundingName!: string | null;
+
+  /** المبلغ الممول من المنحة (كل المبلغ أو جزء منه) */
+  @Column(money('funded_amount'))
+  fundedAmount!: number;
+
+  /** قيد تحرير القيد عن المبلغ الممول (يصدر عند اعتماد سند الشراء) */
+  @Column({ name: 'funding_entry_id', type: 'uuid', nullable: true })
+  fundingEntryId!: string | null;
+
+  /** بند الموازنة الرأسمالية الذي يُحمَّل عليه الشراء */
+  @Column({ name: 'budget_line_id', type: 'uuid', nullable: true })
+  budgetLineId!: string | null;
 
   @Column({ type: 'varchar', length: 10, default: 'done' })
   status!: AssetMoveStatus;
@@ -523,4 +592,177 @@ export class AssetStocktake {
   createdAt!: Date;
 }
 
-export const ASSET_ENTITIES = [AssetGroup, FixedAsset, AssetMove, DepRun, DepLine, AssetCustody, AssetStocktake];
+/** سجل الصيانة: وقائية مجدولة أو إصلاح عطل، بتكلفتها ومدة التوقف */
+@Entity('acc_asset_maintenance')
+@Index('IDX_acc_asset_maintenance_asset', ['assetId', 'date'])
+@Index('UQ_acc_asset_maintenance_no', ['organizationId', 'recordNo'], { unique: true })
+export class AssetMaintenance {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'record_no', type: 'int' })
+  recordNo!: number;
+
+  @Column({ name: 'asset_id', type: 'uuid' })
+  assetId!: string;
+
+  @Column({ type: 'date' })
+  date!: string;
+
+  /** preventive صيانة وقائية، repair إصلاح عطل */
+  @Column({ type: 'varchar', length: 10 })
+  kind!: 'preventive' | 'repair';
+
+  @Column({ length: 1000 })
+  description!: string;
+
+  @Column({ type: 'varchar', length: 250, nullable: true })
+  vendor!: string | null;
+
+  @Column(money('cost'))
+  cost!: number;
+
+  /** أيام توقف الأصل عن العمل */
+  @Column({ name: 'downtime_days', type: 'int', default: 0 })
+  downtimeDays!: number;
+
+  /** سند الصرف إن سُددت التكلفة من الأصول الثابتة */
+  @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
+  voucherId!: string | null;
+
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  notes!: string | null;
+
+  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
+  createdByName!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+/**
+ * الموازنة الرأسمالية لسنة: بنود مخطط شراؤها مقابل الفعلي.
+ * external_ref في الرأس والبنود للربط مستقبلًا مع نظام الخطة والموازنة (رقم الخطة أو البند هناك).
+ */
+@Entity('acc_asset_budgets')
+@Index('UQ_acc_asset_budgets_year', ['organizationId', 'fiscalYearId'], { unique: true })
+export class CapitalBudget {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'fiscal_year_id', type: 'uuid' })
+  fiscalYearId!: string;
+
+  @Column({ length: 200 })
+  title!: string;
+
+  @Column({ type: 'varchar', length: 10, default: 'draft' })
+  status!: 'draft' | 'approved';
+
+  @Column({ name: 'external_ref', type: 'varchar', length: 120, nullable: true })
+  externalRef!: string | null;
+
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  notes!: string | null;
+
+  @Column({ name: 'approved_by_name', type: 'varchar', length: 200, nullable: true })
+  approvedByName!: string | null;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt!: Date | null;
+
+  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
+  createdByName!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+@Entity('acc_asset_budget_lines')
+@Index('IDX_acc_asset_budget_lines_budget', ['budgetId'])
+export class CapitalBudgetLine {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'budget_id', type: 'uuid' })
+  budgetId!: string;
+
+  @Column({ name: 'line_no', type: 'int' })
+  lineNo!: number;
+
+  /** مجموعة الأصول المخطط شراؤها (يُقارن بها الفعلي غير المربوط ببند) */
+  @Column({ name: 'group_id', type: 'uuid' })
+  groupId!: string;
+
+  @Column({ length: 300 })
+  description!: string;
+
+  @Column({ type: 'int', default: 1 })
+  quantity!: number;
+
+  @Column(money('amount'))
+  amount!: number;
+
+  /** الربع المتوقع للشراء (1-4) */
+  @Column({ type: 'int', nullable: true })
+  quarter!: number | null;
+
+  @Column({ name: 'unit_id', type: 'uuid', nullable: true })
+  unitId!: string | null;
+
+  /** رقم البند في نظام الخطة والموازنة (للربط مستقبلًا) */
+  @Column({ name: 'external_ref', type: 'varchar', length: 120, nullable: true })
+  externalRef!: string | null;
+
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  notes!: string | null;
+}
+
+/** سجل عمليات استيراد الأصول من ملف Excel */
+@Entity('acc_asset_imports')
+export class AssetImport {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'file_name', length: 250 })
+  fileName!: string;
+
+  /** complete مكتملة، partial جزئية، rejected مرفوضة */
+  @Column({ type: 'varchar', length: 10 })
+  status!: 'complete' | 'partial' | 'rejected';
+
+  @Column({ type: 'int', default: 0 })
+  total!: number;
+
+  @Column({ type: 'int', default: 0 })
+  imported!: number;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  errors!: { row: number; name: string | null; messages: string[] }[];
+
+  /** الأصول التي أُنشئت */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  assets!: { id: string; code: string; name: string }[];
+
+  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
+  createdByName!: string;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+export const ASSET_ENTITIES = [
+  AssetGroup, FixedAsset, AssetMove, DepRun, DepLine, AssetCustody, AssetStocktake, AssetMaintenance, CapitalBudget, CapitalBudgetLine, AssetImport,
+];
