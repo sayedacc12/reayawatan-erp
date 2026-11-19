@@ -7,7 +7,8 @@ import { DataSource, Repository } from 'typeorm';
 import { Organization } from '../../core/entities';
 import { LookupsService } from '../../core/lookups/lookups.service';
 import { Activity, Beneficiary, BeneficiaryRequest, DynamicForm, Workflow } from './entities';
-import { PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
+import { PasswordResetService } from '../../core/auth/password-reset.service';
+import { PortalChangePasswordDto, PortalForgotDto, PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
 import { PortalUser } from './portal.guard';
 import { RECURRENCE_LABEL, RequestsService } from './requests.service';
 import { TicketsService } from './tickets.service';
@@ -24,6 +25,7 @@ export class PortalService {
     private readonly requests: RequestsService,
     private readonly tickets: TicketsService,
     private readonly lookups: LookupsService,
+    private readonly resets: PasswordResetService,
   ) {}
 
   async organization(slug: string) {
@@ -103,12 +105,50 @@ export class PortalService {
     const nationalId = dto.nationalId.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
     const b = await this.beneficiaries.findOne({
       where: { organizationId: org.id, nationalId },
-      select: { id: true, portalPasswordHash: true },
+      select: { id: true, portalPasswordHash: true, portalMustChangePassword: true, portalTempExpiresAt: true },
     });
     const ok = await bcrypt.compare(dto.password, b?.portalPasswordHash ?? DUMMY_HASH);
     if (!b?.portalPasswordHash || !ok) throw new UnauthorizedException('رقم الهوية أو كلمة المرور غير صحيحة');
+    if (b.portalMustChangePassword && b.portalTempExpiresAt && b.portalTempExpiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('انتهت صلاحية كلمة المرور المؤقتة. اطلب كلمة جديدة من «نسيت كلمة المرور؟»');
+    }
     await this.beneficiaries.update(b.id, { portalLastLoginAt: new Date() });
-    return this.issue(b.id);
+    return { ...(await this.issue(b.id)), mustChangePassword: b.portalMustChangePassword };
+  }
+
+  /**
+   * نسيت كلمة المرور: يطابق رقم الهوية مع الجوال المسجل في ملف المستفيد.
+   * عند التطابق يصل الطلب لموظفي الجمعية ليتصلوا بالجوال المسجل ويسلّموه كلمة مؤقتة.
+   * الرد واحد دائمًا حتى لا يكشف وجود ملف برقم الهوية.
+   */
+  async forgot(slug: string, dto: PortalForgotDto, ip: string | null) {
+    const org = await this.organization(slug);
+    const reply = {
+      message: 'استلمنا طلبك. إن تطابق رقم الهوية مع الجوال المسجل لدينا فسيتواصل معك فريق الجمعية على جوالك المسجل لتسليمك كلمة مرور مؤقتة.',
+    };
+    const b = await this.beneficiaries.findOne({
+      where: { organizationId: org.id, nationalId: dto.nationalId },
+      select: { id: true, fullName: true, phone: true, portalPasswordHash: true },
+    });
+    const digits = (s: string | null | undefined) => String(s ?? '').replace(/\D/g, '').slice(-9);
+    if (!b?.portalPasswordHash || digits(b.phone).length < 9 || digits(b.phone) !== digits(dto.phone)) return reply;
+    await this.resets.record({ audience: 'portal', organizationId: org.id, beneficiaryId: b.id, name: b.fullName, ip });
+    return reply;
+  }
+
+  async changePassword(p: PortalUser, dto: PortalChangePasswordDto) {
+    const b = await this.beneficiaries.findOneOrFail({
+      where: { id: p.beneficiaryId }, select: { id: true, portalPasswordHash: true, portalMustChangePassword: true, nationalId: true },
+    });
+    if (!b.portalPasswordHash || !(await bcrypt.compare(dto.currentPassword, b.portalPasswordHash))) {
+      throw new BadRequestException('كلمة المرور الحالية غير صحيحة');
+    }
+    if (dto.currentPassword === dto.newPassword) throw new BadRequestException('كلمة المرور الجديدة يجب أن تختلف عن الحالية');
+    if (b.nationalId && dto.newPassword.includes(b.nationalId)) throw new BadRequestException('لا تجعل رقم الهوية جزءًا من كلمة المرور');
+    await this.beneficiaries.update(b.id, {
+      portalPasswordHash: await bcrypt.hash(dto.newPassword, 12), portalMustChangePassword: false, portalTempExpiresAt: null,
+    });
+    if (b.portalMustChangePassword) await this.resets.completeForBeneficiary(b.id);
   }
 
   async me(p: PortalUser) {
@@ -121,6 +161,7 @@ export class PortalService {
         fullName: b.fullName, fileNo: b.fileNo, nationalId: b.nationalId, phone: b.phone, altPhone: b.altPhone,
         city: b.city, address: b.address, gender: b.gender, nationality: b.nationality, status: b.status,
       },
+      mustChangePassword: b.portalMustChangePassword,
     };
   }
 
@@ -212,6 +253,6 @@ export class PortalService {
   }
 
   private async issue(beneficiaryId: string) {
-    return { accessToken: await this.jwt.signAsync({ sub: beneficiaryId, typ: 'portal' }, { expiresIn: '7d' }) };
+    return { accessToken: await this.jwt.signAsync({ sub: beneficiaryId, typ: 'portal', ts: Date.now() }, { expiresIn: '7d' }) };
   }
 }

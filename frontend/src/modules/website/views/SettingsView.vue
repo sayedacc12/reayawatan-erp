@@ -13,7 +13,7 @@ const tab = ref<Tab>('general');
 const TABS: [Tab, string][] = [['general', 'عام والنشر'], ['store', 'المتجر'], ['payment', 'بوابة الدفع'], ['accounting', 'الربط المالي'], ['permissions', 'الصلاحيات']];
 const SECTIONS: Record<string, string> = {
   about: 'من نحن', programs: 'البرامج', news: 'الأخبار', governance: 'الحوكمة والشفافية', partners: 'الشركاء', contact: 'تواصل معنا', store: 'المتجر والتبرع',
-  volunteer: 'رابط التطوع', membership: 'رابط العضوية', portal: 'رابط بوابة المستفيدين',
+  volunteer: 'رابط التطوع', membership: 'رابط العضوية', portal: 'زر بوابة المستفيدين', staff: 'زر بوابة الموظفين',
 };
 const s = ref<any>(null);
 const presets = ref('');

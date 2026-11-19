@@ -1,7 +1,7 @@
 import { AboutContent, GovernanceContent, HomeContent, ProgramStore, SeoContent, SiteAccounting, SitePayment, SiteSections, StoreConfig } from './entities/website.entity';
 
 export const DEFAULT_SECTIONS: SiteSections = {
-  about: true, programs: true, news: true, governance: true, partners: true, contact: true, store: true, volunteer: true, membership: true, portal: true,
+  about: true, programs: true, news: true, governance: true, partners: true, contact: true, store: true, volunteer: true, membership: true, portal: true, staff: true,
 };
 
 export const DEFAULT_HOME: HomeContent = {

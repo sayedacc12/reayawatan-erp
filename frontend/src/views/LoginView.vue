@@ -63,7 +63,33 @@ function spotlight(e: PointerEvent) {
   el.style.setProperty('--my', `${e.clientY - r.top}px`);
 }
 
+// نسيت كلمة المرور: الطلب يصل لمدير النظام في الجمعية (أو لمالك المنصة) ليسلّم كلمة مؤقتة
+const mode = ref<'login' | 'forgot'>('login');
+const forgotDone = ref('');
+function setMode(m: 'login' | 'forgot') {
+  mode.value = m;
+  error.value = '';
+  forgotDone.value = '';
+}
+async function sendForgot() {
+  error.value = '';
+  if (!email.value.trim()) {
+    error.value = 'اكتب اسم المستخدم أو البريد الإلكتروني';
+    return;
+  }
+  busy.value = true;
+  try {
+    const res = await api<{ message: string }>('/auth/forgot', { method: 'POST', json: { login: email.value, organization: slug.value || undefined } });
+    forgotDone.value = res.message;
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
+
 async function submit() {
+  if (mode.value === 'forgot') return sendForgot();
   error.value = '';
   if (arabicKeyboard.value) {
     error.value = 'لوحة المفاتيح على اللغة العربية. غيّرها إلى الإنجليزية (Alt + Shift) ثم أعد كتابة البيانات';
@@ -134,8 +160,9 @@ async function submit() {
           <div class="form-head">
             <BrandMark :size="40" />
             <div>
-              <h2>{{ slug ? 'دخول الموظفين' : 'مرحبًا بك في سنابل' }}</h2>
-              <p>{{ slug ? orgName : 'دخول إدارة المنصة. موظفو الجمعيات يدخلون من رابط جمعيتهم' }}</p>
+              <h2>{{ mode === 'forgot' ? 'استعادة كلمة المرور' : slug ? 'دخول الموظفين' : 'مرحبًا بك في سنابل' }}</h2>
+              <p v-if="mode === 'forgot'">اكتب اسم الدخول، ويصل طلبك إلى {{ slug ? 'مدير النظام في جمعيتك' : 'مالك المنصة' }}</p>
+              <p v-else>{{ slug ? orgName : 'دخول إدارة المنصة. موظفو الجمعيات يدخلون من رابط جمعيتهم' }}</p>
             </div>
           </div>
 
@@ -153,6 +180,22 @@ async function submit() {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v12H4z M4 7l8 6 8-6" /></svg>
           </label>
 
+          <template v-if="mode === 'forgot'">
+            <div v-if="forgotDone" class="done" role="status">✓ {{ forgotDone }}</div>
+            <ul v-else class="rules">
+              <li>يصلك من {{ slug ? 'مدير النظام' : 'مالك المنصة' }} كلمة مرور مؤقتة، صالحة 24 ساعة.</li>
+              <li>عند أول دخول بها يطلب منك النظام اختيار كلمة مرور جديدة.</li>
+              <li v-if="!slug">إن كنت مالك المنصة نفسه فاستعد حسابك من الخادم بأمر الاستعادة المذكور في دليل التشغيل.</li>
+            </ul>
+            <button v-if="!forgotDone" class="submit" :disabled="busy">
+              <span class="shine" aria-hidden="true" />
+              <span v-if="busy" class="loading"><i /><i /><i /></span>
+              <span v-else>إرسال الطلب</span>
+            </button>
+            <button type="button" class="link-btn" @click="setMode('login')">← العودة لتسجيل الدخول</button>
+          </template>
+
+          <template v-else>
           <label class="float">
             <input v-model="password" :type="showPassword ? 'text' : 'password'" dir="ltr" autocomplete="current-password" placeholder=" " required />
             <span>كلمة المرور</span>
@@ -172,6 +215,8 @@ async function submit() {
             <span v-else-if="busy" class="loading"><i /><i /><i /></span>
             <span v-else>تسجيل الدخول</span>
           </button>
+          <button type="button" class="link-btn" @click="setMode('forgot')">نسيت كلمة المرور؟</button>
+          </template>
 
           <p class="secure">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /></svg>
@@ -185,6 +230,10 @@ async function submit() {
 </template>
 
 <style scoped>
+.link-btn { display: block; margin: 12px auto 0; background: none; border: 0; color: var(--gold); font: inherit; font-size: .92rem; font-weight: 600; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+.done { background: rgba(45, 212, 191, .12); border: 1px solid rgba(45, 212, 191, .4); color: #ccfbf1; padding: 12px 14px; border-radius: 12px; font-size: .93rem; line-height: 1.7; }
+.rules { margin: 0 0 14px; padding-inline-start: 18px; color: var(--ink-2); font-size: .88rem; line-height: 1.8; }
 .register { text-align: center; margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); }
 .register a { color: var(--gold); font-weight: 600; }
 .login {

@@ -12,6 +12,7 @@ import {
 } from '../labels';
 import type { Aid, Beneficiary, FamilyMember, Page, RequestRow } from '../types';
 import { passwordProblem } from '../../../validation';
+import TempPasswordDialog from '../../../components/TempPasswordDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -124,6 +125,19 @@ const savePortal = () => submit(async () => {
   await api(`/beneficiaries/${id}/portal-access`, { method: 'POST', json: { password: portalForm.password } });
 }, 'تم تفعيل دخول المستفيد للبوابة');
 
+// كلمة مرور مؤقتة للبوابة: بعد التحقق من المستفيد بالاتصال على جواله المسجل
+const portalUrl = `${location.origin}/portal/${session.user?.organizationSlug ?? ''}`;
+const portalTemp = ref<{ password: string; nationalId: string; phone: string | null; fullName: string; expiresAt: string } | null>(null);
+async function issuePortalTemp() {
+  if (!confirm('إصدار كلمة مرور مؤقتة لبوابة المستفيد؟ تتوقف كلمة مروره الحالية فورًا. أرسلها لجواله المسجل فقط.')) return;
+  try {
+    portalTemp.value = await api(`/beneficiaries/${id}/portal-temp-password`, { method: 'POST' });
+    await load();
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
+
 async function revokePortal() {
   if (!confirm('إيقاف دخول المستفيد للبوابة؟')) return;
   await api(`/beneficiaries/${id}/portal-access`, { method: 'DELETE' });
@@ -216,9 +230,16 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
           <button v-if="can.manage.value" class="btn btn-ghost" @click="editing = true">تعديل البيانات</button>
           <button v-if="can.manage.value && !b.hasPortalAccess" class="btn btn-ghost" @click="openDialog('portal')">تفعيل البوابة</button>
           <button v-if="can.manage.value && b.hasPortalAccess" class="btn btn-ghost portal-on" title="اضغط لإيقاف دخول البوابة" @click="revokePortal">● البوابة مفعّلة</button>
+          <button v-if="can.manage.value && b.hasPortalAccess" class="btn btn-ghost" title="كلمة مرور مؤقتة للبوابة يغيّرها المستفيد عند أول دخول" @click="issuePortalTemp">كلمة مرور مؤقتة</button>
           <button v-if="can.aid.value && !aidBlocked" class="btn btn-gold" @click="tab = 'aid'; openDialog('aid')">+ صرف مساعدة</button>
         </div>
       </section>
+
+      <div v-if="b.portalResetPending && can.manage.value" class="reset-alert">
+        <div><b>طلب استعادة كلمة مرور البوابة</b><p>طابق المستفيد رقم الهوية مع الجوال المسجل. اتصل بجواله <span dir="ltr">{{ b.phone }}</span> للتأكد منه، ثم أصدر له كلمة مرور مؤقتة.</p></div>
+        <button class="btn btn-primary" @click="issuePortalTemp">إصدار كلمة مرور مؤقتة</button>
+      </div>
+      <TempPasswordDialog v-if="portalTemp" :name="portalTemp.fullName" :login="portalTemp.nationalId" login-label="رقم الهوية" :password="portalTemp.password" :expires-at="portalTemp.expiresAt" :phone="portalTemp.phone" :login-url="portalUrl" :place="`بوابة المستفيدين في ${session.user?.organizationName ?? 'الجمعية'}`" @close="portalTemp = null" />
 
       <div class="summary">
         <div class="tile" style="--a: #14b8a6"><span>أفراد الأسرة</span><strong><CountUp :value="b.summary.familySize" /></strong></div>
@@ -456,6 +477,8 @@ const aidRowTitle = (a: Aid) => a.description || label('aid', a.aidType);
 <style scoped>
 .back { display: inline-block; margin-bottom: 12px; color: var(--muted); font-size: .9rem; }
 .back:hover { color: var(--primary); }
+.reset-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 18px; margin: 14px 0 22px; border-radius: 14px; background: #fef3c7; color: #78350f; border: 1px solid #fcd34d; }
+.reset-alert p { margin: 4px 0 0; font-size: .9rem; }
 .portal-on { color: #86efac !important; border-color: rgba(134,239,172,.4) !important; }
 .clickable { cursor: pointer; }
 

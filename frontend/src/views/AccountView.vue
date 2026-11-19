@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { api } from '../api';
 import { useSession } from '../stores/session';
 import { useToast } from '../stores/toast';
-import { passwordProblem } from '../validation';
+import { strongPasswordProblem } from '../validation';
 
 const session = useSession();
 const toast = useToast();
@@ -18,7 +18,7 @@ const tried = ref(false);
 
 // رسائل تظهر تحت كل خانة أثناء الكتابة
 const nextProblem = computed(() => {
-  const p = passwordProblem(next.value);
+  const p = strongPasswordProblem(next.value);
   if (p) return p;
   if (next.value && next.value === current.value) return 'يجب أن تختلف كلمة المرور الجديدة عن الحالية';
   return '';
@@ -75,7 +75,7 @@ async function submit() {
           <input v-model="next" :class="['input', { invalid: nextProblem || (tried && !next) }]" type="password" dir="ltr" autocomplete="new-password" />
           <small v-if="nextProblem" class="field-error">{{ nextProblem }}</small>
           <small v-else-if="tried && !next" class="field-error">اكتب كلمة المرور الجديدة</small>
-          <small v-else class="muted">8 أحرف على الأقل، بالأحرف الإنجليزية والأرقام والرموز</small>
+          <small v-else class="muted">8 أحرف على الأقل، بالأحرف الإنجليزية والأرقام والرموز، وفيها حرف ورقم على الأقل</small>
         </div>
         <div class="field">
           <label>تأكيد كلمة المرور الجديدة</label>

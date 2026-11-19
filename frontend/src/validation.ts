@@ -12,3 +12,11 @@ export function passwordProblem(p: string): string {
 }
 
 export const hasArabic = (s: string) => ARABIC.test(s);
+
+/** كلمة مرور جديدة يختارها المستخدم بنفسه: نفس القواعد + حرف إنجليزي ورقم على الأقل */
+export function strongPasswordProblem(p: string): string {
+  const base = passwordProblem(p);
+  if (base || !p) return base;
+  if (!/[A-Za-z]/.test(p) || !/[0-9]/.test(p)) return 'كلمة المرور الجديدة يجب أن تحتوي على حرف إنجليزي ورقم على الأقل';
+  return '';
+}

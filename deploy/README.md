@@ -44,3 +44,10 @@ DOMAIN=sanabelerp.com bash deploy/setup.sh
 ```bash
 git pull && bash deploy/setup.sh
 ```
+
+## نسيت كلمة مرور مدير المنصة (admin)
+لا يوجد حساب أعلى من مدير المنصة ليسلّمه كلمة مرور مؤقتة، لذلك تُستعاد من السيرفر نفسه. ادخل على السيرفر ثم:
+```bash
+cd ~/charity-erp && docker compose exec backend node dist/cli/reset-platform-admin.js
+```
+تظهر كلمة مرور مؤقتة صالحة 24 ساعة. ادخل بها على `/login`، وسيطلب منك النظام اختيار كلمة مرور جديدة فورًا.

@@ -11,6 +11,8 @@ export const router = createRouter({
   scrollBehavior: (to, from, saved) => saved ?? (to.path !== from.path ? { top: 0 } : undefined),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
+    // من دخل بكلمة مرور مؤقتة يختار كلمة جديدة قبل أي شاشة أخرى
+    { path: '/change-password', component: () => import('./views/ForceChangeView.vue'), meta: { title: 'كلمة مرور جديدة' } },
     // صفحة دخول موظفي كل جمعية
     { path: '/o/:slug', component: () => import('./views/LoginView.vue'), meta: { public: true } },
     // صفحات الجمعيات العامة: طلب الاشتراك، ومتابعته، ومراجعة العقد الإلكتروني وتوقيعه
@@ -103,6 +105,8 @@ router.beforeEach(async (to) => {
     return false;
   }
   if (!session.isLoggedIn) return { path: loginPath(), query: { next: to.fullPath } };
+  if (session.user?.mustChangePassword) return to.path === '/change-password' ? true : '/change-password';
+  if (to.path === '/change-password') return '/';
   if (!session.can(to.meta.permission as string | undefined)) return '/forbidden';
   const anyOf = to.meta.anyPermission as string[] | undefined;
   if (anyOf?.length && !anyOf.some((p) => session.can(p))) return '/forbidden';

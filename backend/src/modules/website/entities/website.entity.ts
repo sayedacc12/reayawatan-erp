@@ -12,6 +12,8 @@ const num: ValueTransformer = {
 export interface SiteSections {
   about: boolean; programs: boolean; news: boolean; governance: boolean; partners: boolean; contact: boolean; store: boolean;
   volunteer: boolean; membership: boolean; portal: boolean;
+  /** زر «بوابة الموظفين» (صفحة دخول موظفي الجمعية) */
+  staff: boolean;
 }
 export interface HeroCta { label: string; target: string }
 export interface HomeStat { value: string; label: string }

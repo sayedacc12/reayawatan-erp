@@ -13,6 +13,10 @@ export const ANY_PERMISSION_KEY = 'erp:anyPermission';
 /** يكفي أن يملك المستخدم واحدة من الصلاحيات المذكورة */
 export const RequireAnyPermission = (...codes: string[]) => SetMetadata(ANY_PERMISSION_KEY, codes);
 
+export const ALLOW_TEMP_PASSWORD_KEY = 'erp:allowTempPassword';
+/** مسار متاح لمن دخل بكلمة مرور مؤقتة ولم يغيّرها بعد (بياناته وتغيير كلمة المرور فقط) */
+export const AllowWithTempPassword = () => SetMetadata(ALLOW_TEMP_PASSWORD_KEY, true);
+
 export interface AuthUser {
   id: string;
   /** null لمدير المنصة فقط */
@@ -26,6 +30,10 @@ export interface AuthUser {
   isSuperadmin: boolean;
   isPlatformAdmin: boolean;
   permissions: string[];
+  /** دخل بكلمة مرور مؤقتة: يغيّرها قبل استخدام النظام */
+  mustChangePassword?: boolean;
+  /** رموز الدخول الصادرة قبل هذا الوقت مرفوضة (داخلي، لا يُرسل للواجهة) */
+  sessionsValidAfter?: Date | null;
   /** الشاشات المسموحة للجمعية (null = كل الشاشات) */
   allowedScreens?: string[] | null;
 }
