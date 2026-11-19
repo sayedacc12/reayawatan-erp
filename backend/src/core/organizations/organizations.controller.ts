@@ -29,6 +29,16 @@ export class OrganizationsController {
     return this.orgs.update(id, dto);
   }
 
+  @Get('organizations/:id/admins')
+  admins(@Param('id', ParseUUIDPipe) id: string) {
+    return this.orgs.admins(id);
+  }
+
+  @Post('organizations/:id/admins/:userId/reset-password')
+  resetAdminPassword(@Param('id', ParseUUIDPipe) id: string, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.orgs.resetAdminPassword(id, userId);
+  }
+
   /** تفعيل/إيقاف الوحدات الاختيارية لجمعية */
   @Put('organizations/:id/modules')
   setModules(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SetOrganizationModulesDto) {

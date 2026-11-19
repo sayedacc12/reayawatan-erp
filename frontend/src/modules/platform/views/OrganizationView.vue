@@ -6,6 +6,7 @@ import RegistrationForm, { type MainData } from '../../../registration/Registrat
 import { useToast } from '../../../stores/toast';
 import ScreensPicker, { type Access } from '../components/ScreensPicker.vue';
 import { CONTRACT_STATUS, copyText, cycleLabel, fmtDate, money, ORG_STATE, type ScreenModule } from '../labels';
+import { waNumber } from '../siteLabels';
 import '../platform.css';
 
 interface Org {
@@ -26,6 +27,8 @@ const contracts = ref<ContractRow[]>([]);
 const catalog = ref<ScreenModule[]>([]);
 const error = ref('');
 const tab = ref<'overview' | 'profile' | 'screens' | 'contracts'>((route.query.tab as never) ?? 'overview');
+interface Admin { id: string; fullName: string; email: string; username: string | null; isActive: boolean; lastLoginAt: string | null }
+const admins = ref<Admin[]>([]);
 const access = ref<Access>({ allScreens: true, screens: [], modules: [] });
 
 async function load() {
@@ -38,6 +41,7 @@ async function load() {
     profile.value = d.profile;
     contracts.value = d.contracts;
     catalog.value = screens;
+    admins.value = await api<Admin[]>(`/platform/organizations/${id}/admins`).catch(() => []);
     access.value = { allScreens: !d.organization.allowedScreens, screens: d.organization.allowedScreens ?? [], modules: d.organization.modules };
     Object.assign(sub, {
       status: d.organization.subscriptionStatus, trialEndsOn: d.organization.trialEndsOn ?? '',
@@ -117,6 +121,29 @@ async function saveProfile(fd: FormData) {
 const viewLicense = () => profile.value && openProtectedFile(`/platform/applications/${profile.value.id}/license`).catch((e) => toast.error((e as Error).message));
 const origin = location.origin;
 const copy = (s: string) => { copyText(s); toast.success('تم النسخ'); };
+
+// بيانات دخول مدير نظام الجمعية: كلمة مرور مؤقتة تظهر مرة واحدة وتُرسل للجمعية
+const creds = ref<{ name: string; login: string; password: string } | null>(null);
+async function resetPassword(a: Admin) {
+  if (!confirm(`إنشاء كلمة مرور جديدة لحساب "${a.fullName}"؟ ستتوقف كلمة المرور الحالية فورًا.`)) return;
+  busy.value = true;
+  try {
+    const r = await api<{ password: string; login: string }>(`/platform/organizations/${id}/admins/${a.id}/reset-password`, { method: 'POST' });
+    creds.value = { name: a.fullName, login: r.login, password: r.password };
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    busy.value = false;
+  }
+}
+const credsText = () => creds.value ? `السلام عليكم،
+بيانات دخول مدير النظام لـ${org.value?.name} في منصة سنابل:
+رابط الدخول: ${origin}/o/${org.value?.slug}
+اسم الدخول: ${creds.value.login}
+كلمة المرور: ${creds.value.password}
+ننصح بتغيير كلمة المرور بعد أول دخول من قائمة الحساب.` : '';
+const directorPhone = () => profile.value?.data.directorPhone || profile.value?.data.orgPhone || '';
+const credsWa = () => `https://wa.me/${waNumber(directorPhone())}?text=${encodeURIComponent(credsText())}`;
 const STATUS_OPTIONS = [
   { value: 'trial', label: 'فترة تجريبية' }, { value: 'awaiting_contract', label: 'بانتظار توقيع العقد' }, { value: 'active', label: 'اشتراك ساري' },
 ];
@@ -172,6 +199,18 @@ const STATUS_OPTIONS = [
             <div class="p-link-box"><span>دخول الموظفين</span><code>{{ origin }}/o/{{ org.slug }}</code><button class="btn btn-sm" @click="copy(`${origin}/o/${org.slug}`)">نسخ</button></div>
             <div class="p-link-box"><span>بوابة المستفيدين</span><code>{{ origin }}/portal/{{ org.slug }}</code><button class="btn btn-sm" @click="copy(`${origin}/portal/${org.slug}`)">نسخ</button></div>
             <p class="muted small">يتوقف الدخول على الرابطين تلقائيًا عند انتهاء التجربة أو الاشتراك أو إيقاف الجمعية.</p>
+          </section>
+          <section class="card p-panel">
+            <h2>حساب مدير نظام الجمعية</h2>
+            <p class="muted small">يدخل من رابط دخول الموظفين باسم الدخول أدناه، ثم يضيف موظفي الجمعية بنفسه. إن لم تكن لديه كلمة المرور فأنشئ له كلمة مؤقتة وأرسلها له.</p>
+            <div v-for="a in admins" :key="a.id" class="admin-row">
+              <div>
+                <b>{{ a.fullName }}</b> <span v-if="!a.isActive" class="tone tone-danger">موقوف</span>
+                <div class="muted small">اسم الدخول: <code dir="ltr">{{ a.username ?? a.email }}</code> · {{ a.lastLoginAt ? `آخر دخول ${fmtDate(a.lastLoginAt)}` : 'لم يدخل بعد' }}</div>
+              </div>
+              <button class="btn btn-sm" :disabled="busy" @click="resetPassword(a)">كلمة مرور مؤقتة جديدة</button>
+            </div>
+            <p v-if="!admins.length" class="muted small">لا يوجد حساب مدير نظام لهذه الجمعية.</p>
           </section>
         </div>
       </template>
@@ -240,12 +279,27 @@ const STATUS_OPTIONS = [
         </div>
       </section>
     </template>
+    <div v-if="creds" class="modal-backdrop" @click.self="creds = null">
+      <div class="modal card">
+        <h3>بيانات الدخول الجديدة</h3>
+        <p class="muted small">انسخها الآن، فكلمة المرور لن تظهر مرة أخرى.</p>
+        <div class="p-link-box"><span>رابط الدخول</span><code>{{ origin }}/o/{{ org?.slug }}</code></div>
+        <div class="p-link-box"><span>اسم الدخول</span><code>{{ creds.login }}</code></div>
+        <div class="p-link-box"><span>كلمة المرور</span><code>{{ creds.password }}</code></div>
+        <div class="modal-actions">
+          <a v-if="directorPhone()" class="btn btn-primary" :href="credsWa()" target="_blank" rel="noopener">إرسال عبر واتساب للمدير التنفيذي</a>
+          <button class="btn" @click="copy(credsText())">نسخ الرسالة كاملة</button>
+          <button class="btn" @click="creds = null">إغلاق</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .back { display: inline-block; margin-bottom: 10px; font-size: .9rem; }
 .small { font-size: .86rem; }
+.admin-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-top: 1px dashed var(--border); }
 .sub-form { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 12px; }
 .p-link-box span { min-width: 110px; font-weight: 500; }
 .click { cursor: pointer; }
