@@ -19,6 +19,8 @@ export interface SessionUser {
   isSuperadmin: boolean;
   isPlatformAdmin: boolean;
   permissions: string[];
+  /** دخل بكلمة مرور مؤقتة: يغيّرها قبل استخدام النظام */
+  mustChangePassword?: boolean;
 }
 export interface AppEntry {
   code: string;

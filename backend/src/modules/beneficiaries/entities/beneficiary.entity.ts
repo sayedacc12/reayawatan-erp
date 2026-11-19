@@ -99,6 +99,17 @@ export class Beneficiary {
   @Column({ name: 'portal_password_hash', type: 'varchar', length: 100, nullable: true, select: false })
   portalPasswordHash!: string | null;
 
+  /** سلّمته الجمعية كلمة مرور مؤقتة: يغيّرها قبل استخدام البوابة */
+  @Column({ name: 'portal_must_change_password', default: false })
+  portalMustChangePassword!: boolean;
+
+  @Column({ name: 'portal_temp_expires_at', type: 'timestamptz', nullable: true })
+  portalTempExpiresAt!: Date | null;
+
+  /** رموز دخول البوابة الصادرة قبل هذا الوقت مرفوضة */
+  @Column({ name: 'portal_sessions_valid_after', type: 'timestamptz', nullable: true })
+  portalSessionsValidAfter!: Date | null;
+
   @Column({ name: 'portal_last_login_at', type: 'timestamptz', nullable: true })
   portalLastLoginAt!: Date | null;
 

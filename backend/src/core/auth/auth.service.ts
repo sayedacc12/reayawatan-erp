@@ -8,6 +8,7 @@ import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { accessProblem } from '../organizations/org-access';
 import { deletionNotice, loginDeletionText } from '../lifecycle/lifecycle-rules';
 import { AuthUser } from './decorators';
+import { PasswordResetService } from './password-reset.service';
 import { PermissionResolver } from './permission-resolver.service';
 
 // يستخدم عند عدم وجود المستخدم حتى يأخذ الرفض نفس الوقت تقريبًا
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly resolver: PermissionResolver,
     private readonly catalog: ModuleCatalogService,
+    private readonly resets: PasswordResetService,
   ) {}
 
   /**
@@ -35,7 +37,7 @@ export class AuthService {
     const id = login.trim().toLowerCase();
     const user = await this.users.findOne({
       where: id.includes('@') ? { email: id } : { username: id },
-      select: { id: true, passwordHash: true, organizationId: true, isPlatformAdmin: true },
+      select: { id: true, passwordHash: true, organizationId: true, isPlatformAdmin: true, mustChangePassword: true, tempPasswordExpiresAt: true },
     });
     const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) throw fail();
@@ -47,6 +49,10 @@ export class AuthService {
       throw new UnauthorizedException(
         own ? `هذا حساب موظف في "${own.name}". ادخل من صفحة جمعيتك: /o/${own.slug}` : 'بيانات الدخول أو كلمة المرور غير صحيحة',
       );
+    }
+    // كلمة المرور المؤقتة صالحة 24 ساعة فقط
+    if (user.mustChangePassword && user.tempPasswordExpiresAt && user.tempPasswordExpiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('انتهت صلاحية كلمة المرور المؤقتة. اطلب كلمة جديدة من «نسيت كلمة المرور؟»');
     }
     // الجمعية الموقوفة أو المنتهي اشتراكها: رسالة توضح السبب
     const problem = org ? accessProblem(org) : null;
@@ -60,7 +66,8 @@ export class AuthService {
       throw new UnauthorizedException('الحساب أو الجمعية موقوف، تواصل مع الإدارة');
     }
     await this.users.update(user.id, { lastLoginAt: new Date() });
-    const accessToken = await this.jwt.signAsync({ sub: user.id });
+    // ts بالملي ثانية: يميّز الجلسات التي سبقت إصدار كلمة مؤقتة ولو في نفس الثانية
+    const accessToken = await this.jwt.signAsync({ sub: user.id, ts: Date.now() });
     return { accessToken, ...(await this.session(user.id)) };
   }
 
@@ -77,7 +84,7 @@ export class AuthService {
   /** بيانات الجلسة: المستخدم + صلاحياته + الوحدات المتاحة له وقوائمها */
   async session(userId: string) {
     const user = (await this.resolver.resolve(userId)) as AuthUser;
-    const { allowedScreens, ...rest } = user;
+    const { allowedScreens, sessionsValidAfter: _v, ...rest } = user;
     return {
       user: rest,
       apps: this.catalog.appsFor(user.permissions, allowedScreens),
@@ -88,7 +95,7 @@ export class AuthService {
   async changePassword(userId: string, current: string, next: string) {
     const user = await this.users.findOne({
       where: { id: userId },
-      select: { id: true, passwordHash: true },
+      select: { id: true, passwordHash: true, email: true, username: true, mustChangePassword: true },
     });
     if (!user || !(await bcrypt.compare(current, user.passwordHash))) {
       throw new BadRequestException('كلمة المرور الحالية غير صحيحة');
@@ -96,6 +103,16 @@ export class AuthService {
     if (current === next) {
       throw new BadRequestException('كلمة المرور الجديدة يجب أن تختلف عن الحالية');
     }
-    await this.users.update(user.id, { passwordHash: await bcrypt.hash(next, 12) });
+    const lower = next.toLowerCase();
+    if ([user.username, user.email.split('@')[0]].some((x) => x && x.length >= 3 && lower.includes(x.toLowerCase()))) {
+      throw new BadRequestException('لا تجعل اسم الدخول أو البريد جزءًا من كلمة المرور');
+    }
+    await this.users.update(user.id, { passwordHash: await bcrypt.hash(next, 12), mustChangePassword: false, tempPasswordExpiresAt: null });
+    if (user.mustChangePassword) await this.resets.completeForUser(user.id);
+  }
+
+  /** «نسيت كلمة المرور»: الرد واحد دائمًا حتى لا يكشف وجود الحساب */
+  forgot(login: string, orgSlug: string | undefined, ip: string | null) {
+    return this.resets.requestStaff(login, orgSlug, ip);
   }
 }

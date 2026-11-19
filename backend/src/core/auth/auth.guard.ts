@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { ANY_PERMISSION_KEY, IS_PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
+import { ALLOW_TEMP_PASSWORD_KEY, ANY_PERMISSION_KEY, IS_PUBLIC_KEY, PERMISSIONS_KEY } from './decorators';
 import { PermissionResolver } from './permission-resolver.service';
 
 /**
@@ -28,7 +28,7 @@ export class AuthGuard implements CanActivate {
     const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('يجب تسجيل الدخول');
 
-    let payload: { sub: string; typ?: string };
+    let payload: { sub: string; typ?: string; iat?: number; ts?: number };
     try {
       payload = await this.jwt.verifyAsync(token);
     } catch {
@@ -39,7 +39,14 @@ export class AuthGuard implements CanActivate {
 
     const user = await this.resolver.resolve(payload.sub);
     if (!user) throw new UnauthorizedException('الحساب غير موجود أو موقوف');
+    // صدرت كلمة مرور مؤقتة بعد هذا الدخول: تنتهي كل الجلسات القديمة
+    if (user.sessionsValidAfter && (payload.ts ?? (payload.iat ?? 0) * 1000) < user.sessionsValidAfter.getTime()) {
+      throw new UnauthorizedException('انتهت الجلسة، سجّل الدخول مرة أخرى');
+    }
     req.user = user;
+    if (user.mustChangePassword && !this.reflector.getAllAndOverride<boolean>(ALLOW_TEMP_PASSWORD_KEY, targets)) {
+      throw new ForbiddenException('غيّر كلمة المرور المؤقتة أولًا، ثم تابع عملك');
+    }
 
     const required = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, targets) ?? [];
     if (!required.every((p) => user.permissions.includes(p))) {

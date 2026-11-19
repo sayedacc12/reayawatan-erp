@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Param, ParseUUIDPipe, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { MAX_DOCUMENT_BYTES } from './constants';
 import { Throttle } from '@nestjs/throttler';
-import { Public } from '../../core/auth/decorators';
-import { ContributionDto, PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
+import { AllowWithTempPassword, Public } from '../../core/auth/decorators';
+import { ContributionDto, PortalChangePasswordDto, PortalForgotDto, PortalLoginDto, PortalProfileDto, PortalRegisterDto, PortalRequestDto, TicketDto } from './portal.dto';
 import { CurrentPortalUser, PortalGuard, PortalUser } from './portal.guard';
 import { PortalService } from './portal.service';
 import { ResubmitDto } from './requests.dto';
@@ -39,7 +39,24 @@ export class PortalController {
     return this.portal.login(slug, dto);
   }
 
+  /** نسيت كلمة المرور: 5 طلبات كل 15 دقيقة لكل عنوان، والرد واحد دائمًا */
+  @Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })
+  @Post('o/:slug/forgot')
+  @HttpCode(200)
+  forgot(@Param('slug') slug: string, @Body() dto: PortalForgotDto, @Ip() ip: string) {
+    return this.portal.forgot(slug, dto, ip ?? null);
+  }
+
   @UseGuards(PortalGuard)
+  @AllowWithTempPassword()
+  @Post('change-password')
+  @HttpCode(204)
+  changePassword(@CurrentPortalUser() p: PortalUser, @Body() dto: PortalChangePasswordDto) {
+    return this.portal.changePassword(p, dto);
+  }
+
+  @UseGuards(PortalGuard)
+  @AllowWithTempPassword()
   @Get('me')
   me(@CurrentPortalUser() p: PortalUser) {
     return this.portal.me(p);

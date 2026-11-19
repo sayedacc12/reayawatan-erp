@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
+import { generateTempPassword, PasswordResetService, tempExpiry } from '../../core/auth/password-reset.service';
 import { LookupsService } from '../../core/lookups/lookups.service';
 import { DECISION_TO_STATUS } from './constants';
 import {
@@ -30,6 +31,7 @@ export class BeneficiariesService {
     @InjectRepository(BeneficiaryDocument) private readonly documents: Repository<BeneficiaryDocument>,
     private readonly storage: DocumentStorage,
     private readonly lookups: LookupsService,
+    private readonly resets: PasswordResetService,
   ) {}
 
   // ---------------- الملفات ----------------
@@ -119,6 +121,7 @@ export class BeneficiariesService {
     const [{ portal }] = await this.db.query(
       'SELECT portal_password_hash IS NOT NULL AS portal FROM beneficiaries WHERE id = $1', [b.id],
     );
+    const portalResets = await this.resets.portalLog(actor.organizationId, b.id);
     const family = b.family ?? [];
     const aids = b.aids ?? [];
     const familySize = family.length + 1;
@@ -126,6 +129,8 @@ export class BeneficiariesService {
     return {
       ...b,
       hasPortalAccess: portal as boolean,
+      portalResetPending: portalResets.some((r) => r.status === 'pending'),
+      portalResets,
       summary: {
         familySize,
         householdIncome,
@@ -163,11 +168,33 @@ export class BeneficiariesService {
     await this.storage.remove(docs.map((d) => d.storageKey));
   }
 
+  /**
+   * كلمة مرور مؤقتة للبوابة (بعد طلب «نسيت كلمة المرور» أو بمبادرة الموظف):
+   * تظهر للموظف مرة واحدة ليرسلها لجوال المستفيد المسجل، صالحة 24 ساعة، ويغيّرها المستفيد عند أول دخول.
+   */
+  async portalTempPassword(actor: OrgUser, id: string) {
+    const b = await this.find(actor, id);
+    if (!b.nationalId) throw new BadRequestException('سجّل رقم الهوية أولًا، فالمستفيد يدخل البوابة به');
+    const password = generateTempPassword();
+    const expiresAt = tempExpiry();
+    await this.db.transaction(async (em) => {
+      await em.getRepository(Beneficiary).update(b.id, {
+        portalPasswordHash: await bcrypt.hash(password, 12), portalMustChangePassword: true, portalTempExpiresAt: expiresAt, portalSessionsValidAfter: new Date(),
+      });
+      await this.resets.issuedForBeneficiary(em, { organizationId: actor.organizationId, beneficiaryId: b.id, name: b.fullName }, actor.fullName, expiresAt);
+    });
+    return { password, nationalId: b.nationalId, phone: b.phone, fullName: b.fullName, expiresAt };
+  }
+
   /** الموظف يفعّل دخول المستفيد للبوابة بكلمة مرور (الدخول برقم الهوية) */
   async setPortalAccess(actor: OrgUser, id: string, password: string | null) {
     const b = await this.find(actor, id);
     if (password && !b.nationalId) throw new BadRequestException('سجّل رقم الهوية أولًا، فالمستفيد يدخل البوابة به');
-    await this.beneficiaries.update(b.id, { portalPasswordHash: password ? await bcrypt.hash(password, 12) : null });
+    await this.beneficiaries.update(b.id, {
+      portalPasswordHash: password ? await bcrypt.hash(password, 12) : null, portalMustChangePassword: false, portalTempExpiresAt: null,
+      // إيقاف البوابة ينهي الجلسات المفتوحة فورًا
+      ...(password ? {} : { portalSessionsValidAfter: new Date() }),
+    });
   }
 
   // ---------------- الأسرة ----------------

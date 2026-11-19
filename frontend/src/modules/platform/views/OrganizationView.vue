@@ -144,8 +144,8 @@ const credsText = () => creds.value ? `السلام عليكم،
 بيانات دخول مدير النظام لـ${org.value?.name} في منصة سنابل:
 رابط الدخول: ${origin}/o/${org.value?.slug}
 اسم الدخول: ${creds.value.login}
-كلمة المرور: ${creds.value.password}
-ننصح بتغيير كلمة المرور بعد أول دخول من قائمة الحساب.` : '';
+كلمة المرور المؤقتة: ${creds.value.password}
+صالحة 24 ساعة، وسيطلب منك النظام اختيار كلمة مرور جديدة عند أول دخول.` : '';
 const directorPhone = () => profile.value?.data.directorPhone || profile.value?.data.orgPhone || '';
 const credsWa = () => `https://wa.me/${waNumber(directorPhone())}?text=${encodeURIComponent(credsText())}`;
 // ---- البيانات التجريبية: إضافتها في فترة التجربة، ثم التحويل لجمعية فعلية بحذفها ----

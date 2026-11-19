@@ -33,7 +33,7 @@ const id = (v: unknown) => (typeof v === 'string' && UUID.test(v) ? v : null);
 const link = (v: unknown) => {
   const s = str(v, 500);
   if (!s) return '';
-  if (/^https:\/\/[^\s"'<>]+$/.test(s) || /^(donate|programs|news|about|governance|partners|contact|volunteer|membership|portal)(#[\w-]{1,40})?$/.test(s)) return s;
+  if (/^https:\/\/[^\s"'<>]+$/.test(s) || /^(donate|programs|news|about|governance|partners|contact|volunteer|membership|portal|staff)(#[\w-]{1,40})?$/.test(s)) return s;
   throw new BadRequestException(`الرابط «${s.slice(0, 60)}» غير صالح: اكتب رابطًا يبدأ بـ https:// أو اختر صفحة من الموقع`);
 };
 
@@ -286,7 +286,7 @@ export class SiteService {
         enabled: s.store.enabled && s.sections.store, general: s.store.general, generalTitle: s.store.generalTitle, provider: s.payment.provider,
         ...this.store.bounds(s, null), totals,
       },
-      links: { volunteer: `/v/${org.slug}`, membership: `/m/${org.slug}`, portal: `/portal/${org.slug}`, login: `/o/${org.slug}` },
+      links: { volunteer: `/v/${org.slug}`, membership: `/m/${org.slug}`, portal: `/portal/${org.slug}`, login: `/o/${org.slug}`, staff: `/o/${org.slug}` },
     };
   }
 

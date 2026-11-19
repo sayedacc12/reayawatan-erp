@@ -15,3 +15,14 @@ export function IsValidPassword(minMessage = 'كلمة المرور يجب أن 
     Matches(PASSWORD_CHARS, { message: PASSWORD_CHARS_MESSAGE }),
   );
 }
+
+export const STRONG_PASSWORD_MESSAGE = 'كلمة المرور الجديدة يجب أن تحتوي على حرف إنجليزي ورقم على الأقل';
+
+/** كلمة المرور الجديدة التي يختارها المستخدم بنفسه (تغيير كلمة المرور، أو بعد كلمة مؤقتة): حرف ورقم على الأقل */
+export function IsStrongPassword() {
+  return applyDecorators(
+    // رسالة الأحرف العربية والطول تظهر أولًا، ثم شرط الحرف والرقم
+    Matches(/^(?=.*[A-Za-z])(?=.*[0-9])/, { message: STRONG_PASSWORD_MESSAGE }),
+    IsValidPassword('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل'),
+  );
+}

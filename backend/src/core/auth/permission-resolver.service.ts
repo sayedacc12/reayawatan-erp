@@ -53,6 +53,8 @@ export class PermissionResolver {
       isSuperadmin: user.isSuperadmin,
       isPlatformAdmin: user.isPlatformAdmin,
       permissions: codes.sort(),
+      mustChangePassword: user.mustChangePassword,
+      sessionsValidAfter: user.sessionsValidAfter,
       allowedScreens: user.isPlatformAdmin ? null : user.organization!.allowedScreens,
     };
   }

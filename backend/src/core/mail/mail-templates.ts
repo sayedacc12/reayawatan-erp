@@ -119,7 +119,7 @@ export const templates = {
   tempPassword: (v: { orgName: string; name: string; login: string; password: string; path: string; origin?: string | null }) => mailLayout({
     title: 'كلمة مرور مؤقتة جديدة',
     greeting: `السلام عليكم ${v.name}،`,
-    paragraphs: [`أنشأت إدارة منصة سنابل كلمة مرور مؤقتة جديدة لحساب مدير النظام في ${v.orgName}.`, 'غيّرها بعد أول دخول من صفحة «حسابي».'],
+    paragraphs: [`أنشأت إدارة منصة سنابل كلمة مرور مؤقتة جديدة لحساب مدير النظام في ${v.orgName}.`, 'كلمة المرور صالحة 24 ساعة، وسيطلب منك النظام اختيار كلمة مرور جديدة عند أول دخول.'],
     facts: [{ label: 'اسم الدخول', value: v.login, ltr: true }, { label: 'كلمة المرور المؤقتة', value: v.password, ltr: true }],
     button: btn('الدخول إلى المنصة', v.path, v.origin),
     note: 'إذا لم تطلب كلمة مرور جديدة فتواصل مع إدارة المنصة فورًا.',
