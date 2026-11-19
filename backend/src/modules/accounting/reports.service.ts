@@ -19,7 +19,10 @@ const CATALOG = [
   { code: 'functional', name: 'المصروفات حسب التصنيف الوظيفي', description: 'برامج وأنشطة، جمع أموال، إدارية وعمومية، حوكمة', ready: false },
 ];
 
-type BalanceRow = { account_id: string; opening: string; debit: string; credit: string };
+/** أقصى عدد أسطر في كشف الحساب أو كشف الشريك */
+const MAX_STATEMENT_LINES = 20_000;
+
+type BalanceRow ={ account_id: string; opening: string; debit: string; credit: string };
 
 @Injectable()
 export class ReportsService {
@@ -46,17 +49,14 @@ export class ReportsService {
     };
     if (!year) return { ...base, year: null };
 
-    const [cash, totals, monthly, counts, vouchers, recent] = await Promise.all([
+    // إجمالي الإيرادات والمصروفات يُجمع من الحركة الشهرية نفسها، بدل مسح أسطر السنة كاملة مرتين
+    const [cash, monthly, counts, vouchers, recent] = await Promise.all([
       this.db.query(
         `SELECT c.id, c.name, c.kind, a.code, COALESCE(SUM(l.debit - l.credit) FILTER (WHERE e.status = 'posted'), 0) AS balance
            FROM acc_cash_accounts c JOIN acc_accounts a ON a.id = c.gl_account_id
            LEFT JOIN acc_entry_lines l ON l.account_id = c.gl_account_id
            LEFT JOIN acc_entries e ON e.id = l.entry_id AND e.fiscal_year_id = $2
           WHERE c.organization_id = $1 AND c.is_active GROUP BY c.id, a.code ORDER BY c.name`, [org, year.id]),
-      this.db.query(
-        `SELECT a.nature, SUM(l.credit - l.debit) AS net FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id
-           JOIN acc_accounts a ON a.id = l.account_id
-          WHERE e.fiscal_year_id = $1 AND e.status = 'posted' AND a.nature IN ('revenue', 'expenses') GROUP BY 1`, [year.id]),
       this.db.query(
         `SELECT to_char(e.document_date, 'YYYY-MM') AS month, a.nature, SUM(l.credit - l.debit) AS net
            FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id JOIN acc_accounts a ON a.id = l.account_id
@@ -70,8 +70,9 @@ export class ReportsService {
           WHERE fiscal_year_id = $1 ORDER BY created_at DESC LIMIT 8`, [year.id]),
     ]);
     const num = (v: unknown) => fromCents(cents(v as string));
-    const revenue = num(totals.find((t: { nature: string }) => t.nature === 'revenue')?.net);
-    const expenses = -num(totals.find((t: { nature: string }) => t.nature === 'expenses')?.net);
+    const natureTotal = (nature: string) => fromCents(monthly.filter((r: { nature: string }) => r.nature === nature).reduce((t: number, r: { net: string }) => t + cents(r.net), 0));
+    const revenue = natureTotal('revenue');
+    const expenses = -natureTotal('expenses');
     const vcount = (kind: string, statuses: string[]) => vouchers
       .filter((v: { kind: string; status: string }) => v.kind === kind && statuses.includes(v.status))
       .reduce((s: { n: number; total: number }, v: { n: number; total: string }) => ({ n: s.n + v.n, total: s.total + num(v.total) }), { n: 0, total: 0 });
@@ -156,6 +157,12 @@ export class ReportsService {
     const [open] = await this.db.query(
       `SELECT COALESCE(SUM(l.debit - l.credit), 0) AS bal FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id
         WHERE e.fiscal_year_id = $1 AND e.status = 'posted' AND e.document_date < $2 AND ${where}`, [yearId, from, ...params]);
+    const shifted = where.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + 1}`);
+    // حماية من كشف ضخم يحمّل عشرات الميغابايت دفعة واحدة (نفس حد التقارير الموحدة)
+    const [{ n: count }] = await this.db.query(
+      `SELECT COUNT(*)::int AS n FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id
+        WHERE e.fiscal_year_id = $1 AND e.status = 'posted' AND e.document_date BETWEEN $2 AND $3 AND ${shifted}`, [yearId, from, to, ...params]);
+    if (count > MAX_STATEMENT_LINES) throw new BadRequestException(`كشف الحساب أكبر من ${MAX_STATEMENT_LINES.toLocaleString('ar-SA')} سطر، ضيّق الفترة`);
     const lines = await this.db.query(
       `SELECT e.id AS entry_id, e.entry_no, e.voucher_type, e.voucher_serial, to_char(e.document_date, 'YYYY-MM-DD') AS document_date, e.description, l.label, l.debit, l.credit,
               a.code AS account_code, a.name AS account_name, p.name AS partner_name, y.name AS year

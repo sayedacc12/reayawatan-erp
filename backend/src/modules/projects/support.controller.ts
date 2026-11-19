@@ -25,8 +25,8 @@ export class SupportController {
   // ---- إدارة الدعم ----
   @Get('support/queue')
   @RequirePermissions(P.support)
-  queue(@CurrentOrgUser() actor: OrgUser) {
-    return this.support.queue(actor);
+  queue(@CurrentOrgUser() actor: OrgUser, @Query('projectId') projectId?: string) {
+    return this.support.queue(actor, projectId && /^[0-9a-f-]{36}$/i.test(projectId) ? projectId : undefined);
   }
 
   @Get('support/requests/:id/options')

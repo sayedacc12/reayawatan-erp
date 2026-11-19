@@ -9,7 +9,7 @@ import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AssetBudgetService } from './asset-budget.service';
 import { AssetMaintenanceService } from './asset-maintenance.service';
 import { ASSET_STATUS_AR, AssetsService, costMove, CUSTODY_AR, DISPOSAL_KINDS, MAINT_AR, MOVE_AR } from './assets.service';
-import { addDays, computeDepreciation, DEP_METHOD_AR, lifeOf, monthEnd, monthStart, monthsEquivalent } from './depreciation';
+import { addDays, byAsset, computeDepreciation, DEP_METHOD_AR, lifeOf, monthEnd, monthStart, monthsEquivalent } from './depreciation';
 import { AssetGroup, AssetMove, DepLine, FixedAsset } from './entities/assets.entity';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -40,16 +40,17 @@ export class AssetsReports implements OnModuleInit {
   /** حركة الأصول ومجمع إهلاكها لكل أصل في فترة */
   private async rollForward(orgId: string, from: string, to: string, groupId?: string) {
     const assets = await this.db.getRepository(FixedAsset).find({ where: { organizationId: orgId, ...(groupId ? { groupId } : {}) }, order: { assetNo: 'ASC' } });
-    const ids = assets.map((a) => a.id);
-    const moves = ids.length ? (await this.db.getRepository(AssetMove).find({ where: { organizationId: orgId, status: 'done' } })).filter((m) => ids.includes(m.assetId)) : [];
-    const lines = ids.length ? (await this.db.getRepository(DepLine).find({ where: { organizationId: orgId, active: true } })).filter((l) => ids.includes(l.assetId)) : [];
+    const ids = new Set(assets.map((a) => a.id));
+    const movesOf = byAsset(ids.size ? await this.db.getRepository(AssetMove).find({ where: { organizationId: orgId, status: 'done' } }) : [], ids);
+    const linesOf = byAsset(ids.size ? await this.db.getRepository(DepLine).find({ where: { organizationId: orgId, active: true } }) : [], ids);
     const groups = await this.db.getRepository(AssetGroup).find({ where: { organizationId: orgId }, order: { sortOrder: 'ASC' } });
+    const groupById = new Map(groups.map((g) => [g.id, g]));
     const acq = (m: AssetMove) => costMove(m);
     const disp = (m: AssetMove) => DISPOSAL_KINDS.includes(m.kind);
     const sum = (xs: number[]) => r2(xs.reduce((s, x) => s + x, 0));
     const rows = assets.map((a) => {
-      const mv = moves.filter((m) => m.assetId === a.id && m.kind !== 'wip');
-      const ln = lines.filter((l) => l.assetId === a.id);
+      const mv = (movesOf.get(a.id) ?? []).filter((m) => m.kind !== 'wip');
+      const ln = linesOf.get(a.id) ?? [];
       const costOpening = sum(mv.filter((m) => m.date < from).map((m) => m.amount));
       const additions = sum(mv.filter((m) => acq(m) && m.date >= from && m.date <= to).map((m) => m.amount));
       const disposals = sum(mv.filter((m) => disp(m) && m.date >= from && m.date <= to).map((m) => -m.amount));
@@ -59,7 +60,7 @@ export class AssetsReports implements OnModuleInit {
       const accumDisposed = sum(mv.filter((m) => disp(m) && m.date >= from && m.date <= to).map((m) => -m.accumDelta));
       const costClosing = r2(costOpening + additions - disposals);
       const accumClosing = r2(accumOpening + depreciation - accumDisposed);
-      return { asset: a, group: groups.find((g) => g.id === a.groupId)!, costOpening, additions, disposals, costClosing, accumOpening, depreciation, accumDisposed, accumClosing, nbv: r2(costClosing - accumClosing) };
+      return { asset: a, group: groupById.get(a.groupId)!, costOpening, additions, disposals, costClosing, accumOpening, depreciation, accumDisposed, accumClosing, nbv: r2(costClosing - accumClosing) };
     }).filter((r) => r.costOpening || r.additions || r.disposals || r.accumOpening || r.depreciation);
     return { rows, groups };
   }
@@ -316,9 +317,10 @@ export class AssetsReports implements OnModuleInit {
           const o = org(u).organizationId;
           const assets = await this.db.getRepository(FixedAsset).find({ where: { organizationId: o, status: 'active' } });
           const groups = await this.db.getRepository(AssetGroup).find({ where: { organizationId: o } });
-          const ids = assets.map((a) => a.id);
-          const moves = ids.length ? (await this.db.getRepository(AssetMove).find({ where: { organizationId: o, status: 'done' } })).filter((m) => ids.includes(m.assetId)) : [];
-          const lines = ids.length ? (await this.db.getRepository(DepLine).find({ where: { organizationId: o, active: true } })).filter((l) => ids.includes(l.assetId)) : [];
+          const ids = new Set(assets.map((a) => a.id));
+          const movesOf = byAsset(ids.size ? await this.db.getRepository(AssetMove).find({ where: { organizationId: o, status: 'done' } }) : [], ids);
+          const linesOf = byAsset(ids.size ? await this.db.getRepository(DepLine).find({ where: { organizationId: o, active: true } }) : [], ids);
+          const groupById = new Map(groups.map((g) => [g.id, g]));
           const cfg = await this.assets.config(o);
           const start = monthStart(today());
           const months: string[] = [];
@@ -327,13 +329,13 @@ export class AssetsReports implements OnModuleInit {
           const totals = new Map<string, Map<string, number>>();
           for (const a of assets) {
             if (!a.inServiceDate) continue;
-            const g = groups.find((x) => x.id === a.groupId)!;
+            const g = groupById.get(a.groupId)!;
             const pol = this.assets.policy(a, g);
-            const mv = moves.filter((m) => m.assetId === a.id);
+            const mv = movesOf.get(a.id) ?? [];
             const res = computeDepreciation({
               inServiceDate: a.inServiceDate, depreciatedThrough: a.depreciatedThrough, salvage: a.salvageValue, method: pol.method, rate: pol.rate, lifeYears: pol.lifeYears,
               costMoves: mv.filter((m) => ['opening', 'purchase', 'donation', 'addition'].includes(m.kind)).map((m) => ({ date: m.date, amount: m.amount })),
-              accum: a.accum, accumHistory: [...mv.filter((m) => m.kind === 'opening').map((m) => ({ date: m.date, amount: m.accumDelta })), ...lines.filter((l) => l.assetId === a.id).map((l) => ({ date: l.toDate, amount: l.amount }))],
+              accum: a.accum, accumHistory: [...mv.filter((m) => m.kind === 'opening').map((m) => ({ date: m.date, amount: m.accumDelta })), ...(linesOf.get(a.id) ?? []).map((l) => ({ date: l.toDate, amount: l.amount }))],
               yearStartOf: (m) => `${m.slice(0, 4)}-01-01`, partial: cfg.partialMonth,
             }, horizon);
             const gm = totals.get(g.id) ?? new Map<string, number>();

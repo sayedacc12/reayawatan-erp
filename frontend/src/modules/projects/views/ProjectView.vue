@@ -15,6 +15,8 @@ interface Page extends TreeNode {
   history: { id: string; kind: string; stageName: string | null; note: string | null; userName: string; createdAt: string }[];
   stages: Stage[]; canDecide: boolean;
   summary: { funds: number; available: number; reserved: number; spent: number; pendingPayments: number; transfersIn: number; transfersOut: number; requests: number; served: number };
+  /** العدد الكلي لطلبات المشروع (القائمة تحمل أحدثها فقط) */
+  requestsTotal?: number;
   requests: { id: string; requestNo: number; status: string; estimatedCost: number | null; supportPercent: number | null; services: string[]; createdAt: string; beneficiaryId: string; beneficiaryName: string; fileNo: number; covered: number; spent: number }[];
   batches: Batch[];
   donors: { id: string; name: string | null; amount: number; net: number; opportunities: { id: string; no: number | null }[] }[];
@@ -130,7 +132,7 @@ const cond = (b: Batch) => {
 
     <nav class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'funds' }]" @click="tab = 'funds'">الدفعات والداعمون <b>{{ p.batches.length }}</b></button>
-      <button :class="['pm-tab', { on: tab === 'beneficiaries' }]" @click="tab = 'beneficiaries'">المستفيدون <b>{{ p.requests.length }}</b></button>
+      <button :class="['pm-tab', { on: tab === 'beneficiaries' }]" @click="tab = 'beneficiaries'">المستفيدون <b>{{ p.requestsTotal ?? p.requests.length }}</b></button>
       <button :class="['pm-tab', { on: tab === 'support' }]" @click="tab = 'support'">التحميل والصرف <b>{{ p.allocations.length }}</b></button>
       <button :class="['pm-tab', { on: tab === 'moves' }]" @click="tab = 'moves'">المناقلات والتعديلات <b>{{ p.transfers.length + p.amendments.length }}</b></button>
       <button :class="['pm-tab', { on: tab === 'journal' }]" @click="tab = 'journal'">القيود المالية <b>{{ p.entries.length }}</b></button>
@@ -189,6 +191,9 @@ const cond = (b: Batch) => {
                 <td class="pm-money">{{ sar(r.covered) }}</td><td class="pm-money" style="color: var(--success)">{{ sar(r.spent) }}</td>
               </tr>
               <tr v-if="!p.requests.length"><td colspan="8" class="pm-empty">لا توجد طلبات على المشروع</td></tr>
+              <tr v-if="(p.requestsTotal ?? 0) > p.requests.length">
+                <td colspan="8" class="pm-empty">تُعرض أحدث {{ p.requests.length }} طلبًا من {{ p.requestsTotal }}. للبحث في كل الطلبات افتح <RouterLink :to="{ path: '/beneficiaries/requests', query: { projectId: p.id, status: '' } }">طلبات المستفيدين</RouterLink>.</td>
+              </tr>
             </tbody>
           </table>
         </div>

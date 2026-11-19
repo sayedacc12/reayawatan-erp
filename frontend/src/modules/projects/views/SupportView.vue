@@ -19,6 +19,8 @@ const router = useRouter();
 const toast = useToast();
 const projects = ref<ProjectRow[]>([]);
 const queue = ref<QueueItem[]>([]);
+/** العدد الكلي للطلبات المنتظرة (الشاشة تعرض أحدثها فقط في الجمعيات الكبيرة) */
+const queueTotal = ref(0);
 const allocations = ref<Allocation[]>([]);
 const projectId = ref((route.query.project as string) || '');
 const tab = ref<'queue' | 'allocations' | 'general'>('queue');
@@ -28,14 +30,22 @@ const busy = ref(false);
 const approved = computed(() => projects.value.filter((p) => p.approvalStatus === 'approved'));
 const current = computed(() => projects.value.find((p) => p.id === projectId.value));
 const shownQueue = computed(() => queue.value.filter((q) => (!projectId.value || q.projectId === projectId.value) && (q.outstanding === null || q.outstanding > 0)));
+const queueCount = computed(() => Math.max(queueTotal.value, shownQueue.value.length));
+
+/** الطلبات المنتظرة تُصفّى بالمشروع في الخادم */
+async function loadQueue() {
+  const res = await api<{ items: QueueItem[]; total: number }>(`/projects-ops/support/queue${projectId.value ? `?projectId=${projectId.value}` : ''}`);
+  queue.value = res.items;
+  queueTotal.value = res.total;
+}
 const shownAlloc = computed(() => allocations.value.filter((a) => !projectId.value || a.activityId === projectId.value));
 
 async function load() {
   error.value = '';
   try {
-    [projects.value, queue.value, allocations.value] = await Promise.all([
+    [projects.value, , allocations.value] = await Promise.all([
       api<ProjectRow[]>('/projects/list'),
-      api<QueueItem[]>('/projects-ops/support/queue'),
+      loadQueue(),
       api<Allocation[]>('/projects-ops/support/allocations'),
     ]);
     if (current.value?.spendingMode === 'general' && tab.value === 'queue') tab.value = 'general';
@@ -46,6 +56,7 @@ async function load() {
 onMounted(load);
 watch(projectId, (id) => {
   router.replace({ query: id ? { project: id } : {} });
+  loadQueue().catch((e) => (error.value = (e as Error).message));
   if (current.value?.spendingMode === 'general') tab.value = 'general';
   generalBatches.value = [];
   if (tab.value === 'general' && id) loadGeneral();
@@ -180,7 +191,7 @@ const totals = computed(() => shownAlloc.value.reduce((t, a) => ({ reserved: t.r
     <div v-if="error" class="alert alert-error">{{ error }}</div>
 
     <div class="pm-kpis">
-      <div class="pm-kpi" style="--a: #6366f1; --i: 0"><span>طلبات تنتظر الدعم</span><strong>{{ shownQueue.length }}</strong></div>
+      <div class="pm-kpi" style="--a: #6366f1; --i: 0"><span>طلبات تنتظر الدعم</span><strong>{{ queueCount }}</strong></div>
       <div class="pm-kpi" style="--a: #f59e0b; --i: 1"><span>محجوز</span><strong>{{ sar(totals.reserved) }}</strong></div>
       <div class="pm-kpi" style="--a: #0ea5e9; --i: 2"><span>طلبات صرف لدى المالية</span><strong>{{ sar(totals.pending) }}</strong></div>
       <div class="pm-kpi" style="--a: #10b981; --i: 3"><span>مخصوم</span><strong>{{ sar(totals.spent) }}</strong></div>
@@ -188,7 +199,7 @@ const totals = computed(() => shownAlloc.value.reduce((t, a) => ({ reserved: t.r
     </div>
 
     <div class="pm-tabs">
-      <button class="pm-tab" :class="{ on: tab === 'queue' }" @click="tab = 'queue'">طلبات المستفيدين <b>{{ shownQueue.length }}</b></button>
+      <button class="pm-tab" :class="{ on: tab === 'queue' }" @click="tab = 'queue'">طلبات المستفيدين <b>{{ queueCount }}</b></button>
       <button class="pm-tab" :class="{ on: tab === 'allocations' }" @click="tab = 'allocations'">المبالغ المحجوزة <b>{{ shownAlloc.length }}</b></button>
       <button class="pm-tab" :class="{ on: tab === 'general' }" @click="tab = 'general'">الصرف العام</button>
     </div>
@@ -208,6 +219,7 @@ const totals = computed(() => shownAlloc.value.reduce((t, a) => ({ reserved: t.r
             <td><button class="btn btn-primary btn-sm" @click="openAllocate(q)">تحميل على دفعة</button></td>
           </tr>
           <tr v-if="!shownQueue.length"><td colspan="8" class="pm-empty">لا توجد طلبات معتمدة تنتظر الدعم</td></tr>
+          <tr v-if="queueTotal > shownQueue.length"><td colspan="8" class="pm-empty">تُعرض أحدث {{ shownQueue.length }} طلبًا من {{ queueTotal }}. اختر مشروعًا لعرض طلباته فقط.</td></tr>
         </tbody>
       </table>
     </div>

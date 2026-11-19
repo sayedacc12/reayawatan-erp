@@ -8,7 +8,7 @@ import { AccountsService } from './accounts.service';
 import {
   amountOf, ASSET_STATUS_AR, AssetsService, bad, costMove, dateOf, DISPOSAL_KINDS, FIRST_KINDS, idOf, IN_BOOKS, MOVE_AR, optId, str,
 } from './assets.service';
-import { addDays, CalcResult, computeDepreciation, DEP_METHOD_AR, monthEnd, monthStart, PartialRule } from './depreciation';
+import { addDays, byAsset, CalcResult, computeDepreciation, DEP_METHOD_AR, monthEnd, monthStart, PartialRule } from './depreciation';
 import { CashAccount, FiscalYear, Partner, Voucher, VoucherStatus } from './entities/accounting.entity';
 import { AssetCustody, AssetGroup, AssetMove, AssetMoveStatus, AssetPayMethod, DepLine, DepRun, FixedAsset } from './entities/assets.entity';
 import { EntriesService } from './entries.service';
@@ -616,11 +616,14 @@ export class AssetOpsService implements OnModuleInit {
     const [moves, lines] = await Promise.all([this.movesOf(em, ids), this.linesOf(em, ids)]);
     const cfg = await this.assets.config(org, em);
     const ys = await this.yearStartFn(org, em);
+    const idSet = new Set(ids);
+    const movesBy = byAsset(moves, idSet);
+    const linesBy = byAsset(lines, idSet);
     return {
       to, moves, lines, groups,
       items: assets.map((a) => {
         const g = groups.find((x) => x.id === a.groupId)!;
-        return { asset: a, group: g, res: a.inServiceDate ? this.calc(a, g, moves, lines, cfg.partialMonth, ys, to) : null };
+        return { asset: a, group: g, res: a.inServiceDate ? this.calc(a, g, movesBy.get(a.id) ?? [], linesBy.get(a.id) ?? [], cfg.partialMonth, ys, to) : null };
       }),
     };
   }
@@ -734,15 +737,16 @@ export class AssetOpsService implements OnModuleInit {
     const ids = [...new Set([...scopeIds, ...dep.map((d) => d.assetId)])];
     const assets = ids.length ? await em.getRepository(FixedAsset).find({ where: { id: In(ids) }, order: { assetNo: 'ASC' } }) : [];
     const groups = await em.getRepository(AssetGroup).find({ where: { organizationId: org } });
-    const moves = (await this.movesOf(em, ids)).filter((m) => m.status === 'done');
-    const lines = await this.linesOf(em, ids);
+    const idSet = new Set(ids);
+    const movesBy = byAsset((await this.movesOf(em, ids)).filter((m) => m.status === 'done'), idSet);
+    const linesBy = byAsset(await this.linesOf(em, ids), idSet);
     const runLineIds = new Set(dep.map((d) => d.assetId));
     const emps = await this.assets.employees(org, [...new Set(assets.map((a) => a.custodianEmployeeId).filter(Boolean))] as string[], em);
     const rows: DepReportAsset[] = [];
     for (const a of assets) {
       const g = groups.find((x) => x.id === a.groupId)!;
-      const mv = moves.filter((m) => m.assetId === a.id);
-      const ln = lines.filter((l) => l.assetId === a.id);
+      const mv = movesBy.get(a.id) ?? [];
+      const ln = linesBy.get(a.id) ?? [];
       const d = dep.find((x) => x.assetId === a.id);
       const isAcq = costMove;
       const isDisp = (m: AssetMove) => DISPOSAL_KINDS.includes(m.kind);
@@ -892,9 +896,11 @@ export class AssetOpsService implements OnModuleInit {
       `SELECT a.group_id, SUM(m.amount) AS cost, SUM(m.accum_delta) AS accum FROM acc_asset_moves m JOIN acc_assets a ON a.id = m.asset_id
         WHERE m.organization_id = $1 AND m.kind = 'opening' AND m.status = 'done' AND m.date <= $2 GROUP BY 1`, [org, asOf]);
     const foreign: { account_id: string; entry_id: string; entry_no: number; date: string; description: string; amount: string; source: string; voucher_type: string }[] = await this.db.query(
-      `SELECT l.account_id, e.id AS entry_id, e.entry_no, to_char(e.document_date, 'YYYY-MM-DD') AS date, e.description, (l.debit - l.credit) AS amount, e.source, e.voucher_type
-         FROM acc_entry_lines l JOIN acc_entries e ON e.id = l.entry_id LEFT JOIN acc_vouchers v ON v.id = e.voucher_id
-        WHERE e.organization_id = $1 AND e.status = 'posted' AND e.document_date <= $2 AND l.account_id = ANY($3) AND e.voucher_type <> 'opening'
+      // أسطر حسابات الأصول أولًا (بفهرس الحساب)، ثم القيود: أسرع بكثير من مسح القيود بالتاريخ في الجمعيات الكبيرة
+      `WITH l AS MATERIALIZED (SELECT account_id, entry_id, debit, credit FROM acc_entry_lines WHERE account_id = ANY($3))
+       SELECT l.account_id, e.id AS entry_id, e.entry_no, to_char(e.document_date, 'YYYY-MM-DD') AS date, e.description, (l.debit - l.credit) AS amount, e.source, e.voucher_type
+         FROM l JOIN acc_entries e ON e.id = l.entry_id LEFT JOIN acc_vouchers v ON v.id = e.voucher_id
+        WHERE e.organization_id = $1 AND e.status = 'posted' AND e.document_date <= $2 AND e.voucher_type <> 'opening'
           AND e.source <> 'assets' AND NOT (e.source = 'voucher' AND COALESCE(v.source_type, '') = 'assets')
         ORDER BY e.document_date, e.entry_no LIMIT 200`, [org, asOf, accIds]);
     // المشروعات تحت التنفيذ: الدفعات المعتمدة ناقص ما رُسمل

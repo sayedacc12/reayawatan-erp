@@ -64,6 +64,7 @@ export const platformManifest: ErpModuleManifest = {
     { label: 'بنود العقد', path: '/platform/contract-clauses', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'طلبات الخدمات', path: '/platform/inquiries', permission: PLATFORM_PERMISSIONS.siteManage },
     { label: 'التقارير', path: '/platform/reports', permission: PLATFORM_PERMISSIONS.reportsRead },
+    { label: 'الأداء وحجم البيانات', path: '/platform/performance', permission: PLATFORM_PERMISSIONS.reportsRead },
     { label: 'إعدادات المنصة', path: '/platform/settings', permission: PLATFORM_PERMISSIONS.siteManage },
   ],
 };

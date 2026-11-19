@@ -8,6 +8,8 @@ import { AllocateDto, AllocateSplitDto, DirectPaymentDto, ExecutePaymentDto, Gen
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
+/** أقصى عدد من الطلبات المنتظرة يُعرض في الشاشة مرة واحدة */
+const QUEUE_LIMIT = 500;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 export const fmt = (n: number) => r2(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
@@ -75,26 +77,37 @@ export class SupportService {
 
   // ---------------- الطلبات المنتظرة للدعم ----------------
 
-  /** الطلبات المعتمدة على مشاريع المستفيدين، ومقدار المغطى والمتبقي من احتياج كل طلب */
-  async queue(actor: OrgUser) {
+  /**
+   * الطلبات المعتمدة على مشاريع المستفيدين التي لم يكتمل دعمها، ومقدار المغطى والمتبقي من احتياج كل طلب.
+   * التصفية بالمشروع وبالمتبقي تتم في قاعدة البيانات، وتُعرض أحدث QUEUE_LIMIT طلبًا مع العدد الكلي،
+   * حتى لا تُحمَّل عشرات الآلاف من الطلبات في الجمعيات الكبيرة.
+   */
+  async queue(actor: OrgUser, projectId?: string) {
     const org = actor.organizationId;
     const rows: Row[] = await this.db.query(
-      `SELECT r.id, r.request_no AS "requestNo", r.project_id AS "projectId", p.name AS "projectName", r.estimated_cost AS "estimatedCost",
-              r.support_percent AS "supportPercent", r.contribution_percent AS "contributionPercent", r.closed_at AS "approvedAt",
-              b.id AS "beneficiaryId", b.full_name AS "beneficiaryName", b.file_no AS "fileNo", b.nationality, b.residency,
-              COALESCE(SUM(al.amount - al.released_amount), 0) AS covered
-       FROM beneficiary_requests r
-       JOIN activities p ON p.id = r.project_id
-       JOIN beneficiaries b ON b.id = r.beneficiary_id
-       LEFT JOIN project_profiles pp ON pp.activity_id = p.id
-       LEFT JOIN project_allocations al ON al.request_id = r.id
-       WHERE r.organization_id = $1 AND r.status = 'approved' AND COALESCE(pp.spending_mode, 'beneficiaries') = 'beneficiaries'
-       GROUP BY r.id, p.name, b.id ORDER BY r.closed_at DESC NULLS LAST`, [org]);
-    return rows.map((r): Row => {
+      `SELECT q.*, COUNT(*) OVER () AS "totalCount" FROM (
+         SELECT r.id, r.request_no AS "requestNo", r.project_id AS "projectId", p.name AS "projectName", r.estimated_cost AS "estimatedCost",
+                r.support_percent AS "supportPercent", r.contribution_percent AS "contributionPercent", r.closed_at AS "approvedAt",
+                b.id AS "beneficiaryId", b.full_name AS "beneficiaryName", b.file_no AS "fileNo", b.nationality, b.residency,
+                COALESCE(SUM(al.amount - al.released_amount), 0) AS covered
+         FROM beneficiary_requests r
+         JOIN activities p ON p.id = r.project_id
+         JOIN beneficiaries b ON b.id = r.beneficiary_id
+         LEFT JOIN project_profiles pp ON pp.activity_id = p.id
+         LEFT JOIN project_allocations al ON al.request_id = r.id
+         WHERE r.organization_id = $1 AND r.status = 'approved' AND COALESCE(pp.spending_mode, 'beneficiaries') = 'beneficiaries'
+           AND ($2::uuid IS NULL OR r.project_id = $2)
+         GROUP BY r.id, p.name, b.id
+       ) q
+       WHERE q."estimatedCost" IS NULL OR ROUND(q."estimatedCost" * COALESCE(q."supportPercent", 100) / 100, 2) - q.covered > 0
+       ORDER BY q."approvedAt" DESC NULLS LAST LIMIT ${QUEUE_LIMIT}`,
+      [org, projectId ?? null]);
+    const items = rows.map(({ totalCount: _t, ...r }): Row => {
       const need = this.need(r.estimatedCost as string | null, r.supportPercent as string | null);
       const covered = Number(r.covered);
       return { ...r, estimatedCost: r.estimatedCost === null ? null : Number(r.estimatedCost), need, covered, outstanding: need === null ? null : r2(Math.max(0, need - covered)) };
     });
+    return { items, total: Number(rows[0]?.totalCount ?? 0), limit: QUEUE_LIMIT };
   }
 
   /** احتياج الطلب = التكلفة التقديرية × نسبة دعم الجمعية (null = غير محدد) */

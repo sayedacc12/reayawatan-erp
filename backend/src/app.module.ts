@@ -7,6 +7,7 @@ import { dataSourceOptions } from './config/data-source';
 import { CoreModule } from './core/core.module';
 import { ReportsModule } from './core/reports/reports.module';
 import { TasksModule } from './core/tasks/tasks.module';
+import { PerformanceModule } from './core/performance/performance.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -36,6 +37,7 @@ import { HealthController } from './health.controller';
     ReportsModule,
     TasksModule,
     CoreModule,
+    PerformanceModule,
     BeneficiariesModule,
     FundraisingModule,
     ProjectsModule,
