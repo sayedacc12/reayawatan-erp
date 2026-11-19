@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn, ValueTransformer } from 'typeorm';
 import type { PlanningConfig, PlanLevel } from '../planning-defaults';
+import { BUDGET_ENTITIES } from '../budget/budget.entity';
 
 /** PostgreSQL يرجّع numeric كنص؛ نحوله لرقم */
 const num: ValueTransformer = {
@@ -537,5 +538,5 @@ export type PlanSnapshot = Pick<Plan, (typeof PLAN_DEF_KEYS)[number]> & {
   links: { fromItemId: string; toItemId: string; relation: string; contribution: number | null; note: string | null }[];
 };
 
-export const PLANNING_ENTITIES = [PlanSettings, Plan, PlanItem, PlanLink, PlanRef, PlanKpi, PlanKpiReading, PlanProgressUpdate, PlanVersion];
+export const PLANNING_ENTITIES = [PlanSettings, Plan, PlanItem, PlanLink, PlanRef, PlanKpi, PlanKpiReading, PlanProgressUpdate, PlanVersion, ...BUDGET_ENTITIES];
 export type { PlanningConfig };

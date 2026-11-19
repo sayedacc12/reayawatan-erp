@@ -6,7 +6,7 @@ import { errMsg, fmtDateTime, WF_ACTION, WF_STATUS } from '../lib';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** الاعتماد: مراحل المسار، الرفع مع سبب التعديل، القرار، إلغاء التعديل، وسجل القرارات */
-const props = defineProps<{ plan: any; canManage: boolean }>();
+const props = withDefaults(defineProps<{ plan: any; canManage: boolean; base?: string; noun?: string }>(), { base: '/planning/plans', noun: 'الخطة' });
 const emit = defineEmits<{ (e: 'changed', v: any): void }>();
 const toast = useToast();
 const note = ref('');
@@ -16,7 +16,7 @@ const showLog = ref(false);
 async function run(path: string, json: unknown, msg: string) {
   busy.value = true;
   try {
-    emit('changed', await api(`/planning/plans/${props.plan.id}/${path}`, { method: 'POST', json }));
+    emit('changed', await api(`${props.base}/${props.plan.id}/${path}`, { method: 'POST', json }));
     note.value = '';
     toast.success(msg);
   } catch (e) {
@@ -25,9 +25,9 @@ async function run(path: string, json: unknown, msg: string) {
     busy.value = false;
   }
 }
-const submit = () => run('submit', { note: note.value || null }, props.plan.stages.length ? 'رُفعت الخطة للاعتماد' : 'اعتُمدت الخطة');
+const submit = () => run('submit', { note: note.value || null }, props.plan.stages.length ? `رُفعت ${props.noun} للاعتماد` : `اعتُمدت ${props.noun}`);
 const decide = (decision: 'approve' | 'return' | 'reject') =>
-  run('decision', { decision, note: note.value || null }, decision === 'approve' ? 'تم الاعتماد' : decision === 'return' ? 'أُعيدت للتعديل' : 'رُفضت الخطة');
+  run('decision', { decision, note: note.value || null }, decision === 'approve' ? 'تم الاعتماد' : decision === 'return' ? 'أُعيدت للتعديل' : `رُفضت ${props.noun}`);
 function discard() {
   if (confirm(`إلغاء كل التعديلات والعودة إلى الإصدار المعتمد ${props.plan.version}؟`)) run('discard', {}, 'أُلغي التعديل');
 }
@@ -53,7 +53,7 @@ const editingApproved = () => props.plan.version > 0 && (props.plan.status === '
         <span :class="['st', stageState(i)]"><i>{{ stageState(i) === 'done' ? '✓' : i + 1 }}</i>{{ s }}</span>
       </template>
     </div>
-    <p v-else class="pm-muted">لا توجد مراحل اعتماد لهذه الخطة في الإعدادات، فتُعتمد مباشرة عند رفعها.</p>
+    <p v-else class="pm-muted">لا توجد مراحل اعتماد لهذا النوع في الإعدادات، فيُعتمد مباشرة عند رفعه.</p>
     <p v-if="plan.routeName && plan.status === 'in_review'" class="pm-muted">المسار: {{ plan.routeName }}</p>
     <div v-if="editingApproved()" class="rk-warn" style="margin-top: 8px">
       هذه مسودة تعديل على الإصدار المعتمد {{ plan.version }}. يبقى الإصدار المعتمد هو المرجع حتى يُعتمد التعديل.
@@ -73,14 +73,14 @@ const editingApproved = () => props.plan.version > 0 && (props.plan.status === '
     </div>
     <div v-else-if="canManage && (plan.status === 'draft' || plan.status === 'returned')" style="margin-top: 12px">
       <label v-if="plan.version" class="field"><span>سبب التعديل (يظهر للمعتمدين وفي سجل الإصدارات)</span>
-        <textarea v-model="note" class="input" rows="2" :placeholder="plan.revisionNote ?? 'مثل: إضافة مبادرة جديدة وتعديل مستهدفات المؤشرات'" /></label>
+        <textarea v-model="note" class="input" rows="2" :placeholder="plan.revisionNote ?? noun === 'الخطة' ? 'مثل: إضافة مبادرة جديدة وتعديل مستهدفات المؤشرات' : 'مثل: رفع العلاوة العامة بقرار مجلس الإدارة'" /></label>
       <div class="pm-actions">
         <button class="btn btn-primary" :disabled="busy" @click="submit">رفع للاعتماد</button>
         <button v-if="plan.version" class="btn" :disabled="busy" @click="discard">إلغاء التعديل</button>
       </div>
     </div>
     <p v-else-if="plan.status === 'in_review'" class="pm-muted" style="margin-top: 8px">بانتظار قرار «{{ plan.stageName }}».</p>
-    <p v-else-if="plan.status === 'approved' && canManage" class="pm-muted" style="margin-top: 8px">أي تعديل على الخطة يفتح مسودة تعديل جديدة، ويبقى الإصدار الحالي محفوظًا.</p>
+    <p v-else-if="plan.status === 'approved' && canManage" class="pm-muted" style="margin-top: 8px">أي تعديل يفتح مسودة تعديل جديدة، ويبقى الإصدار الحالي محفوظًا.</p>
     <ul v-if="showLog" class="rk-log" style="margin-top: 12px">
       <li v-for="(a, i) in [...plan.approvals].reverse()" :key="i">
         <b>{{ WF_ACTION[a.action] ?? a.action }}</b>

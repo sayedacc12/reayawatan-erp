@@ -9,6 +9,10 @@ export const PLANNING_PERMISSIONS = {
   approve: 'planning.plans.approve',
   reports: 'planning.reports.read',
   settings: 'planning.settings.manage',
+  budgets: 'planning.budgets.manage',
+  budgetsHr: 'planning.budgets.hr',
+  budgetsApprove: 'planning.budgets.approve',
+  formulas: 'planning.formulas.manage',
 } as const;
 
 const P = PLANNING_PERMISSIONS;
@@ -16,9 +20,9 @@ const P = PLANNING_PERMISSIONS;
 export const planningManifest: ErpModuleManifest = {
   code: 'planning',
   name: 'التخطيط والموازنات',
-  description: 'الخطط الاستراتيجية والتشغيلية بهيكل مرن، ومؤشرات الأداء ومستهدفاتها، والربط بين الأهداف والمبادرات والأنشطة، والإصدارات والاعتماد، ومتابعة الإنجاز',
+  description: 'الخطط الاستراتيجية والتشغيلية بهيكل مرن، ومؤشرات الأداء ومستهدفاتها، والربط بين الأهداف والمبادرات والأنشطة، والإصدارات والاعتماد، ومتابعة الإنجاز، والموازنات التقديرية بمعادلات قابلة للتهيئة',
   icon: 'target',
-  version: '1.0.0',
+  version: '1.1.0',
   alwaysEnabled: true,
   sequence: 72,
   permissions: [
@@ -30,6 +34,10 @@ export const planningManifest: ErpModuleManifest = {
     { code: P.approve, name: 'اعتماد الخطط (حسب مراحل مسار الاعتماد)' },
     { code: P.reports, name: 'عرض تقارير التخطيط وتصديرها' },
     { code: P.settings, name: 'إعدادات التخطيط ومسارات الاعتماد وصلاحياتها' },
+    { code: P.budgets, name: 'إعداد الموازنات التقديرية وافتراضاتها وبنودها' },
+    { code: P.budgetsHr, name: 'عرض وتعديل رواتب الموظفين في موازنة الموارد البشرية' },
+    { code: P.budgetsApprove, name: 'اعتماد الموازنات (حسب مراحل مسار الاعتماد)' },
+    { code: P.formulas, name: 'إنشاء معادلات الموازنة وتعديلها وتفعيلها' },
   ],
   settingsPermission: P.settings,
   menu: [
@@ -37,6 +45,8 @@ export const planningManifest: ErpModuleManifest = {
     { label: 'بانتظار اعتمادي', path: '/planning/approvals', permission: P.read },
     { label: 'الخطط الاستراتيجية', path: '/planning/strategic', permission: P.read, group: 'الخطط' },
     { label: 'الخطط التشغيلية', path: '/planning/operational', permission: P.read, group: 'الخطط' },
+    { label: 'الموازنات التقديرية', path: '/planning/budgets', permission: P.read, group: 'الموازنات' },
+    { label: 'المعادلات والافتراضات', path: '/planning/formulas', permission: P.read, group: 'الموازنات' },
     { label: 'مؤشرات الأداء', path: '/planning/kpis', permission: P.read },
     { label: 'متابعة التنفيذ', path: '/planning/execution', permission: P.read },
     { label: 'التقارير', path: '/planning/reports', permission: P.reports },
