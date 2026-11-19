@@ -2,11 +2,13 @@
 import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
+import { useSession } from '../../../stores/session';
 import { useRouter } from 'vue-router';
 import { CONTRACT_STATUS, cycleLabel, fmtDate, money, ORG_STATE } from '../labels';
 import '../platform.css';
 
 const toast = useToast();
+const session = useSession();
 
 interface Org {
   id: string;
@@ -82,6 +84,8 @@ async function createDemo(recreate = false) {
   }
 }
 const origin = location.origin;
+/** حساب مدير المنصة الحالي (كلمة مروره لا تتغير بإعادة إنشاء الجمعية التجريبية) */
+const platformLogin = () => session.user?.username || session.user?.email || '';
 
 /** تصدير بيانات الدخول وملخص الجمعية التجريبية إلى ملف Word (يفتحه Word مباشرة) */
 function exportDemoWord() {
@@ -93,6 +97,8 @@ function exportDemoWord() {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">
 <style>body{font-family:Arial;direction:rtl}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:6px;text-align:right}th{background:#e6f2ef}</style></head>
 <body dir="rtl"><h1>بيانات الدخول: ${esc(d.organization.name)}</h1><ul>${scope}</ul>
+<h2>إدارة المنصة: ${esc(origin)}/login</h2>
+<table><tr><th>الدور</th><th>اسم الدخول</th></tr>${rows([['مدير المنصة', platformLogin()], ['كلمة المرور', 'كلمة مرور مدير المنصة الحالية (لا تتغير)']])}</table>
 <h2>دخول الموظفين: ${esc(origin)}/o/${esc(d.organization.slug)}</h2>
 <table><tr><th>الدور</th><th>البريد الإلكتروني</th></tr>${rows([...d.staff.map((s) => [s.role, s.email] as [string, string]), ['كلمة المرور للكل', d.staffPassword]])}</table>
 <h2>بوابة المستفيدين: ${esc(origin)}/portal/${esc(d.organization.slug)}</h2>
@@ -170,14 +176,26 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
         <h2>✨ تم تجهيز {{ demo.organization.name }}</h2>
         <p class="muted">احفظ هذه البيانات، فلن تظهر كلمات المرور مرة أخرى.</p>
         <ul class="demo-scope">
-          <li><b>المستفيدون:</b> 6 ملفات و8 طلبات في مراحل مختلفة (جديد، بحث اجتماعي، مساهمة مستفيد، معاد، مرفوض، معتمد)، منها طلب معتمد ينتظر التحميل على دفعة داعم لتجربته بنفسك.</li>
+          <li><b>المساعدات الاجتماعية:</b> 6 ملفات مستفيدين و8 طلبات في مراحل مختلفة (جديد، بحث اجتماعي، مساهمة مستفيد، معاد، مرفوض، معتمد)، منها طلب معتمد ينتظر التحميل على دفعة داعم لتجربته بنفسك.</li>
           <li><b>إدارة المشاريع:</b> 7 مشاريع معتمدة عبر مراحل الاعتماد، ومشروع قيد الاعتماد، ومعاد للتعديل، ومسودة.</li>
           <li><b>الموارد المالية:</b> 6 داعمين و7 فرص تبرع (نقدي وزكاة وعيني ووعد بالدفع ووقف) بدفعاتها وقيودها.</li>
           <li><b>الدعم والصرف:</b> تحميل طلبين على دفعات الداعمين، وصرف عام، وسندات صرف وفواتير، ومناقلة، وتعديل فرصة بقيد عكسي، وطلب صرف بانتظار المالية.</li>
           <li><b>النظام المالي:</b> الدليل الموحد للجمعيات، وثلاثة بنوك وصناديق، وعملاء وموردون، وسندات قبض وصرف بمراحل اعتماد (معتمدة ومعلقة وملغاة باعتماد ثنائي)، وقيد افتتاحي وقيود يومية وتسوية، وشهور مغلقة بالتسلسل.</li>
+          <li><b>الموارد البشرية:</b> لائحة معتمدة، وهيكل تنظيمي بمستويات، وسلم رواتب، وجدارات وأوصاف وظيفية، وخطة تعيين، وموظفون بعقودهم، وإجازات، وبطاقات أداء، وخطط تطوير وصف ثانٍ.</li>
+          <li><b>الحضور والرواتب:</b> جهاز بصمة وملف حضور (فيه غياب وتأخير)، وكشف رواتب الشهر السابق معتمد بقيده وسندات صرفه، وكشف الشهر الحالي قيد الإعداد.</li>
+          <li><b>التطوع:</b> متطوعون وطلبات تسجيل جديدة، و6 فعاليات في كل المراحل، وشهادات وعقود وشكاوى ومقترحات.</li>
+          <li><b>الجودة ISO 9001:</b> وثائق وإجراءات بنماذجها، وخرائط إجراءات، وأهداف بمؤشرات، ومراجعات داخلية، وحالات عدم مطابقة، وشكاوى واستبانات رضا، ومراجعتا إدارة.</li>
+          <li><b>المخاطر والتغيير والالتزام:</b> سجل مخاطر بمراجعات دورية، وتحليل PESTEL وSWOT، وطلبات تغيير بمهام، والتزامات، وخطط استمرارية، وفريق أزمات بأزمة مفعّلة الآن.</li>
+          <li><b>المراجعة الداخلية:</b> خطة رئيسية وخطط فرعية، و4 مهام مراجعة في مراحل مختلفة، وتوصيات مغلقة وبانتظار التحقق وقيد التنفيذ ومتأخرة.</li>
+          <li><b>عضوية الجمعية العمومية:</b> أعضاء بحالات مختلفة (سارية، تنتهي قريبًا، في مهلة السماح، منتهية، موقوفة)، وطلبات عضوية في كل المراحل، وسدادات بسندات قبض.</li>
           <li><b>الدعم الفني:</b> فريق دعم (مدير وموظف)، وطلبات صيانة بكل الحالات، ومهام منجزة وجارية ومتأخرة بساعات عمل مسجلة.</li>
           <li><b>المنصة:</b> عقد إلكتروني موقّع واشتراك سنوي فعّال، وطلبا اشتراك لجمعيتين (قيد المراجعة، ومعاد للاستكمال).</li>
         </ul>
+        <h3>إدارة المنصة <a href="/login" target="_blank" dir="ltr">{{ origin }}/login</a></h3>
+        <table class="table">
+          <tr><td>مدير المنصة</td><td dir="ltr"><code>{{ platformLogin() }}</code></td></tr>
+          <tr><td>كلمة المرور</td><td>كلمة مرور مدير المنصة الحالية (لا تتغير)</td></tr>
+        </table>
         <h3>دخول الموظفين <a :href="`/o/${demo.organization.slug}`" target="_blank" dir="ltr">{{ origin }}/o/{{ demo.organization.slug }}</a></h3>
         <table class="table">
           <tr v-for="s in demo.staff" :key="s.email"><td>{{ s.role }}</td><td dir="ltr"><code>{{ s.email }}</code></td></tr>
