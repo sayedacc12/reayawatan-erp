@@ -3,10 +3,12 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { PlanningCore } from './planning-core.service';
 import { PlanningViews } from './planning-views.service';
 import {
-  CarryDto, ConfigDto, CopyPlanDto, DecideDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, SubmitDto, UpdateItemDto, UpdateKpiDto, UpdateLinkDto, UpdatePlanDto,
+  CarryDto, ConfigDto, CopyPlanDto, DecideDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, SubmitDto, TreatmentDto, UpdateItemDto, UpdateKpiDto, UpdateLinkDto, UpdatePlanDto,
 } from './planning.dto';
 import { PLANNING_PERMISSIONS as P } from './planning.manifest';
 import { PlansService } from './plans.service';
+import { PlanningLinks } from './planning-links.service';
+import { REF_SYSTEMS, RefSystem } from './entities/planning.entity';
 
 const uuid = new ParseUUIDPipe();
 const EDIT = [P.strategic, P.operational];
@@ -18,7 +20,7 @@ const ver = (v: string) => {
 /** التخطيط الاستراتيجي والتشغيلي */
 @Controller('planning')
 export class PlanningController {
-  constructor(private readonly core: PlanningCore, private readonly plans: PlansService, private readonly views: PlanningViews) {}
+  constructor(private readonly core: PlanningCore, private readonly plans: PlansService, private readonly views: PlanningViews, private readonly links: PlanningLinks) {}
 
   // ---------------- اللوحة والقوائم ----------------
 
@@ -105,6 +107,21 @@ export class PlanningController {
 
   @Post('items/:id/refs') @RequireAnyPermission(...EDIT)
   addRef(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: RefDto) { return this.plans.addRef(a, id, dto); }
+
+  /** عناصر النظام المرتبط القابلة للربط (قراءة فقط من المصدر) */
+  @Get('ref-options') @RequirePermissions(P.read)
+  refOptions(@CurrentOrgUser() a: OrgUser, @Query('system') system: string) {
+    if (!(REF_SYSTEMS as readonly string[]).includes(system)) throw new BadRequestException('النظام المرتبط غير معروف');
+    return this.links.options(a, system as RefSystem);
+  }
+
+  /** لوحة الربط بالمخاطر والتحليل والمراجعة والأداء لخطة */
+  @Get('plans/:id/integrations') @RequirePermissions(P.read)
+  integrations(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.links.overview(a, id); }
+
+  /** نشاط معالجة خطر أو إجراء تصحيحي لتوصية مراجعة تحت العنصر */
+  @Post('items/:id/treatment') @RequireAnyPermission(...EDIT)
+  treatment(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: TreatmentDto) { return this.plans.treatment(a, id, dto); }
 
   @Delete('refs/:id') @RequireAnyPermission(...EDIT)
   removeRef(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.plans.removeRef(a, id); }

@@ -289,3 +289,23 @@
 .ex-months .bars i.p { background: #7dd3fc; } .ex-months .bars i.a { background: #10b981; }
 .ex-months small { font-size: .65rem; color: var(--muted, #64748b); }
 .ex-impact { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(14, 165, 233, .08); border: 1px solid rgba(14, 165, 233, .3); font-size: .88rem; }
+/* الربط بالمخاطر والمراجعة والتحليل والأداء */
+.ig-wrap { display: flex; flex-direction: column; gap: 16px; }
+.ig-alert { display: grid; grid-template-columns: 150px 1fr; gap: 2px 12px; padding: 10px 14px; margin-bottom: 8px; border-radius: 10px; border-inline-start: 4px solid var(--c); background: color-mix(in srgb, var(--c) 7%, transparent); }
+.ig-alert b { color: var(--c); font-size: .85rem; }
+.ig-alert em { grid-column: 2; font-style: normal; color: var(--c); font-weight: 600; font-size: .88rem; }
+.ig-cov { position: relative; height: 8px; border-radius: 6px; background: var(--border, #e2e8f0); overflow: hidden; margin: 6px 0 12px; }
+.ig-cov i { position: absolute; inset-block: 0; inset-inline-start: 0; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 6px; box-shadow: 0 0 8px rgba(16, 185, 129, .5); animation: sc-grow .8s ease both; transform-origin: right; }
+.ig-cov span { position: absolute; inset-inline-end: 0; top: -20px; font-size: .75rem; color: var(--muted, #64748b); }
+.ig-cov:has(span) { margin-top: 24px; }
+.table tr.ig-gap td { background: rgba(239, 68, 68, .05); }
+.ig-item { display: block; font-size: .85rem; }
+.ig-factors { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.ig-factor { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border, #e2e8f0); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; }
+.ig-factor b { font-size: .88rem; } .ig-factor span { font-size: .8rem; color: var(--muted, #64748b); }
+.ig-factor .ig-cov { flex-basis: 100%; margin: 4px 0 0; }
+.ig-factor.weakness .ig-cov i, .ig-factor.threat .ig-cov i { background: linear-gradient(90deg, #f97316, #fb923c); }
+.ig-fac { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: .78rem; font-weight: 600; background: rgba(14, 165, 233, .12); color: #0369a1; }
+.ig-fac.strength, .ig-fac.opportunity { background: rgba(16, 185, 129, .12); color: #047857; }
+.ig-fac.weakness, .ig-fac.threat { background: rgba(249, 115, 22, .12); color: #c2410c; }
+@media (max-width: 700px) { .ig-alert { grid-template-columns: 1fr; } .ig-alert em { grid-column: 1; } }

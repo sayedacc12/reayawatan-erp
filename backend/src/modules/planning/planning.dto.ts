@@ -4,7 +4,7 @@ import {
   ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength,
   ValidateIf, ValidateNested,
 } from 'class-validator';
-import { FUNDING_TYPES, ITEM_STATES, KPI_AGGREGATIONS, KPI_DIRECTIONS, PERIODICITIES, PLAN_KINDS, RESOURCE_KINDS, TARGET_KINDS } from './entities/planning.entity';
+import { FUNDING_TYPES, ITEM_STATES, KPI_AGGREGATIONS, KPI_DIRECTIONS, PERIODICITIES, PLAN_KINDS, REF_SYSTEMS, RESOURCE_KINDS, TARGET_KINDS } from './entities/planning.entity';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
 const Nullable = (): PropertyDecorator => (t, k) => [IsOptional(), ValidateIf((_: unknown, v: unknown) => v !== null && v !== '')].forEach((d) => d(t, k));
@@ -234,10 +234,10 @@ export class LinkDto {
 }
 
 export class RefDto {
-  @IsIn(['projects', 'capital_budget'], { message: 'النظام المرتبط غير متاح في هذه المرحلة' })
-  system!: 'projects' | 'capital_budget';
+  @IsIn(REF_SYSTEMS, { message: 'النظام المرتبط غير معروف' })
+  system!: (typeof REF_SYSTEMS)[number];
 
-  @IsUUID('4', { message: 'اختر العنصر من النظام المرتبط' })
+  @IsString({ message: 'اختر العنصر من النظام المرتبط' }) @MinLength(1, { message: 'اختر العنصر من النظام المرتبط' }) @MaxLength(100)
   refId!: string;
 
   @Nullable() @Num(0.01, 100, 'نسبة المساهمة بين 0.01 و100')
@@ -245,6 +245,42 @@ export class RefDto {
 
   @Text(500)
   note?: string | null;
+}
+
+/** نشاط لمعالجة خطر أو تنفيذ إجراء تصحيحي من المراجعة الداخلية: يُنشأ تحت العنصر ويُربط بمرجعه */
+export class TreatmentDto {
+  @IsIn(['risk', 'audit'], { message: 'المعالجة لخطر أو لتوصية مراجعة' })
+  system!: 'risk' | 'audit';
+
+  @IsString() @MinLength(1, { message: 'اختر الخطر أو التوصية' }) @MaxLength(100)
+  refId!: string;
+
+  @Text(300)
+  title?: string | null;
+
+  @Text(3000)
+  description?: string | null;
+
+  @OptUuid()
+  ownerUserId?: string | null;
+
+  @Text(200)
+  ownerName?: string | null;
+
+  @OptUuid()
+  unitId?: string | null;
+
+  @Nullable() @DateField('تاريخ البداية غير صحيح')
+  startDate?: string | null;
+
+  @Nullable() @DateField('تاريخ النهاية غير صحيح')
+  endDate?: string | null;
+
+  @IsOptional() @IsObject()
+  costByYear?: Record<string, number>;
+
+  @Nullable() @IsIn(FUNDING_TYPES)
+  fundingType?: (typeof FUNDING_TYPES)[number] | null;
 }
 
 export class KpiDto {

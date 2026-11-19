@@ -7,6 +7,7 @@ import { PlanningCore } from '../planning/planning-core.service';
 import { ItemDto } from '../planning/planning.dto';
 import { PLANNING_PERMISSIONS as P } from '../planning/planning.manifest';
 import { PlansService } from '../planning/plans.service';
+import { PlanningLinks } from '../planning/planning-links.service';
 import { DemoTeam, daysAgo } from './demo-context';
 
 type PlanView = Awaited<ReturnType<PlansService['get']>>;
@@ -21,7 +22,7 @@ type Act = Partial<ItemDto> & { title: string; pace?: number; done?: boolean; co
  */
 @Injectable()
 export class PlanningSeed {
-  constructor(private readonly db: DataSource, private readonly core: PlanningCore, private readonly plans: PlansService) {}
+  constructor(private readonly db: DataSource, private readonly core: PlanningCore, private readonly plans: PlansService, private readonly links: PlanningLinks) {}
 
   /** صلاحيات التخطيط لأدوار الفريق التجريبي */
   private async grant(team: DemoTeam): Promise<DemoTeam> {
@@ -289,6 +290,63 @@ export class PlanningSeed {
     let q = await this.plans.create(admin, { kind: 'operational', title: `الخطة التشغيلية لقسم الجودة ${Y}`, startYear: Y, endYear: Y, periodicity: 'quarterly', unitId: U.quality, parentPlanId: sp.id });
     q = await this.plans.addItem(admin, q.id, { title: 'تجديد شهادة ISO 9001', ownerName: quality.fullName });
     await this.plans.addItem(admin, q.id, { parentId: this.find(q, 'تجديد شهادة ISO 9001').id, title: 'المراجعة الداخلية الشاملة', startDate: d(9, 1), endDate: end(10), costByYear: { [Y]: 18000 } });
+    await this.integrations(admin, projectsManager, finance, sp.id, prog.op.id, fin.op.id, Y);
     return { strategic: sp.id };
+  }
+
+  /**
+   * الربط بالأنظمة الأخرى (المرحلة الخامسة): عناصر SWOT/PESTEL المعتمدة بأهداف ومبادرات الخطة الاستراتيجية،
+   * والمخاطر الجوهرية بمبادرات ونشاط معالجة بتكلفة، وإجراءات تصحيحية للمراجعة الداخلية، وأهداف وظيفية بأنشطة.
+   * وخطر رُبط بدرجة أقل من درجته الحالية ليظهر تنبيه «ارتفاع الخطر منذ الربط».
+   */
+  private async integrations(admin: OrgUser, pm: OrgUser, finance: OrgUser, spId: string, progId: string, finId: string, Y: number) {
+    const sp = await this.plans.get(admin, spId);
+    const has = (p: PlanView, t: string) => p.items.some((i) => i.title === t);
+    const factors = await this.links.options(admin, 'risk_analysis');
+    const pick = (f: string, n = 0) => factors.filter((x) => x.meta.factor === f)[n];
+    const anLinks: [string | undefined, string, string][] = [
+      [pick('opportunity')?.id, 'منصة التبرع الإلكتروني والمتجر الخيري', 'استثمار الفرصة في التحليل'],
+      [pick('opportunity', 1)?.id, 'تنويع مصادر الإيرادات وزيادتها', 'استثمار الفرصة في التحليل'],
+      [pick('threat')?.id, 'تنويع مصادر الإيرادات وزيادتها', 'الاستجابة للتهديد بتنويع الإيرادات'],
+      [pick('weakness')?.id, 'أتمتة الإجراءات الرئيسية', 'معالجة نقطة الضعف'],
+      [pick('strength')?.id, 'برنامج التمكين الاقتصادي للأسر', 'البناء على نقطة القوة'],
+      [pick('economic')?.id, 'إنشاء وقف استثماري للجمعية', 'العامل الاقتصادي أساس قرار الوقف'],
+    ];
+    for (const [refId, title, note] of anLinks) if (refId && has(sp, title)) await this.plans.addRef(admin, this.find(sp, title).id, { system: 'risk_analysis', refId, note }).catch(() => null);
+
+    const risks = (await this.links.options(admin, 'risk')).filter((r) => r.meta.state !== 'closed');
+    const material = risks.filter((r) => ['high', 'critical'].includes(String(r.meta.level)));
+    const inits = ['برنامج الاستقطاع الشهري', 'منصة التبرع الإلكتروني والمتجر الخيري', 'أتمتة الإجراءات الرئيسية', 'برنامج تطوير القيادات والصف الثاني'].filter((t) => has(sp, t));
+    for (const [n, r] of material.slice(0, inits.length).entries()) await this.plans.addRef(admin, this.find(sp, inits[n]).id, { system: 'risk', refId: r.id, note: 'المبادرة تخفف هذا الخطر' }).catch(() => null);
+    // خطر رُبط حين كانت درجته أقل: يظهر تنبيه ارتفاع الدرجة
+    const raised = material[0];
+    if (raised) await this.db.query(`UPDATE plan_refs SET ref_meta = ref_meta || jsonb_build_object('score', GREATEST(1, (ref_meta->>'score')::int - 4), 'levelName', 'متوسط') WHERE organization_id = $1 AND system = 'risk' AND ref_id = $2`, [admin.organizationId, raised.id]);
+
+    // نشاط معالجة لخطر جوهري وإجراء تصحيحي لتوصية مراجعة في خطة البرامج المعتمدة، ثم إعادة اعتمادها
+    let prog = await this.plans.get(pm, progId);
+    const parent = prog.items.find((i) => i.level === 0);
+    const treatRisk = material.find((r) => r.id !== raised?.id) ?? raised;
+    if (parent && treatRisk) {
+      prog = await this.plans.treatment(pm, parent.id, {
+        system: 'risk', refId: treatRisk.id, title: `معالجة الخطر ${treatRisk.code}: ${treatRisk.label}`.slice(0, 300), ownerName: pm.fullName,
+        startDate: `${Y}-07-01`, endDate: `${Y}-12-31`, costByYear: { [Y]: 35000 },
+      });
+    }
+    const actions = (await this.links.options(admin, 'audit')).filter((x) => x.meta.status !== 'closed');
+    if (parent && actions[0]) {
+      prog = await this.plans.treatment(pm, parent.id, { system: 'audit', refId: actions[0].id, ownerName: pm.fullName, startDate: `${Y}-06-01`, costByYear: { [Y]: 12000 } });
+    }
+    if (prog.status !== 'approved') {
+      await this.plans.submit(pm, progId, 'إضافة نشاط معالجة خطر وإجراء تصحيحي لتوصية المراجعة الداخلية');
+      await this.approveAll(admin, progId);
+    }
+    const fin = await this.plans.get(finance, finId);
+    if (actions[1] && has(fin, 'أتمتة دورة طلبات الصرف والاعتماد')) await this.plans.addRef(finance, this.find(fin, 'أتمتة دورة طلبات الصرف والاعتماد').id, { system: 'audit', refId: actions[1].id, note: 'الأتمتة تعالج ملاحظة المراجعة' }).catch(() => null);
+
+    // أهداف وظيفية معتمدة مرتبطة بأنشطة البرامج
+    prog = await this.plans.get(pm, progId);
+    const goals = await this.links.options(admin, 'hr_performance');
+    const acts = prog.items.filter((i) => !prog.items.some((c) => c.parentId === i.id));
+    for (const [n, g] of goals.slice(0, Math.min(3, acts.length)).entries()) await this.plans.addRef(admin, acts[n].id, { system: 'hr_performance', refId: g.id, contribution: null, note: 'الهدف الوظيفي يسهم في النشاط' }).catch(() => null);
   }
 }

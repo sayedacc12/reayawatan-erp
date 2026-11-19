@@ -323,6 +323,7 @@ export class PlanLink {
  */
 @Entity('plan_refs')
 @Index('UQ_plan_refs_item', ['itemId', 'system', 'refId'], { unique: true })
+@Index('IDX_plan_refs_source', ['organizationId', 'system', 'refId'])
 export class PlanRef {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -336,7 +337,8 @@ export class PlanRef {
   @Column({ type: 'varchar', length: 20 })
   system!: RefSystem;
 
-  @Column({ name: 'ref_id', type: 'varchar', length: 60 })
+  /** معرف العنصر في المصدر؛ لعناصر التحليل وأهداف بطاقات الأداء: «معرف التحليل أو البطاقة:معرف العنصر» */
+  @Column({ name: 'ref_id', type: 'varchar', length: 100 })
   refId!: string;
 
   @Column({ name: 'ref_code', type: 'varchar', length: 60, nullable: true })
@@ -350,6 +352,14 @@ export class PlanRef {
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   note!: string | null;
+
+  /** حالة العنصر وقت الربط (درجة الخطر ومستواه، موعد الإجراء...) للمقارنة بحالته الحالية */
+  @Column({ name: 'ref_meta', type: 'jsonb', default: () => `'{}'` })
+  refMeta!: Record<string, unknown>;
+
+  /** إصدار المرجع الذي استندت إليه الخطة (مثل رقم مراجعة التحليل المعتمد) */
+  @Column({ name: 'ref_version', type: 'varchar', length: 40, nullable: true })
+  refVersion!: string | null;
 
   @Column({ name: 'created_by_name', length: 200 })
   createdByName!: string;

@@ -66,7 +66,7 @@ export const TARGET_KINDS: Record<string, string> = { quantitative: 'كمي', qu
 export const RESOURCE_KINDS: Record<string, string> = { human: 'بشري', material: 'مادي', financial: 'مالي' };
 export const DIRECTION: Record<string, string> = { up: 'الأعلى أفضل', down: 'الأقل أفضل' };
 export const AGGREGATION: Record<string, string> = { last: 'آخر قراءة', sum: 'مجموع الفترات (تراكمي)', avg: 'متوسط الفترات' };
-export const REF_SYSTEMS: Record<string, string> = { projects: 'مشروع', capital_budget: 'موازنة رأسمالية', risk: 'خطر', risk_analysis: 'تحليل', audit: 'توصية مراجعة', hr_performance: 'أداء وظيفي' };
+export const REF_SYSTEMS: Record<string, string> = { projects: 'مشروع', capital_budget: 'موازنة رأسمالية', risk: 'خطر', risk_analysis: 'تحليل استراتيجي', audit: 'توصية مراجعة', hr_performance: 'أداء وظيفي' };
 
 export function periodsOf(year: number, p: string): string[] {
   if (p === 'annual') return [String(year)];

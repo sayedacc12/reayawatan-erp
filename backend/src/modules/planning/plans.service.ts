@@ -10,8 +10,9 @@ import {
 } from './planning-calc';
 import { PlanningCore, today } from './planning-core.service';
 import { PLAN_TEMPLATES, PlanningConfig, TemplateItem } from './planning-defaults';
-import { CarryDto, CopyPlanDto, DecideDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto } from './planning.dto';
+import { CarryDto, CopyPlanDto, DecideDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, TreatmentDto } from './planning.dto';
 import { PLANNING_PERMISSIONS as P } from './planning.manifest';
+import { PlanningLinks, RefOption } from './planning-links.service';
 
 type Filters = { kind?: string; status?: string; year?: string; unitId?: string };
 const pick = <T extends object, K extends keyof T>(o: T, keys: readonly K[]) => Object.fromEntries(keys.map((k) => [k, o[k]])) as Pick<T, K>;
@@ -20,7 +21,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 /** الخطط وعناصرها ومؤشراتها وعلاقاتها، والاعتماد والإصدارات، ومتابعة الإنجاز والترحيل */
 @Injectable()
 export class PlansService {
-  constructor(private readonly db: DataSource, private readonly core: PlanningCore, private readonly analysis: PlanningAnalysis) {}
+  constructor(private readonly db: DataSource, private readonly core: PlanningCore, private readonly analysis: PlanningAnalysis, private readonly links: PlanningLinks) {}
 
   // ---------------- صلاحيات التعديل ----------------
 
@@ -100,6 +101,7 @@ export class PlansService {
     const items = a.items.filter((i) => i.planId === id);
     const ids = new Set(items.map((i) => i.id));
     const refs = ids.size ? await this.db.getRepository(PlanRef).find({ where: { organizationId: org, itemId: In([...ids]) }, order: { createdAt: 'ASC' } }) : [];
+    const live = await this.links.live(actor, refs);
     const ext = (itemId: string) => {
       const it = a.itemById.get(itemId);
       const pl = it ? a.plans.get(it.planId) : null;
@@ -128,7 +130,7 @@ export class PlansService {
         const r = a.rolled.get(i.id)!;
         return {
           ...i, rolledProgress: r.progress, plannedProgress: r.planned, rolledCost: r.cost, rolledCostByYear: r.costByYear, execStatus: r.status, progressSource: r.source,
-          performance: a.perf.get(i.id) ?? null, refs: refs.filter((x) => x.itemId === i.id), updates: updates.filter((u) => u.itemId === i.id).slice(0, 10),
+          performance: a.perf.get(i.id) ?? null, refs: refs.filter((x) => x.itemId === i.id).map((x) => ({ ...x, live: live.get(x.id) ?? null })), updates: updates.filter((u) => u.itemId === i.id).slice(0, 10),
           hasChildren: items.some((c) => c.parentId === i.id),
         };
       }),
@@ -391,7 +393,7 @@ export class PlansService {
     }
   }
 
-  async addItem(actor: OrgUser, planId: string, dto: ItemDto) {
+  async addItem(actor: OrgUser, planId: string, dto: ItemDto, after?: (em: EntityManager, it: PlanItem) => Promise<void>) {
     const org = actor.organizationId;
     const cfg = await this.core.config(org);
     await this.db.transaction(async (em) => {
@@ -409,6 +411,7 @@ export class PlansService {
       if (!dto.unitId && p.unitId && dto.unitId === undefined) dto.unitId = p.unitId;
       await this.applyItem(em, org, p, it, dto, cfg);
       await em.getRepository(PlanItem).save(it);
+      if (after) await after(em, it);
     });
     return this.get(actor, planId);
   }
@@ -624,15 +627,37 @@ export class PlansService {
     const p = await this.plan(this.db.manager, org, it.planId);
     this.assertManage(actor, p);
     if (p.status === 'rejected') throw new ConflictException('الخطة مرفوضة');
-    const opts = dto.system === 'projects' ? await this.core.projectOptions(org).catch(() => []) : await this.core.capitalOptions(org).catch(() => []);
-    const src = (opts as { id: string; code: string; name: string }[]).find((o) => o.id === dto.refId);
-    if (!src) throw new BadRequestException('العنصر غير موجود في النظام المرتبط');
+    const src = await this.links.resolve(actor, dto.system, dto.refId);
     if (await this.db.getRepository(PlanRef).count({ where: { itemId, system: dto.system, refId: dto.refId } })) throw new ConflictException('الربط موجود مسبقًا');
-    await this.db.getRepository(PlanRef).save(this.db.getRepository(PlanRef).create({
-      organizationId: org, itemId, system: dto.system, refId: dto.refId, refCode: src.code, refLabel: src.name, contribution: dto.contribution ?? null, note: dto.note ?? null,
-      createdByName: actor.fullName,
-    }));
+    await this.db.getRepository(PlanRef).save(this.refRow(actor, itemId, dto.system, src, dto.contribution ?? null, dto.note ?? null));
     return this.get(actor, p.id);
+  }
+
+  private refRow(actor: OrgUser, itemId: string, system: RefDto['system'], src: RefOption, contribution: number | null, note: string | null) {
+    return this.db.getRepository(PlanRef).create({
+      organizationId: actor.organizationId, itemId, system, refId: src.id, refCode: src.code.slice(0, 60), refLabel: src.label.slice(0, 400),
+      contribution, note, refMeta: src.meta, refVersion: src.version, createdByName: actor.fullName,
+    });
+  }
+
+  /**
+   * نشاط لمعالجة خطر أو تنفيذ إجراء تصحيحي: يُنشأ عنصرًا فرعيًا تحت العنصر المختار ويُربط بمرجعه،
+   * وتكلفته التقديرية تدخل الموازنة مع باقي الأنشطة. لا يتغير شيء في سجل المخاطر أو المراجعة.
+   */
+  async treatment(actor: OrgUser, parentId: string, dto: TreatmentDto) {
+    const org = actor.organizationId;
+    const parent = await this.item(this.db.manager, org, parentId);
+    const src = await this.links.resolve(actor, dto.system, dto.refId);
+    const title = dto.title?.trim() || (dto.system === 'risk' ? `معالجة الخطر ${src.code}: ${src.label}` : `تنفيذ الإجراء التصحيحي ${src.code}: ${src.label}`).slice(0, 300);
+    const m = src.meta;
+    const description = dto.description ?? (dto.system === 'audit' && m.recommendation ? `التوصية: ${m.recommendation}` : null);
+    return this.addItem(actor, parent.planId, {
+      parentId, title, description, ownerUserId: dto.ownerUserId ?? null, ownerName: dto.ownerName ?? (dto.system === 'audit' ? (m.assigneeName as string | null) : (m.ownerName as string | null)) ?? null,
+      unitId: dto.unitId, startDate: dto.startDate ?? null, endDate: dto.endDate ?? (dto.system === 'audit' ? String(m.dueDate) : null),
+      costByYear: dto.costByYear ?? {}, fundingType: dto.fundingType ?? null,
+    } as ItemDto, async (em, it) => {
+      await em.getRepository(PlanRef).save(this.refRow(actor, it.id, dto.system, src, null, dto.system === 'risk' ? 'نشاط معالجة' : 'إجراء تصحيحي'));
+    });
   }
 
   async removeRef(actor: OrgUser, id: string) {

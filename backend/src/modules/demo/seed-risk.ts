@@ -160,7 +160,7 @@ export class RiskSeed {
     if (legal) await this.register.itemToRisk(admin, pestel.id, { itemId: legal.id, category: 'compliance', ownerName: quality.fullName });
     await this.register.submitAnalysis(admin, pestel.id);
     await this.approveAll((d) => this.register.decideAnalysis(admin, pestel.id, d));
-    await this.register.createAnalysis(admin, {
+    const swot = await this.register.createAnalysis(admin, {
       kind: 'swot', title: 'التحليل الرباعي للخطة الاستراتيجية', analysisDate: daysAgo(80),
       items: [
         { factor: 'strength', text: 'سمعة جيدة وثقة المانحين المحليين', impact: 4, likelihood: 5 },
@@ -177,6 +177,9 @@ export class RiskSeed {
         { type: 'WT', text: 'شراكة مع جمعيات قائمة في التدريب والتطوع' },
       ],
     });
+    // معتمد: تستند إليه الخطة الاستراتيجية في نظام التخطيط
+    await this.register.submitAnalysis(admin, swot.id);
+    await this.approveAll((d) => this.register.decideAnalysis(admin, swot.id, d));
 
     // ---- سجل التغيير ومهامه على الجهات
     const ch1 = await this.changes.createChange(admin, {

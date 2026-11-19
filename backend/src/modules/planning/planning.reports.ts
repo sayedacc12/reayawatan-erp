@@ -7,6 +7,7 @@ import { OrgAnalysis, PlanningAnalysis } from './planning-analysis.service';
 import { PlanningViews } from './planning-views.service';
 import { PLANNING_PERMISSIONS as P } from './planning.manifest';
 import { PlansService } from './plans.service';
+import { PlanningLinks } from './planning-links.service';
 
 export const EXEC_STATUS: Record<string, string> = {
   not_started: 'لم يبدأ', on_track: 'حسب الخطة', at_risk: 'في خطر', delayed: 'متأخر', completed: 'منجز', cancelled: 'ملغى', carried_over: 'مُرحّل', no_schedule: 'بلا جدول زمني',
@@ -26,7 +27,7 @@ const show = (v: unknown): string => {
 /** تقارير التخطيط في البنية الموحدة (تقرأ من نفس التحليل الذي تعرضه الشاشات) */
 @Injectable()
 export class PlanningReports implements OnModuleInit {
-  constructor(private readonly registry: ReportsRegistry, private readonly analysis: PlanningAnalysis, private readonly views: PlanningViews, private readonly plans: PlansService) {}
+  constructor(private readonly registry: ReportsRegistry, private readonly analysis: PlanningAnalysis, private readonly views: PlanningViews, private readonly plans: PlansService, private readonly links: PlanningLinks) {}
 
   onModuleInit() {
     const base = { module: 'planning', permission: P.reports };
@@ -230,6 +231,70 @@ export class PlanningReports implements OnModuleInit {
           id: p.id, code: p.code, title: p.title, kind: p.kind === 'strategic' ? 'استراتيجية' : 'تشغيلية', period: p.startYear === p.endYear ? String(p.startYear) : `${p.startYear} - ${p.endYear}`,
           unitName: p.unitName ?? 'الجمعية', status: ar(WF, p.status), version: p.version, progress: p.summary.progress, performance: p.summary.performance, cost: p.summary.totalCost,
         })),
+      },
+      {
+        ...base, code: 'planning.risks', category: 'الربط بالأنظمة', title: 'تغطية المخاطر الجوهرية بخطط المعالجة', orientation: 'landscape',
+        description: 'المخاطر المرتفعة والحرجة في سجل المخاطر، والعناصر التي تعالجها في الخطة وتكلفتها ونسبة إنجازها، والمخاطر غير المغطاة',
+        filters: [dynamicFilter('planId', 'الخطة', planOptions(), 'اختر الخطة', true)],
+        columns: [
+          { key: 'code', label: 'الخطر' }, { key: 'title', label: 'العنوان' }, { key: 'level', label: 'المستوى' }, { key: 'score', label: 'الدرجة', type: 'number' },
+          { key: 'ownerName', label: 'مالك الخطر' }, { key: 'items', label: 'عناصر المعالجة في الخطة' }, { key: 'cost', label: 'تكلفة المعالجة', type: 'money', total: true },
+          { key: 'progress', label: 'الإنجاز', type: 'percent' }, { key: 'covered', label: 'التغطية' },
+        ],
+        run: async (u, f) => {
+          const o = await this.links.overview(org(u), String(f.planId ?? ''));
+          return {
+            subtitle: `${o.plan.code} ${o.plan.title}`,
+            summary: [
+              { label: 'المخاطر الجوهرية', value: o.coverage.materialTotal, type: 'number' }, { label: 'المغطاة بخطط معالجة', value: o.coverage.materialCovered, type: 'number' },
+              { label: 'تكلفة المعالجة في الخطة', value: o.coverage.treatmentCost, type: 'money' },
+            ],
+            rows: o.coverage.risks.map((r) => ({
+              code: r.code, title: r.title, level: r.levelName, score: r.score, ownerName: r.ownerName, items: r.items.map((i) => `${i.code} ${i.title}`).join('، ') || '—',
+              cost: r.cost, progress: r.progress, covered: r.items.length ? 'مغطى' : r.material ? 'غير مغطى' : 'مرتبط', _style: r.material && !r.items.length ? 'strong' : undefined,
+            })) as ReportRow[],
+          };
+        },
+      },
+      {
+        ...base, code: 'planning.audit-actions', category: 'الربط بالأنظمة', title: 'الإجراءات التصحيحية للمراجعة الداخلية في الخطة', orientation: 'landscape',
+        description: 'إجراءات متابعة توصيات المراجعة الداخلية المفتوحة، وأنشطة الخطة المرتبطة بها وتكلفتها، والمتأخر منها. الحالة من نظام المراجعة الداخلية',
+        filters: [dynamicFilter('planId', 'الخطة', planOptions(), 'اختر الخطة', true)],
+        columns: [
+          { key: 'code', label: 'الإجراء' }, { key: 'title', label: 'العنوان' }, { key: 'engagement', label: 'مهمة المراجعة' }, { key: 'priority', label: 'الأولوية' },
+          { key: 'unitName', label: 'الجهة المسؤولة' }, { key: 'dueDate', label: 'الموعد المستهدف', type: 'date' }, { key: 'status', label: 'الحالة' },
+          { key: 'progress', label: 'الإنجاز', type: 'percent' }, { key: 'items', label: 'أنشطة الخطة' }, { key: 'cost', label: 'التكلفة', type: 'money', total: true },
+        ],
+        run: async (u, f) => {
+          const o = await this.links.overview(org(u), String(f.planId ?? ''));
+          return {
+            subtitle: `${o.plan.code} ${o.plan.title}`,
+            rows: o.coverage.actions.map((x) => ({
+              code: x.code, title: x.title, engagement: x.engagement, priority: x.priorityName, unitName: x.unitName, dueDate: x.dueDate, status: `${x.statusName}${x.overdue ? ' (متأخر)' : ''}`,
+              progress: x.progress, items: x.items.map((i) => `${i.code} ${i.title}`).join('، ') || '—', cost: x.cost, _style: x.overdue ? 'strong' : undefined,
+            })) as ReportRow[],
+          };
+        },
+      },
+      {
+        ...base, code: 'planning.analysis', category: 'الربط بالأنظمة', title: 'استجابة الخطة لتحليلات PESTEL وSWOT', orientation: 'landscape',
+        description: 'عناصر التحليلات المعتمدة (الفرص والتهديدات ونقاط القوة والضعف والعوامل الخارجية) والعناصر التي تستجيب لها في الخطة',
+        filters: [dynamicFilter('planId', 'الخطة', planOptions(), 'اختر الخطة', true)],
+        columns: [
+          { key: 'analysis', label: 'التحليل' }, { key: 'factor', label: 'العامل' }, { key: 'text', label: 'العنصر' }, { key: 'impact', label: 'الأثر', type: 'number' },
+          { key: 'items', label: 'العناصر المستجيبة في الخطة' }, { key: 'covered', label: 'الاستجابة' },
+        ],
+        run: async (u, f) => {
+          const o = await this.links.overview(org(u), String(f.planId ?? ''));
+          return {
+            subtitle: `${o.plan.code} ${o.plan.title}`,
+            summary: o.coverage.byFactor.map((x) => ({ label: x.name, value: `${x.linked} من ${x.total}` })),
+            rows: o.coverage.factors.map((x) => ({
+              analysis: `${x.group} (${x.version})`, factor: x.factorName, text: x.text, impact: x.impact, items: x.items.map((i) => `${i.code} ${i.title}`).join('، ') || '—',
+              covered: x.items.length ? 'مستجاب له' : 'لا يوجد', _skipTotal: true,
+            })) as ReportRow[],
+          };
+        },
       },
     ];
     this.registry.register(defs);
