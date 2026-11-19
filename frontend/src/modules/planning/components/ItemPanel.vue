@@ -54,15 +54,24 @@ async function addLink() {
 const removeLink = (l: any) => confirm('حذف هذا الربط؟') && call(`/planning/links/${l.id}`, 'DELETE', undefined, 'حُذف الربط');
 const relName = (c: string) => props.config.relationTypes.find((r) => r.code === c)?.name ?? c;
 
-const rf = reactive({ open: false, system: 'projects' as 'projects' | 'capital_budget', refId: '', contribution: null as number | null, note: '' });
-const refOptions = computed(() => rf.system === 'projects'
-  ? props.lookups.projects.map((p) => ({ id: p.id, label: `${p.code} ${p.name}${p.budget ? ` · ${money(p.budget)}` : ''}` }))
-  : props.lookups.capitalLines.map((c) => ({ id: c.id, label: `${c.code} ${c.name} · ${c.year} · ${money(c.amount)}` })));
+const rf = reactive({ open: false, system: 'risk', refId: '', contribution: null as number | null, note: '', options: [] as any[], loading: false });
+const REF_FORM: Record<string, string> = { risk: 'خطر من سجل المخاطر', risk_analysis: 'عنصر من تحليل PESTEL أو SWOT', audit: 'توصية مراجعة داخلية (إجراء تصحيحي)', hr_performance: 'هدف وظيفي في بطاقة أداء', projects: 'مشروع', capital_budget: 'بند موازنة رأسمالية (الأصول)' };
+async function loadRefOptions() {
+  rf.refId = ''; rf.loading = true;
+  try { rf.options = await api<any[]>(`/planning/ref-options?system=${rf.system}`); } catch (e) { toast.error(errMsg(e)); rf.options = []; } finally { rf.loading = false; }
+}
+watch(() => rf.open, (v) => { if (v && !rf.options.length) loadRefOptions(); });
+const refGroups = computed(() => {
+  const g = new Map<string, any[]>();
+  for (const o of rf.options) g.set(o.group ?? '', [...(g.get(o.group ?? '') ?? []), o]);
+  return [...g.entries()].map(([name, opts]) => ({ name, opts }));
+});
 async function addRef() {
   if (await call(`/planning/items/${props.item.id}/refs`, 'POST', { system: rf.system, refId: rf.refId, contribution: rf.contribution || null, note: rf.note || null }, 'أُضيف الربط')) rf.open = false;
 }
-const removeRef = (r: any) => confirm('إلغاء هذا الربط؟') && call(`/planning/refs/${r.id}`, 'DELETE', undefined, 'أُلغي الربط');
-const refLink = (r: any) => (r.system === 'projects' ? `/projects/${r.refId}` : r.system === 'capital_budget' ? '/accounting/assets/budget' : null);
+const removeRef = (r: any) => confirm('إلغاء هذا الربط؟ لا يتأثر العنصر في نظامه.') && call(`/planning/refs/${r.id}`, 'DELETE', undefined, 'أُلغي الربط');
+const refLink = (r: any) => r.live?.url ?? (r.system === 'projects' ? `/projects/${r.refId}` : r.system === 'capital_budget' ? '/accounting/assets/budget' : null);
+const ALERT_C: Record<string, string> = { danger: '#dc2626', warning: '#d97706', info: '#0284c7' };
 
 const cf = reactive({ open: false, targetPlanId: '', targetParentId: '', note: '' });
 const carryPlans = computed(() => props.plans.filter((p) => p.kind === 'operational' && p.id !== props.plan.id && p.startYear >= props.plan.endYear && !['in_review', 'rejected'].includes(p.status)));
@@ -206,18 +215,24 @@ const kpiBand = (k: any) => BAND[k.stat?.band ?? 'none'];
     <div class="rk-sec">مرتبط في الأنظمة الأخرى <button v-if="editable" class="btn btn-sm" @click="rf.open = !rf.open">+ ربط</button></div>
     <form v-if="rf.open" class="card" style="padding: 12px; margin-bottom: 8px; background: var(--surface-2)" @submit.prevent="addRef">
       <div class="rk-fields">
-        <label class="field"><span>النظام</span><select v-model="rf.system" class="input" @change="rf.refId = ''"><option value="projects">مشروع</option><option value="capital_budget">بند موازنة رأسمالية (الأصول)</option></select></label>
+        <label class="field"><span>النظام</span><select v-model="rf.system" class="input" @change="loadRefOptions"><option v-for="(l, k) in REF_FORM" :key="k" :value="k">{{ l }}</option></select></label>
         <label class="field"><span>نسبة المساهمة %</span><input v-model.number="rf.contribution" type="number" min="0.01" max="100" step="any" class="input" /></label>
       </div>
-      <label class="field"><span>العنصر</span><select v-model="rf.refId" class="input" required><option value="">—</option><option v-for="o in refOptions" :key="o.id" :value="o.id">{{ o.label }}</option></select></label>
+      <label class="field"><span>العنصر</span><select v-model="rf.refId" class="input" required><option value="">{{ rf.loading ? 'جارٍ التحميل…' : rf.options.length ? '—' : 'لا توجد عناصر متاحة' }}</option>
+        <optgroup v-for="g in refGroups" :key="g.name" :label="g.name || '—'"><option v-for="o in g.opts" :key="o.id" :value="o.id">{{ o.code }} {{ o.label }}</option></optgroup></select></label>
+      <label class="field"><span>ملاحظة</span><input v-model="rf.note" class="input" maxlength="500" placeholder="سبب الربط أو أساسه التحليلي" /></label>
+      <p class="pm-muted" style="margin: 0 0 8px">الربط للقراءة فقط: يبقى العنصر وتقييمه وحالته في نظامه، ويُحفظ وضعه الحالي للمقارنة لاحقًا.</p>
       <div class="pm-actions"><button class="btn btn-primary btn-sm">ربط</button><button type="button" class="btn btn-sm" @click="rf.open = false">إلغاء</button></div>
     </form>
-    <p v-if="!item.refs.length" class="pm-muted">لا يوجد ربط بمشاريع أو موازنات رأسمالية.</p>
+    <p v-if="!item.refs.length" class="pm-muted">لا يوجد ربط بالمشاريع أو المخاطر أو التحليلات أو المراجعة الداخلية أو الأداء الوظيفي.</p>
     <ul v-else class="rk-log">
       <li v-for="r in item.refs" :key="r.id"><b>{{ REF_SYSTEMS[r.system] }}</b>
         <span><RouterLink v-if="refLink(r)" :to="refLink(r)!" class="pm-link">{{ r.refCode }} {{ r.refLabel }}</RouterLink><template v-else>{{ r.refCode }} {{ r.refLabel }}</template>
           <template v-if="r.contribution !== null"> · {{ num(r.contribution) }}%</template>
-          <button v-if="editable" class="btn btn-sm" style="margin-inline-start: 6px" @click="removeRef(r)">✕</button></span></li>
+          <span v-if="r.live?.statusName" class="pm-pill" :style="{ '--c': r.live.color ?? '#64748b', marginInlineStart: '6px' }">{{ r.live.statusName }}{{ r.live.progress !== null ? ` · ${num(r.live.progress)}%` : '' }}</span>
+          <button v-if="editable" class="btn btn-sm" style="margin-inline-start: 6px" @click="removeRef(r)">✕</button>
+          <small v-if="r.live?.detail" class="pm-muted" style="display: block">{{ r.live.detail }}</small>
+          <small v-if="r.live?.alert" style="display: block; font-weight: 600" :style="{ color: ALERT_C[r.live.level] ?? '#64748b' }">⚠ {{ r.live.alert }}</small></span></li>
     </ul>
 
     <template v-if="item.updates.length">

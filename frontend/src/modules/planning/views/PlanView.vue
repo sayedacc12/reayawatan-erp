@@ -10,6 +10,7 @@ import KpiForm from '../components/KpiForm.vue';
 import KpiReadings from '../components/KpiReadings.vue';
 import MiniBar from '../components/MiniBar.vue';
 import PlanForm from '../components/PlanForm.vue';
+import PlanIntegrations from '../components/PlanIntegrations.vue';
 import PlanWorkflow from '../components/PlanWorkflow.vue';
 import ProgressRing from '../components/ProgressRing.vue';
 import {
@@ -21,7 +22,7 @@ import '../../risk/risk.css';
 import '../planning.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type Tab = 'structure' | 'kpis' | 'trace' | 'timeline' | 'cost' | 'versions';
+type Tab = 'structure' | 'kpis' | 'trace' | 'integrations' | 'timeline' | 'cost' | 'versions';
 const props = defineProps<{ id: string }>();
 const session = useSession();
 const toast = useToast();
@@ -34,7 +35,7 @@ const linkOptions = ref<any[]>([]);
 const allPlans = ref<any[]>([]);
 const strategicPlans = computed(() => allPlans.value.filter((p) => p.kind === 'strategic'));
 const error = ref('');
-const tab = ref<Tab>((['structure', 'kpis', 'trace', 'timeline', 'cost', 'versions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
+const tab = ref<Tab>((['structure', 'kpis', 'trace', 'integrations', 'timeline', 'cost', 'versions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
 const selId = ref<string | null>((route.query.item as string) ?? null);
 const collapsed = reactive(new Set<string>());
 
@@ -202,6 +203,7 @@ const summaryColor = computed(() => (plan.value?.summary.delayed ? EXEC.delayed.
       <button :class="['rk-tab', { on: tab === 'structure' }]" @click="tab = 'structure'">هيكل الخطة</button>
       <button :class="['rk-tab', { on: tab === 'kpis' }]" @click="tab = 'kpis'">المؤشرات ({{ plan.kpis.length }})</button>
       <button :class="['rk-tab', { on: tab === 'trace' }]" @click="tab = 'trace'">الربط والتتبع ({{ plan.links.length }})</button>
+      <button :class="['rk-tab', { on: tab === 'integrations' }]" @click="tab = 'integrations'">المخاطر والمراجعة والتحليل</button>
       <button :class="['rk-tab', { on: tab === 'timeline' }]" @click="tab = 'timeline'">الجدول الزمني</button>
       <button :class="['rk-tab', { on: tab === 'cost' }]" @click="tab = 'cost'">التكلفة</button>
       <button :class="['rk-tab', { on: tab === 'versions' }]" @click="tab = 'versions'">الاعتماد والإصدارات ({{ plan.versions.length }})</button>
@@ -317,6 +319,8 @@ const summaryColor = computed(() => (plan.value?.summary.delayed ? EXEC.delayed.
         </template>
       </div>
     </section>
+
+    <PlanIntegrations v-if="tab === 'integrations'" :key="plan.id" :plan="plan" :editable="!!editable" @changed="changed" @select="(id: string) => { select(id); tab = 'structure'; }" />
 
     <!-- الجدول الزمني -->
     <section v-if="tab === 'timeline'" class="card pm-panel">

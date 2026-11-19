@@ -282,4 +282,68 @@ describe('Strategic and operational planning', () => {
     }
     await http.get(`/api/reports/run/planning.plans`).set(as(clerk)).expect(403);
   });
+  it('links plans to the risk register, approved analyses, audit actions and staff goals read-only, with alerts and coverage', async () => {
+    const RK = '/api/risk';
+    const ago = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    const riskBody = (l: number) => ({
+      title: 'انخفاض التبرعات', source: 'external', category: 'financial', ownerName: 'مدير تنمية الموارد', unitId: ids.unit,
+      inherentLikelihood: 5, inherentImpact: 4, residualLikelihood: l, residualImpact: 4, treatment: 'reduce', actions: [], kris: [],
+    });
+    const risk = (await http.post(`${RK}/risks`).set(as(admin)).send(riskBody(3)).expect(201)).body;
+    expect(risk.residualScore).toBe(12);
+    const an = (await http.post(`${RK}/analyses`).set(as(admin)).send({
+      kind: 'swot', title: 'SWOT', analysisDate: ago(0), items: [{ factor: 'opportunity', text: 'منح تنموية', impact: 4, likelihood: 3 }, { factor: 'threat', text: 'جمعيات جديدة', impact: 3, likelihood: 3 }],
+    }).expect(201)).body;
+    // التحليل غير المعتمد لا يظهر للتخطيط
+    expect((await http.get(`${R}/ref-options?system=risk_analysis`).set(as(clerk)).expect(200)).body).toEqual([]);
+    await http.post(`${RK}/analyses/${an.id}/submit`).set(as(admin)).expect(201);
+    for (let i = 0; i < 4; i++) await http.post(`${RK}/analyses/${an.id}/decision`).set(as(admin)).send({ decision: 'approve' }).then(() => null);
+    const facs = (await http.get(`${R}/ref-options?system=risk_analysis`).set(as(clerk)).expect(200)).body;
+    expect(facs.map((f: { meta: { factor: string } }) => f.meta.factor)).toEqual(['opportunity', 'threat']);
+    expect(facs[0].version).toMatch(/^Rev\./);
+    await http.get(`${R}/ref-options?system=nope`).set(as(clerk)).expect(400);
+    // أهداف الموظفين لمن يملك صلاحية الأداء الوظيفي فقط
+    expect((await http.get(`${R}/ref-options?system=hr_performance`).set(as(clerk)).expect(200)).body).toEqual([]);
+    await http.post(`${R}/items/${ids.init}/refs`).set(as(admin)).send({ system: 'hr_performance', refId: '00000000-0000-4000-8000-000000000000:0' }).expect(400);
+
+    await http.post(`${R}/items/${ids.init}/refs`).set(as(admin)).send({ system: 'risk', refId: risk.id, note: 'المبادرة تخفف الخطر' }).expect(201);
+    await http.post(`${R}/items/${ids.init}/refs`).set(as(admin)).send({ system: 'risk', refId: risk.id }).expect(409);
+    await http.post(`${R}/items/${ids.init}/refs`).set(as(admin)).send({ system: 'risk_analysis', refId: facs[0].id }).expect(201);
+    let sp = (await http.get(`${R}/plans/${ids.sp}`).set(as(clerk)).expect(200)).body;
+    const refs = sp.items.find((i: { id: string }) => i.id === ids.init).refs;
+    expect(refs.find((r: { system: string }) => r.system === 'risk')).toMatchObject({ refCode: risk.code, refMeta: { score: 12 }, live: { found: true, alert: null } });
+    expect(refs.find((r: { system: string }) => r.system === 'risk_analysis').refVersion).toBe(facs[0].version);
+
+    let o = (await http.get(`${R}/plans/${ids.sp}/integrations`).set(as(clerk)).expect(200)).body;
+    expect(o.coverage.materialTotal).toBe(1);
+    expect(o.coverage.materialCovered).toBe(1);
+    expect(o.coverage.byFactor.find((f: { factor: string }) => f.factor === 'opportunity')).toMatchObject({ total: 1, linked: 1 });
+    expect(o.alerts).toEqual([]);
+
+    // ارتفاع درجة الخطر في سجل المخاطر يظهر تنبيهًا في الخطة، دون تعديلها
+    await http.patch(`${RK}/risks/${risk.id}`).set(as(admin)).send(riskBody(5)).expect(200);
+    o = (await http.get(`${R}/plans/${ids.sp}/integrations`).set(as(clerk)).expect(200)).body;
+    expect(o.alerts).toEqual([expect.objectContaining({ level: 'danger', message: expect.stringContaining('من 12') })]);
+    sp = (await http.get(`${R}/plans/${ids.sp}`).set(as(clerk)).expect(200)).body;
+    expect(sp.status).toBe('approved');
+
+    // نشاط معالجة تحت برنامج الخطة التشغيلية: يُنشأ مربوطًا بالخطر وتكلفته تدخل الخطة، والخطر لا يتغير
+    let op = (await http.get(`${R}/plans/${ids.op}`).set(as(clerk)).expect(200)).body;
+    const prog = op.items.find((i: { title: string }) => i.title === 'برنامج الاستقطاع');
+    await http.post(`${R}/items/${prog.id}/treatment`).set(as(clerk)).send({ system: 'audit', refId: risk.id }).expect(400);
+    op = (await http.post(`${R}/items/${prog.id}/treatment`).set(as(clerk)).send({ system: 'risk', refId: risk.id, costByYear: { [Y]: 20000 }, endDate: `${Y}-12-31` }).expect(201)).body;
+    const tr = op.items.find((i: { title: string }) => i.title.startsWith(`معالجة الخطر ${risk.code}`));
+    expect(tr).toMatchObject({ parentId: prog.id, plannedCost: 20000, ownerName: 'مدير تنمية الموارد' });
+    expect(tr.refs[0]).toMatchObject({ system: 'risk', refId: risk.id, note: 'نشاط معالجة' });
+    expect(op.status).toBe('draft');
+    expect((await http.get(`${RK}/risks/${risk.id}`).set(as(admin)).expect(200)).body.residualScore).toBe(20);
+    o = (await http.get(`${R}/plans/${ids.op}/integrations`).set(as(clerk)).expect(200)).body;
+    expect(o.coverage.treatmentCost).toBe(20000);
+
+    for (const code of ['planning.risks', 'planning.analysis', 'planning.audit-actions']) {
+      await http.get(`/api/reports/run/${code}?planId=${ids.sp}`).set(as(admin)).expect(200);
+    }
+    const rr = (await http.get(`/api/reports/run/planning.risks?planId=${ids.sp}`).set(as(admin)).expect(200)).body;
+    expect(rr.rows[0]).toMatchObject({ code: risk.code, covered: 'مغطى' });
+  });
 });

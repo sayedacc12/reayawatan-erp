@@ -16,6 +16,7 @@ import { PlanningCore } from './planning-core.service';
 import { PlanningViews } from './planning-views.service';
 import { PlanningController } from './planning.controller';
 import { PlanningReports } from './planning.reports';
+import { PlanningLinks } from './planning-links.service';
 import { PlansService } from './plans.service';
 
 /**
@@ -26,7 +27,7 @@ import { PlansService } from './plans.service';
 @Module({
   imports: [TypeOrmModule.forFeature(PLANNING_ENTITIES), CoreModule],
   controllers: [PlanningController, BudgetController],
-  providers: [PlanningCore, PlanningAnalysis, PlansService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks],
-  exports: [PlanningCore, PlanningAnalysis, PlansService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
+  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks],
+  exports: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
 })
 export class PlanningModule {}
