@@ -55,17 +55,17 @@ describe('Organization lifecycle: trial deletion and mutual termination', () => 
     await makeOrg('soon', { status: 'trial', trialEndsOn: addDays(today, 5) });
     const t = (await login('admin@soon.sa', 'Owner12345', 'soon').expect(200)).body.accessToken;
     const n = (await http.get('/api/organization/lifecycle').set(as(t)).expect(200)).body;
-    expect(n).toMatchObject({ reason: 'trial', daysToTrialEnd: 5, daysToDelete: 20, deleteOn: addDays(today, 20) });
+    expect(n).toMatchObject({ reason: 'trial', daysToTrialEnd: 5, daysToDelete: 13, deleteOn: addDays(today, 13) });
   });
 
   it('deletes a trial charity automatically once the grace period after its trial ends is over', async () => {
     const id = await makeOrg('expired', { status: 'trial', trialEndsOn: addDays(today, -3) });
     // الدخول متوقف، والرسالة توضح موعد الحذف
     const res = await login('admin@expired.sa', 'Owner12345', 'expired').expect(401);
-    expect(res.body.message).toContain('ستُحذف الجمعية وكل بياناتها نهائيًا بعد 12 يومًا');
+    expect(res.body.message).toContain('ستُحذف الجمعية وكل بياناتها نهائيًا بعد 5 أيام');
 
     const o = (await http.get('/api/platform/lifecycle').set(as(platform)).expect(200)).body;
-    expect(o.upcoming.find((u: { slug: string }) => u.slug === 'expired')).toMatchObject({ reason: 'trial_expired', daysToDelete: 12 });
+    expect(o.upcoming.find((u: { slug: string }) => u.slug === 'expired')).toMatchObject({ reason: 'trial_expired', daysToDelete: 5 });
 
     expect(await lifecycle.sweep(today)).toEqual([]);
     expect(await exists(id)).toBe(true);
@@ -76,7 +76,7 @@ describe('Organization lifecycle: trial deletion and mutual termination', () => 
     expect((await db.query('SELECT count(*)::int AS n FROM users WHERE email = $1', ['admin@expired.sa']))[0].n).toBe(0);
     const after = (await http.get('/api/platform/lifecycle').set(as(platform)).expect(200)).body;
     expect(after.deleted[0]).toMatchObject({ orgSlug: 'expired', reason: 'trial_expired', status: 'deleted' });
-    await http.put('/api/platform/lifecycle/settings').set(as(platform)).send({ trialGraceDays: 14 }).expect(200);
+    await http.put('/api/platform/lifecycle/settings').set(as(platform)).send({ trialGraceDays: 7 }).expect(200);
   });
 
   it('terminates a contract by mutual agreement, with export, cancellation and deletion', async () => {

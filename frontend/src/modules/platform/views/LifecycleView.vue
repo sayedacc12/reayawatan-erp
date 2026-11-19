@@ -15,7 +15,7 @@ interface Overview { today: string; settings: { trialGraceDays: number }; upcomi
 const router = useRouter();
 const toast = useToast();
 const data = ref<Overview | null>(null);
-const grace = ref(14);
+const grace = ref(7);
 const busy = ref(false);
 
 async function load() {

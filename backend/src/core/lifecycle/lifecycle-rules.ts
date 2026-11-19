@@ -7,7 +7,7 @@ export interface LifecycleSettings {
   /** أيام المهلة بعد نهاية الفترة التجريبية قبل حذف الجمعية وبياناتها */
   trialGraceDays: number;
 }
-export const DEFAULT_LIFECYCLE: LifecycleSettings = { trialGraceDays: 14 };
+export const DEFAULT_LIFECYCLE: LifecycleSettings = { trialGraceDays: 7 };
 
 export async function lifecycleSettings(db: DataSource | EntityManager): Promise<LifecycleSettings> {
   const [row] = await db.query(`SELECT value FROM platform_settings WHERE key = 'lifecycle'`);

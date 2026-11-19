@@ -212,7 +212,7 @@ interface LifeStatus { notice: DeletionNotice | null; scheduled: Closure | null;
 const life = ref<LifeStatus | null>(null);
 const lifeBusy = ref(false);
 const termOpen = ref(false);
-const term = reactive({ agreementDate: new Date().toISOString().slice(0, 10), charityRep: '', note: '', graceDays: 14, confirm: '' });
+const term = reactive({ agreementDate: new Date().toISOString().slice(0, 10), charityRep: '', note: '', graceDays: 7, confirm: '' });
 const delOpen = ref(false);
 const delConfirm = ref('');
 const CLOSURE_ACTION: Record<string, string> = { scheduled: 'جدولة الإنهاء', cancelled: 'إلغاء الإنهاء', deleted: 'الحذف', exported: 'تصدير البيانات' };
