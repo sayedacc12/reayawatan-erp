@@ -4,6 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import SideNav from '../components/SideNav.vue';
 import TasksBell from '../components/TasksBell.vue';
+import HelpMenu from '../onboarding/HelpMenu.vue';
+import OnboardingHost from '../onboarding/OnboardingHost.vue';
+import { resetOnboarding } from '../onboarding/onboarding';
 import { ess, loadSummary, resetEss } from '../modules/hr/self/ess';
 import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
 import { loginPath, useSession } from '../stores/session';
@@ -38,10 +41,11 @@ watch(() => currentApp.value?.code, (c) => { if (c === 'accounting' && session.c
 // هوية الجمعية (الشعار والألوان) إن اختارت تطبيقها داخل النظام
 watch(() => session.user?.organizationId, (o) => (o ? loadIdentity() : clearIdentity()), { immediate: true });
 
-/** الخدمة الذاتية: تظهر لمستخدمي الجمعيات المربوطين بملف موظف */
+/** كل مستخدمي الجمعيات يبدأون من لوحتهم /me (بياناتهم الوظيفية إن رُبطوا بملف موظف، وإلا لوحة المهام والأنظمة) */
 const isOrgUser = computed(() => !!session.user?.organizationId);
 watch(() => session.user?.id, (id) => {
   resetEss();
+  resetOnboarding();
   if (id && session.user?.organizationId) loadSummary();
 }, { immediate: true });
 const inSelf = computed(() => route.path === '/me' || route.path.startsWith('/me/'));
@@ -49,6 +53,7 @@ const inSelf = computed(() => route.path === '/me' || route.path.startsWith('/me
 function logout() {
   clearIdentity();
   resetEss();
+  resetOnboarding();
   session.logout();
   router.push(loginPath());
 }
@@ -58,13 +63,13 @@ function logout() {
   <div class="shell">
     <header class="topbar">
       <div class="topbar-start">
-        <RouterLink :to="ess.summary?.linked ? '/me' : '/'" class="home-link" :title="ess.summary?.linked ? 'لوحتي' : 'كل التطبيقات'">
+        <RouterLink :to="isOrgUser ? '/me' : '/'" class="home-link" :title="isOrgUser ? 'لوحتي' : 'كل التطبيقات'" data-tour="home">
           <img v-if="orgLogo" :src="orgLogo" class="org-logo" alt="" />
           <BrandMark v-else :size="32" />
           <span class="product">سنابل</span>
           <span class="org-name">{{ session.user?.organizationName ?? 'إدارة المنصة' }}</span>
         </RouterLink>
-        <RouterLink v-if="!ess.summary?.linked" to="/" class="apps-btn" title="كل التطبيقات">
+        <RouterLink v-if="!isOrgUser" to="/" class="apps-btn" title="كل التطبيقات">
           <span class="grid-icon" aria-hidden="true"><i /><i /><i /><i /></span>
           <span class="label">التطبيقات</span>
         </RouterLink>
@@ -73,13 +78,14 @@ function logout() {
         </Transition>
       </div>
       <div class="top-actions">
-      <RouterLink v-if="ess.summary?.linked" to="/me" :class="['self-btn', { on: inSelf }]" title="الخدمة الذاتية: لوحتي وطلباتي">
-        <span aria-hidden="true">✦</span><span class="label">خدمتي</span>
-        <b v-if="ess.summary.awaiting" class="self-count">{{ ess.summary.awaiting }}</b>
+      <RouterLink v-if="isOrgUser" to="/me" :class="['self-btn', { on: inSelf }]" title="لوحتي: مهامي وأنظمتي وخدماتي الذاتية" data-tour="self">
+        <span aria-hidden="true">✦</span><span class="label">لوحتي</span>
+        <b v-if="ess.summary?.awaiting" class="self-count">{{ ess.summary.awaiting }}</b>
       </RouterLink>
-      <TasksBell v-if="isOrgUser" />
+      <HelpMenu v-if="isOrgUser" />
+      <TasksBell v-if="isOrgUser" data-tour="bell" />
       <div class="user">
-        <button class="user-btn" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+        <button class="user-btn" :aria-expanded="menuOpen" data-tour="user" @click="menuOpen = !menuOpen">
           <span class="avatar">{{ session.user?.fullName.charAt(0) }}</span>
           <span class="user-name">{{ session.user?.fullName }}</span>
         </button>
@@ -92,7 +98,7 @@ function logout() {
                 <div class="muted email" dir="ltr">{{ session.user?.email }}</div>
               </div>
             </div>
-            <RouterLink v-if="ess.summary?.linked" to="/me">لوحتي (الخدمة الذاتية)</RouterLink>
+            <RouterLink v-if="isOrgUser" to="/me">لوحتي</RouterLink>
             <RouterLink to="/account">حسابي وكلمة المرور</RouterLink>
             <button class="link-btn" @click="logout">تسجيل الخروج</button>
           </div>
@@ -116,6 +122,7 @@ function logout() {
         </RouterView>
       </main>
     </div>
+    <OnboardingHost v-if="isOrgUser" :key="session.user?.id" />
   </div>
 </template>
 
