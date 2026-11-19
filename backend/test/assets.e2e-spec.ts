@@ -170,7 +170,17 @@ describe('Fixed assets', () => {
     const e = r1.body.entry.id;
     await http.post(`${A}/entries/${e}/cancel`).set(as(admin)).send({ reason: 'تجربة' }).expect(409);
     await http.post(`${A}/entries/${e}/unpost`).set(as(admin)).expect(409);
-    await http.post(`${A}/entries`).set(as(admin)).send({ voucherType: 'depreciation', documentDate: `${year}-01-31`, description: 'يدوي', lines: [] }).expect(400);
+    const de = await http.get(`${A}/entries/${e}`).set(as(admin)).expect(200);
+    const ac = (de.body.lines as { accountId: string }[]).map((l) => l.accountId);
+    const twoLines = [{ accountId: ac[0], debit: 10, credit: 0 }, { accountId: ac[ac.length - 1], debit: 0, credit: 10 }];
+    await http.put(`${A}/entries/${e}`).set(as(admin)).send({ documentDate: `${year}-01-31`, description: 'تعديل', lines: twoLines }).expect(409);
+    // لا يُنشأ سند إهلاك ولا سند أصول من قيود اليومية حتى بسطور صحيحة
+    for (const t of ['depreciation', 'asset']) {
+      await http.post(`${A}/entries`).set(as(admin)).send({
+        voucherType: t, documentDate: `${year}-01-31`, description: 'يدوي',
+        lines: twoLines,
+      }).expect(400);
+    }
     const r2 = await http.post(`${F}/depreciation/post`).set(as(admin)).send({ period: ym(2) }).expect(201);
     ids.run2 = r2.body.id;
     const blocked = await http.post(`${F}/runs/${ids.run1}/cancel`).set(as(admin)).send({ reason: 'خطأ' }).expect(409);
