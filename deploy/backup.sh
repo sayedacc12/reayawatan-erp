@@ -319,7 +319,16 @@ cmd_setup_drive() {
   local blob out tok
   blob="$(printf '{"scope":"drive.file"}' | base64 -w0 | tr -d '=')"
   out="$(rclone authorize drive "$blob" </dev/null)" || die "لم يكتمل تسجيل الدخول في Google. تأكد من أمر الدخول أعلاه ثم أعد المحاولة."
-  tok="$(printf '%s\n' "$out" | grep -m1 '^{.*access_token')" || die "لم يصل رمز الدخول من Google. أعد المحاولة."
+  # مع إعدادات مرفقة يطبع rclone الرد مرمّزًا (base64 لـ JSON فيه token)، وبدونها يطبع الرمز نفسه
+  tok="$(printf '%s\n' "$out" | sed -n '/--->$/,/^<---End paste/p' | sed '1d;$d' | tr -d '[:space:]' | python3 -I -c '
+import base64, json, sys
+s = sys.stdin.read().strip()
+if s.startswith("{"):
+    print(s)
+else:
+    print(json.loads(base64.b64decode(s + "=" * (-len(s) % 4)))["token"])
+' 2>/dev/null)"
+  printf '%s' "$tok" | grep -q access_token || die "لم يصل رمز الدخول من Google. أعد المحاولة."
   rclone config delete gdrive >/dev/null 2>&1 || true
   rclone config create gdrive drive scope=drive.file token="$tok" config_refresh_token=false --non-interactive </dev/null >/dev/null \
     || die "تعذّر حفظ ربط Google Drive. أعد المحاولة."
