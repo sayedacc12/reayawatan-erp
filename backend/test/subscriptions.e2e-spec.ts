@@ -68,19 +68,30 @@ describe('Association subscriptions & e-contracts', () => {
 
   it('requires the license document and the main data', async () => {
     await form(http.post('/api/public/registrations'), fields, false).expect(400);
-    const bad = await form(http.post('/api/public/registrations'), { ...fields, directorEmail: 'x' }).expect(400);
-    expect(JSON.stringify(bad.body.message)).toContain('المدير التنفيذي');
+    // أخطاء جوهرية في الجوالات والبريد والأسماء والترخيص وتأكيد كلمة المرور، في طلب واحد (النقطة العامة محدودة المعدل)
+    const bad = await form(http.post('/api/public/registrations'), {
+      ...fields, directorPhone: '0612345678', boardPhone: '0555555555', orgPhone: '12345', directorEmail: 'ceo@gmail.con',
+      boardEmail: 'chair@namaa', adminEmail: 'مدير@namaa.org', directorName: 'خالد', boardName: 'سعد 2 الحربي',
+      licenseNumber: 'abc', licenseEndDate: '2019-01-01', adminPasswordConfirm: 'Other12345',
+    }).expect(400);
+    const msg = JSON.stringify(bad.body.message);
+    for (const text of ['جوال المدير التنفيذي', 'جوال عضو مجلس الإدارة', 'هاتف الجمعية', 'gmail.com', 'بريد عضو مجلس الإدارة',
+      'بالحروف الإنجليزية', 'الاسم الكامل', 'أرقام', 'رقم الترخيص', 'نهاية الترخيص', 'تأكيد كلمة المرور']) {
+      expect(msg).toContain(text);
+    }
     await form(http.post('/api/public/registrations'), fields)
       .field('licenseStartDate', '2999-01-01').expect(400);
   });
 
   it('association submits and tracks its application', async () => {
-    const res = await form(http.post('/api/public/registrations'), fields).expect(201);
+    const res = await form(http.post('/api/public/registrations'), { ...fields, directorPhone: '+966 50 000 0001', boardPhone: '٠٥٠٠٠٠٠٠٠٢', adminPasswordConfirm: fields.adminPassword }).expect(201);
     expect(res.body.number).toMatch(/^SUB-\d{4}-0001$/);
     token = res.body.token;
     const track = await http.get(`/api/public/registrations/${token}`).expect(200);
     expect(track.body.status).toBe('submitted');
     expect(track.body.data.directorName).toBe('خالد العتيبي');
+    expect(track.body.data.directorPhone).toBe('0500000001');
+    expect(track.body.data.boardPhone).toBe('0500000002');
     expect(JSON.stringify(track.body)).not.toContain('Hash');
     // نفس بريد مدير النظام في طلب آخر قيد المراجعة
     await form(http.post('/api/public/registrations'), fields).expect(409);
