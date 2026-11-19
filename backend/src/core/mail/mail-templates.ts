@@ -181,4 +181,18 @@ export const templates = {
     button: { label: 'تعيين كلمة مرور جديدة', url: v.url },
     note: 'إذا لم تطلب ذلك فتجاهل هذه الرسالة، وستبقى كلمة مرورك كما هي.',
   }),
+
+  backupAlert: (v: { target: string; problem: string; lastSuccess: string; detail?: string | null }) => mailLayout({
+    title: `تنبيه: ${v.problem} (${v.target})`,
+    subject: `تنبيه النسخ الاحتياطي: ${v.problem} - سنابل`,
+    paragraphs: ['يحتاج النسخ الاحتياطي لمنصة سنابل إلى مراجعة. البيانات الحالية لم تتأثر، لكن آخر نسخة سليمة أقدم من المعتاد.'],
+    facts: [
+      { label: 'الوجهة', value: v.target },
+      { label: 'المشكلة', value: v.problem },
+      { label: 'آخر نسخة ناجحة', value: v.lastSuccess },
+      ...(v.detail ? [{ label: 'التفاصيل', value: v.detail.slice(0, 400), ltr: true }] : []),
+    ],
+    button: btn('فتح شاشة النسخ الاحتياطي', '/platform/backups'),
+    note: 'تصل هذه الرسالة مرة واحدة لكل مشكلة. يمكن إيقافها من إعدادات البريد.',
+  }),
 };

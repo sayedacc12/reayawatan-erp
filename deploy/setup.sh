@@ -8,14 +8,14 @@ cd "$(dirname "$0")/.."
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
-say "1/4 تنصيب Docker"
+say "1/5 تنصيب Docker"
 if ! command -v docker >/dev/null; then
   curl -fsSL https://get.docker.com | sudo sh
   sudo usermod -aG docker "$USER" || true
 fi
 DOCKER="docker"; docker info >/dev/null 2>&1 || DOCKER="sudo docker"
 
-say "2/4 فتح المنافذ 80 و443 في جدار حماية السيرفر"
+say "2/5 فتح المنافذ 80 و443 في جدار حماية السيرفر"
 # صور Ubuntu في Oracle فيها قواعد iptables تمنع كل شيء ما عدا SSH
 for port in 80 443; do
   sudo iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null \
@@ -23,7 +23,7 @@ for port in 80 443; do
 done
 if command -v netfilter-persistent >/dev/null; then sudo netfilter-persistent save >/dev/null; fi
 
-say "3/4 تجهيز الإعدادات (.env)"
+say "3/5 تجهيز الإعدادات (.env)"
 rand() { openssl rand -base64 "$1" | tr -d '/+=' | cut -c1-"$1"; }
 if [ ! -f .env ]; then
   ADMIN_PASS="$(rand 14)"
@@ -43,8 +43,38 @@ else
   fi
 fi
 
-say "4/4 بناء وتشغيل سنابل (أول مرة تاخد 5-10 دقايق)"
+say "4/5 بناء وتشغيل سنابل (أول مرة تاخد 5-10 دقايق)"
 $DOCKER compose -f docker-compose.yml -f deploy/compose.prod.yml up -d --build
+
+say "5/5 تجهيز النسخ الاحتياطي اليومي (3 فجرًا بتوقيت الرياض)"
+command -v rclone >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq rclone >/dev/null; }
+sudo tee /etc/systemd/system/sanabel-backup.service >/dev/null <<UNIT
+[Unit]
+Description=Sanabel daily backup (deploy/backup.sh)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $(pwd)/deploy/backup.sh run
+Nice=10
+IOSchedulingClass=idle
+UNIT
+sudo tee /etc/systemd/system/sanabel-backup.timer >/dev/null <<'UNIT'
+[Unit]
+Description=Sanabel daily backup at 03:00 Riyadh time
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 Asia/Riyadh
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+sudo systemctl daemon-reload
+sudo systemctl enable --now sanabel-backup.timer >/dev/null
+if sudo test -s /etc/sanabel-backup/rclone.conf; then BACKUP_STATE="مفعّل"; else BACKUP_STATE="لم يُربط بعد: اتبع deploy/BACKUP.md"; fi
 
 set -a; . ./.env; set +a
 IP="$(curl -fsS https://api.ipify.org || hostname -I | awk '{print $1}')"
@@ -57,4 +87,5 @@ if [ "${NEW_ADMIN:-0}" = 1 ]; then
   echo " كلمة المرور:      ${PLATFORM_ADMIN_PASSWORD}"
   echo " (احفظها الآن وغيّرها بعد أول دخول)"
 fi
+echo " النسخ الاحتياطي: ${BACKUP_STATE}"
 echo "=============================================="

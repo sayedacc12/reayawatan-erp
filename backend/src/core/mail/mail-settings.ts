@@ -8,6 +8,7 @@ export const MAIL_EVENTS = {
   inquiries: 'إشعار الإدارة بطلبات الخدمات الجديدة',
   inquiryAck: 'رسالة تأكيد لمقدم طلب الخدمة',
   passwordReset: 'استعادة كلمة المرور',
+  backups: 'تنبيه الإدارة عند فشل النسخ الاحتياطي أو تأخره',
 } as const;
 export type MailEvent = keyof typeof MAIL_EVENTS;
 

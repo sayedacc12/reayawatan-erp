@@ -65,6 +65,7 @@ export const platformManifest: ErpModuleManifest = {
     { label: 'طلبات الخدمات', path: '/platform/inquiries', permission: PLATFORM_PERMISSIONS.siteManage },
     { label: 'التقارير', path: '/platform/reports', permission: PLATFORM_PERMISSIONS.reportsRead },
     { label: 'الأداء وحجم البيانات', path: '/platform/performance', permission: PLATFORM_PERMISSIONS.reportsRead },
+    { label: 'النسخ الاحتياطي', path: '/platform/backups', permission: PLATFORM_PERMISSIONS.reportsRead },
     { label: 'البريد الإلكتروني', path: '/platform/mail', permission: PLATFORM_PERMISSIONS.siteManage },
     { label: 'إعدادات المنصة', path: '/platform/settings', permission: PLATFORM_PERMISSIONS.siteManage },
   ],

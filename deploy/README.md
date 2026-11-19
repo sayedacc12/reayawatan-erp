@@ -45,6 +45,9 @@ DOMAIN=sanabelerp.com bash deploy/setup.sh
 git pull && bash deploy/setup.sh
 ```
 
+## النسخ الاحتياطي
+`setup.sh` يجهّز نسخة يومية تلقائية. بقي ربط وجهتي التخزين مرة واحدة: اتبع [BACKUP.md](BACKUP.md).
+
 ## البريد الإلكتروني (Gmail الآن، وأي مزود SMTP لاحقًا)
 
 1. في حساب Google للبريد المرسل: فعّل «التحقق بخطوتين»، ثم أنشئ «كلمة مرور للتطبيقات» من https://myaccount.google.com/apppasswords
