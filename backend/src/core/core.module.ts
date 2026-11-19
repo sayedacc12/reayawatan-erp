@@ -40,6 +40,9 @@ import { RolesController } from './roles/roles.controller';
 import { RolesService } from './roles/roles.service';
 import { UsersController } from './users/users.controller';
 import { UsersService } from './users/users.service';
+import { OnboardingController } from './onboarding/onboarding.controller';
+import { UserOnboarding } from './onboarding/onboarding.entity';
+import { OnboardingService } from './onboarding/onboarding.service';
 
 /**
  * وحدة الأساس: الدخول الموحد، المستخدمون، الأدوار، الصلاحيات، وسجل الوحدات.
@@ -47,7 +50,7 @@ import { UsersService } from './users/users.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, OrganizationClosure]),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, UserOnboarding, OrganizationClosure]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -59,11 +62,11 @@ import { UsersService } from './users/users.service';
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
     SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
-    PublicSiteController, PlatformSiteController, OrgLifecycleController, PlatformLifecycleController,
+    PublicSiteController, PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, LifecycleService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, OnboardingService, LifecycleService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],

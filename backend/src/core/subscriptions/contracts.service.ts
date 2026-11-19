@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger, NotFoundExc
 import { randomBytes, randomUUID } from 'crypto';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthUser } from '../auth/decorators';
+import { normalizeLicense } from '../contact-validation';
 import { Organization } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { addMonths, todayRiyadh } from '../organizations/org-access';
@@ -351,7 +352,7 @@ export class ContractsService implements OnApplicationBootstrap {
       const c = await this.byToken(em, token, true);
       if (c.status !== 'sent') throw new BadRequestException(c.status === 'signed' ? 'العقد موقّع بالفعل' : 'العقد غير متاح للتوقيع');
       const app = await em.findOne(SubscriptionApplication, { where: { organizationId: c.organizationId }, order: { createdAt: 'DESC' } });
-      if (app && app.licenseNumber.trim() !== dto.licenseNumber.trim()) {
+      if (app && normalizeLicense(app.licenseNumber) !== normalizeLicense(dto.licenseNumber)) {
         throw new BadRequestException('رقم الترخيص لا يطابق المسجل للجمعية');
       }
       Object.assign(c, {

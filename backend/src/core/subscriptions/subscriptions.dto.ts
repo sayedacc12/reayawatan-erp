@@ -4,11 +4,13 @@ import {
   Matches, Max, MaxLength, Min, MinLength, ValidateNested,
 } from 'class-validator';
 import { IsValidPassword } from '../validation';
+import {
+  IsAfterField, IsCheckedEmail, MatchesField, IsNotFutureDate, IsPersonName, IsSaudiMobile, IsSaudiPhone, LICENSE, normalizeLicense,
+} from '../contact-validation';
 import { BILLING_CYCLES, BillingCycle, SUBSCRIPTION_STATUSES, SubscriptionStatus } from '../entities/organization.entity';
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 const SLUG_MSG = 'المعرف بحروف إنجليزية صغيرة وأرقام وشرطة فقط، مثل al-bir';
-const PHONE = /^\+?[0-9 ]{9,16}$/;
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
 const lower = () => Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value));
 const emptyToUndefined = () => Transform(({ value }) => (value === '' || value === null ? undefined : value));
@@ -27,75 +29,85 @@ export class ApplicationDto {
   proposedSlug!: string;
 
   @trim() @IsString() @MinLength(2, { message: 'اكتب مدينة الجمعية' }) @MaxLength(100)
+  @Matches(/^[^0-9٠-٩]+$/, { message: 'اسم المدينة لا يحتوي على أرقام' })
   city!: string;
 
-  @lower() @IsEmail({}, { message: 'بريد الجمعية غير صحيح' })
+  @IsCheckedEmail('بريد الجمعية')
   orgEmail!: string;
 
-  @trim() @Matches(PHONE, { message: 'رقم هاتف الجمعية غير صحيح' })
+  @IsSaudiPhone('هاتف الجمعية')
   orgPhone!: string;
 
-  @trim() @IsString() @MinLength(1, { message: 'اكتب رقم الترخيص' }) @MaxLength(50)
+  @Transform(({ value }) => (typeof value === 'string' ? normalizeLicense(value) : value))
+  @IsString() @Matches(LICENSE, { message: 'رقم الترخيص أرقام فقط (يُسمح بـ / أو -)' })
   licenseNumber!: string;
 
-  @IsDateString({}, { message: 'تاريخ بداية الترخيص مطلوب' })
+  @IsDateString({}, { message: 'تاريخ بداية الترخيص مطلوب' }) @IsNotFutureDate('تاريخ بداية الترخيص لا يكون في المستقبل')
   licenseStartDate!: string;
 
   @emptyToUndefined() @IsOptional() @IsDateString({}, { message: 'تاريخ نهاية الترخيص غير صحيح' })
+  @IsAfterField('licenseStartDate', 'تاريخ نهاية الترخيص يجب أن يكون بعد تاريخ بدايته')
   licenseEndDate?: string;
 
-  @trim() @IsString() @MinLength(3, { message: 'اكتب اسم المدير التنفيذي' }) @MaxLength(200)
+  @IsPersonName('اسم المدير التنفيذي')
   directorName!: string;
 
-  @trim() @Matches(PHONE, { message: 'جوال المدير التنفيذي غير صحيح' })
+  @IsSaudiMobile('جوال المدير التنفيذي')
   directorPhone!: string;
 
-  @lower() @IsEmail({}, { message: 'بريد المدير التنفيذي غير صحيح' })
+  @IsCheckedEmail('بريد المدير التنفيذي')
   directorEmail!: string;
 
-  @trim() @IsString() @MinLength(3, { message: 'اكتب اسم عضو مجلس الإدارة' }) @MaxLength(200)
+  @IsPersonName('اسم عضو مجلس الإدارة')
   boardName!: string;
 
   @trim() @IsString() @MinLength(2, { message: 'اكتب منصب عضو مجلس الإدارة' }) @MaxLength(100)
   boardPosition!: string;
 
-  @trim() @Matches(PHONE, { message: 'جوال عضو مجلس الإدارة غير صحيح' })
+  @IsSaudiMobile('جوال عضو مجلس الإدارة')
   boardPhone!: string;
 
-  @lower() @IsEmail({}, { message: 'بريد عضو مجلس الإدارة غير صحيح' })
+  @IsCheckedEmail('بريد عضو مجلس الإدارة')
   boardEmail!: string;
 
   /** مدير نظام الجمعية (يُنشأ حسابه عند الاعتماد). اختياري فقط عند استكمال بيانات جمعية قائمة */
-  @emptyToUndefined() @IsOptional() @trim() @IsString() @MinLength(3, { message: 'اكتب اسم مدير النظام' }) @MaxLength(200)
+  @emptyToUndefined() @IsOptional() @IsPersonName('اسم مدير النظام')
   adminFullName?: string;
 
-  @emptyToUndefined() @IsOptional() @lower() @IsEmail({}, { message: 'بريد مدير النظام غير صحيح' })
+  @emptyToUndefined() @IsOptional() @IsCheckedEmail('بريد مدير النظام')
   adminEmail?: string;
 
   @emptyToUndefined() @IsOptional() @IsValidPassword('كلمة مرور مدير النظام 8 أحرف على الأقل')
   adminPassword?: string;
+
+  /** تأكيد كلمة المرور (يُرسل من النموذج ويجب أن يطابقها) */
+  @emptyToUndefined() @IsOptional() @IsString() @MatchesField('adminPassword', 'تأكيد كلمة المرور لا يطابق كلمة المرور')
+  adminPasswordConfirm?: string;
 }
 
 /** عند تعديل البيانات الرئيسية: كل الحقول اختيارية */
 export class UpdateApplicationDto {
   @IsOptional() @trim() @IsString() @MinLength(3, { message: 'اسم الجمعية قصير جدًا' }) @MaxLength(200) orgName?: string;
   @IsOptional() @lower() @Matches(SLUG, { message: SLUG_MSG }) proposedSlug?: string;
-  @IsOptional() @trim() @IsString() @MinLength(2) @MaxLength(100) city?: string;
-  @IsOptional() @lower() @IsEmail({}, { message: 'بريد الجمعية غير صحيح' }) orgEmail?: string;
-  @IsOptional() @trim() @Matches(PHONE, { message: 'رقم هاتف الجمعية غير صحيح' }) orgPhone?: string;
-  @IsOptional() @trim() @IsString() @MinLength(1) @MaxLength(50) licenseNumber?: string;
-  @IsOptional() @IsDateString({}, { message: 'تاريخ بداية الترخيص غير صحيح' }) licenseStartDate?: string;
-  @emptyToUndefined() @IsOptional() @IsDateString({}, { message: 'تاريخ نهاية الترخيص غير صحيح' }) licenseEndDate?: string;
-  @IsOptional() @trim() @IsString() @MinLength(3) @MaxLength(200) directorName?: string;
-  @IsOptional() @trim() @Matches(PHONE, { message: 'جوال المدير التنفيذي غير صحيح' }) directorPhone?: string;
-  @IsOptional() @lower() @IsEmail({}, { message: 'بريد المدير التنفيذي غير صحيح' }) directorEmail?: string;
-  @IsOptional() @trim() @IsString() @MinLength(3) @MaxLength(200) boardName?: string;
+  @IsOptional() @trim() @IsString() @MinLength(2) @MaxLength(100) @Matches(/^[^0-9٠-٩]+$/, { message: 'اسم المدينة لا يحتوي على أرقام' }) city?: string;
+  @IsOptional() @IsCheckedEmail('بريد الجمعية') orgEmail?: string;
+  @IsOptional() @IsSaudiPhone('هاتف الجمعية') orgPhone?: string;
+  @IsOptional() @Transform(({ value }) => (typeof value === 'string' ? normalizeLicense(value) : value))
+  @IsString() @Matches(LICENSE, { message: 'رقم الترخيص أرقام فقط (يُسمح بـ / أو -)' }) licenseNumber?: string;
+  @IsOptional() @IsDateString({}, { message: 'تاريخ بداية الترخيص غير صحيح' }) @IsNotFutureDate('تاريخ بداية الترخيص لا يكون في المستقبل') licenseStartDate?: string;
+  @emptyToUndefined() @IsOptional() @IsDateString({}, { message: 'تاريخ نهاية الترخيص غير صحيح' })
+  @IsAfterField('licenseStartDate', 'تاريخ نهاية الترخيص يجب أن يكون بعد تاريخ بدايته') licenseEndDate?: string;
+  @IsOptional() @IsPersonName('اسم المدير التنفيذي') directorName?: string;
+  @IsOptional() @IsSaudiMobile('جوال المدير التنفيذي') directorPhone?: string;
+  @IsOptional() @IsCheckedEmail('بريد المدير التنفيذي') directorEmail?: string;
+  @IsOptional() @IsPersonName('اسم عضو مجلس الإدارة') boardName?: string;
   @IsOptional() @trim() @IsString() @MinLength(2) @MaxLength(100) boardPosition?: string;
-  @IsOptional() @trim() @Matches(PHONE, { message: 'جوال عضو مجلس الإدارة غير صحيح' }) boardPhone?: string;
-  @IsOptional() @lower() @IsEmail({}, { message: 'بريد عضو مجلس الإدارة غير صحيح' }) boardEmail?: string;
-  @emptyToUndefined() @IsOptional() @trim() @IsString() @MinLength(3) @MaxLength(200) adminFullName?: string;
-  @emptyToUndefined() @IsOptional() @lower() @IsEmail({}, { message: 'بريد مدير النظام غير صحيح' }) adminEmail?: string;
+  @IsOptional() @IsSaudiMobile('جوال عضو مجلس الإدارة') boardPhone?: string;
+  @IsOptional() @IsCheckedEmail('بريد عضو مجلس الإدارة') boardEmail?: string;
+  @emptyToUndefined() @IsOptional() @IsPersonName('اسم مدير النظام') adminFullName?: string;
+  @emptyToUndefined() @IsOptional() @IsCheckedEmail('بريد مدير النظام') adminEmail?: string;
   @emptyToUndefined() @IsOptional() @IsValidPassword('كلمة مرور مدير النظام 8 أحرف على الأقل') adminPassword?: string;
+  @emptyToUndefined() @IsOptional() @IsString() @MatchesField('adminPassword', 'تأكيد كلمة المرور لا يطابق كلمة المرور') adminPasswordConfirm?: string;
 }
 
 /** مدير المنصة يسجّل طلبًا نيابة عن جمعية، أو يستكمل البيانات الرئيسية لجمعية قائمة */
