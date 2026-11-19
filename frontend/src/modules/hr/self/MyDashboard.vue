@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import CountUp from '../../beneficiaries/components/CountUp.vue';
+import LaunchCard from '../../../onboarding/LaunchCard.vue';
 import { fmtDate, hijri, num, sar } from '../lib';
 import { DAY_AR, DAY_COLOR, KIND_ICON, REQ_COLOR, rel, type ReqRow, type ReqType } from './ess';
 
@@ -90,7 +91,7 @@ const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
   <div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="data && counter">
-      <section class="ess-hero">
+      <section class="ess-hero" data-tour="dash">
         <div class="ess-hero-top">
           <div>
             <p class="ess-kicker">الخدمة الذاتية</p>
@@ -110,6 +111,8 @@ const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
           <span class="cap">مدة خدمتك في الجمعية منذ {{ fmtDate(data.service.hireDate) }} ({{ counter.total.toLocaleString('ar-SA') }} يومًا)</span>
         </div>
       </section>
+
+      <LaunchCard />
 
       <div v-for="(a, i) in data.alerts" :key="i" :class="['alert', a.level === 'danger' ? 'alert-error' : '']" :style="a.level !== 'danger' ? { background: '#fff7ed', color: '#9a3412' } : {}">{{ a.text }}</div>
       <RouterLink v-if="data.separation && data.separation.status !== 'paid'" :to="`/hr/separations/${data.separation.id}`" class="btn btn-sm" style="margin-bottom: 12px">🚪 متابعة ملف إنهاء خدمتي (إخلاء الطرف {{ data.separation.cleared }} / {{ data.separation.items }}) ←</RouterLink>

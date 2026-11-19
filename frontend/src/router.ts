@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { moduleRoutes } from './modules';
 import { loginPath, useSession } from './stores/session';
-import { loadSummary } from './modules/hr/self/ess';
 import AppShell from './layouts/AppShell.vue';
 import { usePortal } from './portal/portal';
 import { volunteersPublicRoutes } from './modules/volunteers/routes';
@@ -68,8 +67,10 @@ export const router = createRouter({
       path: '/',
       component: AppShell,
       children: [
-        // الموظف المربوط بملف موظف يبدأ من لوحته، والأنظمة المصرح بها في جانبها؛ شاشة التطبيقات لغير المربوطين فقط
+        // كل مستخدم في جمعية يبدأ من لوحته /me والأنظمة المصرح بها في جانبها؛ شاشة التطبيقات لمدير المنصة فقط
         { path: '', alias: '/home', component: () => import('./views/HomeView.vue'), meta: { title: 'التطبيقات' }, beforeEnter: homeOrDashboard },
+        // خطوات إطلاق الجمعية لمدير نظامها
+        { path: 'launch', component: () => import('./onboarding/LaunchView.vue'), meta: { title: 'خطوات الإطلاق' } },
         { path: 'account', component: () => import('./views/AccountView.vue'), meta: { title: 'حسابي' } },
         ...moduleRoutes,
         { path: 'forbidden', component: () => import('./views/ForbiddenView.vue'), meta: { title: 'غير مسموح' } },
@@ -82,9 +83,8 @@ export const router = createRouter({
 async function homeOrDashboard() {
   const session = useSession();
   await session.restore();
-  if (!session.user?.organizationId) return true;
-  const s = await loadSummary();
-  return s?.linked ? '/me' : true;
+  // مستخدمو الجمعيات كلهم (مربوطين بملف موظف أو لا، ومنهم مدير نظام جمعية جديدة) يبدأون من لوحتهم
+  return session.user?.organizationId ? '/me' : true;
 }
 
 router.beforeEach(async (to) => {
