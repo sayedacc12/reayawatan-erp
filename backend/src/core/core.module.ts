@@ -26,6 +26,9 @@ import { SubscriptionsReports } from './subscriptions/subscriptions.reports';
 import { RegistrationController } from './subscriptions/registration.controller';
 import { SubscriptionReportsService } from './subscriptions/reports.service';
 import { SubscriptionReportsController, SubscriptionsController } from './subscriptions/subscriptions.controller';
+import { PlatformSiteController, PublicSiteController } from './site/site.controller';
+import { SiteInquiry } from './site/site.entity';
+import { SiteService } from './site/site.service';
 import { ModuleCatalogService } from './modules/module-catalog.service';
 import { ModulesController } from './modules/modules.controller';
 import { OrganizationsController } from './organizations/organizations.controller';
@@ -41,7 +44,7 @@ import { UsersService } from './users/users.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES]),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -53,10 +56,11 @@ import { UsersService } from './users/users.service';
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
     SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
+    PublicSiteController, PlatformSiteController,
   ],
   providers: [
     AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
   exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],

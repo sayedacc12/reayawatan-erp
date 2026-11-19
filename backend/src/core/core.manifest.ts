@@ -37,6 +37,7 @@ export const PLATFORM_PERMISSIONS = {
   organizationsManage: 'platform.organizations.manage',
   subscriptionsManage: 'platform.subscriptions.manage',
   reportsRead: 'platform.reports.read',
+  siteManage: 'platform.site.manage',
 } as const;
 
 /** إدارة المنصة: الجمعيات وطلبات اشتراكها وعقودها وتقاريرها. لمدير المنصة فقط ولا تظهر في أدوار الجمعيات. */
@@ -53,12 +54,15 @@ export const platformManifest: ErpModuleManifest = {
     { code: PLATFORM_PERMISSIONS.organizationsManage, name: 'إدارة الجمعيات' },
     { code: PLATFORM_PERMISSIONS.subscriptionsManage, name: 'طلبات الاشتراك والعقود' },
     { code: PLATFORM_PERMISSIONS.reportsRead, name: 'تقارير المنصة' },
+    { code: PLATFORM_PERMISSIONS.siteManage, name: 'الصفحة التعريفية: طلبات الخدمات وبيانات التواصل وواتساب' },
   ],
   menu: [
     { label: 'الجمعيات', path: '/platform/organizations', permission: PLATFORM_PERMISSIONS.organizationsManage },
     { label: 'طلبات الاشتراك', path: '/platform/applications', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'العقود', path: '/platform/contracts', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
     { label: 'بنود العقد', path: '/platform/contract-clauses', permission: PLATFORM_PERMISSIONS.subscriptionsManage },
+    { label: 'طلبات الخدمات', path: '/platform/inquiries', permission: PLATFORM_PERMISSIONS.siteManage },
     { label: 'التقارير', path: '/platform/reports', permission: PLATFORM_PERMISSIONS.reportsRead },
+    { label: 'إعدادات المنصة', path: '/platform/settings', permission: PLATFORM_PERMISSIONS.siteManage },
   ],
 };
