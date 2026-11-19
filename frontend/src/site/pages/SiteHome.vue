@@ -82,6 +82,22 @@ const VALUE_ICONS = ['shield', 'eye', 'star', 'heart', 'handshake', 'target', 'm
       </div></div>
     </div>
 
+    <!-- البوابات: المستفيدون والموظفون -->
+    <section v-if="sec.portal || sec.staff" class="hm-gates">
+      <div :class="['sx-wrap', 'hm-gates-in', { one: !(sec.portal && sec.staff) }]">
+        <a v-if="sec.portal" v-reveal :href="d.links.portal" class="hm-gate ben">
+          <span class="hm-gate-ic"><SiteIcon name="users" :size="28" /></span>
+          <span class="hm-gate-tx"><b>بوابة المستفيدين</b><small>سجّل برقم هويتك، وقدّم طلبك، وتابع مراحله حتى الاعتماد.</small></span>
+          <span class="hm-gate-go">دخول ←</span>
+        </a>
+        <a v-if="sec.staff" v-reveal :href="d.links.login" class="hm-gate staff" style="transition-delay: 90ms">
+          <span class="hm-gate-ic"><SiteIcon name="building" :size="28" /></span>
+          <span class="hm-gate-tx"><b>بوابة الموظفين</b><small>دخول فريق عمل الجمعية إلى أنظمتها ومهامهم اليومية.</small></span>
+          <span class="hm-gate-go">دخول ←</span>
+        </a>
+      </div>
+    </section>
+
     <!-- الأرقام -->
     <section v-if="home.stats.length" ref="statsEl" class="hm-stats">
       <div class="sx-wrap hm-stats-in">
@@ -238,5 +254,19 @@ const VALUE_ICONS = ['shield', 'eye', 'star', 'heart', 'handshake', 'target', 'm
 .hm-partner { display: grid; place-items: center; min-width: 180px; height: 78px; padding: 0 22px; border-radius: 16px; border: 1px solid var(--line); background: var(--soft); color: var(--text-2); font-weight: 700; font-size: .92rem; text-align: center; filter: grayscale(1); opacity: .8; transition: filter .3s, opacity .3s, transform .3s; }
 .hm-partner:hover { filter: none; opacity: 1; transform: translateY(-3px); color: var(--primary); }
 .hm-partner img { max-height: 54px; max-width: 150px; object-fit: contain; }
-@media (max-width: 760px) { .hm-vm { grid-template-columns: 1fr; } .hm-join { padding: 30px 22px; } .hm-stat { border-inline-start: 0; } .hm-hero { min-height: 86vh; } }
+.hm-gates { position: relative; z-index: 3; padding: 28px 0 6px; }
+.hm-gates-in { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.hm-gates-in.one { grid-template-columns: minmax(0, 560px); justify-content: center; }
+.hm-gate { position: relative; overflow: hidden; display: flex; align-items: center; gap: 16px; padding: 22px 24px; border-radius: 22px; color: #fff; box-shadow: 0 18px 40px rgba(16,32,31,.18); transition: transform .3s var(--ease2), box-shadow .3s; }
+.hm-gate::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.18) 50%, transparent 70%); transform: translateX(120%); transition: transform .8s var(--ease2); }
+.hm-gate:hover { transform: translateY(-4px); box-shadow: 0 24px 50px rgba(16,32,31,.25); }
+.hm-gate:hover::after { transform: translateX(-120%); }
+.hm-gate.ben { background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 65%, #000)); }
+.hm-gate.staff { background: var(--grad-dark); }
+.hm-gate-ic { width: 58px; height: 58px; flex-shrink: 0; border-radius: 16px; display: grid; place-items: center; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); color: var(--accent); box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 35%, transparent); }
+.hm-gate-tx { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.hm-gate-tx b { font-family: var(--sx-head); font-size: 1.22rem; }
+.hm-gate-tx small { opacity: .82; font-size: .9rem; line-height: 1.6; }
+.hm-gate-go { flex-shrink: 0; padding: 8px 16px; border-radius: 999px; background: var(--accent); color: var(--dark); font-weight: 800; font-size: .9rem; }
+@media (max-width: 760px) { .hm-vm { grid-template-columns: 1fr; } .hm-join { padding: 30px 22px; } .hm-stat { border-inline-start: 0; } .hm-hero { min-height: 86vh; } .hm-gates-in { grid-template-columns: 1fr; gap: 12px; } .hm-gate { padding: 16px; gap: 12px; } .hm-gate-ic { width: 48px; height: 48px; } .hm-gate-tx b { font-size: 1.08rem; } .hm-gate-tx small { font-size: .84rem; } .hm-gate-go { padding: 6px 12px; font-size: .82rem; } }
 </style>

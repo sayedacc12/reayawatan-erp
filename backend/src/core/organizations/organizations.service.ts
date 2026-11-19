@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { Organization, OrganizationModule, User } from '../entities';
+import { MailService } from '../mail/mail.service';
+import { publicOrigin, templates } from '../mail/mail-templates';
+import { PasswordResetService } from '../auth/password-reset.service';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { SubscriptionDto } from '../subscriptions/subscriptions.dto';
 import { effectiveState, todayRiyadh } from './org-access';
@@ -16,6 +18,8 @@ export class OrganizationsService {
     private readonly db: DataSource,
     @InjectRepository(Organization) private readonly orgs: Repository<Organization>,
     private readonly catalog: ModuleCatalogService,
+    private readonly resets: PasswordResetService,
+    private readonly mail: MailService,
   ) {}
 
   /** الوحدات الاختيارية المتاحة للتفعيل (مثل الموقع ومنصة التبرعات مستقبلًا) */
@@ -129,14 +133,22 @@ export class OrganizationsService {
     return rows.map((u) => ({ id: u.id, fullName: u.fullName, email: u.email, username: u.username, isActive: u.isActive, lastLoginAt: u.lastLoginAt }));
   }
 
-  /** كلمة مرور مؤقتة جديدة لمدير نظام الجمعية، تظهر لمدير المنصة مرة واحدة ليرسلها للجمعية */
-  async resetAdminPassword(organizationId: string, userId: string) {
-    const repo = this.db.getRepository(User);
-    const user = await repo.findOne({ where: { id: userId, organizationId, isSuperadmin: true } });
+  /**
+   * كلمة مرور مؤقتة جديدة لمدير نظام الجمعية، تظهر لمدير المنصة مرة واحدة ليرسلها للجمعية، وتُرسل لبريده إن طُلب.
+   * صالحة 24 ساعة ويغيّرها المدير عند أول دخول، وتغلق طلب «نسيت كلمة المرور» إن وُجد.
+   */
+  async resetAdminPassword(organizationId: string, userId: string, issuedBy: string, opts: { sendEmail?: boolean; origin?: string } = {}) {
+    const user = await this.db.getRepository(User).findOne({ where: { id: userId, organizationId, isSuperadmin: true } });
     if (!user) throw new NotFoundException('حساب مدير النظام غير موجود في هذه الجمعية');
-    const password = `Snb-${randomBytes(5).toString('hex')}`;
-    await repo.update(user.id, { passwordHash: await bcrypt.hash(password, 12) });
-    return { password, login: user.username ?? user.email };
+    const { password, login, expiresAt } = await this.resets.issueForUser(user.id, issuedBy);
+    let emailedTo: string | null = null;
+    if (opts.sendEmail && user.email) {
+      const org = await this.orgs.findOneOrFail({ where: { id: organizationId } });
+      const t = templates.tempPassword({ orgName: org.name, name: user.fullName, login, password, path: `/o/${org.slug}`, origin: publicOrigin() ?? opts.origin });
+      const [to] = await this.mail.queue({ to: user.email, kind: 'temp_password', event: 'accounts', organizationId, sensitive: true, createdBy: issuedBy, ...t });
+      emailedTo = to ?? null;
+    }
+    return { password, login, expiresAt, emailedTo };
   }
 
   async get(id: string) {

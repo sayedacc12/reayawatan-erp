@@ -59,6 +59,18 @@ export class User {
   })
   roles!: Role[];
 
+  /** دخل بكلمة مرور مؤقتة: لا يستخدم النظام حتى يغيّرها */
+  @Column({ name: 'must_change_password', default: false })
+  mustChangePassword!: boolean;
+
+  /** آخر موعد لاستخدام كلمة المرور المؤقتة */
+  @Column({ name: 'temp_password_expires_at', type: 'timestamptz', nullable: true })
+  tempPasswordExpiresAt!: Date | null;
+
+  /** رموز الدخول الصادرة قبل هذا الوقت مرفوضة (يُضبط عند إصدار كلمة مؤقتة) */
+  @Column({ name: 'sessions_valid_after', type: 'timestamptz', nullable: true })
+  sessionsValidAfter!: Date | null;
+
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
   lastLoginAt!: Date | null;
 

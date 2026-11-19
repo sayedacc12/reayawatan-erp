@@ -32,7 +32,7 @@ export const CYCLES: { value: string; label: string; months: number }[] = [
 export const cycleLabel = (v?: string | null) => CYCLES.find((c) => c.value === v)?.label ?? '—';
 
 export const HISTORY_STEP: Record<string, string> = {
-  created: 'إنشاء المسودة', edited: 'تعديل', sent: 'إرسال للجمعية', withdrawn: 'سحب وإعادة للمسودة',
+  created: 'إنشاء المسودة', edited: 'تعديل', sent: 'إرسال للجمعية', emailed: 'إرسال الرابط بالبريد', withdrawn: 'سحب وإعادة للمسودة',
   changes_requested: 'طلب تعديل من الجمعية', signed: 'توقيع إلكتروني', cancelled: 'إلغاء',
   submitted: 'تقديم الطلب', resubmitted: 'إعادة التقديم بعد الاستكمال', returned: 'إعادة للاستكمال',
   rejected: 'رفض', approved: 'اعتماد الطلب',

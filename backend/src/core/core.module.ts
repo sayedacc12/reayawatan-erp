@@ -6,6 +6,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth/auth.controller';
 import { AuthGuard } from './auth/auth.guard';
 import { AuthService } from './auth/auth.service';
+import { PasswordReset } from './auth/password-reset.entity';
+import { PasswordResetService } from './auth/password-reset.service';
+import { CoreTasks } from './auth/core.tasks';
 import { PermissionResolver } from './auth/permission-resolver.service';
 import { BootstrapService } from './bootstrap.service';
 import { CORE_ENTITIES } from './entities';
@@ -43,6 +46,9 @@ import { UsersService } from './users/users.service';
 import { OnboardingController } from './onboarding/onboarding.controller';
 import { UserOnboarding } from './onboarding/onboarding.entity';
 import { OnboardingService } from './onboarding/onboarding.service';
+import { MailController } from './mail/mail.controller';
+import { MailMessage } from './mail/mail-outbox.entity';
+import { MailService } from './mail/mail.service';
 
 /**
  * وحدة الأساس: الدخول الموحد، المستخدمون، الأدوار، الصلاحيات، وسجل الوحدات.
@@ -50,7 +56,7 @@ import { OnboardingService } from './onboarding/onboarding.service';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, UserOnboarding, OrganizationClosure]),
+    TypeOrmModule.forFeature([...CORE_ENTITIES, ...SUBSCRIPTION_ENTITIES, ...SUPPORT_ENTITIES, SiteInquiry, UserOnboarding, OrganizationClosure, PasswordReset, MailMessage]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -62,13 +68,13 @@ import { OnboardingService } from './onboarding/onboarding.service';
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
     SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
-    PublicSiteController, PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController,
+    PublicSiteController, PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController, MailController,
   ],
   providers: [
-    AuthService, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
-    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, OnboardingService, LifecycleService,
+    AuthService, PasswordResetService, CoreTasks, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
+    FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, OnboardingService, LifecycleService, MailService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService],
+  exports: [PasswordResetService, ModuleCatalogService, PermissionResolver, FileStore, ContractsService, ApplicationsService, LookupsService, SupportService, SupportDeskService, IdentityService, MailService],
 })
 export class CoreModule {}

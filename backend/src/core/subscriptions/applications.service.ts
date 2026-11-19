@@ -5,6 +5,8 @@ import { DataSource, EntityManager, In } from 'typeorm';
 import { AuthUser } from '../auth/decorators';
 import { Organization, OrganizationModule, User } from '../entities';
 import { FileStore } from '../files/file-store.service';
+import { MailService } from '../mail/mail.service';
+import { publicOrigin, templates } from '../mail/mail-templates';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { addDays, todayRiyadh } from '../organizations/org-access';
 import { ContractsService, nextNumber } from './contracts.service';
@@ -27,6 +29,7 @@ export class ApplicationsService {
     private readonly files: FileStore,
     private readonly catalog: ModuleCatalogService,
     private readonly contracts: ContractsService,
+    private readonly mail: MailService,
   ) {}
 
   private fields(dto: ApplicationDto | UpdateApplicationDto, current?: SubscriptionApplication) {
@@ -285,7 +288,7 @@ export class ApplicationsService {
    * اعتماد الطلب: ينشئ الجمعية بالشاشات المسموحة ومدير نظامها، ويفتح الفترة التجريبية إن وُجدت
    * (وإلا تبقى بانتظار توقيع العقد)، وينشئ مسودة عقد بالشروط المالية.
    */
-  async approve(id: string, dto: ApproveDto, actor: AuthUser) {
+  async approve(id: string, dto: ApproveDto, actor: AuthUser, origin?: string) {
     const access = this.normalizeAccess(dto);
     let generatedPassword: string | null = null;
     const result = await this.db.transaction(async (em) => {
@@ -335,10 +338,20 @@ export class ApplicationsService {
         price: dto.price, billingCycle: dto.billingCycle, vatRate: provider.vatRate, months: dto.months,
         startsOn: dto.startsOn, screens: access.screens, trialDays: dto.trialDays,
       }, actor.fullName, app.id);
-      return { organizationId: org.id, slug: org.slug, contractId: contract.id };
+      return { organizationId: org.id, slug: org.slug, contractId: contract.id, orgName: org.name, adminName: app.adminFullName, adminEmail: app.adminEmail };
     });
+    // رسالة ترحيب لمدير نظام الجمعية برابط الدخول (وكلمة المرور المولدة إن وُجدت)
+    const emailedTo = await this.mail.queue({
+      to: result.adminEmail, kind: 'admin_welcome', event: 'accounts', organizationId: result.organizationId,
+      sensitive: !!generatedPassword, createdBy: actor.fullName,
+      ...templates.adminWelcome({
+        orgName: result.orgName, name: result.adminName, login: result.adminEmail, path: `/o/${result.slug}`,
+        password: generatedPassword, origin: publicOrigin() ?? origin,
+      }),
+    }).catch(() => [] as string[]);
     return {
       ...result,
+      emailedTo: emailedTo[0] ?? null,
       links: { staff: `/o/${result.slug}`, portal: `/portal/${result.slug}` },
       generatedPassword,
       application: await this.get(id),

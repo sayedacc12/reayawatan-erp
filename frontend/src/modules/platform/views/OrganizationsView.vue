@@ -6,6 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useRouter } from 'vue-router';
 import { CONTRACT_STATUS, cycleLabel, fmtDate, money, ORG_STATE } from '../labels';
 import '../platform.css';
+import TempPasswordDialog from '../../../components/TempPasswordDialog.vue';
 
 const toast = useToast();
 const session = useSession();
@@ -33,12 +34,30 @@ const orgs = ref<Org[]>([]);
 const optional = ref<OptionalModule[]>([]);
 const error = ref('');
 
+// طلبات «نسيت كلمة المرور» من مديري أنظمة الجمعيات وفريق المنصة
+interface PwdRequest { id: string; name: string; organizationName: string | null; organizationSlug: string | null; superadmin: boolean; createdAt: string; status: string }
+const pwdRequests = ref<PwdRequest[]>([]);
+const temp = ref<{ name: string; login: string; password: string; expiresAt: string; place?: string; url: string } | null>(null);
+async function issueTemp(r: PwdRequest) {
+  if (!confirm(`إصدار كلمة مرور مؤقتة لـ "${r.name}"؟ تأكد أولًا أن الطلب منه شخصيًا. تتوقف كلمة مروره الحالية فورًا.`)) return;
+  try {
+    const res = await api<{ fullName: string; login: string; password: string; expiresAt: string }>(`/platform/password-resets/${r.id}/issue`, { method: 'POST' });
+    temp.value = { ...res, name: res.fullName, place: r.organizationName ?? 'إدارة منصة سنابل', url: `${origin}${r.organizationSlug ? `/o/${r.organizationSlug}` : '/login'}` };
+    pwdRequests.value = pwdRequests.value.filter((x) => x.id !== r.id);
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
+
 async function load() {
   try {
-    [orgs.value, optional.value] = await Promise.all([
+    let resets: { pending: PwdRequest[] };
+    [orgs.value, optional.value, resets] = await Promise.all([
       api<Org[]>('/platform/organizations'),
       api<OptionalModule[]>('/platform/modules'),
+      api<{ pending: PwdRequest[] }>('/platform/password-resets'),
     ]);
+    pwdRequests.value = resets.pending;
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -133,6 +152,15 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
       </div>
     </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
+    <section v-if="pwdRequests.length" class="card pwd-box">
+      <h2>طلبات نسيت كلمة المرور ({{ pwdRequests.length }})</h2>
+      <p class="muted">من مديري أنظمة الجمعيات وفريق المنصة. تأكد من هوية صاحب الطلب (اتصال بالجمعية) قبل إصدار كلمة مؤقتة.</p>
+      <div v-for="r in pwdRequests" :key="r.id" class="pwd-row">
+        <div><b>{{ r.name }}</b> · {{ r.organizationName ?? 'فريق المنصة' }}<div class="muted" style="font-size: .82rem">طلبها {{ fmtDate(r.createdAt) }}</div></div>
+        <button class="btn btn-primary btn-sm" @click="issueTemp(r)">إصدار كلمة مرور مؤقتة</button>
+      </div>
+    </section>
+    <TempPasswordDialog v-if="temp" :name="temp.name" :login="temp.login" :password="temp.password" :expires-at="temp.expiresAt" :login-url="temp.url" :place="temp.place" @close="temp = null" />
 
     <div class="card table-wrap">
       <table class="table">
@@ -229,4 +257,7 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
 .demo h3 { font-size: .95rem; margin: 16px 0 6px; color: var(--primary); }
 .demo code { font-size: .9rem; }
 .demo-scope { margin: 10px 0 4px; padding-inline-start: 20px; font-size: .88rem; line-height: 1.9; }
+.pwd-box { padding: 16px 18px; margin-bottom: 14px; border-inline-start: 4px solid #f59e0b; }
+.pwd-box h2 { font-size: 1.05rem; margin: 0 0 4px; }
+.pwd-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
 </style>

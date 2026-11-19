@@ -14,7 +14,7 @@ import { ApplicationsService } from './applications.service';
 import { ContractsService } from './contracts.service';
 import { SubscriptionReportsService } from './reports.service';
 import {
-  AccessDto, AdminApplicationDto, ApproveDto, ClauseDto, NoteDto, OrderDto, ProviderDto, SubscriptionDto,
+  AccessDto, AdminApplicationDto, ApproveDto, ClauseDto, NoteDto, SendContractDto, OrderDto, ProviderDto, SubscriptionDto,
   UpdateApplicationDto, UpdateContractDto,
 } from './subscriptions.dto';
 
@@ -84,8 +84,8 @@ export class SubscriptionsController {
 
   @Post('applications/:id/approve')
   @HttpCode(200)
-  approve(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ApproveDto, @CurrentUser() actor: AuthUser) {
-    return this.apps.approve(id, dto, actor);
+  approve(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ApproveDto, @CurrentUser() actor: AuthUser, @Req() req: Request) {
+    return this.apps.approve(id, dto, actor, originOf(req));
   }
 
   // ---------- الشاشات والاشتراك لكل جمعية ----------
@@ -143,8 +143,15 @@ export class SubscriptionsController {
 
   @Post('contracts/:id/send')
   @HttpCode(200)
-  send(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser, @Req() req: Request) {
-    return this.contracts.send(id, actor, originOf(req));
+  send(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SendContractDto, @CurrentUser() actor: AuthUser, @Req() req: Request) {
+    return this.contracts.send(id, actor, originOf(req), dto?.email !== false);
+  }
+
+  /** إعادة إرسال رابط التوقيع بالبريد لجهات التواصل */
+  @Post('contracts/:id/email')
+  @HttpCode(200)
+  async emailContract(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser, @Req() req: Request) {
+    return { emailed: await this.contracts.emailLink(id, actor, originOf(req)) };
   }
 
   @Post('contracts/:id/withdraw')

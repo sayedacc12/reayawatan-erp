@@ -33,6 +33,6 @@ export const waLink = (phone: string | null | undefined, text: string) =>
 /** صفحات الموقع التي يمكن ربط الأزرار والإعلانات بها */
 export const LINK_TARGETS: Record<string, string> = {
   donate: 'صفحة التبرع', programs: 'البرامج', news: 'الأخبار', about: 'من نحن', governance: 'الحوكمة والشفافية', partners: 'الشركاء',
-  contact: 'تواصل معنا', volunteer: 'التطوع', membership: 'العضوية', portal: 'بوابة المستفيدين',
+  contact: 'تواصل معنا', volunteer: 'التطوع', membership: 'العضوية', portal: 'بوابة المستفيدين', staff: 'بوابة الموظفين',
 };
 export const errMsg = (e: unknown) => (e as Error).message;

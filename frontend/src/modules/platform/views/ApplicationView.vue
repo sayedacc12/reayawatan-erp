@@ -58,7 +58,7 @@ const summary = computed(() => {
   return { vat, gross: approve.price + vat, cycles, total: (approve.price + vat) * cycles, annual: (approve.price * 12) / cycle.months };
 });
 
-interface ApproveResult { organizationId: string; slug: string; contractId: string; links: { staff: string; portal: string }; generatedPassword: string | null }
+interface ApproveResult { organizationId: string; slug: string; contractId: string; links: { staff: string; portal: string }; generatedPassword: string | null; emailedTo: string | null }
 const result = ref<ApproveResult | null>(null);
 
 async function decide() {
@@ -240,6 +240,7 @@ const copy = (s: string) => { copyText(s); toast.success('تم النسخ'); };
         <div v-if="result.generatedPassword" class="alert" style="background: #fff4e0; color: #7a4800">
           كلمة مرور مدير النظام المولدة (لن تظهر مرة أخرى): <code dir="ltr">{{ result.generatedPassword }}</code>
         </div>
+        <p v-if="result.emailedTo" class="alert alert-success">أُرسلت رسالة ترحيب برابط الدخول إلى مدير النظام على <span dir="ltr">{{ result.emailedTo }}</span>.</p>
         <div class="modal-actions">
           <button class="btn btn-primary" @click="router.push(`/platform/contracts/${result.contractId}`)">مراجعة مسودة العقد وإرسالها ←</button>
           <button class="btn" @click="result = null">إغلاق</button>

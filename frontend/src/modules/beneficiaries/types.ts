@@ -85,6 +85,8 @@ export interface BeneficiaryFields {
 export interface Beneficiary extends BeneficiaryFields {
   id: string;
   hasPortalAccess: boolean;
+  /** طلب «نسيت كلمة المرور» من البوابة ينتظر الموظف */
+  portalResetPending?: boolean;
   fileNo: number;
   createdAt: string;
   family: FamilyMember[];
