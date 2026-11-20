@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "default",
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Read(/etc/sanabel-backup/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.config/rclone/**)",
+      "Edit(./.env)",
+      "Edit(**/.env.*)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(sftp:*)",
+      "Bash(rsync:*)",
+      "Bash(bash deploy/setup.sh:*)",
+      "Bash(bash deploy/backup.sh:*)",
+      "Bash(bash deploy/mail-setup.sh:*)",
+      "Bash(DOMAIN=:*)",
+      "Bash(npm run migration:run:*)",
+      "Bash(npm run migration:run:prod:*)",
+      "Bash(npx typeorm migration:run:*)",
+      "Bash(npx typeorm migration:revert:*)",
+      "Bash(pg_dump:*)",
+      "Bash(pg_restore:*)",
+      "Bash(docker compose down -v:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker system prune:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin HEAD:main:*)",
+      "Bash(git reset --hard origin/main:*)",
+      "Bash(printenv:*)",
+      "Bash(rclone:*)"
+    ],
+    "ask": [
+      "Bash(docker compose:*)",
+      "Bash(docker:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm i:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm update:*)",
+      "Bash(psql:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(rm -rf:*)",
+      "Edit(./backend/src/migrations/**)",
+      "Edit(./deploy/**)",
+      "Edit(./.github/**)",
+      "Edit(./.claude/**)",
+      "Edit(./backend/test/security/route-authz.baseline.json)"
+    ],
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm test -- test/:*)",
+      "Bash(npx jest test/:*)",
+      "Bash(npm ci:*)",
+      "Bash(npm audit:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.js\"", "timeout": 10 }]
+      },
+      {
+        "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-files.js\"", "timeout": 10 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/after-edit.js\"", "timeout": 180 }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/on-stop.js\"", "timeout": 10 }]
+      }
+    ]
+  }
+}

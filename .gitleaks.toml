@@ -1,0 +1,12 @@
+# Gitleaks: القواعد الافتراضية + استثناء ملفات الاختبار والأمثلة التي تحتوي كلمات مرور وهمية فقط.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test fixtures and documented placeholders"
+paths = [
+  '''^\.env\.example$''',
+  '''^backend/test/''',
+  '''^loadtest/''',
+  '''package-lock\.json$''',
+]

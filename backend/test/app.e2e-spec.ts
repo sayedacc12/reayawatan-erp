@@ -111,11 +111,11 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     expect(res.body.user.organizationName).toBe('جمعية البر');
     expect(res.body.user.permissions).toContain('core.roles.manage');
     expect(res.body.user.permissions).not.toContain('platform.organizations.manage');
-    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'governance', 'risk', 'volunteers', 'quality', 'audit', 'members', 'knowledge', 'website', 'core']);
+    expect(res.body.apps.map((a: { code: string }) => a.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'procurement', 'hr', 'planning', 'governance', 'risk', 'volunteers', 'quality', 'audit', 'members', 'partnerships', 'knowledge', 'website', 'comms', 'meetings', 'core']);
     await http.get('/api/platform/organizations').set(as(adminToken)).expect(403);
 
     const mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'governance', 'risk', 'volunteers', 'quality', 'audit', 'members', 'knowledge', 'website', 'core']);
+    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'procurement', 'hr', 'planning', 'governance', 'risk', 'volunteers', 'quality', 'audit', 'members', 'partnerships', 'knowledge', 'website', 'comms', 'meetings', 'core']);
     await http.post('/api/roles').set(as(adminToken))
       .send({ name: 'تصعيد', permissions: ['platform.organizations.manage'] }).expect(400);
   });
@@ -126,7 +126,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
 
     // disabled by default: not in matrix, not grantable, not in admin perms
     let mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'governance', 'risk', 'volunteers', 'quality', 'audit', 'members', 'knowledge', 'website', 'core']);
+    expect(mods.body.map((m: { code: string }) => m.code)).toEqual(['beneficiaries', 'fundraising', 'projects', 'accounting', 'procurement', 'hr', 'planning', 'governance', 'risk', 'volunteers', 'quality', 'audit', 'members', 'partnerships', 'knowledge', 'website', 'comms', 'meetings', 'core']);
     await http.post('/api/roles').set(as(adminToken))
       .send({ name: 'محرر الموقع', permissions: ['sampleopt.pages.manage'] }).expect(400);
 
@@ -139,7 +139,7 @@ describe('Core: SSO + tenancy + roles & permissions', () => {
     expect(upd.body.modules).toEqual(['sampleopt']);
 
     mods = await http.get('/api/modules').set(as(adminToken)).expect(200);
-    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'audit', 'beneficiaries', 'core', 'fundraising', 'governance', 'hr', 'knowledge', 'members', 'projects', 'quality', 'risk', 'sampleopt', 'volunteers', 'website']);
+    expect(mods.body.map((m: { code: string }) => m.code).sort()).toEqual(['accounting', 'audit', 'beneficiaries', 'comms', 'core', 'fundraising', 'governance', 'hr', 'knowledge', 'meetings', 'members', 'partnerships', 'planning', 'procurement', 'projects', 'quality', 'risk', 'sampleopt', 'volunteers', 'website']);
     const me = await http.get('/api/auth/me').set(as(adminToken)).expect(200);
     expect(me.body.user.permissions).toContain('sampleopt.pages.manage');
     await http.post('/api/roles').set(as(adminToken))

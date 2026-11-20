@@ -1,0 +1,88 @@
+# قواعد Semgrep خاصة بسنابل. تعمل في CI مع حزم p/typescript و p/nodejsscan و p/secrets.
+rules:
+  - id: sanabel-findone-by-id-without-org
+    message: >-
+      Lookup by id without organizationId in the same query. Add `organizationId: org` (CLAUDE.md §2),
+      or, if the id comes from an already org-scoped row, add `// nosemgrep: sanabel-findone-by-id-without-org` with the reason.
+    severity: WARNING
+    languages: [typescript]
+    paths:
+      include: [backend/src/modules/, backend/src/core/]
+    patterns:
+      - pattern-either:
+          - pattern: '$REPO.findOne({ where: { id: $ID, ... }, ... })'
+          - pattern: '$REPO.findOneBy({ id: $ID, ... })'
+          - pattern: '$REPO.findOneOrFail({ where: { id: $ID, ... }, ... })'
+          - pattern: '$REPO.update({ id: $ID, ... }, ...)'
+          - pattern: '$REPO.delete({ id: $ID, ... })'
+      - pattern-not: '$REPO.findOne({ where: { organizationId: $O, ... }, ... })'
+      - pattern-not: '$REPO.findOneBy({ organizationId: $O, ... })'
+      - pattern-not: '$REPO.findOneOrFail({ where: { organizationId: $O, ... }, ... })'
+      - pattern-not: '$REPO.update({ organizationId: $O, ... }, ...)'
+      - pattern-not: '$REPO.delete({ organizationId: $O, ... })'
+
+  - id: sanabel-raw-sql-interpolation
+    message: >-
+      Template literal interpolated into SQL. Use $1 parameters. Interpolate identifiers only from internal
+      constants and mark the line with `// nosemgrep: sanabel-raw-sql-interpolation` and the reason.
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: [backend/src/]
+    patterns:
+      - pattern-either:
+          - pattern: '$DB.query(`...${$X}...`, ...)'
+          - pattern: '$DB.query(`...${$X}...`)'
+      - pattern-not: '$DB.query(`...${$C.join(...)}...`, ...)'
+
+  - id: sanabel-org-id-from-request
+    message: organizationId must come from @CurrentOrgUser(), never from the request body, query or params (CLAUDE.md §2).
+    severity: ERROR
+    languages: [typescript]
+    paths:
+      include: [backend/src/]
+    pattern-either:
+      - pattern: "@Body('organizationId') $P"
+      - pattern: "@Query('organizationId') $P"
+      - pattern: "@Param('organizationId') $P"
+
+  - id: sanabel-vhtml
+    message: v-html renders raw HTML. Only use it with content escaped by a reviewed helper (CLAUDE.md §7).
+    severity: WARNING
+    languages: [generic]
+    paths:
+      include: ["frontend/src/**/*.vue"]
+    pattern: v-html="..."
+
+  - id: sanabel-eval
+    message: Dynamic code execution is forbidden.
+    severity: ERROR
+    languages: [typescript, javascript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: sanabel-jwt-ignore-expiration
+    message: JWT verification must not ignore expiration or accept the "none" algorithm.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: "$J.verify($T, { ..., ignoreExpiration: true, ... })"
+      - pattern: "$J.verifyAsync($T, { ..., ignoreExpiration: true, ... })"
+      - pattern: "{ ..., algorithms: [..., 'none', ...], ... }"
+
+  - id: sanabel-tls-verification-disabled
+    message: TLS certificate verification must never be disabled.
+    severity: ERROR
+    languages: [typescript, javascript]
+    pattern-either:
+      - pattern: "{ ..., rejectUnauthorized: false, ... }"
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
+  - id: sanabel-math-random-secret
+    message: Math.random() is not cryptographically secure. Use crypto.randomBytes / randomUUID for tokens, codes and passwords.
+    severity: WARNING
+    languages: [typescript]
+    paths:
+      include: [backend/src/]
+    pattern: Math.random()

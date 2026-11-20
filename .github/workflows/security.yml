@@ -1,0 +1,124 @@
+# بوابات الأمان: تمنع دمج أي تغيير يكسر الصلاحيات أو عزل الجمعيات أو يضيف أسرارًا أو ثغرات.
+# لا يوجد أي نشر من CI. النشر يدوي من مالك النظام بعد الدمج.
+name: security-gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-gates:
+    name: Backend typecheck + authorization + tenant isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: charity_erp_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U erp -d charity_erp_test"
+          --health-interval 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://erp:erp@localhost:5432/charity_erp_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: backend/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Every route declares an authorization decision
+        run: npx jest test/security/route-authz.spec.ts
+      - name: Tenant isolation on every read endpoint
+        run: npx jest test/security/tenant-isolation.e2e-spec.ts
+
+  frontend:
+    name: Frontend typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+
+  sast:
+    name: Semgrep (new findings block the PR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep:1.186.0
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - name: Scan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          ARGS="--config .semgrep/sanabel.yml --config p/typescript --config p/nodejsscan --config p/secrets --metrics=off --severity ERROR"
+          # في طلبات الدمج: أي نتيجة جديدة مقارنة بالفرع الأساسي تمنع الدمج. على main: تقرير كامل فقط.
+          if [ -n "$BASE" ]; then ARGS="$ARGS --error --baseline-commit $BASE"; fi
+          semgrep scan $ARGS
+
+  secrets:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read   # gitleaks-action reads the PR's commit list
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependencies:
+    name: Vulnerable dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # المستوى يرتفع إلى high بعد تحديث المكتبات في المرحلة 1
+      - name: Backend production dependencies
+        run: cd backend && npm audit --omit=dev --audit-level=critical
+      - name: Frontend production dependencies
+        run: cd frontend && npm audit --omit=dev --audit-level=high
+
+  containers:
+    name: Trivy (Dockerfiles and compose misconfiguration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - name: Misconfiguration scan (report only until the container hardening phase)
+        run: |
+          docker run --rm -v "$PWD:/src:ro" aquasec/trivy:0.76.2 config \
+            --severity CRITICAL,HIGH --exit-code 0 /src
