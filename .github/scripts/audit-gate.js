@@ -7,7 +7,14 @@ const fs = require('fs');
 const path = require('path');
 
 const project = process.argv[2] ?? '';
-const report = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
+const raw = fs.readFileSync(0, 'utf8').trim();
+let report;
+try { report = JSON.parse(raw); } catch { report = null; }
+// فشل الفحص نفسه (الشبكة، السجل، ملف القفل) لا يُعد نجاحًا
+if (!report || report.error || !report.metadata || !report.vulnerabilities) {
+  console.error(`npm audit did not produce a valid report for ${project}: ${raw.slice(0, 500) || '(empty output)'}`);
+  process.exit(1);
+}
 const allow = JSON.parse(fs.readFileSync(path.join(__dirname, 'audit-allowlist.json'), 'utf8'))
   .filter((a) => !a.project || a.project === project);
 const today = new Date().toISOString().slice(0, 10);

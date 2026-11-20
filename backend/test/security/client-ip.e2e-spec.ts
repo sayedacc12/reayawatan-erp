@@ -7,7 +7,7 @@ import { configureApp } from '../../src/main';
 
 /**
  * بوابة أمنية: حد محاولات الدخول يُحسب لكل عميل حقيقي، لا للوسيط (Caddy/nginx).
- * في الإنتاج يصل الطلب من شبكة Docker الخاصة ومعه X-Forwarded-For: <العميل>, <Caddy>.
+ * في الإنتاج (TRUST_PROXY=2) يصل الطلب من nginx ومعه X-Forwarded-For: <العميل>, <Caddy>.
  */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
@@ -16,7 +16,7 @@ describe('Security gate: rate limits use the real client IP behind the proxies',
   let http: ReturnType<typeof request>;
 
   beforeAll(async () => {
-    Object.assign(process.env, { DATABASE_URL: DB, JWT_SECRET: 'test-secret', PLATFORM_ADMIN_EMAIL: 'platform@test.org', PLATFORM_ADMIN_PASSWORD: 'Platform123' });
+    Object.assign(process.env, { DATABASE_URL: DB, JWT_SECRET: 'test-secret', PLATFORM_ADMIN_EMAIL: 'platform@test.org', PLATFORM_ADMIN_PASSWORD: 'Platform123', TRUST_PROXY: '2' });
     const reset = new DataSource({ type: 'postgres', url: DB });
     await reset.initialize();
     await reset.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
