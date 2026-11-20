@@ -26,6 +26,7 @@ export const ACC_PERMISSIONS = {
   assetsCustody: 'accounting.assets.custody',
   assetsMaintain: 'accounting.assets.maintain',
   assetsBudget: 'accounting.assets.budget',
+  payables: 'accounting.payables.manage',
 } as const;
 
 const P = ACC_PERMISSIONS;
@@ -64,6 +65,7 @@ export const accountingManifest: ErpModuleManifest = {
     { code: P.assetsCustody, name: 'الأصول الثابتة: تسليم العهد ونقلها واستلامها والجرد الدوري' },
     { code: P.assetsMaintain, name: 'الأصول الثابتة: سجل الصيانة وتكاليفها وخطط الصيانة الوقائية' },
     { code: P.assetsBudget, name: 'الأصول الثابتة: إعداد الموازنة الرأسمالية واعتمادها' },
+    { code: P.payables, name: 'مستحقات الموردين: تسجيل فواتير الموردين المطابقة وإلغاء تسجيلها وإصدار سندات سدادها' },
   ],
   settingsPermission: P.settings,
   menu: [
@@ -75,6 +77,8 @@ export const accountingManifest: ErpModuleManifest = {
     { label: 'سندات الإهلاك', path: '/accounting/documents/depreciation', permission: P.read, group: 'العمليات' },
     { label: 'سندات الأصول الثابتة', path: '/accounting/documents/asset', permission: P.read, group: 'العمليات' },
     { label: 'سندات المخازن', path: '/accounting/documents/stock', permission: P.read, group: 'العمليات' },
+    { label: 'مستحقات الموردين', path: '/accounting/payables', permission: P.payables, anyOf: [P.payments], group: 'العمليات' },
+    { label: 'قيود فواتير الموردين', path: '/accounting/documents/bill', permission: P.read, group: 'العمليات' },
     { label: 'ترحيل القيود', path: '/accounting/posting', permission: P.post, group: 'الترحيل والإغلاق' },
     { label: 'إغلاق الفترات', path: '/accounting/periods', permission: P.closePeriods, anyOf: [P.reopenPeriods], group: 'الترحيل والإغلاق' },
     { label: 'محاضر جرد السندات', path: '/accounting/inventory', permission: P.read, group: 'الترحيل والإغلاق' },

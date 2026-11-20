@@ -26,6 +26,7 @@ interface CleanLine { accountId: string; debit: number; credit: number; label: s
  */
 /** قيود الأصول الثابتة (الإهلاك والتخريد والتبرع العيني) لا تُعدَّل ولا تُلغى إلا من الأصول الثابتة */
 export const STOCK_ONLY = 'هذا القيد سند مخازن صادر من المستودعات، ولا يُعدَّل ولا يُلغى من النظام المالي. يُلغى بإلغاء المستند المصدر في المشتريات والمستودعات';
+export const PAYABLES_ONLY = 'هذا القيد قيد فاتورة مورد، ولا يُعدَّل ولا يُلغى من شاشة القيود. يُلغى من شاشة مستحقات الموردين بإلغاء تسجيل الفاتورة';
 export const ASSETS_ONLY = 'هذا القيد صادر من الأصول الثابتة، ولا يُعدَّل ولا يُلغى من النظام المالي. يُلغى من سجل حركات الإهلاك أو سجل العمليات في الأصول الثابتة';
 const NO_POSTING_OPENING = 'القيد الافتتاحي لا يخضع للترحيل، ويسري أثره بمجرد حفظه';
 
@@ -315,6 +316,26 @@ export class EntriesService {
     await em.getRepository(JournalEntry).update({ id: e.id }, { status: 'cancelled', cancelledAt: new Date(), cancelledByName: actor.fullName, cancelReason: reason });
   }
 
+  /** قيد فاتورة مورد يسجله المالي من مستحقات الموردين: مرحّل مباشرة، ولا يُعدَّل ولا يُلغى من شاشة القيود */
+  async createPayableEntry(
+    em: EntityManager, actor: { id: string | null; fullName: string; organizationId: string },
+    head: { documentDate: string; description: string; counterparty?: string | null }, lines: LineDto[],
+  ) {
+    const year = await this.core.assertWritable(actor.organizationId, head.documentDate, em);
+    await this.assertNoApprovedInventory(em, year);
+    const clean = await this.cleanLines(actor.organizationId, 'bill', lines, em);
+    return this.insert(em, actor, year, 'bill', { ...head, counterparty: head.counterparty ?? null }, clean, 'posted', 'payables');
+  }
+
+  /** إلغاء قيد فاتورة مورد من مستحقات الموردين: يبقى رقمه ويُكتب عليه «ملغي» مع السبب */
+  async cancelPayableEntry(em: EntityManager, actor: { fullName: string; organizationId: string }, entryId: string, reason: string) {
+    const e = await this.load(em, actor.organizationId, entryId);
+    if (e.status === 'cancelled') return;
+    if (e.source !== 'payables') throw new ConflictException('القيد ليس قيد فاتورة مورد');
+    await this.core.assertWritable(e.organizationId, e.documentDate, em);
+    await em.getRepository(JournalEntry).update({ id: e.id }, { status: 'cancelled', cancelledAt: new Date(), cancelledByName: actor.fullName, cancelReason: reason });
+  }
+
   private async load(em: EntityManager, org: string, id: string, lock = true) {
     const qb = em.getRepository(JournalEntry).createQueryBuilder('e').where('e.id = :id AND e.organization_id = :org', { id, org });
     if (lock) qb.setLock('pessimistic_write');
@@ -329,7 +350,7 @@ export class EntriesService {
       const e = await this.load(em, org, id);
       const editableOpening = e.voucherType === 'opening' && e.status === 'posted';
       if (e.status !== 'draft' && !editableOpening) throw new ConflictException(e.status === 'posted' ? 'القيود المرحّلة لا تُعدَّل. فك الترحيل أولًا إن كان الشهر مفتوحًا' : 'القيد ملغي');
-      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعدَّل من شاشة السند بإعادته للمسودة' : e.source === 'assets' ? ASSETS_ONLY : e.source === 'stock' ? STOCK_ONLY : 'القيد الافتتاحي الآلي لا يُعدَّل يدويًا');
+      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعدَّل من شاشة السند بإعادته للمسودة' : e.source === 'assets' ? ASSETS_ONLY : e.source === 'stock' ? STOCK_ONLY : e.source === 'payables' ? PAYABLES_ONLY : 'القيد الافتتاحي الآلي لا يُعدَّل يدويًا');
       await this.core.assertWritable(org, e.documentDate, em);
       const year = await this.core.assertWritable(org, dto.documentDate, em);
       if (year.id !== e.fiscalYearId) throw new BadRequestException('لا يمكن نقل المستند إلى سنة مالية أخرى، لأن رقم السند محجوز في سنته');
@@ -394,7 +415,7 @@ export class EntriesService {
       const e = await this.load(em, actor.organizationId, id);
       if (e.voucherType === 'opening') throw new ConflictException(NO_POSTING_OPENING);
       if (e.status !== 'posted') throw new ConflictException('القيد غير مرحّل');
-      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعكس من شاشة السند بإعادته للمسودة' : e.source === 'assets' ? ASSETS_ONLY : e.source === 'stock' ? STOCK_ONLY : 'القيد الافتتاحي الآلي لا يُفك ترحيله، ويُحدَّث من شاشة الافتتاحيات');
+      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُعكس من شاشة السند بإعادته للمسودة' : e.source === 'assets' ? ASSETS_ONLY : e.source === 'stock' ? STOCK_ONLY : e.source === 'payables' ? PAYABLES_ONLY : 'القيد الافتتاحي الآلي لا يُفك ترحيله، ويُحدَّث من شاشة الافتتاحيات');
       await this.core.assertWritable(e.organizationId, e.documentDate, em);
       await em.getRepository(JournalEntry).update({ id }, { status: 'draft', postedAt: null, postedByName: null });
     });
@@ -408,7 +429,7 @@ export class EntriesService {
     await this.db.transaction(async (em) => {
       const e = await this.load(em, actor.organizationId, id);
       if (e.status === 'cancelled') throw new ConflictException('القيد ملغي بالفعل');
-      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُلغى من شاشة السند' : e.source === 'assets' ? ASSETS_ONLY : e.source === 'stock' ? STOCK_ONLY : 'القيد الافتتاحي الآلي لا يُلغى يدويًا');
+      if (e.source !== 'manual') throw new ConflictException(e.source === 'voucher' ? 'هذا القيد ناتج عن سند، ويُلغى من شاشة السند' : e.source === 'assets' ? ASSETS_ONLY : e.source === 'stock' ? STOCK_ONLY : e.source === 'payables' ? PAYABLES_ONLY : 'القيد الافتتاحي الآلي لا يُلغى يدويًا');
       await this.core.assertWritable(e.organizationId, e.documentDate, em);
       await em.getRepository(JournalEntry).update({ id }, { status: 'cancelled', cancelledAt: new Date(), cancelledByName: actor.fullName, cancelReason: reason });
     });

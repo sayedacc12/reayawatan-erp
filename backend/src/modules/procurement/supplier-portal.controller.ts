@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Ip, Param, ParseUUIDPipe, Patch, Post, Put, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Ip, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -12,6 +12,8 @@ import {
 import { CurrentSupplier, SupplierPortalGuard, SupplierPortalUser } from './supplier-portal.guard';
 import { SupplierPortalService } from './supplier-portal.service';
 import { SourcingPortalService } from './sourcing-portal.service';
+import { InvoiceDto, InvoiceMessageDto, StatementQueryDto } from './invoice.dto';
+import { InvoicesService } from './invoices.service';
 import { QuestionDto, QuoteDto, RespondDto } from './sourcing.dto';
 
 const uuid = new ParseUUIDPipe();
@@ -25,7 +27,7 @@ const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fil
 @Public()
 @Controller('supplier-portal')
 export class SupplierPortalController {
-  constructor(private readonly portal: SupplierPortalService, private readonly sourcing: SourcingPortalService) {}
+  constructor(private readonly portal: SupplierPortalService, private readonly sourcing: SourcingPortalService, private readonly invoices: InvoicesService) {}
 
   @Get('o/:slug')
   info(@Param('slug') slug: string) { return this.portal.info(slug); }
@@ -139,4 +141,60 @@ export class SupplierPortalController {
   @UseGuards(SupplierPortalGuard)
   @Post('orders/:id/respond') @HttpCode(200)
   respond(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: RespondDto) { return this.sourcing.respond(p, id, dto); }
+
+  // ---------------- الفواتير وكشف الحساب ----------------
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('invoices')
+  invoiceList(@CurrentSupplier() p: SupplierPortalUser) { return this.invoices.portalList(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('billable')
+  billableOrders(@CurrentSupplier() p: SupplierPortalUser) { return this.invoices.portalBillable(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('billable/:orderId')
+  billable(@CurrentSupplier() p: SupplierPortalUser, @Param('orderId', uuid) orderId: string) { return this.invoices.portalBillable(p, orderId); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('invoices') @HttpCode(200)
+  createInvoice(@CurrentSupplier() p: SupplierPortalUser, @Body() dto: InvoiceDto) { return this.invoices.portalSave(p, dto, null); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('invoices/:id')
+  invoice(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.invoices.portalGet(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Put('invoices/:id')
+  updateInvoice(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: InvoiceDto) { return this.invoices.portalSave(p, dto, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('invoices/:id/submit') @HttpCode(200)
+  submitInvoice(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.invoices.portalSubmit(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('invoices/:id/cancel') @HttpCode(200)
+  cancelInvoice(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.invoices.portalCancel(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('invoices/:id/messages') @HttpCode(200)
+  invoiceMessage(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: InvoiceMessageDto) { return this.invoices.portalMessage(p, id, dto.text); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('invoices/:id/files') @HttpCode(200) @UseInterceptors(upload)
+  addInvoiceFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @UploadedFile() file: Express.Multer.File) { return this.invoices.portalAddFile(p, id, file); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Delete('invoices/:id/files/:key')
+  removeInvoiceFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Param('key') key: string) { return this.invoices.portalRemoveFile(p, id, key); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('invoices/:id/files/:key')
+  async invoiceFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Param('key') key: string, @Res({ passthrough: true }) res: Response) {
+    return sendFile(res, await this.invoices.portalFile(p, id, key));
+  }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('statement')
+  statement(@CurrentSupplier() p: SupplierPortalUser, @Query() q: StatementQueryDto) { return this.invoices.portalStatement(p, q); }
 }
