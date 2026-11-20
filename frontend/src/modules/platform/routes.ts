@@ -19,4 +19,5 @@ export const platformRoutes: RouteRecordRaw[] = [
   { path: '/platform/reports', component: () => import('./views/ReportsView.vue'), meta: { permission: 'platform.reports.read', title: 'تقارير المنصة' } },
   { path: '/platform/performance', component: () => import('./views/PerformanceView.vue'), meta: { permission: 'platform.reports.read', title: 'الأداء وحجم البيانات' } },
   { path: '/platform/backups', component: () => import('./views/BackupsView.vue'), meta: { permission: 'platform.reports.read', title: 'النسخ الاحتياطي' } },
+  { path: '/platform/security', component: () => import('./views/SecurityView.vue'), meta: { permission: 'platform.security.manage', title: 'المراقب الأمني' } },
 ];

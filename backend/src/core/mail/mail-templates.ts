@@ -195,4 +195,28 @@ export const templates = {
     button: btn('فتح شاشة النسخ الاحتياطي', '/platform/backups'),
     note: 'تصل هذه الرسالة مرة واحدة لكل مشكلة. يمكن إيقافها من إعدادات البريد.',
   }),
+
+  securityAlert: (v: { severity: string; title: string; summary: string; facts: { label: string; value: string; ltr?: boolean }[]; actions: string[]; pending?: string | null }) => mailLayout({
+    title: `${v.severity}: ${v.title}`,
+    subject: `تنبيه أمني (${v.severity}): ${v.title} - سنابل`,
+    paragraphs: [
+      v.summary,
+      ...(v.actions.length ? [`ما فعله «سيد» تلقائيًا: ${v.actions.join('، ')}.`] : ['لم يتخذ «سيد» أي إجراء تلقائي، والتنبيه للعلم والمراجعة.']),
+      ...(v.pending ? [`ينتظر موافقتك: ${v.pending}. افتح شاشة المراقب الأمني للموافقة أو الرفض.`] : []),
+      'الأنظمة تعمل كالمعتاد، ولم يتأثر بقية المستخدمين.',
+    ],
+    facts: v.facts,
+    button: btn('فتح شاشة المراقب الأمني', '/platform/security'),
+    note: 'تصل رسالة واحدة لكل حادثة، ولا تتكرر لنفس المصدر خلال 6 ساعات. يمكن تغيير المستلمين من إعدادات المراقب الأمني.',
+  }),
+
+  securityDaily: (v: { day: string; status: string; paragraphs: string[]; facts: { label: string; value: string; ltr?: boolean }[]; recommendations: string[] }) => mailLayout({
+    title: `التقرير اليومي للمراقب الأمني «سيد»: ${v.day}`,
+    subject: `تقرير سنابل اليومي (${v.day}): ${v.status}`,
+    greeting: 'السلام عليكم،',
+    paragraphs: [...v.paragraphs, ...(v.recommendations.length ? ['التوصيات:', ...v.recommendations.map((r, i) => `${i + 1}. ${r}`)] : [])],
+    facts: v.facts,
+    button: btn('فتح شاشة المراقب الأمني', '/platform/security'),
+    note: 'يصل هذا التقرير كل يوم. يمكن تغيير موعده ومستلميه أو إيقافه من إعدادات المراقب الأمني.',
+  }),
 };

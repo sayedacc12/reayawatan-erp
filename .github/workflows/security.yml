@@ -51,6 +51,8 @@ jobs:
         run: npx jest test/security/client-ip.e2e-spec.ts
       - name: PDF rendering cannot reach the network (SSRF)
         run: npx jest test/security/pdf-ssrf.spec.ts
+      - name: Security monitor detects, contains and alerts
+        run: npx jest test/security/security-monitor.e2e-spec.ts
 
   frontend:
     name: Frontend typecheck + build

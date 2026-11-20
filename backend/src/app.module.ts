@@ -9,6 +9,7 @@ import { ReportsModule } from './core/reports/reports.module';
 import { TasksModule } from './core/tasks/tasks.module';
 import { PerformanceModule } from './core/performance/performance.module';
 import { BackupsModule } from './core/backups/backups.module';
+import { SecurityModule } from './core/security/security.module';
 import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
 import { FundraisingModule } from './modules/fundraising/fundraising.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -42,6 +43,7 @@ import { HealthController } from './health.controller';
     CoreModule,
     PerformanceModule,
     BackupsModule,
+    SecurityModule,
     BeneficiariesModule,
     FundraisingModule,
     ProjectsModule,
