@@ -71,7 +71,7 @@ export class ProcurementTasks implements OnModuleInit {
                 (SELECT COUNT(*) FROM jsonb_array_elements(c.amendments) x WHERE x->>'status' = 'pending')::int AS amend,
                 (SELECT COUNT(*) FROM jsonb_array_elements(c.penalties) x WHERE x->>'status' = 'pending')::int AS pen
            FROM pr_contracts c
-          WHERE c.organization_id = $1 AND (c.created_by_id IS DISTINCT FROM $2 OR c.status <> 'pending')
+          WHERE c.organization_id = $1 AND ((c.created_by_id IS DISTINCT FROM $2 AND NOT (c.editor_ids ? $2::text)) OR c.status <> 'pending')
             AND (c.status = 'pending' OR EXISTS (SELECT 1 FROM jsonb_array_elements(c.amendments) x WHERE x->>'status' = 'pending')
                  OR EXISTS (SELECT 1 FROM jsonb_array_elements(c.penalties) x WHERE x->>'status' = 'pending'))`, [org, u.id]);
       for (const c of cts) {
@@ -100,7 +100,7 @@ export class ProcurementTasks implements OnModuleInit {
     if (can(P.evaluationsApprove)) {
       const ev: { id: string; eval_no: number; supplier: string; updated_at: Date }[] = await this.db.query(
         `SELECT e.id, e.eval_no, s.name AS supplier, e.updated_at FROM pr_supplier_evaluations e JOIN pr_suppliers s ON s.id = e.supplier_id AND s.organization_id = e.organization_id
-          WHERE e.organization_id = $1 AND e.status = 'submitted' AND e.evaluator_id IS DISTINCT FROM $2`, [org, u.id]);
+          WHERE e.organization_id = $1 AND e.status = 'submitted' AND e.evaluator_id IS DISTINCT FROM $2 AND NOT (e.editor_ids ? $2::text)`, [org, u.id]);
       for (const e of ev) out.push({ id: `pr-ev:${e.id}`, group: 'تقييم الموردين', link: `/procurement/evaluations/${e.id}`, at: e.updated_at, title: `اعتماد تقييم المورد: ${e.supplier}`, subtitle: evalCode(e.eval_no) });
     }
     return out;

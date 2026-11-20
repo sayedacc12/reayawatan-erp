@@ -63,7 +63,8 @@ onMounted(async () => {
           </section>
           <section class="card pm-panel">
             <h2>من سجل المخاطر</h2>
-            <p v-if="!risks.riskModule" class="pm-muted">نظام المخاطر غير مفعّل.</p>
+            <p v-if="!risks.riskAllowed" class="pm-muted">يظهر سجل المخاطر لمن يملك صلاحية عرض نظام المخاطر.</p>
+            <p v-else-if="!risks.riskModule" class="pm-muted">نظام المخاطر غير مفعّل.</p>
             <ul v-else class="pc-log">
               <li v-for="r in risks.riskRegister" :key="r.id"><span><RouterLink class="pm-link" :to="`/risk/register/${r.id}`">{{ r.code }}</RouterLink> · {{ r.title }}
                 <small class="pm-muted">{{ r.levelLabel }} ({{ r.score }})</small>
@@ -91,7 +92,8 @@ onMounted(async () => {
 
     <template v-if="tab === 'audit' && controls">
       <section class="card pm-panel">
-        <p v-if="!controls.auditConfigured" class="pm-muted">حدد مجالات المراجعة الداخلية الخاصة بالمشتريات من الإعدادات (تبويب «تقييم الموردين والرقابة») لتظهر توصياتها هنا.</p>
+        <p v-if="!controls.auditAllowed" class="pm-muted">تظهر توصيات المراجعة الداخلية لمن يملك صلاحية عرض نظام المراجعة الداخلية.</p>
+        <p v-else-if="!controls.auditConfigured" class="pm-muted">حدد مجالات المراجعة الداخلية الخاصة بالمشتريات من الإعدادات (تبويب «تقييم الموردين والرقابة») لتظهر توصياتها هنا.</p>
         <table v-else class="pc-lines">
           <thead><tr><th>الإجراء</th><th>المهمة</th><th>المسؤول</th><th>الاستحقاق</th><th>الحالة</th></tr></thead>
           <tbody>

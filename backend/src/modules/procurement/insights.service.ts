@@ -3,6 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { KpiQueryDto } from './contract.dto';
+import { canAudit, canRisk } from './contracts.service';
 import { GRADES } from './entities/contract.entity';
 import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { addDays, ProcurementCore, prToday, supplierCode } from './procurement-core.service';
@@ -119,7 +120,7 @@ export class InsightsService {
 
     // المخاطر المرتبطة من سجل المخاطر (عبر واجهة نظام المخاطر، قراءة فقط)
     const ids = [...new Set(contracts.flatMap((c) => c.riskIds ?? []))];
-    const reg = this.riskLookup();
+    const reg = canRisk(a) ? this.riskLookup() : null;
     const all_ = reg ? await reg.listRisks(org).catch(() => []) : [];
     const linked = all_.filter((r) => ids.includes(r.id)).map((r) => ({
       id: r.id, code: r.code, title: r.title, score: r.score, level: r.level, levelLabel: r.levelLabel ?? r.level, status: r.status ?? null,
@@ -130,7 +131,7 @@ export class InsightsService {
     const order = { high: 0, medium: 1, low: 2 };
     signals.sort((x, y) => order[x.level] - order[y.level]);
     return {
-      signals, riskRegister: [...linked, ...procurementRisks], riskModule: !!reg,
+      signals, riskRegister: [...linked, ...procurementRisks], riskModule: !!reg, riskAllowed: canRisk(a),
       concentration: spend.slice(0, 5).map((x) => ({ id: x.id, code: supplierCode(x.supplierNo), name: x.name, amount: r2(x.t), share: all ? Math.round((x.t / all) * 1000) / 10 : 0 })),
     };
   }
@@ -190,7 +191,8 @@ export class InsightsService {
 
     // توصيات المراجعة الداخلية في المجالات المحددة (قراءة فقط من نظام المراجعة)
     let audit: { id: string; code: string; title: string; status: string; statusLabel: string; dueDate: string; overdue: boolean; assignee: string | null; recommendation: string | null; engagement: string | null }[] = [];
-    if (s.auditAreaIds?.length) {
+    // توصيات المراجعة الداخلية لمن يملك صلاحية العرض في نظام المراجعة فقط
+    if (s.auditAreaIds?.length && canAudit(a)) {
       const rows: { id: string; code: string; title: string; status: string; due_date: string; assignee_name: string | null; recommendation: string | null; eng: string | null }[] = await this.db.query(
         `SELECT a.id, a.code, a.title, a.status, a.due_date::text AS due_date, a.assignee_name, f.recommendation, e.code || ' ' || e.title AS eng
            FROM audit_actions a JOIN audit_engagements e ON e.id = a.engagement_id AND e.organization_id = a.organization_id
@@ -202,7 +204,7 @@ export class InsightsService {
         overdue: r.status !== 'closed' && r.due_date < today, assignee: r.assignee_name, recommendation: r.recommendation, engagement: r.eng,
       }));
     }
-    return { checks, audit, auditConfigured: !!s.auditAreaIds?.length };
+    return { checks, audit, auditConfigured: !!s.auditAreaIds?.length, auditAllowed: canAudit(a) };
   }
 
   /** مؤشرات أداء المشتريات والمستودعات للفترة */

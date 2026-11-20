@@ -18,6 +18,9 @@ import { can } from './requests.service';
 import { orderCode, r2, SourcingCore } from './sourcing-core.service';
 import { SupplierPortalUser } from './supplier-portal.guard';
 
+/** قراءة سجل المخاطر وتوصيات المراجعة تخضع لصلاحيات نظاميهما، لا لصلاحيات المشتريات */
+export const canRisk = (a: OrgUser) => a.isSuperadmin || a.permissions.includes('risk.dashboard.read');
+export const canAudit = (a: OrgUser) => a.isSuperadmin || a.permissions.includes('audit.dashboard.read');
 export const contractCode = (n: number) => `CT-${String(n).padStart(4, '0')}`;
 /** حالات التعميد التي تُحتسب على سقف العقد */
 const COUNTED_ORDER = ['pending', 'issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed'];
@@ -128,7 +131,7 @@ export class ContractsService {
       startsOn: dto.startsOn, endsOn: dto.endsOn, value: r2(dto.value), alertPct: dto.alertPct ?? 80, alertDays: dto.alertDays ?? 30,
       projectId: dto.projectId ?? null, budgetLineId: dto.budgetLineId ?? null, fundingBatchId: dto.fundingBatchId ?? null, ptContractId: dto.ptContractId ?? null, riskIds,
       prices: this.prices(dto.prices),
-      guarantees: (dto.guarantees ?? []).map((g) => ({ key: g.key ?? key(), kind: g.kind, amount: r2(g.amount), ref: g.ref ?? null, issuer: g.issuer ?? null, expiresOn: g.expiresOn ?? null, released: !!g.released })),
+      guarantees: (dto.guarantees ?? []).map((g) => ({ key: g.key ?? key(), kind: g.kind, amount: r2(g.amount), ref: g.ref ?? null, issuer: g.issuer ?? null, expiresOn: g.expiresOn ?? null, released: false })),
       slas: (dto.slas ?? []).map((x) => ({ key: x.key ?? key(), name: x.name, target: x.target, unit: x.unit, direction: x.direction })),
       penaltyRules: (dto.penaltyRules ?? []).map((x) => ({ key: x.key ?? key(), name: x.name, basis: x.basis, rate: x.rate, capPct: x.capPct ?? null })),
       requiredDocs: (dto.requiredDocs ?? []).map((d) => d.trim()).filter(Boolean), shareWithSupplier: dto.shareWithSupplier ?? true,
@@ -143,7 +146,7 @@ export class ContractsService {
       await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`pr_contracts:${org}`]);
       const [{ n }] = await em.query('SELECT COALESCE(MAX(contract_no), 0)::int + 1 AS n FROM pr_contracts WHERE organization_id = $1', [org]);
       return em.save(em.create(PrContract, {
-        organizationId: org, contractNo: n, ...this.body(dto, riskIds), status: 'draft', createdById: a.id, createdByName: a.fullName,
+        organizationId: org, contractNo: n, ...this.body(dto, riskIds), status: 'draft', createdById: a.id, createdByName: a.fullName, editorIds: [a.id],
         log: [logEntry('إنشاء العقد', a.fullName)],
       }));
     });
@@ -157,7 +160,11 @@ export class ContractsService {
     await this.db.transaction(async (em) => {
       const c = await this.lock(em, org, id);
       if (!['draft', 'returned'].includes(c.status)) throw new ConflictException('يُعدل العقد وهو مسودة أو معاد، وبعد سريانه بملحق معتمد');
+      // الضمان لا يُفرج عنه من نموذج العقد: يبقى كما هو، والإفراج من إجراء المعتمد فقط
+      const released = new Map(c.guarantees.map((g) => [g.key, g.released]));
       Object.assign(c, this.body(dto, riskIds));
+      c.guarantees = c.guarantees.map((g) => ({ ...g, released: released.get(g.key) ?? false }));
+      if (!c.editorIds.includes(a.id)) c.editorIds = [...c.editorIds, a.id];
       c.log = [...c.log, logEntry('تعديل', a.fullName)];
       await em.save(c);
     });
@@ -169,6 +176,7 @@ export class ContractsService {
     await this.db.transaction(async (em) => {
       const c = await this.lock(em, a.organizationId, id);
       if (!['draft', 'returned'].includes(c.status)) throw new ConflictException('العقد ليس مسودة');
+      if (!c.editorIds.includes(a.id)) c.editorIds = [...c.editorIds, a.id];
       c.status = 'pending';
       c.returnReason = null;
       c.log = [...c.log, logEntry('إرسال للاعتماد', a.fullName)];
@@ -183,7 +191,7 @@ export class ContractsService {
     await this.db.transaction(async (em) => {
       const c = await this.lock(em, a.organizationId, id);
       if (c.status !== 'pending') throw new ConflictException('العقد لا ينتظر الاعتماد');
-      if (!a.isSuperadmin && c.createdById === a.id) throw new ForbiddenException('لا يعتمد العقد من أعده (فصل المهام)');
+      if (!a.isSuperadmin && (c.createdById === a.id || c.editorIds.includes(a.id))) throw new ForbiddenException('لا يعتمد العقد من أعده أو عدّله أو أرسله (فصل المهام)');
       if (decision === 'return') {
         if (!note || note.length < 3) throw new BadRequestException('اكتب سبب الإعادة');
         c.status = 'returned';
@@ -398,13 +406,17 @@ export class ContractsService {
 
   async removeFile(a: OrgUser, id: string, fkey: string) {
     if (!can(a, P.contracts)) throw new ForbiddenException('لا تملك صلاحية إدارة العقود');
-    const c = await this.find(a.organizationId, id);
-    if (!['draft', 'returned'].includes(c.status)) throw new ConflictException('لا تُحذف مرفقات العقد بعد إرساله للاعتماد');
-    const att = c.attachments.find((x) => x.key.endsWith(`/${fkey}`));
-    if (!att) throw new NotFoundException('المرفق غير موجود');
-    await this.files.remove(att.key).catch(() => undefined);
-    c.attachments = c.attachments.filter((x) => x !== att);
-    await this.db.getRepository(PrContract).save(c);
+    const removed = await this.db.transaction(async (em) => {
+      const c = await this.lock(em, a.organizationId, id);
+      if (!['draft', 'returned'].includes(c.status)) throw new ConflictException('لا تُحذف مرفقات العقد بعد إرساله للاعتماد');
+      const att = c.attachments.find((x) => x.key.endsWith(`/${fkey}`));
+      if (!att) throw new NotFoundException('المرفق غير موجود');
+      c.attachments = c.attachments.filter((x) => x !== att);
+      await em.save(c);
+      return att.key;
+    });
+    // حذف الملف بعد تثبيت المعاملة، فلا يبقى سجل بلا ملف
+    await this.files.remove(removed).catch(() => undefined);
     return this.get(a, id);
   }
 
@@ -506,7 +518,7 @@ export class ContractsService {
       budgetLine: line ? `${line.budgetCode} · ${line.name}` : null, fundingBatch: batch ? `دفعة ${batch.batchNo} · ${batch.targetName}` : null,
       penaltyBasis: PENALTY_BASIS, guaranteeKinds: GUARANTEE_KINDS, amendmentKinds: AMENDMENT_KINDS,
       can: {
-        edit: editable, submit: editable, decide: c.status === 'pending' && can(a, P.contractsApprove) && !mine(c.createdById ?? ''),
+        edit: editable, submit: editable, decide: c.status === 'pending' && can(a, P.contractsApprove) && !mine(c.createdById ?? '') && (a.isSuperadmin || !c.editorIds.includes(a.id)),
         cancel: ['draft', 'returned', 'pending'].includes(c.status) && (can(a, P.contracts) || can(a, P.contractsApprove)),
         suspend: c.status === 'active' && can(a, P.contractsApprove), resume: c.status === 'suspended' && can(a, P.contractsApprove),
         close: live && can(a, P.contractsApprove), terminate: live && can(a, P.contractsApprove),
@@ -529,7 +541,7 @@ export class ContractsService {
         `SELECT k.id, k.number, k.title, k.status, p.name AS "partnerName" FROM pt_contracts k LEFT JOIN pt_partners p ON p.id = k.partner_id AND p.organization_id = k.organization_id
           WHERE k.organization_id = $1 AND k.status NOT IN ('cancelled', 'draft') ORDER BY k.number DESC`, [org]).catch(() => []),
       this.db.query(`SELECT id, name, code FROM pr_items WHERE organization_id = $1 AND is_active ORDER BY name`, [org]).catch(() => []),
-      this.riskLookup()?.listRisks(org).catch(() => []) ?? [],
+      canRisk(a) ? this.riskLookup()?.listRisks(org).catch(() => []) ?? [] : [],
       this.db.query(
         `SELECT a.id, a.name, 'PRJ-' || LPAD(p.project_no::text, 4, '0') AS code FROM activities a JOIN project_profiles p ON p.activity_id = a.id
           WHERE a.organization_id = $1 ORDER BY p.project_no`, [org]).catch(() => []),

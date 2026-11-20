@@ -227,6 +227,7 @@ export interface SupplierResponse { action: 'acknowledge' | 'accept' | 'clarify'
 @Index('IDX_pr_orders_status', ['organizationId', 'status'])
 @Index('IDX_pr_orders_supplier', ['organizationId', 'supplierId'])
 @Index('IDX_pr_orders_request', ['organizationId', 'requestId'])
+@Index('IDX_pr_orders_contract', ['organizationId', 'contractId'])
 export class PrOrder {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;

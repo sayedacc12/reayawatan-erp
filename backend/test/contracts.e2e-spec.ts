@@ -88,6 +88,10 @@ describe('Procurement stage 5: contracts, supplier evaluation, controls and KPIs
     ]));
     // مسؤول العقود يملك الإدارة والاعتماد معًا، لاختبار فصل المهام
     await user('lead', 'مسؤول العقود', await role('عقود', ['procurement.dashboard.read', 'procurement.contracts.manage', 'procurement.contracts.approve', 'procurement.suppliers.read']));
+    // يملك الإدارة والاعتماد: من يعدّل العقد أو التقييم لا يعتمده
+    await user('editor', 'مراجع العقود', await role('مراجع', [
+      'procurement.contracts.manage', 'procurement.contracts.approve', 'procurement.evaluations.manage', 'procurement.evaluations.approve', 'procurement.suppliers.read',
+    ]));
     await user('evaluator', 'مقيّم الموردين', await role('تقييم', ['procurement.evaluations.manage', 'procurement.evaluations.approve', 'procurement.suppliers.read']));
     await user('keeper', 'أمين المستودع', await role('أمين مستودع', ['procurement.dashboard.read', 'procurement.stock.operate']));
 
@@ -133,7 +137,13 @@ describe('Procurement stage 5: contracts, supplier evaluation, controls and KPIs
     const c = (await http.post(`${PR}/contracts`).set(as(tok.lead)).send(contractBody()).expect(200)).body;
     expect(c).toMatchObject({ code: 'CT-0001', status: 'draft', value: 10000 });
     ids.contract = c.id;
+    // الضمان لا يُفرج عنه من النموذج
+    const g = (await http.put(`${PR}/contracts/${c.id}`).set(as(tok.editor)).send(contractBody({
+      guarantees: [{ kind: 'final', amount: 500, ref: 'LG-77', released: true, expiresOn: day(90) }],
+    })).expect(200)).body;
+    expect(g.guarantees[0].released).toBe(false);
     await http.post(`${PR}/contracts/${c.id}/submit`).set(as(tok.lead)).send({}).expect(200);
+    await http.post(`${PR}/contracts/${c.id}/approve`).set(as(tok.editor)).send({}).expect(403);
     // من أعدّ العقد لا يعتمده، والمشتريات بلا صلاحية لا تعتمد
     await http.post(`${PR}/contracts/${c.id}/approve`).set(as(tok.lead)).send({}).expect(403);
     await http.post(`${PR}/contracts/${c.id}/approve`).set(as(tok.buyer)).send({}).expect(403);
@@ -207,6 +217,10 @@ describe('Procurement stage 5: contracts, supplier evaluation, controls and KPIs
     await http.put(`${PR}/evaluations/${e.id}`).set(as(tok.evaluator)).send({ scores, strengths: 'أسعار مناسبة', weaknesses: 'التأخير وعدم الرد' }).expect(200);
     await http.post(`${PR}/evaluations/${e.id}/submit`).set(as(tok.evaluator)).send({}).expect(200);
     await http.post(`${PR}/evaluations/${e.id}/approve`).set(as(tok.evaluator)).send({}).expect(403);
+    await http.post(`${PR}/evaluations/${e.id}/return`).set(as(tok.approver)).send({ note: 'راجع الدرجات' }).expect(200);
+    await http.put(`${PR}/evaluations/${e.id}`).set(as(tok.editor)).send({ scores, strengths: 'أسعار مناسبة', weaknesses: 'التأخير وعدم الرد' }).expect(200);
+    await http.post(`${PR}/evaluations/${e.id}/submit`).set(as(tok.evaluator)).send({}).expect(200);
+    await http.post(`${PR}/evaluations/${e.id}/approve`).set(as(tok.editor)).send({}).expect(403);
     await http.post(`${PR}/evaluations/${e.id}/approve`).set(as(tok.approver)).send({}).expect(200);
     const [s] = await db.query('SELECT grade, rating::float AS rating FROM pr_suppliers WHERE id = $1', [ids.supplier]);
     expect(s).toEqual({ grade: 'D', rating: 40 });
@@ -244,7 +258,10 @@ describe('Procurement stage 5: contracts, supplier evaluation, controls and KPIs
   it('reports risks, control exceptions and KPIs', async () => {
     const risks = (await http.get(`${PR}/insights/risks`).set(as(tok.approver)).expect(200)).body;
     expect(risks.signals.some((s: { kind: string }) => s.kind === 'weak')).toBe(true);
+    expect(risks.riskAllowed).toBe(false);
     const controls = (await http.get(`${PR}/insights/controls`).set(as(tok.approver)).expect(200)).body;
+    expect(controls.auditAllowed).toBe(false);
+    expect(controls.audit).toEqual([]);
     expect(controls.checks.map((c: { kind: string }) => c.kind)).toEqual(expect.arrayContaining(['override', 'duplicate', 'split', 'bank', 'penalty']));
     const kpis = (await http.get(`${PR}/insights/kpis`).set(as(tok.approver)).expect(200)).body;
     const ct = kpis.kpis.find((k: { key: string }) => k.key === 'contracts');

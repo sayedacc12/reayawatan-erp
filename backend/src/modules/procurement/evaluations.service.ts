@@ -151,7 +151,7 @@ export class EvaluationsService {
       return em.save(em.create(PrSupplierEvaluation, {
         organizationId: org, evalNo: n, supplierId: sup.id, kind: dto.kind, orderId: scope.orderId ?? null, contractId: scope.contractId ?? null,
         periodFrom: dto.periodFrom, periodTo: dto.periodTo, metrics: m, scores, total, grade: gradeOf(total, s), status: 'draft',
-        evaluatorId: a.id, evaluatorName: a.fullName, log: [logEntry('إنشاء التقييم بالمؤشرات المحسوبة', a.fullName)],
+        evaluatorId: a.id, evaluatorName: a.fullName, editorIds: [a.id], log: [logEntry('إنشاء التقييم بالمؤشرات المحسوبة', a.fullName)],
       }));
     });
     return this.get(a, e.id);
@@ -177,6 +177,7 @@ export class EvaluationsService {
       e.weaknesses = dto.weaknesses ?? null;
       e.recommendation = dto.recommendation ?? null;
       if (dto.shareWithSupplier !== undefined) e.shareWithSupplier = dto.shareWithSupplier;
+      if (!e.editorIds.includes(a.id)) e.editorIds = [...e.editorIds, a.id];
       e.log = [...e.log, logEntry('تعديل الدرجات', a.fullName, `${e.total} (${GRADES[e.grade]})`)];
       await em.save(e);
     });
@@ -190,6 +191,7 @@ export class EvaluationsService {
       if (!['draft', 'returned'].includes(e.status)) throw new ConflictException('التقييم ليس مسودة');
       if (e.scores.some((x) => x.auto === null && x.score === 0)) throw new BadRequestException('أدخل درجة كل معيار ليس له مؤشر محسوب');
       if (e.grade === 'D' && !e.weaknesses) throw new BadRequestException('اكتب نقاط الضعف للتقدير الضعيف');
+      if (!e.editorIds.includes(a.id)) e.editorIds = [...e.editorIds, a.id];
       e.status = 'submitted';
       e.returnReason = null;
       e.log = [...e.log, logEntry('إرسال للاعتماد', a.fullName)];
@@ -204,7 +206,7 @@ export class EvaluationsService {
     await this.db.transaction(async (em) => {
       const e = await this.lock(em, a.organizationId, id);
       if (e.status !== 'submitted') throw new ConflictException('التقييم لا ينتظر الاعتماد');
-      if (!a.isSuperadmin && e.evaluatorId === a.id) throw new ForbiddenException('لا يعتمد التقييم من أعده (فصل المهام)');
+      if (!a.isSuperadmin && (e.evaluatorId === a.id || e.editorIds.includes(a.id))) throw new ForbiddenException('لا يعتمد التقييم من أعده أو عدّل درجاته أو أرسله (فصل المهام)');
       if (decision === 'return') {
         if (!note || note.length < 3) throw new BadRequestException('اكتب سبب الإعادة');
         e.status = 'returned';
@@ -273,7 +275,7 @@ export class EvaluationsService {
       history: history.map((h: { evalNo: number }) => ({ ...h, code: evalCode(h.evalNo) })),
       can: {
         edit: editable, submit: editable,
-        decide: e.status === 'submitted' && can(a, P.evaluationsApprove) && (a.isSuperadmin || e.evaluatorId !== a.id),
+        decide: e.status === 'submitted' && can(a, P.evaluationsApprove) && (a.isSuperadmin || (e.evaluatorId !== a.id && !e.editorIds.includes(a.id))),
       },
     };
   }

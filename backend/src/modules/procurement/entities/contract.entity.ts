@@ -96,6 +96,8 @@ export class PrContract {
   @Column({ name: 'approved_at', type: 'timestamptz', nullable: true }) approvedAt!: Date | null;
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true }) createdById!: string | null;
   @Column({ name: 'created_by_name', length: 200 }) createdByName!: string;
+  /** كل من عدّل العقد أو أرسله للاعتماد: لا يعتمده أحد منهم (فصل المهام) */
+  @Column({ name: 'editor_ids', type: 'jsonb', default: () => `'[]'` }) editorIds!: string[];
   @Column({ type: 'jsonb', default: () => `'[]'` }) log!: LogEntry[];
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt!: Date;
@@ -148,6 +150,8 @@ export class PrSupplierEvaluation {
   @Column({ name: 'return_reason', type: 'varchar', length: 1000, nullable: true }) returnReason!: string | null;
   @Column({ name: 'evaluator_id', type: 'uuid', nullable: true }) evaluatorId!: string | null;
   @Column({ name: 'evaluator_name', length: 200 }) evaluatorName!: string;
+  /** كل من عدّل الدرجات أو أرسل التقييم: لا يعتمده أحد منهم (فصل المهام) */
+  @Column({ name: 'editor_ids', type: 'jsonb', default: () => `'[]'` }) editorIds!: string[];
   @Column({ name: 'approved_by_id', type: 'uuid', nullable: true }) approvedById!: string | null;
   @Column({ name: 'approved_by_name', type: 'varchar', length: 200, nullable: true }) approvedByName!: string | null;
   @Column({ name: 'approved_at', type: 'timestamptz', nullable: true }) approvedAt!: Date | null;
