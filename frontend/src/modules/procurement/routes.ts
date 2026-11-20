@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { ORD_READ, PR, REQ_READ, RFQ_READ } from './lib';
+import { ISR_READ, ORD_READ, PR, REQ_READ, RFQ_READ, STOCK_READ } from './lib';
 
 const meta = (title: string, permission: string = PR.read) => ({ permission, title, app: 'procurement' });
 /** شاشات يكفي لها أي صلاحية من القائمة */
@@ -28,6 +28,20 @@ export const procurementRoutes: RouteRecordRaw[] = [
   { path: '/procurement/orders/new', component: () => import('./views/OrderFormView.vue'), meta: meta('إعداد تعميد', PR.sourcing) },
   { path: '/procurement/orders/:id', component: () => import('./views/OrderView.vue'), props: true, meta: any('التعميد', ORD_READ) },
   { path: '/procurement/orders/:id/edit', component: () => import('./views/OrderFormView.vue'), props: true, meta: meta('تعديل التعميد', PR.sourcing) },
+  { path: '/procurement/receipts', component: () => import('./views/ReceiptsView.vue'), meta: any('الاستلام والفحص', STOCK_READ) },
+  { path: '/procurement/receipts/new', component: () => import('./views/ReceiptFormView.vue'), meta: meta('استلام جديد', PR.stockOperate) },
+  { path: '/procurement/receipts/:id', component: () => import('./views/ReceiptView.vue'), props: true, meta: any('محضر الاستلام', STOCK_READ) },
+  { path: '/procurement/stock', component: () => import('./views/StockView.vue'), meta: any('أرصدة المخزون', STOCK_READ) },
+  { path: '/procurement/stock/items/:id', component: () => import('./views/StockCardView.vue'), props: true, meta: any('بطاقة حركة الصنف', STOCK_READ) },
+  { path: '/procurement/issue-requests', component: () => import('./views/IssueRequestsView.vue'), meta: any('طلبات الصرف', ISR_READ) },
+  { path: '/procurement/issue-requests/new', component: () => import('./views/IssueRequestFormView.vue'), meta: meta('طلب صرف جديد', PR.issueRequest) },
+  { path: '/procurement/issue-requests/:id', component: () => import('./views/IssueRequestView.vue'), props: true, meta: any('طلب الصرف', ISR_READ) },
+  { path: '/procurement/issue-requests/:id/edit', component: () => import('./views/IssueRequestFormView.vue'), props: true, meta: meta('تعديل طلب الصرف', PR.issueRequest) },
+  { path: '/procurement/stock-docs', component: () => import('./views/StockDocsView.vue'), meta: any('سندات المخازن', STOCK_READ) },
+  { path: '/procurement/stock-docs/new', component: () => import('./views/StockDocFormView.vue'), meta: meta('سند مخزون جديد', PR.stockOperate) },
+  { path: '/procurement/stock-docs/:id', component: () => import('./views/StockDocView.vue'), props: true, meta: any('سند المخزون', [...STOCK_READ, PR.issueRequest, PR.issueApprove]) },
+  { path: '/procurement/counts', component: () => import('./views/CountsView.vue'), meta: any('الجرد', STOCK_READ) },
+  { path: '/procurement/counts/:id', component: () => import('./views/CountView.vue'), props: true, meta: any('محضر الجرد', STOCK_READ) },
   { path: '/procurement/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'procurement', system: 'المشتريات والمستودعات' }, meta: meta('تقارير المشتريات', PR.reports) },
   { path: '/procurement/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات المشتريات', PR.settings) },
 ];

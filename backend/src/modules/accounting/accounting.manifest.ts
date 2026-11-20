@@ -74,6 +74,7 @@ export const accountingManifest: ErpModuleManifest = {
     { label: 'قيود التسوية', path: '/accounting/adjustments', permission: P.read, group: 'العمليات' },
     { label: 'سندات الإهلاك', path: '/accounting/documents/depreciation', permission: P.read, group: 'العمليات' },
     { label: 'سندات الأصول الثابتة', path: '/accounting/documents/asset', permission: P.read, group: 'العمليات' },
+    { label: 'سندات المخازن', path: '/accounting/documents/stock', permission: P.read, group: 'العمليات' },
     { label: 'ترحيل القيود', path: '/accounting/posting', permission: P.post, group: 'الترحيل والإغلاق' },
     { label: 'إغلاق الفترات', path: '/accounting/periods', permission: P.closePeriods, anyOf: [P.reopenPeriods], group: 'الترحيل والإغلاق' },
     { label: 'محاضر جرد السندات', path: '/accounting/inventory', permission: P.read, group: 'الترحيل والإغلاق' },

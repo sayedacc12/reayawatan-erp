@@ -293,12 +293,15 @@ describe('Demo association across all modules', () => {
     expect(d.sourcing.requests.submitted).toBeGreaterThanOrEqual(1);
     expect(d.sourcing.rfqs.open).toBe(1);
     expect(d.sourcing.orders.pending).toBe(1);
-    expect(d.sourcing.orders.live).toBe(2);
+    expect(d.sourcing.orders.live).toBe(1);
     const orders = (await http.get('/api/procurement/orders').set(as(admin)).expect(200)).body as { id: string; status: string; supplierName: string }[];
-    expect(orders.map((o) => o.status).sort()).toEqual(['accepted', 'issued', 'pending']);
-    const accepted = (await http.get(`/api/procurement/orders/${orders.find((o) => o.status === 'accepted')!.id}`).set(as(admin)).expect(200)).body;
+    // تعميد المنافسة قبله المورد ثم استُلمت دفعته الأولى (المرحلة الثالثة)
+    expect(orders.map((o) => o.status).sort()).toEqual(['issued', 'partial', 'pending']);
+    const accepted = (await http.get(`/api/procurement/orders/${orders.find((o) => o.status === 'partial')!.id}`).set(as(admin)).expect(200)).body;
     expect(accepted.supplier.name).toBe('شركة الوفاء للتموين الغذائي');
-    expect(accepted.fundingReserved).toBe(accepted.total);
+    expect(accepted.fundingReserved).toBeGreaterThan(0);
+    expect(accepted.fundingReserved).toBeLessThan(accepted.total);
+    expect(accepted.receipts).toHaveLength(1);
     const direct = (await http.get(`/api/procurement/orders/${orders.find((o) => o.status === 'issued')!.id}`).set(as(admin)).expect(200)).body;
     expect(direct.commitmentId).toBeTruthy();
     const requests = (await http.get('/api/procurement/requests').set(as(admin)).expect(200)).body as { status: string }[];
@@ -311,7 +314,35 @@ describe('Demo association across all modules', () => {
     expect(rfqs.some((r) => r.result?.won)).toBe(true);
     const po = (await http.get('/api/supplier-portal/orders').set(as(t)).expect(200)).body as { status: string }[];
     // التعميد بانتظار الاعتماد لا يظهر للمورد قبل صدوره
-    expect(po.map((o) => o.status)).toEqual(['accepted']);
+    expect(po.map((o) => o.status)).toEqual(['partial']);
+  });
+
+  it('procurement stock: opening balances, a partial receipt with inspection, a donation, issues, a transfer, a pending write-off and count, reconciled with the ledger', async () => {
+    const admin = await staff('admin');
+    const finance = await staff('finance');
+    const s = (await http.get('/api/procurement/stock/summary').set(as(admin)).expect(200)).body;
+    expect(s.value).toBeGreaterThan(0);
+    expect(s.expired).toBeGreaterThanOrEqual(1);
+    expect(s.expiring).toBeGreaterThanOrEqual(1);
+    expect(s.issueRequests).toMatchObject({ submitted: 1, toIssue: 1 });
+    expect(s.docs.pendingWriteoffs).toBe(1);
+    expect(s.counts.submitted).toBe(1);
+    expect(s.reconcile.ok).toBe(true);
+    const receipts = (await http.get('/api/procurement/receipts').set(as(admin)).expect(200)).body as { kind: string; hasRejected: boolean }[];
+    expect(receipts.map((r) => r.kind).sort()).toEqual(['donation', 'opening', 'opening', 'order']);
+    expect(receipts.find((r) => r.kind === 'order')!.hasRejected).toBe(true);
+    const docs = (await http.get('/api/procurement/stock-docs').set(as(admin)).expect(200)).body as { kind: string; status: string }[];
+    expect(docs.map((x) => `${x.kind}:${x.status}`).sort()).toEqual(['issue:posted', 'transfer:posted', 'writeoff:pending']);
+    // سندات المخازن تظهر في النظام المالي للاطلاع فقط
+    const entries = (await http.get('/api/accounting/entries?type=stock').set(as(admin)).expect(200)).body;
+    const list = (Array.isArray(entries) ? entries : entries.rows) as { source: string }[];
+    expect(list.length).toBeGreaterThanOrEqual(5);
+    expect(list.every((e) => e.source === 'stock')).toBe(true);
+    // المالية ترى الإتلاف والجرد بانتظار اعتمادها
+    const pend = (await http.get('/api/procurement/stock-docs?status=pending').set(as(finance)).expect(200)).body as { myApproval: boolean }[];
+    expect(pend[0].myApproval).toBe(true);
+    const counts = (await http.get('/api/procurement/counts').set(as(finance)).expect(200)).body as { myApproval: boolean; shortage: number }[];
+    expect(counts[0].myApproval).toBe(true);
   });
 
   it('members: registry in every status, applications in every stage, payments as receipt vouchers', async () => {

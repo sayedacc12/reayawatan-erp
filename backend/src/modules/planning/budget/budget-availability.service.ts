@@ -137,6 +137,35 @@ export class BudgetAvailability {
     });
   }
 
+  /**
+   * استهلاك جزء من حجز قائم (الاستلام بتعميد): ينقل المبلغ من الحجز إلى سطر «مستهلك» واحد لنفس المصدر.
+   * المبلغ السالب يعيده إلى الحجز (مرتجع للمورد أو إلغاء استلام)، وإن كان الحجز مفكوكًا (أُغلق التعميد) يعود متاحًا في البند.
+   * يُعيد المبلغ الذي استُهلك فعلًا (لا يتجاوز المحجوز ولا المستهلك).
+   */
+  async consume(org: string, commitmentId: string, amount: number, byName: string, em?: EntityManager): Promise<number> {
+    const run = async (tx: EntityManager) => {
+      const repo = tx.getRepository(BudgetCommitment);
+      const c = await repo.createQueryBuilder('c').setLock('pessimistic_write').where('c.id = :id AND c.organization_id = :org', { id: commitmentId, org }).getOne();
+      if (!c) throw new NotFoundException('الحجز غير موجود');
+      let used = await repo.createQueryBuilder('c').setLock('pessimistic_write')
+        .where(`c.line_id = :line AND c.source_id IS NOT DISTINCT FROM :src AND c.source_module = :mod AND c.status = 'consumed'`, { line: c.lineId, src: c.sourceId, mod: c.sourceModule })
+        .getOne();
+      const want = r2(amount);
+      const delta = want > 0 ? Math.min(want, c.status === 'reserved' ? c.amount : 0) : -Math.min(-want, used?.amount ?? 0);
+      if (!delta) return 0;
+      if (!used) {
+        used = await repo.save(repo.create({
+          organizationId: org, budgetId: c.budgetId, lineId: c.lineId, fundingBatchId: c.fundingBatchId, sourceModule: c.sourceModule, sourceRef: c.sourceRef,
+          sourceId: c.sourceId, amount: 0, status: 'consumed', note: 'المستهلك بالاستلام', createdByName: byName,
+        }));
+      }
+      await repo.update({ id: c.id }, { amount: r2(c.amount - delta) });
+      await repo.update({ id: used.id }, { amount: r2(used.amount + delta) });
+      return r2(delta);
+    };
+    return em ? run(em) : this.db.transaction(run);
+  }
+
   async setStatus(org: string, id: string, status: 'consumed' | 'released') {
     const repo = this.db.getRepository(BudgetCommitment);
     const c = await repo.findOne({ where: { id, organizationId: org } });

@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import AccountCell from '../components/AccountCell.vue';
 import AnalyticPicker, { type Share } from '../components/AnalyticPicker.vue';
-import { ASSET_TYPES, ENTRY_STATUS, P, VOUCHER_TYPES, allTypes, docTypes, dt, loadDocTypes, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
+import { ENTRY_STATUS, SOURCE_TYPES, P, VOUCHER_TYPES, allTypes, docTypes, dt, loadDocTypes, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
 import '../../projects/projects.css';
 import '../acc.css';
 
@@ -131,7 +131,7 @@ function cancelEntry() {
   const reason = prompt('سبب إلغاء القيد (يبقى رقمه ويظهر ملغيًا):');
   if (reason) action('cancel', 'أُلغي القيد', { reason });
 }
-const types = computed(() => [...VOUCHER_TYPES.filter((t) => t.value !== 'receipt' && t.value !== 'payment' && !ASSET_TYPES.includes(t.value)), ...docTypes.value.filter((d) => d.isActive).map((d) => ({ value: d.code, label: d.name }))]);
+const types = computed(() => [...VOUCHER_TYPES.filter((t) => t.value !== 'receipt' && t.value !== 'payment' && !SOURCE_TYPES.includes(t.value)), ...docTypes.value.filter((d) => d.isActive).map((d) => ({ value: d.code, label: d.name }))]);
 loadDocTypes();
 </script>
 
@@ -161,6 +161,12 @@ loadDocTypes();
         <RouterLink :to="entry.voucherType === 'depreciation' ? '/accounting/assets/runs' : '/accounting/assets/operations?view=log'" class="pm-link">{{ entry.voucherType === 'depreciation' ? 'سجل حركات الإهلاك' : 'سجل عمليات الأصول' }}</RouterLink>.</span>
     </div>
 
+    <div v-if="entry?.source === 'stock'" class="ro-note no-print">
+      <b>🔒 للاطلاع فقط</b>
+      <span>هذا سند مخازن يصدر من المستودعات مع كل حركة استلام أو صرف أو تحويل أو إتلاف أو جرد، ولا يُنشأ ولا يُعدَّل ولا يُلغى من النظام المالي. إلغاؤه يكون بإلغاء المستند في
+        <RouterLink to="/procurement/stock-docs" class="pm-link">حركات المستودع</RouterLink> أو <RouterLink to="/procurement/receipts" class="pm-link">الاستلام</RouterLink>.</span>
+    </div>
+
     <section :class="['card', 'pm-panel', 'sheet', { 'is-void': entry?.status === 'cancelled' }]">
       <div v-if="entry?.status === 'cancelled'" class="stamp">ملغي</div>
       <div class="head">
@@ -171,6 +177,7 @@ loadDocTypes();
           <span v-if="entry.source === 'voucher'" class="pm-tag">ناتج عن سند</span>
           <span v-if="entry.source === 'system'" class="pm-tag">قيد آلي</span>
           <span v-if="entry.source === 'assets'" class="pm-tag">من الأصول الثابتة</span>
+          <span v-if="entry.source === 'stock'" class="pm-tag">من المستودعات</span>
           <span v-if="entry.periodLocked" class="pm-tag">الفترة مغلقة</span>
         </div>
         <div class="field-row">

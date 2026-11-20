@@ -4,12 +4,14 @@ import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
-import { lookups, setLookups } from '../lib';
+import { lookups, setLookups, stockLookups } from '../lib';
 import '../../projects/projects.css';
 import '../procurement.css';
 
 const toast = useToast();
-const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'permissions'>('general');
+const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'stock' | 'permissions'>('general');
+const slk = ref<any>(null);
+const st = ref<any>({});
 const src = ref<any>(null);
 const lk = ref<any>(null);
 const g = ref<any>({});
@@ -62,6 +64,41 @@ onMounted(async () => {
     toast.error((e as Error).message);
   }
 });
+function applyStock(s: any) {
+  st.value = {
+    grniAccountId: s.grniAccountId ?? '', adjustAccountId: s.adjustAccountId ?? '', adjustAnalyticId: s.adjustAnalyticId ?? '', donationAccountId: s.donationAccountId ?? '',
+    openingAccountId: s.openingAccountId ?? '', defaultExpenseAccountId: s.defaultExpenseAccountId ?? '', expiryAlertDays: s.expiryAlertDays ?? 60,
+    overReceiptPct: s.overReceiptPct ?? 0, vatInCost: s.vatInCost ?? true, requireInspection: !!s.requireInspection,
+  };
+}
+async function openStock() {
+  tab.value = 'stock';
+  if (!slk.value) slk.value = await stockLookups().catch(() => ({ accounts: [], analytics: [] }));
+  applyStock(lk.value.settings);
+}
+const accs = (natures: string[]) => (slk.value?.accounts ?? []).filter((a: any) => natures.includes(a.nature));
+async function saveStock() {
+  busy.value = true;
+  const x = st.value;
+  const nul = (v: string) => (v ? v : null);
+  try {
+    const s = await api<any>('/procurement/stock-settings', {
+      method: 'PUT',
+      json: {
+        grniAccountId: nul(x.grniAccountId), adjustAccountId: nul(x.adjustAccountId), adjustAnalyticId: nul(x.adjustAnalyticId), donationAccountId: nul(x.donationAccountId),
+        openingAccountId: nul(x.openingAccountId), defaultExpenseAccountId: nul(x.defaultExpenseAccountId), expiryAlertDays: Number(x.expiryAlertDays),
+        overReceiptPct: Number(x.overReceiptPct), vatInCost: !!x.vatInCost, requireInspection: !!x.requireInspection,
+      },
+    });
+    apply(await lookups(true));
+    applyStock(s);
+    toast.success('حُفظت إعدادات المستودعات');
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    busy.value = false;
+  }
+}
 async function save(patch: Record<string, unknown>, ok = 'حُفظت الإعدادات') {
   busy.value = true;
   try {
@@ -107,6 +144,7 @@ function addActivity() {
       <button :class="{ on: tab === 'suppliers' }" @click="tab = 'suppliers'">الأنشطة والتصنيفات</button>
       <button :class="{ on: tab === 'portal' }" @click="tab = 'portal'">بوابة الموردين</button>
       <button :class="{ on: tab === 'accounting' }" @click="tab = 'accounting'">الربط المالي</button>
+      <button :class="{ on: tab === 'stock' }" @click="openStock">المستودعات</button>
       <button :class="{ on: tab === 'permissions' }" @click="tab = 'permissions'">الصلاحيات</button>
     </div>
 
@@ -237,6 +275,31 @@ function addActivity() {
             <select v-model="g.payablesAccountId" class="input"><option value="">—</option><option v-for="a in lk.accounts.filter((x: any) => x.nature === 'liabilities')" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
         </div>
         <button class="btn btn-primary" :disabled="busy" @click="save({ partnerCategoryId: g.partnerCategoryId || null, payablesAccountId: g.payablesAccountId || null })">حفظ</button>
+      </section>
+
+      <section v-else-if="tab === 'stock'" class="card pm-panel">
+        <p class="pm-muted">حسابات قيود المستودعات (سندات المخازن). حساب المخزون نفسه يُحدد في مجموعة الأصناف أو المستودع، وحساب المصروف عند الصرف في مجموعة الأصناف أو الصنف.</p>
+        <div class="pc-fields">
+          <label class="field"><span>بضاعة مستلمة غير مفوترة (دائن عند الاستلام)</span>
+            <select v-model="st.grniAccountId" class="input"><option value="">—</option><option v-for="a in accs(['liabilities'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select>
+            <small class="pm-muted">يُقفل عند تسجيل فاتورة المورد في المرحلة الرابعة.</small></label>
+          <label class="field"><span>فروقات المخزون (الجرد والإتلاف وفروق المرتجع)</span>
+            <select v-model="st.adjustAccountId" class="input"><option value="">—</option><option v-for="a in accs(['expenses'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
+          <label class="field"><span>مركز تكلفة الفروقات</span>
+            <select v-model="st.adjustAnalyticId" class="input"><option value="">—</option><option v-for="a in slk?.analytics ?? []" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select>
+            <small class="pm-muted">يلزم إذا كان حساب الفروقات يتطلب مركز تكلفة.</small></label>
+          <label class="field"><span>التبرعات العينية (دائن عند استلام التبرع)</span>
+            <select v-model="st.donationAccountId" class="input"><option value="">—</option><option v-for="a in accs(['revenue'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
+          <label class="field"><span>مقابل الأرصدة الافتتاحية</span>
+            <select v-model="st.openingAccountId" class="input"><option value="">—</option><option v-for="a in accs(['net_assets'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
+          <label class="field"><span>المصروف الافتراضي للبنود الحرة والخدمات</span>
+            <select v-model="st.defaultExpenseAccountId" class="input"><option value="">—</option><option v-for="a in accs(['expenses'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
+          <label class="field"><span>تنبيه الصلاحية قبل (يوم)</span><input v-model.number="st.expiryAlertDays" type="number" min="1" max="730" class="input" /></label>
+          <label class="field"><span>نسبة الزيادة المسموحة في الاستلام %</span><input v-model.number="st.overReceiptPct" type="number" min="0" max="50" class="input" /></label>
+        </div>
+        <label class="pc-inline" style="margin: 8px 0"><input v-model="st.vatInCost" type="checkbox" /> ضريبة القيمة المضافة غير مستردة وتدخل في تكلفة الصنف</label>
+        <label class="pc-inline" style="margin: 8px 0"><input v-model="st.requireInspection" type="checkbox" /> محضر لجنة الاستلام والفحص إلزامي في كل استلام بتعميد</label>
+        <div><button class="btn btn-primary" :disabled="busy" @click="saveStock">حفظ</button></div>
       </section>
 
       <ModulePermissionsPane v-else-if="tab === 'permissions'" module="procurement" />

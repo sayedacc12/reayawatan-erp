@@ -333,6 +333,10 @@ export class AssetMove {
   @Column({ name: 'entry_id', type: 'uuid', nullable: true })
   entryId!: string | null;
 
+  /** استلام المشتريات الذي أنشأ الأصل (الشراء بتعميد أو التبرع العيني من المستودعات): لا تُلغى الحركة إلا بإلغاء الاستلام */
+  @Column({ name: 'pr_receipt_id', type: 'uuid', nullable: true })
+  prReceiptId!: string | null;
+
   /** حركة الإهلاك الجزئي حتى تاريخ البيع أو التخريد */
   @Column({ name: 'dep_run_id', type: 'uuid', nullable: true })
   depRunId!: string | null;

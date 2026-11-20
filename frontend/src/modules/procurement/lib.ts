@@ -8,10 +8,13 @@ export const PR = {
   approveBanks: 'procurement.banks.approve', reports: 'procurement.reports.read', settings: 'procurement.settings.manage',
   requests: 'procurement.requests.create', approveRequests: 'procurement.requests.approve', sourcing: 'procurement.sourcing.manage',
   evaluate: 'procurement.sourcing.evaluate', approveOrders: 'procurement.orders.approve', approveOrdersHigh: 'procurement.orders.approve_high',
+  stockOperate: 'procurement.stock.operate', stockApprove: 'procurement.stock.approve', issueRequest: 'procurement.issues.request', issueApprove: 'procurement.issues.approve',
 } as const;
 export const REQ_READ = [PR.requests, PR.approveRequests, PR.sourcing, PR.approveOrders, PR.approveOrdersHigh];
 export const RFQ_READ = [PR.sourcing, PR.evaluate, PR.approveOrders, PR.approveOrdersHigh];
-export const ORD_READ = [PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.read];
+export const ORD_READ = [PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.read, PR.stockOperate];
+export const STOCK_READ = [PR.stockOperate, PR.stockApprove, PR.read];
+export const ISR_READ = [PR.issueRequest, PR.issueApprove, PR.stockOperate, PR.read];
 
 export const REQ_COLOR: Record<string, string> = {
   draft: '#64748b', submitted: '#d97706', returned: '#db2777', approved: '#0369a1', sourcing: '#7c3aed', ordered: '#059669', closed: '#15803d', rejected: '#dc2626', cancelled: '#94a3b8',
@@ -20,8 +23,25 @@ export const RFQ_COLOR: Record<string, string> = { draft: '#64748b', published: 
 export const QUOTE_COLOR: Record<string, string> = { draft: '#64748b', submitted: '#0369a1', withdrawn: '#94a3b8', excluded: '#dc2626' };
 export const ORDER_COLOR: Record<string, string> = {
   draft: '#64748b', pending: '#d97706', returned: '#db2777', issued: '#0369a1', acknowledged: '#0891b2', accepted: '#059669', clarification: '#c026d3',
-  declined: '#dc2626', cancelled: '#94a3b8', closed: '#15803d',
+  declined: '#dc2626', cancelled: '#94a3b8', closed: '#15803d', partial: '#ca8a04',
 };
+export const RECEIPT_COLOR: Record<string, string> = { posted: '#059669', cancelled: '#94a3b8' };
+export const RECEIPT_KIND_COLOR: Record<string, string> = { order: '#0369a1', donation: '#be185d', opening: '#64748b' };
+export const ISR_COLOR: Record<string, string> = {
+  draft: '#64748b', submitted: '#d97706', approved: '#0369a1', partial: '#ca8a04', issued: '#059669', returned: '#db2777', rejected: '#dc2626', cancelled: '#94a3b8',
+};
+export const DOC_KIND_COLOR: Record<string, string> = { issue: '#0369a1', transfer: '#7c3aed', return_supplier: '#b45309', return_in: '#0891b2', writeoff: '#dc2626' };
+export const STOCK_DOC_COLOR: Record<string, string> = { pending: '#d97706', posted: '#059669', cancelled: '#94a3b8' };
+export const COUNT_COLOR: Record<string, string> = { open: '#0369a1', submitted: '#d97706', approved: '#059669', cancelled: '#94a3b8' };
+export const fmtQty = (n: number | null | undefined) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: 3 }));
+export const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+/** القوائم المرجعية للمستودعات (الحسابات ومراكز التكلفة والمواقع ومصادر التمويل والتسميات) مرة واحدة في الصفحة */
+const stockCache = ref<any>(null);
+export async function stockLookups(force = false) {
+  if (!stockCache.value || force) stockCache.value = await api('/procurement/stock-lookups');
+  return stockCache.value;
+}
 export const PRIORITY_COLOR: Record<string, string> = { normal: '#64748b', high: '#d97706', urgent: '#dc2626' };
 
 /** من تاريخ ووقت محلي (datetime-local) إلى ISO والعكس */

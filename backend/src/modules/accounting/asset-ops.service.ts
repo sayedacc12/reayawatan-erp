@@ -257,6 +257,70 @@ export class AssetOpsService implements OnModuleInit {
     return this.operation(actor, moveId);
   }
 
+  // ---------------- الأصول المستلمة من المشتريات ----------------
+
+  /**
+   * أصل ثابت مستلم في المشتريات (بتعميد أو تبرع عيني): يُسجَّل الأصل وحركة اقتنائه داخل سند المخازن الصادر من الاستلام،
+   * فلا يمر بسند صرف (السداد للمورد يكون من المستحقات)، ولا تُلغى الحركة إلا بإلغاء الاستلام.
+   * يُسلَّم للعهدة لاحقًا من سجل الأصول.
+   */
+  async receiveFromProcurement(em: EntityManager, actor: { id: string | null; fullName: string; organizationId: string }, d: {
+    groupId: string; name: string; description: string | null; serialNumber: string | null; location: string | null; unitId: string | null; analyticId: string | null;
+    date: string; amount: number; donation: boolean; counterAccountId: string; partyName: string | null; entryId: string; receiptId: string; note: string | null;
+  }) {
+    const org = actor.organizationId;
+    await this.assets.lock(em, org);
+    const g = await this.assets.group(org, d.groupId, em);
+    if (!g.isActive) bad(`مجموعة الأصول «${g.name}» موقوفة`);
+    const cfg = await this.assets.config(org, em);
+    const assetNo = await this.assets.nextNo(em, 'acc_assets', 'asset_no', org);
+    const a = await em.getRepository(FixedAsset).save(em.create(FixedAsset, {
+      organizationId: org, assetNo, code: `${cfg.prefix}-${g.code}-${String(assetNo).padStart(4, '0')}`, groupId: g.id, status: 'draft',
+      name: d.name.slice(0, 250), description: d.description, serialNumber: d.serialNumber, location: d.location, unitId: d.unitId, analyticId: d.analyticId,
+      custodianEmployeeId: null, createdByName: actor.fullName,
+    }));
+    const moveNo = await this.assets.nextNo(em, 'acc_asset_moves', 'move_no', org);
+    await em.getRepository(AssetMove).save(em.create(AssetMove, {
+      organizationId: org, moveNo, assetId: a.id, kind: d.donation ? 'donation' : 'purchase', date: d.date, amount: r2(d.amount), status: 'done',
+      counterAccountId: d.counterAccountId, partyName: d.partyName, entryId: d.entryId, prReceiptId: d.receiptId, notes: d.note, createdByName: actor.fullName,
+    }));
+    await this.assets.refresh(em, org, a.id);
+    return { id: a.id, code: a.code };
+  }
+
+  /** يتحقق قبل إلغاء الاستلام أن أصوله لم تُستخدم بعد (لا إهلاك ولا عمليات لاحقة ولا عهدة) */
+  async receiptAssetsBlocker(em: EntityManager, org: string, receiptId: string): Promise<string | null> {
+    const [x] = await em.query(
+      `SELECT a.code,
+              EXISTS (SELECT 1 FROM acc_asset_dep_lines l WHERE l.asset_id = a.id AND l.active) AS dep,
+              EXISTS (SELECT 1 FROM acc_asset_moves m2 WHERE m2.asset_id = a.id AND m2.status <> 'cancelled' AND m2.id <> m.id) AS moves,
+              EXISTS (SELECT 1 FROM acc_asset_custody c WHERE c.asset_id = a.id) AS custody
+         FROM acc_asset_moves m JOIN acc_assets a ON a.id = m.asset_id
+        WHERE m.organization_id = $1 AND m.pr_receipt_id = $2 AND m.status = 'done'
+          AND (EXISTS (SELECT 1 FROM acc_asset_dep_lines l WHERE l.asset_id = a.id AND l.active)
+               OR EXISTS (SELECT 1 FROM acc_asset_moves m2 WHERE m2.asset_id = a.id AND m2.status <> 'cancelled' AND m2.id <> m.id)
+               OR EXISTS (SELECT 1 FROM acc_asset_custody c WHERE c.asset_id = a.id))
+        LIMIT 1`, [org, receiptId]);
+    if (!x) return null;
+    if (x.dep) return `احتُسب إهلاك للأصل ${x.code} المستلم بهذا الاستلام، فألغِ حركات الإهلاك أولًا`;
+    if (x.moves) return `للأصل ${x.code} عمليات لاحقة في الأصول الثابتة، فألغها أولًا`;
+    return `سُلّم الأصل ${x.code} لعهدة موظف، فلا يُلغى استلامه. أرجعه بمرتجع للمورد بعد استعادة العهدة، أو استبعده من الأصول الثابتة`;
+  }
+
+  /** إلغاء أصول الاستلام (بعد إلغاء سند المخازن من المستودعات) */
+  async cancelFromProcurement(em: EntityManager, actor: { fullName: string; organizationId: string }, receiptId: string, reason: string) {
+    const org = actor.organizationId;
+    await this.assets.lock(em, org);
+    const block = await this.receiptAssetsBlocker(em, org, receiptId);
+    if (block) bad(block);
+    const moves = await em.getRepository(AssetMove).find({ where: { organizationId: org, prReceiptId: receiptId, status: 'done' } });
+    for (const m of moves) {
+      await em.getRepository(AssetMove).update({ id: m.id }, { status: 'cancelled', cancelledByName: actor.fullName, cancelReason: reason });
+      await this.assets.refresh(em, org, m.assetId);
+    }
+    return moves.length;
+  }
+
   // ---------------- إعادة التقييم وهبوط القيمة والرسملة ----------------
 
   /** شروط عمليات القيمة: أصل في الخدمة بلا عمليات معلقة، وتاريخ بعد آخر إهلاك، وإهلاك الأشهر السابقة مرحّل */
@@ -495,6 +559,7 @@ export class AssetOpsService implements OnModuleInit {
       const m = await em.getRepository(AssetMove).findOne({ where: { id, organizationId: org } }) ?? bad('العملية غير موجودة');
       if (m.status === 'cancelled') bad('العملية ملغاة بالفعل');
       if (m.voucherId) bad('هذه العملية بسند قبض أو صرف، وتُلغى من شاشة السند في النظام المالي حسب صلاحيات السندات');
+      if (m.prReceiptId) bad('هذا الأصل مستلم من المشتريات والمستودعات، وتُلغى حركته بإلغاء الاستلام من هناك');
       if (m.kind === 'opening') bad('الرصيد الافتتاحي يُعدَّل أو يُحذف من شاشة الأرصدة الافتتاحية');
       if (['donation', 'capitalize', 'revaluation', 'impairment'].includes(m.kind)) {
         const lines = (await this.linesOf(em, [m.assetId])).filter((l) => l.toDate >= m.date);
@@ -901,7 +966,7 @@ export class AssetOpsService implements OnModuleInit {
        SELECT l.account_id, e.id AS entry_id, e.entry_no, to_char(e.document_date, 'YYYY-MM-DD') AS date, e.description, (l.debit - l.credit) AS amount, e.source, e.voucher_type
          FROM l JOIN acc_entries e ON e.id = l.entry_id LEFT JOIN acc_vouchers v ON v.id = e.voucher_id
         WHERE e.organization_id = $1 AND e.status = 'posted' AND e.document_date <= $2 AND e.voucher_type <> 'opening'
-          AND e.source <> 'assets' AND NOT (e.source = 'voucher' AND COALESCE(v.source_type, '') = 'assets')
+          AND e.source <> 'assets' AND NOT (e.source = 'stock' AND EXISTS (SELECT 1 FROM acc_asset_moves am WHERE am.entry_id = e.id)) AND NOT (e.source = 'voucher' AND COALESCE(v.source_type, '') = 'assets')
         ORDER BY e.document_date, e.entry_no LIMIT 200`, [org, asOf, accIds]);
     // المشروعات تحت التنفيذ: الدفعات المعتمدة ناقص ما رُسمل
     const [wipSub] = wipId ? await this.db.query(

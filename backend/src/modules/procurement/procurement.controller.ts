@@ -18,6 +18,7 @@ import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { ProcurementCore } from './procurement-core.service';
 import { staffActor, SuppliersService } from './suppliers.service';
 import { WarehousesService } from './warehouses.service';
+import { StockService } from './stock.service';
 
 const uuid = new ParseUUIDPipe();
 const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
@@ -34,12 +35,12 @@ export function sendFile(res: Response, f: { stream: ReadStream; mime: string; n
 export class ProcurementController {
   constructor(
     private readonly db: DataSource, private readonly core: ProcurementCore, private readonly catalog: CatalogService,
-    private readonly warehouses: WarehousesService, private readonly suppliers: SuppliersService,
+    private readonly warehouses: WarehousesService, private readonly suppliers: SuppliersService, private readonly stockSvc: StockService,
   ) {}
 
   // ---------------- اللوحة والإعدادات ----------------
 
-  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh)
+  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh, P.stockOperate, P.stockApprove, P.issueRequest, P.issueApprove)
   lookups(@CurrentOrgUser() a: OrgUser) { return this.core.lookups(a.organizationId); }
 
   @Get('dashboard') @RequirePermissions(P.read)
@@ -78,6 +79,7 @@ export class ProcurementController {
       items, warehouses: wh, suppliers: Object.fromEntries(sup.map((r: { status: string; n: number }) => [r.status, r.n])),
       expiring, approvals: { suppliers: approvals.suppliers.length, docs: approvals.docs.length, banks: approvals.banks.length },
       groups, activities, portalUrl: await this.suppliers.portalUrl(org),
+      stock: await this.stockSvc.summary(a),
     };
   }
 
@@ -153,7 +155,7 @@ export class ProcurementController {
 
   // ---------------- الأصناف ----------------
 
-  @Get('items') @RequireAnyPermission(P.read, P.requests, P.sourcing)
+  @Get('items') @RequireAnyPermission(P.read, P.requests, P.sourcing, P.stockOperate, P.stockApprove, P.issueRequest)
   items(@CurrentOrgUser() a: OrgUser, @Query() q: Record<string, string>) { return this.catalog.items(a.organizationId, q); }
 
   @Get('items-similar') @RequirePermissions(P.read)

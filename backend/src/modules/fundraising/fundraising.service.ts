@@ -693,6 +693,19 @@ export class FundraisingService {
     });
   }
 
+  /** عكس صرف (مرتجع أو إلغاء استلام): يعود المبلغ إلى المحجوز إن بقي الالتزام قائمًا، وإلا يعود متاحًا في الدفعة */
+  async unspend(orgId: string, batchId: string, amount: number, toReserved: boolean, m?: EntityManager) {
+    return this.withManager(m, async (em) => {
+      const b = await this.lockBatch(em, orgId, batchId);
+      const a = this.positive(amount);
+      if (a > b.spentAmount) throw new BadRequestException(`المبلغ أكبر من المصروف من الدفعة رقم ${b.batchNo}`);
+      b.spentAmount = r2(b.spentAmount - a);
+      if (toReserved) b.reservedAmount = r2(b.reservedAmount + a);
+      if (b.status === 'closed' && (net(b) > 0 || b.reservedAmount > 0)) b.status = 'active';
+      return em.save(b);
+    });
+  }
+
   /**
    * مناقلة: نقل جزء من صافي الدفعة إلى مشروع آخر لنفس الداعم وبنفس الاشتراطات.
    * المشروع الجديد يجب أن يطابق نوع الدفعة (مقيد/تشغيلي) وشرط الزكاة.

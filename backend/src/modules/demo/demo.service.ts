@@ -24,6 +24,7 @@ import { WebsiteSeed } from './seed-website';
 import { PartnershipsSeed } from './seed-partnerships';
 import { ProcurementSeed } from './seed-procurement';
 import { SourcingSeed } from './seed-sourcing';
+import { StockSeed } from './seed-stock';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
 import { PlanningSeed } from './seed-planning';
@@ -62,6 +63,7 @@ export class DemoService {
     private readonly budget: BudgetSeed,
     private readonly procurement: ProcurementSeed,
     private readonly sourcing: SourcingSeed,
+    private readonly stockSeed: StockSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -126,6 +128,8 @@ export class DemoService {
     await this.budget.run(team, planning.strategic);
     // دورة الشراء بعد الموازنة: التعميد يحجز من بنودها ومن مصادر التمويل
     await this.sourcing.run(team);
+    // المستودعات بعد دورة الشراء: الاستلام على التعميد المقبول، والصرف والتحويل والإتلاف والجرد
+    await this.stockSeed.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
     return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers, supplierPortal };
