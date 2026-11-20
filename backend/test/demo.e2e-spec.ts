@@ -345,6 +345,25 @@ describe('Demo association across all modules', () => {
     expect(counts[0].myApproval).toBe(true);
   });
 
+  it('procurement invoices: a matched portal invoice posted with a pending payment, and a paper invoice with a price exception', async () => {
+    const admin = await staff('admin');
+    const finance = await staff('finance');
+    const rows = (await http.get('/api/procurement/invoices').set(as(admin)).expect(200)).body as { id: string; status: string; via: string; matchOk: boolean | null }[];
+    const portal = rows.find((r) => r.via === 'portal')!;
+    expect(portal.status).toBe('posted');
+    expect(portal.matchOk).toBe(true);
+    const paper = rows.find((r) => r.via === 'staff')!;
+    expect(paper.status).toBe('submitted');
+    expect(paper.matchOk).toBe(false);
+    const inv = (await http.get(`/api/procurement/invoices/${portal.id}`).set(as(finance)).expect(200)).body;
+    expect(inv.payments.some((p: { status: string }) => p.status === 'pending')).toBe(true);
+    const pay = (await http.get('/api/procurement/payables').set(as(finance)).expect(200)).body;
+    expect(pay.totals.outstanding).toBeGreaterThan(0);
+    const st = (await http.get(`/api/procurement/suppliers/${inv.supplier.id}/statement`).set(as(finance)).expect(200)).body;
+    expect(st.closing).toBeGreaterThan(0);
+    expect(st.underReview.count).toBe(1);
+  });
+
   it('members: registry in every status, applications in every stage, payments as receipt vouchers', async () => {
     const admin = await staff('admin');
     const d = (await http.get('/api/members/dashboard').set(as(admin)).expect(200)).body;

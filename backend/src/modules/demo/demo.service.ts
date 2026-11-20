@@ -24,6 +24,7 @@ import { WebsiteSeed } from './seed-website';
 import { PartnershipsSeed } from './seed-partnerships';
 import { ProcurementSeed } from './seed-procurement';
 import { SourcingSeed } from './seed-sourcing';
+import { InvoicesSeed } from './seed-invoices';
 import { StockSeed } from './seed-stock';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
@@ -64,6 +65,7 @@ export class DemoService {
     private readonly procurement: ProcurementSeed,
     private readonly sourcing: SourcingSeed,
     private readonly stockSeed: StockSeed,
+    private readonly invoicesSeed: InvoicesSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -130,6 +132,8 @@ export class DemoService {
     await this.sourcing.run(team);
     // المستودعات بعد دورة الشراء: الاستلام على التعميد المقبول، والصرف والتحويل والإتلاف والجرد
     await this.stockSeed.run(team);
+    // فواتير الموردين بعد الاستلام: المطابقة الثلاثية والمستحق في المالي والسداد
+    await this.invoicesSeed.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
     return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers, supplierPortal };
