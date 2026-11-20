@@ -27,7 +27,7 @@ const SUP_READ = [P.suppliersRead, P.suppliers, P.approveSuppliers, P.approveBan
 export function sendFile(res: Response, f: { stream: ReadStream; mime: string; name: string }) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
-  return new StreamableFile(f.stream, { type: f.mime, disposition: `inline; filename*=UTF-8''${encodeURIComponent(f.name)}` });
+  return new StreamableFile(f.stream, { type: f.mime, disposition: `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}` });
 }
 
 /** المشتريات والمستودعات: الإعدادات، والأصناف، والمستودعات، والموردون */

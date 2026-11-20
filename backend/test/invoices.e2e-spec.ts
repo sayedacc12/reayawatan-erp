@@ -152,6 +152,7 @@ describe('Procurement stage 4: supplier invoices, three-way match, payables and 
     }).expect(201)).body;
     expect(g.total).toBe(5100);
     expect((await entry(g.entryId)).net(acc.grni)).toBe(-5100);
+    ids.receipt = g.id;
   });
 
   afterAll(async () => {
@@ -274,6 +275,12 @@ describe('Procurement stage 4: supplier invoices, three-way match, payables and 
       kind: 'credit_note', orderId: ids.order, refInvoiceId: ids.inv, supplierInvoiceNo: 'CN-5', invoiceDate: today, lines: [{ orderLineId: ids.blanketLine, qty: 10, unitPrice: 51 }],
     }).expect(200)).body;
     expect(cn).toMatchObject({ code: 'CRN-0003', total: 586.5 });
+    // الإشعار إرجاع بسعر الفاتورة الأصلية نفسه وفي حدود كميتها: لا يُخصم بسعر رمزي ثم تُفوتر الكمية مرة أخرى
+    const cnBody = (lines: unknown[], no: string) => ({ kind: 'credit_note', orderId: ids.order, refInvoiceId: ids.inv, supplierInvoiceNo: no, invoiceDate: today, lines });
+    await http.post(`${SP}/invoices`).set(as(tok.dafa)).send(cnBody([{ orderLineId: ids.blanketLine, qty: 50, unitPrice: 0.01 }], 'CN-6')).expect(400);
+    await http.post(`${SP}/invoices`).set(as(tok.dafa)).send(cnBody([{ orderLineId: ids.blanketLine, qty: 55, unitPrice: 51 }], 'CN-7')).expect(400);
+    // لا يُلغى الاستلام بعد فوترته، ولا الفاتورة وعليها إشعار قائم
+    await http.post(`${PR}/receipts/${ids.receipt}/cancel`).set(as(tok.admin)).send({ reason: 'تجربة الإلغاء بعد الفوترة' }).expect(409);
     await http.post(`${SP}/invoices/${cn.id}/files`).set(as(tok.dafa)).attach('file', PDF, { filename: 'cn.pdf', contentType: 'application/pdf' }).expect(200);
     await http.post(`${SP}/invoices/${cn.id}/submit`).set(as(tok.dafa)).expect(200);
     await http.post(`${PR}/invoices/${cn.id}/approve`).set(as(tok.clerk)).send({}).expect(200);

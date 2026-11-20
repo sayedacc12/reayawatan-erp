@@ -149,7 +149,7 @@ export class InvoicesService implements OnModuleInit {
       const pendingCredits: { t: number }[] = await em.query(
         `SELECT COALESCE(SUM(total), 0)::float AS t FROM pr_invoices WHERE ref_invoice_id = $1 AND kind = 'credit_note' AND status IN ('submitted', 'approved') AND ($2::uuid IS NULL OR id <> $2::uuid)`,
         [inv.refInvoiceId, inv.id ?? null]);
-      const left = ref ? r2(ref.total - ref.creditedAmount - ref.paidAmount - (pendingCredits[0]?.t ?? 0)) : 0;
+      const left = ref ? r2((await this.creditableLeft(em, ref)) - (pendingCredits[0]?.t ?? 0)) : 0;
       if (inv.total > left + 0.005) issues.push({ kind: 'credit', message: `الإشعار ${inv.total} والمتبقي غير المسدد على الفاتورة الأصلية ${Math.max(0, left)}` });
     }
     return { ok: !issues.length, issues, at: new Date().toISOString() };
@@ -173,6 +173,41 @@ export class InvoicesService implements OnModuleInit {
     const subtotal = r2(lines.reduce((t, l) => t + l.amount, 0) + extraAmount);
     const vat = r2((subtotal * vatRate) / 100);
     return { lines, extraAmount, vatRate, subtotal, vat, total: r2(subtotal + vat) };
+  }
+
+  /**
+   * الإشعار الدائن إرجاع لكميات من الفاتورة الأصلية بسعرها نفسه: كل بند من بنودها، وكميته لا تتجاوز كميتها بعد الإشعارات السابقة عليها.
+   * فلا يمكن خصم كمية بسعر رمزي ثم فوترتها مرة أخرى بسعرها الكامل.
+   */
+  private async assertCreditLines(em: EntityManager, ref: PrInvoice, lines: InvoiceLine[], exceptId: string | null) {
+    const rows: { line_id: string; qty: string }[] = await em.query(
+      `SELECT l->>'orderLineId' AS line_id, SUM((l->>'qty')::numeric) AS qty FROM pr_invoices i, jsonb_array_elements(i.lines) l
+        WHERE i.organization_id = $1 AND i.ref_invoice_id = $2 AND i.kind = 'credit_note' AND i.status NOT IN ('cancelled', 'rejected') AND ($3::uuid IS NULL OR i.id <> $3::uuid) GROUP BY 1`,
+      [ref.organizationId, ref.id, exceptId]);
+    const credited = new Map(rows.map((r) => [r.line_id, Number(r.qty)]));
+    for (const l of lines) {
+      const rl = ref.lines.find((x) => x.orderLineId === l.orderLineId);
+      if (!rl) throw new BadRequestException(`«${l.description}» ليس من بنود الفاتورة الأصلية`);
+      if (Math.abs(l.unitPrice - rl.unitPrice) > 0.005) throw new BadRequestException(`سعر «${l.description}» في الإشعار يجب أن يساوي سعره في الفاتورة الأصلية (${rl.unitPrice})`);
+      const left = q3(rl.qty - (credited.get(l.orderLineId) ?? 0));
+      if (l.qty > left + 0.0005) throw new BadRequestException(`كمية «${l.description}» في الإشعار أكبر من المتبقي في الفاتورة الأصلية (${Math.max(0, left)})`);
+    }
+  }
+
+  /** المتبقي للخصم على الفاتورة: الإجمالي ناقص المسدد والمخصوم والسندات قيد الاعتماد */
+  private async creditableLeft(em: EntityManager, ref: PrInvoice) {
+    const [{ pending }] = await em.query(
+      `SELECT COALESCE(SUM(amount), 0)::float AS pending FROM acc_vouchers WHERE organization_id = $1 AND source_type = 'procurement' AND source_ref = $2 AND status IN ('draft', 'pending', 'returned')`,
+      [ref.organizationId, ref.id]);
+    return r2(ref.total - ref.paidAmount - ref.creditedAmount - pending);
+  }
+
+  /** إشعارات دائنة غير ملغاة ولا مرفوضة على الفاتورة */
+  private async liveCredits(em: EntityManager, inv: PrInvoice) {
+    const [{ n }] = await em.query(
+      `SELECT COUNT(*)::int AS n FROM pr_invoices WHERE organization_id = $1 AND ref_invoice_id = $2 AND kind = 'credit_note' AND status NOT IN ('cancelled', 'rejected')`,
+      [inv.organizationId, inv.id]);
+    return n as number;
   }
 
   private async nextNo(em: EntityManager, org: string) {
@@ -199,9 +234,10 @@ export class InvoicesService implements OnModuleInit {
         if (!dto.refInvoiceId) throw new BadRequestException('اختر الفاتورة الأصلية التي يخصم منها الإشعار');
         ref = await em.getRepository(PrInvoice).findOne({ where: { id: dto.refInvoiceId, organizationId: org } });
         if (!ref || ref.orderId !== o.id || ref.kind !== 'invoice') throw new BadRequestException('الفاتورة الأصلية ليست على هذا التعميد');
-        if (!LIVE_INVOICE.includes(ref.status)) throw new ConflictException('الفاتورة الأصلية ليست معتمدة');
+        if (!['posted', 'partial'].includes(ref.status)) throw new ConflictException('يُسجل الإشعار الدائن على فاتورة مسجلة في النظام المالي وغير مسددة بالكامل');
       }
       const body = this.build(o, dto);
+      if (ref) await this.assertCreditLines(em, ref, body.lines, id);
       const key = invoiceKey(dto.supplierInvoiceNo);
       if (!key) throw new BadRequestException('رقم الفاتورة غير صحيح');
       let inv: PrInvoice;
@@ -214,11 +250,12 @@ export class InvoicesService implements OnModuleInit {
         Object.assign(inv, body, { refInvoiceId: ref?.id ?? null, supplierInvoiceNo: dto.supplierInvoiceNo, supplierKey: key, invoiceDate: dto.invoiceDate,
           dueDate: dto.dueDate ?? addDays(dto.invoiceDate, s.paymentDays), notes: dto.notes ?? null });
         inv.log = [...inv.log, logEntry('تعديل', byName)];
+        if (actor.kind === 'staff' && !inv.editorIds.includes(actor.a.id)) inv.editorIds = [...inv.editorIds, actor.a.id];
       } else {
         inv = em.create(PrInvoice, {
           organizationId: org, invoiceNo: await this.nextNo(em, org), kind: dto.kind, orderId: o.id, supplierId: o.supplierId, refInvoiceId: ref?.id ?? null,
           supplierInvoiceNo: dto.supplierInvoiceNo, supplierKey: key, invoiceDate: dto.invoiceDate, dueDate: dto.dueDate ?? addDays(dto.invoiceDate, s.paymentDays),
-          ...body, status: 'draft', via: actor.kind, notes: dto.notes ?? null, createdById: actor.kind === 'staff' ? actor.a.id : null, createdByName: byName,
+          ...body, status: 'draft', via: actor.kind, notes: dto.notes ?? null, createdById: actor.kind === 'staff' ? actor.a.id : null, editorIds: actor.kind === 'staff' ? [actor.a.id] : [], createdByName: byName,
           log: [logEntry(actor.kind === 'portal' ? `إنشاء ${INVOICE_KINDS[dto.kind]} من بوابة المورد` : `تسجيل ${INVOICE_KINDS[dto.kind]} ورقية`, byName, orderCode(o.orderNo))],
         });
       }
@@ -244,6 +281,7 @@ export class InvoicesService implements OnModuleInit {
       inv.match = await this.match(em, inv, s);
       inv.status = 'submitted';
       inv.submittedAt = new Date();
+      if (actor.kind === 'staff' && !inv.editorIds.includes(actor.a.id)) inv.editorIds = [...inv.editorIds, actor.a.id];
       inv.returnReason = null;
       inv.log = [...inv.log, logEntry('إرسال للمراجعة والمطابقة', byName, inv.match.ok ? 'مطابقة' : `${inv.match.issues.length} استثناء`)];
       await em.save(inv);
@@ -277,7 +315,7 @@ export class InvoicesService implements OnModuleInit {
     await this.db.transaction(async (em) => {
       const inv = await this.lockInvoice(em, org, id);
       if (inv.status !== 'submitted') throw new ConflictException('الفاتورة لا تنتظر المراجعة');
-      if (!a.isSuperadmin && inv.createdById === a.id) throw new ForbiddenException('لا يعتمد الموظف فاتورة سجلها بنفسه (فصل المهام)');
+      if (!a.isSuperadmin && (inv.createdById === a.id || inv.editorIds.includes(a.id))) throw new ForbiddenException('لا يعتمد الموظف فاتورة سجلها أو عدلها أو أرسلها بنفسه (فصل المهام)');
       const o = await this.order(org, inv.orderId, em);
       if (!a.isSuperadmin && o.createdById === a.id) throw new ForbiddenException('لا يعتمد فاتورة التعميد من أعد التعميد (فصل المهام)');
       await this.lockOrder(em, inv.orderId);
@@ -310,6 +348,7 @@ export class InvoicesService implements OnModuleInit {
     await this.db.transaction(async (em) => {
       const inv = await this.lockInvoice(em, org, id);
       if (inv.status !== 'submitted') throw new ConflictException('الفاتورة لا تنتظر المراجعة');
+      if (await this.liveCredits(em, inv)) throw new ConflictException('على الفاتورة إشعار دائن قائم، فيُلغى أو يُرفض أولًا');
       inv.status = kind === 'return' ? 'returned' : 'rejected';
       inv.returnReason = reason;
       inv.log = [...inv.log, logEntry(kind === 'return' ? 'إعادة للتصحيح' : 'رفض الفاتورة', a.fullName, reason)];
@@ -331,6 +370,7 @@ export class InvoicesService implements OnModuleInit {
       if (!['draft', 'submitted', 'returned', 'approved'].includes(inv.status)) {
         throw new ConflictException(BOOKED_INVOICE.includes(inv.status) ? 'سُجل مستحق الفاتورة في النظام المالي، فيُلغى تسجيلها من مستحقات الموردين أولًا' : 'الفاتورة منتهية');
       }
+      if (await this.liveCredits(em, inv)) throw new ConflictException('على الفاتورة إشعار دائن قائم، فيُلغى أو يُرفض أولًا');
       inv.status = 'cancelled';
       inv.returnReason = reason;
       inv.log = [...inv.log, logEntry('إلغاء', a.fullName, reason)];
@@ -539,7 +579,7 @@ export class InvoicesService implements OnModuleInit {
     await this.db.transaction(async (em) => {
       const inv = await this.lockInvoice(em, org, id);
       if (inv.status !== 'approved') throw new ConflictException('تُسجل الفاتورة المعتمدة المحالة للمالي فقط');
-      if (!a.isSuperadmin && (inv.approvedById === a.id || inv.createdById === a.id)) throw new ForbiddenException('لا يسجل المستحق من سجل الفاتورة أو اعتمد مطابقتها (فصل المهام)');
+      if (!a.isSuperadmin && (inv.approvedById === a.id || inv.createdById === a.id || inv.editorIds.includes(a.id))) throw new ForbiddenException('لا يسجل المستحق من سجل الفاتورة أو عدلها أو اعتمد مطابقتها (فصل المهام)');
       if (!s.grniAccountId) throw new BadRequestException('حدد حساب البضاعة المستلمة غير المفوترة في إعدادات المستودعات');
       const o = await em.getRepository(PrOrder).findOneOrFail({ where: { id: inv.orderId, organizationId: org } });
       const sup = await em.getRepository(PrSupplier).findOneOrFail({ where: { id: inv.supplierId, organizationId: org } });
@@ -585,7 +625,8 @@ export class InvoicesService implements OnModuleInit {
       await em.save(inv);
       if (inv.kind === 'credit_note' && inv.refInvoiceId) {
         const ref = await this.lockInvoice(em, org, inv.refInvoiceId);
-        if (r2(ref.total - ref.paidAmount - ref.creditedAmount) + 0.005 < inv.total) throw new ConflictException('الإشعار أكبر من المتبقي غير المسدد على الفاتورة الأصلية');
+        if (!['posted', 'partial'].includes(ref.status)) throw new ConflictException('الفاتورة الأصلية غير مسجلة في النظام المالي، فلا يُسجل الإشعار عليها');
+        if ((await this.creditableLeft(em, ref)) + 0.005 < inv.total) throw new ConflictException('الإشعار أكبر من المتبقي على الفاتورة الأصلية بعد المسدد وسندات الصرف قيد الاعتماد');
         ref.creditedAmount = r2(ref.creditedAmount + inv.total);
         ref.log = [...ref.log, logEntry('خصم إشعار دائن', a.fullName, `${code} بمبلغ ${inv.total}`)];
         await em.save(ref);
@@ -605,7 +646,7 @@ export class InvoicesService implements OnModuleInit {
       const [{ n }] = await em.query(
         `SELECT COUNT(*)::int AS n FROM acc_vouchers WHERE organization_id = $1 AND source_type = 'procurement' AND source_ref = $2 AND status NOT IN ('rejected', 'cancelled')`, [org, inv.id]);
       if (n || inv.paidAmount > 0) throw new ConflictException('على الفاتورة سندات صرف، فألغها أولًا من سندات الصرف');
-      if (inv.creditedAmount > 0) throw new ConflictException('خُصم من الفاتورة إشعار دائن مسجل، فألغِ تسجيله أولًا');
+      if (inv.creditedAmount > 0 || (inv.kind === 'invoice' && await this.liveCredits(em, inv))) throw new ConflictException('على الفاتورة إشعار دائن قائم، فيُلغى أو يُلغى تسجيله أولًا');
       if (inv.entryId) await this.entries.cancelPayableEntry(em, a, inv.entryId, `إلغاء تسجيل الفاتورة ${invoiceCode(inv.kind, inv.invoiceNo)}: ${reason}`);
       if (inv.kind === 'credit_note' && inv.refInvoiceId) {
         const ref = await this.lockInvoice(em, org, inv.refInvoiceId);
@@ -815,7 +856,7 @@ export class InvoicesService implements OnModuleInit {
            UNION ALL
            SELECT to_char(v.voucher_date, 'YYYY-MM-DD'), 'payment', v.source_ref, i.invoice_no, i.kind, i.supplier_invoice_no, o.order_no, o.id, i.id, v.amount::float, 0, v.serial, COALESCE(v.approved_at, v.updated_at)
              FROM acc_vouchers v JOIN pr_invoices i ON i.id::text = v.source_ref JOIN pr_orders o ON o.id = i.order_id
-            WHERE v.organization_id = $1 AND v.source_type = 'procurement' AND v.status = 'approved' AND i.supplier_id = $2 AND ($4::uuid IS NULL OR i.order_id = $4::uuid)
+            WHERE v.organization_id = $1 AND i.organization_id = $1 AND v.source_type = 'procurement' AND v.status = 'approved' AND i.supplier_id = $2 AND ($4::uuid IS NULL OR i.order_id = $4::uuid)
          ) x ORDER BY date, at, "invoiceNo"`,
         [org, supplierId, BOOKED_INVOICE, q.order ?? null]);
     const from = q.from ?? null;
@@ -906,6 +947,7 @@ export class InvoicesService implements OnModuleInit {
 
   async portalGet(p: SupplierPortalUser, id: string) {
     const inv = await this.portalInvoice(p, id);
+    if (inv.via !== 'portal' && inv.status === 'draft') throw new NotFoundException('الفاتورة غير موجودة');
     const v = await this.view(inv);
     const d = v.data;
     const editable = inv.via === 'portal' && (inv.status === 'draft' || inv.status === 'returned') && canInvoice(p);
@@ -981,7 +1023,7 @@ export class InvoicesService implements OnModuleInit {
   }
 
   async portalStatement(p: SupplierPortalUser, q: StatementQueryDto) {
-    this.portalOk(p);
+    this.portalOk(p, true);
     return this.statement(p.organizationId, p.supplierId, q);
   }
 

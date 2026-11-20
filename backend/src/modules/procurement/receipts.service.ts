@@ -1,3 +1,4 @@
+import { assertInvoiceCover } from './invoice-cover';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
@@ -311,6 +312,12 @@ export class ReceiptsService {
       if (r.status !== 'posted') throw new ConflictException('الاستلام ملغى بالفعل');
       const [{ n }] = await em.query(`SELECT COUNT(*)::int AS n FROM pr_stock_docs WHERE ref_id = $1 AND status <> 'cancelled'`, [r.id]);
       if (n) throw new ConflictException('على هذا الاستلام مرتجع للمورد، فلا يُلغى');
+      if (r.orderId) {
+        const cut = new Map<string, number>();
+        const names = new Map<string, string>();
+        for (const l of r.lines) if (l.orderLineId) { cut.set(l.orderLineId, (cut.get(l.orderLineId) ?? 0) + Number(l.acceptedQty)); names.set(l.orderLineId, l.description); }
+        await assertInvoiceCover(em, org, r.orderId, cut, names);
+      }
       const code = receiptCode(r.receiptNo);
       const ok = await this.stock.reverseInbound(em, { org, date: prToday(), docType: 'receipt', docId: r.id, docCode: code, byName: a.fullName }, r.id);
       if (!ok) throw new ConflictException('صُرف أو حُوّل جزء من كميات هذا الاستلام، فلا يُلغى. أرجع الكميات المتبقية للمورد بمرتجع');

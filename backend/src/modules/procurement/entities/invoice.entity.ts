@@ -114,6 +114,8 @@ export class PrInvoice {
   /** حركات الإضافة على الأصول الثابتة بفرق السعر (لبنود الأصول) */
   @Column({ name: 'asset_move_ids', type: 'jsonb', default: () => `'[]'` }) assetMoveIds!: string[];
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true }) createdById!: string | null;
+  /** الموظفون الذين سجلوا الفاتورة أو عدلوها أو أرسلوها: لا يعتمدون مطابقتها ولا يسجلون مستحقها (فصل المهام) */
+  @Column({ name: 'editor_ids', type: 'jsonb', default: () => `'[]'` }) editorIds!: string[];
   @Column({ name: 'created_by_name', length: 200 }) createdByName!: string;
   @Column({ type: 'jsonb', default: () => `'[]'` }) log!: LogEntry[];
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;

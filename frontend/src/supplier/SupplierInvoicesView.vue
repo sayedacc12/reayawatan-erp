@@ -32,7 +32,7 @@ onMounted(async () => {
         <p class="muted">ارفع فاتورتك الضريبية على التعميد بعد استلام الجمعية للمواد أو الخدمة. تُطابق آليًا مع التعميد (السعر) والكميات المستلمة، ثم تُحال للسداد.</p>
       </div>
       <div class="pc-inline">
-        <button class="btn" @click="router.push(`/supplier/${slug}/statement`)">كشف الحساب</button>
+        <button v-if="canWrite" class="btn" @click="router.push(`/supplier/${slug}/statement`)">كشف الحساب</button>
         <button v-if="canWrite" class="btn btn-primary" @click="router.push(`/supplier/${slug}/invoices/new`)">رفع فاتورة</button>
       </div>
     </div>
