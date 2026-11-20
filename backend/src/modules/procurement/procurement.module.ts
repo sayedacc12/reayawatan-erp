@@ -32,7 +32,7 @@ import { StockCore } from './stock-core.service';
 import { StockDocsService } from './stock-docs.service';
 import { StockController } from './stock.controller';
 import { StockService } from './stock.service';
-import { tokenSecret } from '../../core/auth/token-keys';
+import { jwtOptionsFor } from '../../core/auth/token-keys';
 
 /**
  * المشتريات والمستودعات وبوابة الموردين (المرحلة الأولى: البيانات الأساسية، والثانية: طلبات الشراء والمنافسات والتعميدات،
@@ -45,7 +45,7 @@ import { tokenSecret } from '../../core/auth/token-keys';
     // رموز بوابة الموردين بمفتاح مستقل مشتق من سر النظام، فلا تصلح لغير بوابتها، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({ secret: tokenSecret(config.getOrThrow<string>('JWT_SECRET'), 'supplier') }),
+      useFactory: jwtOptionsFor('supplier'),
     }),
   ],
   controllers: [ProcurementController, SourcingController, StockController, SupplierPortalController],

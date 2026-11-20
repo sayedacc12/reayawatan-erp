@@ -11,3 +11,10 @@ export function tokenSecret(base: string, kind: TokenKind): string {
   if (!base) throw new Error('JWT_SECRET must be set');
   return kind === 'staff' ? base : createHmac('sha256', base).update(`sanabel:jwt:${kind}`).digest('base64url');
 }
+
+/** خيارات JwtModule لنوع رمز معين: المفتاح من JWT_SECRET في البيئة دائمًا، مشتقًا حسب النوع */
+const BASE_ENV = 'JWT_SECRET';
+export const jwtOptionsFor = (kind: TokenKind) => (config: { getOrThrow<T = string>(key: string): T }) => {
+  const base = config.getOrThrow<string>(BASE_ENV);
+  return { secret: tokenSecret(base, kind) };
+};

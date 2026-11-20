@@ -18,7 +18,7 @@ import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { TicketsController } from './tickets.controller';
 import { TicketsService } from './tickets.service';
-import { tokenSecret } from '../../core/auth/token-keys';
+import { jwtOptionsFor } from '../../core/auth/token-keys';
 
 /**
  * وحدة المستفيدين: الملفات والأسر، شجرة الأنشطة، سير عمل الطلبات بمراحله ونماذجه،
@@ -32,7 +32,7 @@ import { tokenSecret } from '../../core/auth/token-keys';
     // رموز البوابة بمفتاح مستقل مشتق من سر النظام، فلا تصلح لغير بوابتها، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({ secret: tokenSecret(config.getOrThrow<string>('JWT_SECRET'), 'portal') }),
+      useFactory: jwtOptionsFor('portal'),
     }),
   ],
   // المسارات الأكثر تحديدًا أولًا: beneficiaries/settings و beneficiaries/requests قبل beneficiaries/:id
