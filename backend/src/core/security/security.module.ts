@@ -1,6 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { jwtOptionsFor } from '../auth/token-keys';
 import { BackupsModule } from '../backups/backups.module';
 import { CoreModule } from '../core.module';
 import { SECURITY_ENTITIES } from './security.entity';
@@ -17,7 +20,11 @@ import { SecurityService } from './security.service';
  * ويرسل تقريرًا يوميًا. لا يوقف أي نظام، وإيقاف حساب موظف يحتاج موافقة الإدارة.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature(SECURITY_ENTITIES), CoreModule, BackupsModule],
+  imports: [
+    TypeOrmModule.forFeature(SECURITY_ENTITIES), CoreModule, BackupsModule,
+    // للتحقق من رمز دخول الموظف فقط (لا يُصدر رموزًا)
+    JwtModule.registerAsync({ inject: [ConfigService], useFactory: jwtOptionsFor('staff') }),
+  ],
   controllers: [SecurityController],
   providers: [
     SecurityMonitor, SecurityDetector, SecurityReports, SecurityService,

@@ -342,7 +342,7 @@ const pages = (p: Page<unknown> | null) => (p ? Math.max(1, Math.ceil(p.total / 
             <textarea v-model="form.recipientsText" class="input" rows="3" dir="ltr"></textarea>
           </div>
           <div class="field">
-            <label>عناوين موثوقة لا تُحظر أبدًا <small class="muted">(مثل عنوان مكتب الجمعية، سطر لكل عنوان)</small></label>
+            <label>عناوين موثوقة لا تُحظر أبدًا <small class="muted">(مثل عنوان مكتب الجمعية أو نطاق مثل 203.0.113.0/24، سطر لكل عنوان)</small></label>
             <textarea v-model="form.trustedText" class="input" rows="3" dir="ltr"></textarea>
           </div>
           <h2>حدود الرصد</h2>
@@ -365,7 +365,8 @@ const pages = (p: Page<unknown> | null) => (p ? Math.max(1, Math.ceil(p.total / 
 .s-ok { background: var(--success-soft); color: var(--success); }
 .s-warn { background: #fff4e0; color: #9a5b00; }
 .s-bad { background: var(--danger-soft); color: var(--danger); }
-.s-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.s-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 820px) { .s-stats { grid-template-columns: repeat(2, 1fr); } }
 .s-stat { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
 .s-stat span { color: var(--muted); font-size: .85rem; }
 .s-stat b { font-size: 1.5rem; }
@@ -388,6 +389,8 @@ const pages = (p: Page<unknown> | null) => (p ? Math.max(1, Math.ceil(p.total / 
 .s-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .s-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
 .s-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.s-form > .btn { align-self: flex-start; min-width: 140px; }
+.table td .btn { white-space: nowrap; }
 .s-row { display: flex; flex-wrap: wrap; gap: 12px; }
 .s-row .field { min-width: 180px; }
 .s-ltr { text-align: right; unicode-bidi: plaintext; }

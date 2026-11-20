@@ -53,6 +53,8 @@ export interface DailySummary {
 export class SecurityReports implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger('Security');
   private timers: NodeJS.Timeout[] = [];
+  /** آخر خطأ مسجل: لا يتكرر نفس الخطأ في السجل كل دقيقة (مثلًا قبل تشغيل الترحيل) */
+  private lastError = '';
 
   constructor(
     private readonly db: DataSource,
@@ -64,8 +66,8 @@ export class SecurityReports implements OnApplicationBootstrap, OnApplicationShu
 
   onApplicationBootstrap() {
     if (process.env.JEST_WORKER_ID) return;
-    const detect = setInterval(() => void this.detector.run().catch((e) => this.logger.error(`Security detection failed: ${(e as Error).message}`)), DETECT_MS);
-    const daily = setInterval(() => void this.tick().catch((e) => this.logger.error(`Security report failed: ${(e as Error).message}`)), DAILY_CHECK_MS);
+    const detect = setInterval(() => void this.detector.run().then(() => (this.lastError = '')).catch((e) => this.fail('detection', e)), DETECT_MS);
+    const daily = setInterval(() => void this.tick().catch((e) => this.fail('report', e)), DAILY_CHECK_MS);
     detect.unref();
     daily.unref();
     this.timers = [detect, daily];
@@ -73,6 +75,12 @@ export class SecurityReports implements OnApplicationBootstrap, OnApplicationShu
 
   onApplicationShutdown() {
     this.timers.forEach(clearInterval);
+  }
+
+  private fail(what: string, e: unknown) {
+    const msg = `Security ${what} failed: ${(e as Error).message}`;
+    if (msg !== this.lastError) this.logger.error(msg);
+    this.lastError = msg;
   }
 
   /** يرسل تقرير اليوم إن حان موعده ولم يُرسل، ويحذف الأحداث القديمة */

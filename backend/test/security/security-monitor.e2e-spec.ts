@@ -67,12 +67,25 @@ describe('Security monitor (sayed)', () => {
     expect(o.body.recipients).toEqual(['ops@sanabel.test']);
   });
 
-  it('records failed logins with the login name and never the password', async () => {
-    await login('203.0.113.9', { login: 'Someone@X.org', password: 'secret-pass-1' }).expect(401);
+  it('records failed logins without passwords, and masks login names that match no account', async () => {
+    await login('203.0.113.9', { login: 'Admin', password: 'secret-pass-1' }).expect(401);
+    // كلمة مرور لُصقت في حقل الاسم خطأً لا تُحفظ
+    await login('203.0.113.9', { login: 'MyPassw0rd!', password: 'secret-pass-2' }).expect(401);
     await app.get(SecurityMonitor).flush();
-    const [e] = await db.query(`SELECT * FROM sec_events WHERE type = 'login_failed' AND ip = '203.0.113.9'`);
-    expect(e).toMatchObject({ actor: 'someone@x.org', route: '/api/auth/login', status: 401 });
-    expect(JSON.stringify(e)).not.toContain('secret-pass-1');
+    const rows = await db.query(`SELECT * FROM sec_events WHERE type = 'login_failed' AND ip = '203.0.113.9' ORDER BY actor`);
+    expect(rows[0]).toMatchObject({ actor: 'admin', route: '/api/auth/login', status: 401 });
+    expect(rows[1].actor).toMatch(/^~[0-9a-f]{10}$/);
+    expect(JSON.stringify(rows)).not.toMatch(/secret-pass|MyPassw0rd/i);
+  });
+
+  it('never stores secret tokens from public links', async () => {
+    const token = 'Zx9-' + 'q'.repeat(40);
+    await http.get(`/api/public/minutes/sign/${token}`).set(from('203.0.113.10'));
+    await http.get(`/api/no-such-thing/${token}`).set(from('203.0.113.10')).expect(404);
+    await app.get(SecurityMonitor).flush();
+    const rows = await db.query(`SELECT * FROM sec_events WHERE ip = '203.0.113.10'`);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(JSON.stringify(rows)).not.toContain(token);
   });
 
   it('blocks a brute-force source temporarily, alerts once, and leaves everyone else untouched', async () => {
@@ -82,7 +95,10 @@ describe('Security monitor (sayed)', () => {
     expect(created.map((i) => i.rule)).toEqual(['brute_force']);
     const [block] = await db.query(`SELECT * FROM sec_blocks WHERE ip = $1`, [attacker]);
     expect(block.created_by).toContain('سيد');
-    expect(new Date(block.expires_at).getTime() - Date.now()).toBeGreaterThan(55 * 60_000);
+    // أول حظر قصير لأن العنوان قد يكون مشتركًا، ويطول إن عاد الهجوم
+    const left = new Date(block.expires_at).getTime() - Date.now();
+    expect(left).toBeGreaterThan(14 * 60_000);
+    expect(left).toBeLessThanOrEqual(15 * 60_000);
 
     // المهاجم يُمنع من كل النظام، وفحص الصحة يبقى متاحًا
     const blocked = await http.get('/api/auth/org/al-bir').set(from(attacker)).expect(429);
@@ -91,6 +107,8 @@ describe('Security monitor (sayed)', () => {
     // بقية المستخدمين يعملون كالمعتاد
     await http.get('/api/auth/org/al-bir').set(from('198.51.100.20')).expect(200);
     await http.get('/api/auth/me').set(as(orgAdmin)).expect(200);
+    // موظف دخل سابقًا ويشارك المهاجم نفس العنوان (شبكة جوال) يكمل عمله
+    await http.get('/api/auth/me').set(as(orgAdmin, attacker)).expect(200);
 
     // تنبيه واحد فقط حتى لو استمر الرصد
     expect(await alerts()).toEqual([expect.objectContaining({ to_email: 'ops@sanabel.test' })]);
@@ -121,11 +139,20 @@ describe('Security monitor (sayed)', () => {
     await http.get('/api/auth/org/al-bir').set(from(scanner)).expect(429);
   });
 
-  it('ends the sessions of an account probing records it cannot see, and waits for approval to suspend it', async () => {
-    for (let i = 0; i < 20; i++) await http.get(`/api/beneficiaries/${randomUUID()}`).set(as(orgAdmin)).expect(404);
+  it('alerts on an account probing records it cannot see, ends its sessions only on a strong signal, and waits for approval to suspend it', async () => {
+    const probe = (n: number) => Promise.all(Array.from({ length: n }, () => http.get(`/api/beneficiaries/${randomUUID()}`).set(as(orgAdmin)).expect(404)));
+    await probe(20);
     const [inc] = await detector.run();
     expect(inc).toMatchObject({ rule: 'probe', severity: 'high', pendingAction: 'suspend_user' });
-    expect(inc.actions.map((a) => a.kind)).toEqual(['revoke']);
+    expect(inc.actions).toEqual([]);
+    // تنبيه وطلب موافقة فقط: الموظف يكمل عمله
+    await http.get('/api/auth/me').set(as(orgAdmin)).expect(200);
+
+    // استمرار المحاولات حتى ثلاثة أضعاف الحد: تُنهى الجلسة تلقائيًا
+    await probe(40);
+    expect(await detector.run()).toEqual([]);
+    const [after] = await db.query(`SELECT actions FROM sec_incidents WHERE id = $1`, [inc.id]);
+    expect(after.actions.map((a: { kind: string }) => a.kind)).toEqual(['revoke']);
     // الجلسة المسروقة لم تعد صالحة، وصاحب الحساب يدخل من جديد بشكل طبيعي
     await http.get('/api/auth/me').set(as(orgAdmin)).expect(401);
     orgAdmin = (await login('192.0.2.202', { email: 'admin@bir.org', password: 'Admin12345', organization: 'al-bir' }).expect(200)).body.accessToken;
@@ -154,9 +181,11 @@ describe('Security monitor (sayed)', () => {
 
   it('lets the admin block manually, refusing internal and trusted addresses', async () => {
     await http.post('/api/platform/security/blocks').set(as(platform)).send({ ip: '10.0.0.5', minutes: 60, reason: 'تجربة' }).expect(400);
+    // لا يحظر المدير نفسه
+    await http.post('/api/platform/security/blocks').set(as(platform, '192.0.2.200')).send({ ip: '192.0.2.200', minutes: 60, reason: 'تجربة' }).expect(400);
     await http.put('/api/platform/security/settings').set(as(platform)).send({
       enabled: true, recipients: ['sec@sanabel.test'], autoActions: true, dailyReport: true, dailyHour: 7, blockMinutes: 30,
-      trustedIps: ['198.51.100.7'], thresholds: { bruteForce: 10, scan: 40, probe: 20, exports: 30, errors: 20 },
+      trustedIps: ['198.51.100.0/24'], thresholds: { bruteForce: 10, scan: 40, probe: 20, exports: 30, errors: 20 },
     }).expect(200);
     await http.post('/api/platform/security/blocks').set(as(platform)).send({ ip: '198.51.100.7', minutes: 60, reason: 'تجربة' }).expect(400);
     await http.post('/api/platform/security/blocks').set(as(platform)).send({ ip: '203.0.113.99', minutes: 60, reason: 'عنوان مشبوه' }).expect(201);

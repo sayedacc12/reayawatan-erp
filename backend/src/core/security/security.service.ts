@@ -6,7 +6,7 @@ import { PlatformSetting } from '../subscriptions/entities';
 import { EMAIL_RE } from '../mail/mail-settings';
 import { IncidentAction, SecBlock, SecIncident } from './security.entity';
 import { RULES, SecurityDetector } from './security-detector.service';
-import { SecurityMonitor } from './security-monitor.service';
+import { isTrusted, SecurityMonitor, trustedList, validTrustedEntry } from './security-monitor.service';
 import { RETENTION_DAYS, SecurityReports } from './security-report.service';
 import { isPrivateIp, normIp, SecuritySettings } from './security-settings';
 
@@ -127,12 +127,13 @@ export class SecurityService {
     return { total, page, pageSize: PAGE, rows };
   }
 
-  async addBlock(dto: { ip: string; minutes: number; reason: string }, user: AuthUser) {
+  async addBlock(dto: { ip: string; minutes: number; reason: string }, user: AuthUser, ownIp: string | null) {
     const ip = normIp(dto.ip.trim());
     if (!ip || !isIP(ip)) throw new BadRequestException('العنوان غير صحيح');
     if (isPrivateIp(ip)) throw new BadRequestException('لا يمكن حظر عنوان داخلي');
+    if (ip === normIp(ownIp)) throw new BadRequestException('هذا عنوانك الحالي، ولا يمكن حظره');
     const s = await this.monitor.settings(true);
-    if (s.trustedIps.map((t) => normIp(t.trim())).includes(ip)) throw new BadRequestException('هذا العنوان ضمن العناوين الموثوقة في الإعدادات');
+    if (isTrusted(trustedList(s.trustedIps), ip)) throw new BadRequestException('هذا العنوان ضمن العناوين الموثوقة في الإعدادات');
     return this.detector.block(ip, dto.minutes, dto.reason.trim(), null, by(user));
   }
 
@@ -166,8 +167,8 @@ export class SecurityService {
     const emails = [...new Set((dto.recipients ?? []).map((e) => e.trim().toLowerCase()).filter(Boolean))];
     const bad = emails.find((e) => !EMAIL_RE.test(e));
     if (bad) throw new BadRequestException(`البريد غير صحيح: ${bad}`);
-    const ips = [...new Set((dto.trustedIps ?? []).map((i) => normIp(i.trim())).filter((i): i is string => !!i))];
-    const badIp = ips.find((i) => !isIP(i));
+    const ips = [...new Set((dto.trustedIps ?? []).map((i) => i.trim().replace(/^::ffff:/, '')).filter(Boolean))];
+    const badIp = ips.find((i) => !validTrustedEntry(i));
     if (badIp) throw new BadRequestException(`العنوان غير صحيح: ${badIp}`);
     const value: SecuritySettings = {
       ...current, ...dto, recipients: emails, trustedIps: ips, thresholds: { ...current.thresholds, ...(dto.thresholds ?? {}) },

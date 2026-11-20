@@ -32,6 +32,10 @@ const ACCOUNT_IPS = 5;
 /** أقل عدد مسارات مختلفة لاعتبار الطلبات المرفوضة فحصًا آليًا (التحديث الدوري لصفحة واحدة لا يُحتسب) */
 const SCAN_DISTINCT_PATHS = 10;
 const SYSTEM = 'سيد (تلقائي)';
+/** مدة أول حظر تلقائي للعنوان بالدقائق */
+const FIRST_BLOCK_MINUTES = 15;
+/** قفل قاعدة البيانات الذي يضمن أن نسخة واحدة فقط من الخادم تشغّل الرصد في كل دورة */
+const DETECT_LOCK = 0x5e_c0_01;
 
 interface Finding {
   rule: RuleCode;
@@ -73,19 +77,32 @@ export class SecurityDetector {
       await this.monitor.flush();
       const s = await this.monitor.settings(true);
       if (!s.enabled) return [];
-      const started = new Date();
-      const findings = await this.findings(s, new Date(this.since.getTime() - 60_000));
-      this.since = started;
-      const created: SecIncident[] = [];
-      for (const f of findings) {
+      // عند تشغيل أكثر من نسخة من الخادم: نسخة واحدة ترصد، فلا تتكرر الحوادث أو الرسائل
+      const lock = this.db.createQueryRunner();
+      await lock.connect();
+      try {
+        const [{ ok }] = await lock.query(`SELECT pg_try_advisory_lock($1) AS ok`, [DETECT_LOCK]);
+        if (!ok) return [];
         try {
-          const inc = await this.handle(f, s);
-          if (inc) created.push(inc);
-        } catch (e) {
-          this.logger.warn(`تعذر معالجة حادثة ${f.rule}: ${(e as Error).message}`);
+          const started = new Date();
+          const findings = await this.findings(s, new Date(this.since.getTime() - 60_000));
+          this.since = started;
+          const created: SecIncident[] = [];
+          for (const f of findings) {
+            try {
+              const inc = await this.handle(f, s);
+              if (inc) created.push(inc);
+            } catch (e) {
+              this.logger.warn(`تعذر معالجة حادثة ${f.rule}: ${(e as Error).message}`);
+            }
+          }
+          return created;
+        } finally {
+          await lock.query(`SELECT pg_advisory_unlock($1)`, [DETECT_LOCK]);
         }
+      } finally {
+        await lock.release();
       }
-      return created;
     } finally {
       this.running = false;
     }
@@ -122,41 +139,56 @@ export class SecurityDetector {
     }
 
     // 3) فحص آلي: طلبات مرفوضة أو لمسارات غير موجودة بلا جلسة، على مسارات كثيرة مختلفة خلال 5 دقائق
+    //    (الطلبات بجلسة منتهية لا تُحتسب: صفحة مفتوحة بعد انتهاء الجلسة ترسل طلبات كثيرة بلا ذنب)
     for (const r of await q<{ ip: string; n: number; paths: number }>(
-      `SELECT ip, COUNT(*)::int AS n, COUNT(DISTINCT COALESCE(detail->>'path', route))::int AS paths FROM sec_events
-       WHERE type IN ('unknown_route', 'auth_required', 'not_found', 'forbidden', 'rate_limited') AND user_id IS NULL
+      `SELECT ip, COUNT(*)::int AS n, COUNT(DISTINCT COALESCE(detail->>'ref', route))::int AS paths FROM sec_events
+       WHERE type IN ('unknown_route', 'not_found', 'forbidden', 'rate_limited') AND user_id IS NULL
          AND ip IS NOT NULL AND at > now() - interval '5 minutes'
-       GROUP BY ip HAVING COUNT(*) >= $1 AND COUNT(DISTINCT COALESCE(detail->>'path', route)) >= $2`, [t.scan, SCAN_DISTINCT_PATHS])) {
+       GROUP BY ip HAVING COUNT(*) >= $1 AND COUNT(DISTINCT COALESCE(detail->>'ref', route)) >= $2`, [t.scan, SCAN_DISTINCT_PATHS])) {
       out.push({
         rule: 'scanner', severity: 'medium', key: `scan:${r.ip}`, ip: r.ip, hits: r.n, act: 'block',
         summary: `${r.n} طلبًا مرفوضًا خلال 5 دقائق من العنوان ${r.ip} على ${r.paths} مسارًا مختلفًا، وهذا نمط أدوات الفحص الآلي.`,
       });
     }
 
-    // 4) حساب داخل النظام يطلب سجلات كثيرة غير موجودة أو غير مسموحة له (محاولة الوصول لبيانات جمعية أخرى)
-    //    تُحتسب فقط الطلبات بعد آخر إنهاء لجلساته، حتى لا يتكرر الإجراء على نفس الأحداث
-    for (const r of await q<{ userId: string; orgId: string | null; ip: string | null; n: number; paths: number; email: string }>(
+    // 4) حساب داخل النظام يطلب سجلات كثيرة مختلفة غير موجودة له، أو شاشات كثيرة مختلفة غير مسموحة له
+    //    (نمط محاولة الوصول لبيانات جمعية أخرى). تُحتسب فقط الطلبات بعد آخر إنهاء لجلساته.
+    //    الإجراء الافتراضي تنبيه وطلب موافقة على الإيقاف. إنهاء الجلسات تلقائيًا فقط مع إشارة ثانية قوية:
+    //    دخول من عنوان جديد خلال آخر 24 ساعة، أو عدد يبلغ ثلاثة أضعاف الحد.
+    for (const r of await q<{ userId: string; orgId: string | null; ip: string | null; n: number; paths: number; email: string; pa: boolean; newIp: boolean }>(
       `SELECT e.user_id AS "userId", MAX(e.org_id::text) AS "orgId", MAX(e.ip) AS ip, COUNT(*)::int AS n,
-              COUNT(DISTINCT COALESCE(e.detail->>'path', e.route))::int AS paths, MAX(u.email) AS email
+              COUNT(DISTINCT CASE WHEN e.type = 'not_found' THEN e.detail->>'ref' ELSE e.route END)::int AS paths,
+              MAX(u.email) AS email, bool_or(u.is_platform_admin) AS pa,
+              EXISTS (SELECT 1 FROM sec_events s WHERE s.user_id = e.user_id AND s.type = 'login_success' AND s.at > now() - interval '24 hours'
+                AND NOT EXISTS (SELECT 1 FROM sec_events p WHERE p.user_id = s.user_id AND p.type = 'login_success' AND p.ip = s.ip
+                  AND p.at < s.at AND p.at > s.at - interval '90 days')
+                AND EXISTS (SELECT 1 FROM sec_events p WHERE p.user_id = s.user_id AND p.type = 'login_success' AND p.at < s.at)) AS "newIp"
        FROM sec_events e JOIN users u ON u.id = e.user_id
        WHERE e.type IN ('not_found', 'forbidden') AND e.at > GREATEST(now() - interval '10 minutes', COALESCE(u.sessions_valid_after, '-infinity'::timestamptz))
-       GROUP BY e.user_id HAVING COUNT(DISTINCT COALESCE(e.detail->>'path', e.route)) >= $1`, [t.probe])) {
+       GROUP BY e.user_id
+       HAVING COUNT(DISTINCT CASE WHEN e.type = 'not_found' THEN e.detail->>'ref' ELSE e.route END) >= $1`, [t.probe])) {
+      const strong = !r.pa && (r.newIp || r.paths >= t.probe * 3);
       out.push({
-        rule: 'probe', severity: 'high', key: `probe:${r.userId}`, userId: r.userId, orgId: r.orgId, ip: r.ip, hits: r.n, act: 'revoke', suspend: true,
-        summary: `الحساب ${r.email} طلب ${r.paths} سجلًا أو مسارًا مختلفًا غير موجود أو غير مسموح له خلال 10 دقائق. هذا نمط محاولة الوصول لبيانات لا تخصه، وقد يعني أن الحساب مخترق.`,
+        rule: 'probe', severity: 'high', key: `probe:${r.userId}`, userId: r.userId, orgId: r.orgId, ip: r.ip, hits: r.paths,
+        act: strong ? 'revoke' : null, suspend: true,
+        summary: `الحساب ${r.email} طلب ${r.paths} سجلًا أو شاشة مختلفة غير موجودة له أو غير مسموحة خلال 10 دقائق. هذا نمط محاولة الوصول لبيانات لا تخصه، وقد يعني أن الحساب مخترق${r.newIp ? '، خاصة أنه دخل مؤخرًا من عنوان جديد' : ''}.`,
       });
     }
 
     // 5) دخول ناجح من عنوان جرّب كلمات مرور على حسابات كثيرة خلال الساعة السابقة
-    for (const r of await q<{ ip: string; userId: string; orgId: string | null; actor: string | null; accounts: number }>(
+    for (const r of await q<{ ip: string; userId: string; orgId: string | null; actor: string | null; accounts: number; ownFailures: boolean }>(
       `SELECT s.ip, s.user_id AS "userId", s.org_id AS "orgId", s.actor,
               (SELECT COUNT(DISTINCT f.actor) FROM sec_events f WHERE f.ip = s.ip AND f.type = 'login_failed'
-                 AND f.at BETWEEN s.at - interval '1 hour' AND s.at)::int AS accounts
+                 AND f.at BETWEEN s.at - interval '1 hour' AND s.at)::int AS accounts,
+              EXISTS (SELECT 1 FROM sec_events f WHERE f.ip = s.ip AND f.type = 'login_failed' AND f.actor = s.actor
+                 AND f.at BETWEEN s.at - interval '1 hour' AND s.at) AS "ownFailures"
        FROM sec_events s WHERE s.type = 'login_success' AND s.at > $1 AND s.ip IS NOT NULL AND s.user_id IS NOT NULL`, [since])) {
       if (r.accounts < SPRAY_ACCOUNTS) continue;
+      // تُنهى الجلسة فقط إن كانت كلمة مرور هذا الحساب نفسه قد جُرّبت من العنوان قبل نجاحها؛
+      // غير ذلك قد يكون موظفًا بريئًا يشارك المهاجم شبكة الجوال، فيكفي التنبيه
       out.push({
-        rule: 'spray_success', severity: 'critical', key: `spray_success:${r.userId}:${r.ip}`, ip: r.ip, userId: r.userId, orgId: r.orgId, hits: r.accounts,
-        act: 'revoke', suspend: true,
+        rule: 'spray_success', severity: r.ownFailures ? 'critical' : 'high', key: `spray_success:${r.userId}:${r.ip}`, ip: r.ip, userId: r.userId, orgId: r.orgId, hits: r.accounts,
+        act: r.ownFailures ? 'revoke' : null, suspend: r.ownFailures,
         summary: `دخل الحساب «${r.actor ?? ''}» بنجاح من العنوان ${r.ip} الذي جرّب كلمات مرور على ${r.accounts} حسابات خلال الساعة السابقة. قد تكون كلمة مرور هذا الحساب قد كُشفت.`,
       });
     }
@@ -230,9 +262,11 @@ export class SecurityDetector {
       } else if (!s.autoActions) {
         if (isNew) this.note(inc, 'skip', 'الإجراءات التلقائية موقوفة من الإعدادات');
       } else if (!(await this.activeBlock(f.ip))) {
-        const b = await this.block(f.ip, s.blockMinutes, `${RULES[f.rule]} (${f.hits})`, inc.id, SYSTEM);
-        this.note(inc, 'block', `حُظر العنوان ${f.ip} مؤقتًا لمدة ${s.blockMinutes} دقيقة`, b.id);
-        done.push(`حظر العنوان ${f.ip} مؤقتًا لمدة ${s.blockMinutes} دقيقة`);
+        // أول حظر قصير (قد يكون العنوان مشتركًا بين مستخدمين)، ويطول إن عاد الهجوم خلال 24 ساعة
+        const minutes = (await this.recentBlocks(f.ip)) ? s.blockMinutes : Math.min(FIRST_BLOCK_MINUTES, s.blockMinutes);
+        const b = await this.block(f.ip, minutes, `${RULES[f.rule]} (${f.hits})`, inc.id, SYSTEM);
+        this.note(inc, 'block', `حُظر العنوان ${f.ip} مؤقتًا لمدة ${minutes} دقيقة`, b.id);
+        done.push(`حظر العنوان ${f.ip} مؤقتًا لمدة ${minutes} دقيقة`);
       }
     }
     if (f.act === 'revoke' && f.userId) {
@@ -273,6 +307,11 @@ export class SecurityDetector {
          AND at < now() - interval '2 minutes' AND ($3::uuid IS NULL OR user_id <> $3::uuid) LIMIT 1`,
       [normIp(ip), KNOWN_IP_DAYS, exceptUser ?? null],
     );
+    return !!r;
+  }
+
+  private async recentBlocks(ip: string) {
+    const [r] = await this.db.query(`SELECT 1 FROM sec_blocks WHERE ip = $1 AND created_at > now() - interval '24 hours' LIMIT 1`, [normIp(ip)]);
     return !!r;
   }
 

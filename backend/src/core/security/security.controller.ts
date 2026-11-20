@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested,
@@ -91,8 +91,8 @@ export class SecurityController {
   }
 
   @Post('blocks')
-  addBlock(@Body() dto: BlockDto, @CurrentUser() user: AuthUser) {
-    return this.security.addBlock(dto, user);
+  addBlock(@Body() dto: BlockDto, @CurrentUser() user: AuthUser, @Ip() ip: string) {
+    return this.security.addBlock(dto, user, ip ?? null);
   }
 
   @Post('blocks/:id/lift') @HttpCode(200)
