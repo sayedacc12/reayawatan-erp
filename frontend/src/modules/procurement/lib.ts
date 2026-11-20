@@ -10,6 +10,8 @@ export const PR = {
   evaluate: 'procurement.sourcing.evaluate', approveOrders: 'procurement.orders.approve', approveOrdersHigh: 'procurement.orders.approve_high',
   stockOperate: 'procurement.stock.operate', stockApprove: 'procurement.stock.approve', issueRequest: 'procurement.issues.request', issueApprove: 'procurement.issues.approve',
   invoices: 'procurement.invoices.manage', invoicesOverride: 'procurement.invoices.override',
+  contracts: 'procurement.contracts.manage', contractsApprove: 'procurement.contracts.approve',
+  evaluations: 'procurement.evaluations.manage', evaluationsApprove: 'procurement.evaluations.approve',
 } as const;
 /** صلاحيات النظام المالي على مستحقات الموردين */
 export const ACC_PAY = { payables: 'accounting.payables.manage', payments: 'accounting.payments.manage' } as const;
@@ -18,6 +20,15 @@ export const RFQ_READ = [PR.sourcing, PR.evaluate, PR.approveOrders, PR.approveO
 export const ORD_READ = [PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.read, PR.stockOperate, PR.invoices, PR.invoicesOverride];
 export const STOCK_READ = [PR.stockOperate, PR.stockApprove, PR.read];
 export const ISR_READ = [PR.issueRequest, PR.issueApprove, PR.stockOperate, PR.read];
+export const CT_READ = [PR.contracts, PR.contractsApprove, PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.invoices, PR.suppliersRead, PR.reports];
+export const EV_READ = [PR.evaluations, PR.evaluationsApprove, PR.suppliersRead, PR.reports, PR.contracts];
+export const INSIGHTS = [PR.reports, PR.contracts, PR.contractsApprove, PR.evaluationsApprove, PR.approveOrders, PR.approveOrdersHigh];
+export const CONTRACT_COLOR: Record<string, string> = {
+  draft: '#64748b', pending: '#d97706', returned: '#db2777', active: '#059669', suspended: '#7c3aed', closed: '#15803d', terminated: '#dc2626', cancelled: '#94a3b8',
+};
+export const EVAL_COLOR: Record<string, string> = { draft: '#64748b', submitted: '#d97706', returned: '#db2777', approved: '#059669' };
+export const GRADE_COLOR: Record<string, string> = { A: '#059669', B: '#0369a1', C: '#d97706', D: '#dc2626' };
+export const LEVEL_COLOR: Record<string, string> = { high: '#dc2626', medium: '#d97706', low: '#64748b' };
 export const INV_READ = [PR.invoices, PR.invoicesOverride, PR.suppliersRead, PR.reports, ACC_PAY.payables, ACC_PAY.payments];
 
 export const REQ_COLOR: Record<string, string> = {
