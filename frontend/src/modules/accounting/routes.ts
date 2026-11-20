@@ -10,6 +10,7 @@ const ASSET_READ = [P.assetsRead, P.assetsManage, P.assetsOperate, P.assetsDepre
 export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة النظام المالي') },
   { path: '/accounting/receipts', component: () => import('./views/VouchersView.vue'), props: { kind: 'receipt' }, meta: meta('سندات القبض') },
+  { path: '/accounting/payables', component: () => import('./views/PayablesView.vue'), meta: meta('مستحقات الموردين', P.payables, [P.payables, P.payments]) },
   { path: '/accounting/payments', component: () => import('./views/VouchersView.vue'), props: { kind: 'payment' }, meta: meta('سندات الصرف') },
   { path: '/accounting/vouchers/:id', component: () => import('./views/VoucherView.vue'), props: true, meta: meta('السند') },
   { path: '/accounting/entries', component: () => import('./views/EntriesView.vue'), meta: meta('قيود اليومية') },

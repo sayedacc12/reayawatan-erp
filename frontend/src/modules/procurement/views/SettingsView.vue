@@ -9,7 +9,8 @@ import '../../projects/projects.css';
 import '../procurement.css';
 
 const toast = useToast();
-const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'stock' | 'permissions'>('general');
+const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'stock' | 'invoices' | 'permissions'>('general');
+const inv = ref<any>({ matchTolerancePct: 0, vatInputAccountId: '', paymentDays: 30 });
 const slk = ref<any>(null);
 const st = ref<any>({});
 const src = ref<any>(null);
@@ -28,6 +29,7 @@ function apply(v: any) {
     partnerCategoryId: s.partnerCategoryId ?? '', payablesAccountId: s.payablesAccountId ?? '' };
   docTypes.value = s.supplierDocTypes.map((d: any) => ({ ...d, entityTypes: [...d.entityTypes] }));
   activities.value = [...s.activities];
+  inv.value = { matchTolerancePct: s.matchTolerancePct ?? 0, vatInputAccountId: s.vatInputAccountId ?? '', paymentDays: s.paymentDays ?? 30 };
   cats.value = v.categories.map((c: any) => ({ ...c, description: c.description ?? '' }));
   const so = v.sourcing;
   src.value = {
@@ -110,6 +112,17 @@ async function save(patch: Record<string, unknown>, ok = 'حُفظت الإعد�
     busy.value = false;
   }
 }
+async function saveInvoices() {
+  busy.value = true;
+  try {
+    await api('/procurement/invoice-settings', { method: 'PUT', json: { matchTolerancePct: Number(inv.value.matchTolerancePct) || 0, vatInputAccountId: inv.value.vatInputAccountId || null, paymentDays: Number(inv.value.paymentDays) || 0 } });
+    toast.success('حُفظت إعدادات الفواتير');
+  } catch (e) {
+    toast.error((e as Error).message);
+  } finally {
+    busy.value = false;
+  }
+}
 async function saveCats() {
   busy.value = true;
   try {
@@ -145,6 +158,7 @@ function addActivity() {
       <button :class="{ on: tab === 'portal' }" @click="tab = 'portal'">بوابة الموردين</button>
       <button :class="{ on: tab === 'accounting' }" @click="tab = 'accounting'">الربط المالي</button>
       <button :class="{ on: tab === 'stock' }" @click="openStock">المستودعات</button>
+      <button :class="{ on: tab === 'invoices' }" @click="tab = 'invoices'">الفواتير والمطابقة</button>
       <button :class="{ on: tab === 'permissions' }" @click="tab = 'permissions'">الصلاحيات</button>
     </div>
 
@@ -275,6 +289,18 @@ function addActivity() {
             <select v-model="g.payablesAccountId" class="input"><option value="">—</option><option v-for="a in lk.accounts.filter((x: any) => x.nature === 'liabilities')" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
         </div>
         <button class="btn btn-primary" :disabled="busy" @click="save({ partnerCategoryId: g.partnerCategoryId || null, payablesAccountId: g.payablesAccountId || null })">حفظ</button>
+      </section>
+
+      <section v-else-if="tab === 'invoices'" class="card pm-panel">
+        <p class="pm-muted">تُطابق كل فاتورة مع التعميد (السعر) والاستلام المعتمد (الكمية). الفرق في السعر ضمن نسبة السماح لا يُعد استثناء، ويُحمّل على بند الموازنة ومصدر التمويل نفسيهما.</p>
+        <div class="pc-fields">
+          <label class="field"><span>نسبة السماح في سعر الوحدة %</span><input v-model.number="inv.matchTolerancePct" type="number" min="0" max="20" step="any" class="input" /></label>
+          <label class="field"><span>مدة السداد الافتراضية (يوم)</span><input v-model.number="inv.paymentDays" type="number" min="0" max="365" class="input" /></label>
+          <label class="field"><span>حساب ضريبة المدخلات</span>
+            <select v-model="inv.vatInputAccountId" class="input"><option value="">—</option><option v-for="a in lk.accounts.filter((x: any) => x.nature === 'assets')" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select>
+            <small class="pm-muted">مطلوب لتسجيل الفواتير في المالي إذا كانت الضريبة لا تدخل في تكلفة المشتريات (من تبويب المستودعات).</small></label>
+        </div>
+        <button class="btn btn-primary" :disabled="busy" @click="saveInvoices">حفظ</button>
       </section>
 
       <section v-else-if="tab === 'stock'" class="card pm-panel">

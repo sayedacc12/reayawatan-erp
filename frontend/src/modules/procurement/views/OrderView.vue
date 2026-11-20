@@ -3,8 +3,9 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
+import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import { ORDER_COLOR, RECEIPT_COLOR, fmtDate, fmtDateTime, fmtQty, sar } from '../lib';
+import { INVOICE_COLOR, INV_READ, ORDER_COLOR, PR, RECEIPT_COLOR, fmtDate, fmtDateTime, fmtQty, sar } from '../lib';
 import '../../projects/projects.css';
 import '../procurement.css';
 
@@ -18,9 +19,14 @@ const note = ref('');
 const amend = ref<any>({ lines: [], deliveryDate: '', terms: '' });
 const base = () => `/procurement/orders/${props.id}`;
 
+const session = useSession();
+const invoices = ref<any[]>([]);
+const canInvRead = () => INV_READ.some((p) => session.can(p));
+const INVOICEABLE = ['issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed'];
 async function load() {
   try {
     o.value = await api(base());
+    invoices.value = canInvRead() ? await api<any[]>(`/procurement/invoices?order=${props.id}`).catch(() => []) : [];
   } catch (e) {
     toast.error((e as Error).message);
   }
@@ -90,6 +96,7 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
         </template>
         <button v-if="o.can.reply" class="btn btn-primary" @click="modal = 'reply'">الرد على المورد</button>
         <button v-if="o.can.receive" class="btn btn-primary" @click="router.push(`/procurement/receipts/new?kind=order&order=${o.id}`)">استلام وفحص</button>
+        <button v-if="session.can(PR.invoices) && INVOICEABLE.includes(o.status)" class="btn" @click="router.push(`/procurement/invoices/new?order=${o.id}`)">تسجيل فاتورة</button>
         <button v-if="o.can.shortClose" class="btn" @click="note = ''; modal = 'short'">إغلاق بالمستلم</button>
         <button v-if="o.can.amend" class="btn" @click="openAmend">تعديل بالتخفيض</button>
         <button v-if="['issued', 'acknowledged', 'accepted', 'closed'].includes(o.status)" class="btn" @click="printPage">طباعة</button>
@@ -179,6 +186,15 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
             </li>
           </ul>
           <p v-if="o.closeKind === 'short'" class="pm-muted" style="font-size: .8rem; margin-top: 6px">أُغلق التعميد بالكميات المستلمة وفُك حجز الباقي.</p>
+        </section>
+        <section v-if="invoices.length" class="card pm-panel pc-noprint">
+          <h2>الفواتير والإشعارات الدائنة</h2>
+          <ul class="pc-log">
+            <li v-for="x in invoices" :key="x.id">
+              <span><RouterLink class="pm-link" :to="`/procurement/invoices/${x.id}`">{{ x.code }}</RouterLink> · {{ x.kindLabel }} {{ x.supplierInvoiceNo }} · {{ sar(x.total) }}
+                <span class="pm-pill" :style="{ '--c': INVOICE_COLOR[x.status] }">{{ x.statusLabel }}</span></span>
+            </li>
+          </ul>
         </section>
         <section v-if="o.responses.length" class="card pm-panel">
           <h2>ردود المورد</h2>

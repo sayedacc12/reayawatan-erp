@@ -9,12 +9,16 @@ export const PR = {
   requests: 'procurement.requests.create', approveRequests: 'procurement.requests.approve', sourcing: 'procurement.sourcing.manage',
   evaluate: 'procurement.sourcing.evaluate', approveOrders: 'procurement.orders.approve', approveOrdersHigh: 'procurement.orders.approve_high',
   stockOperate: 'procurement.stock.operate', stockApprove: 'procurement.stock.approve', issueRequest: 'procurement.issues.request', issueApprove: 'procurement.issues.approve',
+  invoices: 'procurement.invoices.manage', invoicesOverride: 'procurement.invoices.override',
 } as const;
+/** صلاحيات النظام المالي على مستحقات الموردين */
+export const ACC_PAY = { payables: 'accounting.payables.manage', payments: 'accounting.payments.manage' } as const;
 export const REQ_READ = [PR.requests, PR.approveRequests, PR.sourcing, PR.approveOrders, PR.approveOrdersHigh];
 export const RFQ_READ = [PR.sourcing, PR.evaluate, PR.approveOrders, PR.approveOrdersHigh];
-export const ORD_READ = [PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.read, PR.stockOperate];
+export const ORD_READ = [PR.sourcing, PR.approveOrders, PR.approveOrdersHigh, PR.read, PR.stockOperate, PR.invoices, PR.invoicesOverride];
 export const STOCK_READ = [PR.stockOperate, PR.stockApprove, PR.read];
 export const ISR_READ = [PR.issueRequest, PR.issueApprove, PR.stockOperate, PR.read];
+export const INV_READ = [PR.invoices, PR.invoicesOverride, PR.suppliersRead, PR.reports, ACC_PAY.payables, ACC_PAY.payments];
 
 export const REQ_COLOR: Record<string, string> = {
   draft: '#64748b', submitted: '#d97706', returned: '#db2777', approved: '#0369a1', sourcing: '#7c3aed', ordered: '#059669', closed: '#15803d', rejected: '#dc2626', cancelled: '#94a3b8',
@@ -32,6 +36,9 @@ export const ISR_COLOR: Record<string, string> = {
 };
 export const DOC_KIND_COLOR: Record<string, string> = { issue: '#0369a1', transfer: '#7c3aed', return_supplier: '#b45309', return_in: '#0891b2', writeoff: '#dc2626' };
 export const STOCK_DOC_COLOR: Record<string, string> = { pending: '#d97706', posted: '#059669', cancelled: '#94a3b8' };
+export const INVOICE_COLOR: Record<string, string> = {
+  draft: '#64748b', submitted: '#d97706', returned: '#db2777', rejected: '#dc2626', approved: '#0369a1', posted: '#7c3aed', partial: '#ca8a04', paid: '#059669', cancelled: '#94a3b8',
+};
 export const COUNT_COLOR: Record<string, string> = { open: '#0369a1', submitted: '#d97706', approved: '#059669', cancelled: '#94a3b8' };
 export const fmtQty = (n: number | null | undefined) => (n === null || n === undefined ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: 3 }));
 export const today = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -126,3 +133,20 @@ export function supplierPayload(f: SupplierForm) {
     branches: f.branches.filter((b) => b.name?.trim()).map((b) => ({ name: b.name, city: nul(b.city), address: nul(b.address), phone: nul(b.phone) })),
   };
 }
+
+/** نموذج الفاتورة من بنود التعميد القابلة للفوترة (ومن الفاتورة عند التعديل) */
+export function invoiceForm(billable: any, inv?: any) {
+  return {
+    id: inv?.id ?? null, kind: inv?.kind ?? 'invoice', orderId: billable.order.id, refInvoiceId: inv?.refInvoiceId ?? '', supplierInvoiceNo: inv?.supplierInvoiceNo ?? '',
+    invoiceDate: inv?.invoiceDate ?? today(), dueDate: inv?.dueDate ?? '', vatRate: inv?.vatRate ?? billable.order.vatRate, extraAmount: inv?.extraAmount ?? 0, notes: inv?.notes ?? '',
+    lines: billable.lines.map((l: any) => {
+      const x = inv?.lines?.find((y: any) => y.orderLineId === l.orderLineId);
+      return { orderLineId: l.orderLineId, qty: x?.qty ?? 0, unitPrice: x?.unitPrice ?? l.unitPrice };
+    }),
+  };
+}
+export const invoicePayload = (f: any) => ({
+  kind: f.kind, orderId: f.orderId, refInvoiceId: f.kind === 'credit_note' ? f.refInvoiceId || null : null, supplierInvoiceNo: f.supplierInvoiceNo, invoiceDate: f.invoiceDate,
+  dueDate: f.dueDate || null, vatRate: Number(f.vatRate), extraAmount: Number(f.extraAmount || 0), notes: f.notes || null,
+  lines: f.lines.filter((l: any) => Number(l.qty) > 0).map((l: any) => ({ orderLineId: l.orderLineId, qty: Number(l.qty), unitPrice: Number(l.unitPrice) })),
+});

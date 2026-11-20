@@ -40,7 +40,7 @@ export class ProcurementController {
 
   // ---------------- اللوحة والإعدادات ----------------
 
-  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh, P.stockOperate, P.stockApprove, P.issueRequest, P.issueApprove)
+  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh, P.stockOperate, P.stockApprove, P.issueRequest, P.issueApprove, P.invoices, P.invoicesOverride)
   lookups(@CurrentOrgUser() a: OrgUser) { return this.core.lookups(a.organizationId); }
 
   @Get('dashboard') @RequirePermissions(P.read)

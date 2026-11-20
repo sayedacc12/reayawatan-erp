@@ -24,7 +24,7 @@ export class InvoicesController {
 
   @Get('invoice-lookups') @RequireAnyPermission(...INV_READ, P.settings)
   async lookups(@CurrentOrgUser() a: OrgUser) {
-    return { kinds: INVOICE_KINDS, status: INVOICE_STATUS, matchIssues: MATCH_ISSUES, cashAccounts: await this.invoices.cashAccounts(a.organizationId) };
+    return { kinds: INVOICE_KINDS, status: INVOICE_STATUS, matchIssues: MATCH_ISSUES, ...(await this.invoices.lookups(a.organizationId)) };
   }
 
   @Put('invoice-settings') @RequirePermissions(P.settings)

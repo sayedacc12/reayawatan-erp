@@ -791,9 +791,11 @@ export class InvoicesService implements OnModuleInit {
     };
   }
 
-  /** حسابات السداد للنظام المالي */
-  async cashAccounts(org: string) {
-    return this.db.query(`SELECT id, name, kind FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]);
+  /** حسابات السداد وإعدادات المطابقة للشاشات */
+  async lookups(org: string) {
+    const s = await this.core.settings(org);
+    const cashAccounts = await this.db.query(`SELECT id, name, kind FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]);
+    return { cashAccounts, settings: { matchTolerancePct: s.matchTolerancePct, vatInputAccountId: s.vatInputAccountId, paymentDays: s.paymentDays, vatInCost: s.vatInCost } };
   }
 
   // ---------------- كشف حساب المورد ----------------
