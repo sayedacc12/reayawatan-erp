@@ -175,12 +175,21 @@ export class RfqsService {
     if (!q.closesAt || q.closesAt.getTime() < Date.now() + 3600_000) throw new BadRequestException('حدد موعد إغلاق التقديم بعد ساعة على الأقل من الآن');
     if (q.questionsUntil && q.questionsUntil > q.closesAt) throw new BadRequestException('موعد الاستفسارات يكون قبل موعد إغلاق التقديم');
     if (q.criteria.some((c) => c.kind === 'technical') && !q.committeeIds.length) throw new BadRequestException('حدد أعضاء لجنة التقييم الفني');
-    const s = sourcingSettings(await this.core.settings(org));
+    const settings = await this.core.settings(org);
+    const s = sourcingSettings(settings);
     let invited = q.invitedIds;
+    // استبعاد الموردين ضعيفي الأداء (التقدير D) إذا فعّلته الجمعية في إعدادات التقييم
+    const blockWeak = !!settings.blockWeak;
+    if (blockWeak && invited.length) {
+      const weak: { id: string }[] = await this.db.query(
+        `SELECT id FROM pr_suppliers WHERE organization_id = $1 AND id = ANY($2) AND grade = 'D'`, [org, invited]);
+      if (weak.length) throw new BadRequestException('أحد الموردين المدعوين تقييمه ضعيف (D)، والإعدادات تمنع دعوته');
+    }
     if (q.method === 'tender') {
       // المنافسة العامة: كل الموردين المعتمدين في التصنيفات المحددة (أو كلهم)
       const rows: { id: string }[] = await this.db.query(
-        `SELECT id FROM pr_suppliers WHERE organization_id = $1 AND status = 'approved' AND (cardinality($2::text[]) = 0 OR category_ids ?| $2::text[])`, [org, q.categoryIds]);
+        `SELECT id FROM pr_suppliers WHERE organization_id = $1 AND status = 'approved' AND (cardinality($2::text[]) = 0 OR category_ids ?| $2::text[])
+           AND (NOT $3::boolean OR grade IS DISTINCT FROM 'D')`, [org, q.categoryIds, blockWeak]);
       invited = [...new Set([...invited, ...rows.map((r) => r.id)])];
     }
     const ok: { id: string }[] = invited.length

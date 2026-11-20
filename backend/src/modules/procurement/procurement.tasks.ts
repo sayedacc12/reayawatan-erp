@@ -9,6 +9,9 @@ import { orderCode, requestCode, rfqCode } from './sourcing-core.service';
 import { addDays, prToday } from './procurement-core.service';
 import { countCode, docCode, issueRequestCode } from './stock-core.service';
 import { StockService } from './stock.service';
+import { contractCode } from './contracts.service';
+import { evalCode } from './evaluations.service';
+import { invoiceCode } from './invoices.service';
 
 /** مهام المشتريات في جرس الإشعارات: الموردون ومستنداتهم وحساباتهم البنكية، وطلبات الشراء والتعميدات بانتظار الاعتماد، والمنافسات بانتظار الفتح أو التقييم */
 @Injectable()
@@ -24,7 +27,7 @@ export class ProcurementTasks implements OnModuleInit {
 
   async collect(u: OrgUser): Promise<PendingTask[]> {
     const can = (p: string) => u.isSuperadmin || u.permissions.includes(p);
-    const out: PendingTask[] = [...(await this.sourcing(u, can)), ...(await this.stockTasks(u, can))];
+    const out: PendingTask[] = [...(await this.sourcing(u, can)), ...(await this.stockTasks(u, can)), ...(await this.contractTasks(u, can))];
     if (!can(P.approveSuppliers) && !can(P.approveBanks)) return out;
     const a = await this.suppliers.approvals(u);
     if (can(P.approveSuppliers)) {
@@ -42,6 +45,63 @@ export class ProcurementTasks implements OnModuleInit {
           title: `${b.isChange ? 'تغيير' : 'اعتماد'} حساب بنكي: ${b.supplier}`, subtitle: `${b.bankName} · ${b.iban.slice(0, 4)}…${b.iban.slice(-4)}`,
         });
       }
+    }
+    return out;
+  }
+
+  /** مهام المرحلتين الرابعة والخامسة: الفواتير بانتظار المراجعة، والعقود وملاحقها وجزاءاتها بانتظار الاعتماد، وتنبيهات العقود، والتقييمات */
+  private async contractTasks(u: OrgUser, can: (p: string) => boolean): Promise<PendingTask[]> {
+    const org = u.organizationId;
+    const out: PendingTask[] = [];
+    if (can(P.invoices)) {
+      const inv: { id: string; invoice_no: number; kind: string; supplier: string; submitted_at: Date; ok: boolean | null }[] = await this.db.query(
+        `SELECT i.id, i.invoice_no, i.kind, s.name AS supplier, i.submitted_at, (i.match->>'ok')::boolean AS ok
+           FROM pr_invoices i JOIN pr_suppliers s ON s.id = i.supplier_id AND s.organization_id = i.organization_id
+          WHERE i.organization_id = $1 AND i.status = 'submitted' AND NOT (i.editor_ids ? $2)`, [org, u.id]);
+      for (const i of inv) {
+        out.push({
+          id: `pr-inv:${i.id}`, group: 'فواتير الموردين', link: `/procurement/invoices/${i.id}`, at: i.submitted_at, urgent: i.ok === false,
+          title: `مراجعة ${i.kind === 'credit_note' ? 'إشعار دائن' : 'فاتورة'}: ${i.supplier}`, subtitle: invoiceCode(i.kind as 'invoice', i.invoice_no),
+        });
+      }
+    }
+    if (can(P.contractsApprove)) {
+      const cts: { id: string; contract_no: number; title: string; updated_at: Date; status: string; amend: number; pen: number }[] = await this.db.query(
+        `SELECT c.id, c.contract_no, c.title, c.updated_at, c.status,
+                (SELECT COUNT(*) FROM jsonb_array_elements(c.amendments) x WHERE x->>'status' = 'pending')::int AS amend,
+                (SELECT COUNT(*) FROM jsonb_array_elements(c.penalties) x WHERE x->>'status' = 'pending')::int AS pen
+           FROM pr_contracts c
+          WHERE c.organization_id = $1 AND (c.created_by_id IS DISTINCT FROM $2 OR c.status <> 'pending')
+            AND (c.status = 'pending' OR EXISTS (SELECT 1 FROM jsonb_array_elements(c.amendments) x WHERE x->>'status' = 'pending')
+                 OR EXISTS (SELECT 1 FROM jsonb_array_elements(c.penalties) x WHERE x->>'status' = 'pending'))`, [org, u.id]);
+      for (const c of cts) {
+        const what = c.status === 'pending' ? 'اعتماد عقد' : c.amend ? 'اعتماد ملحق عقد' : 'اعتماد جزاء تعاقدي';
+        out.push({ id: `pr-ct:${c.id}:${c.status}:${c.amend}:${c.pen}`, group: 'العقود', link: `/procurement/contracts/${c.id}`, at: c.updated_at, title: `${what}: ${c.title}`, subtitle: contractCode(c.contract_no) });
+      }
+    }
+    if (can(P.contracts)) {
+      const today = prToday();
+      const alerts: { id: string; contract_no: number; title: string; ends_on: string; value: number; used: number; alert_pct: number; alert_days: number }[] = await this.db.query(
+        `SELECT c.id, c.contract_no, c.title, c.ends_on::text, c.value::float, c.alert_pct, c.alert_days,
+                (SELECT COALESCE(SUM(o.total), 0) FROM pr_orders o WHERE o.organization_id = c.organization_id AND o.contract_id = c.id
+                   AND o.status IN ('pending', 'issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed'))::float AS used
+           FROM pr_contracts c WHERE c.organization_id = $1 AND c.status = 'active'`, [org]);
+      for (const c of alerts) {
+        const ending = c.ends_on <= addDays(today, c.alert_days);
+        const cap = c.value > 0 && (c.used / c.value) * 100 >= c.alert_pct;
+        if (!ending && !cap) continue;
+        out.push({
+          id: `pr-ct-alert:${c.id}:${ending ? 'end' : ''}${cap ? 'cap' : ''}`, group: 'العقود', link: `/procurement/contracts/${c.id}`, at: new Date(), urgent: c.ends_on < today || c.used >= c.value,
+          title: ending ? `يقترب انتهاء العقد: ${c.title}` : `اقترب استهلاك سقف العقد: ${c.title}`,
+          subtitle: `${contractCode(c.contract_no)} · ${ending ? `ينتهي ${c.ends_on}` : `المستخدم ${Math.round((c.used / c.value) * 100)}%`}`,
+        });
+      }
+    }
+    if (can(P.evaluationsApprove)) {
+      const ev: { id: string; eval_no: number; supplier: string; updated_at: Date }[] = await this.db.query(
+        `SELECT e.id, e.eval_no, s.name AS supplier, e.updated_at FROM pr_supplier_evaluations e JOIN pr_suppliers s ON s.id = e.supplier_id AND s.organization_id = e.organization_id
+          WHERE e.organization_id = $1 AND e.status = 'submitted' AND e.evaluator_id IS DISTINCT FROM $2`, [org, u.id]);
+      for (const e of ev) out.push({ id: `pr-ev:${e.id}`, group: 'تقييم الموردين', link: `/procurement/evaluations/${e.id}`, at: e.updated_at, title: `اعتماد تقييم المورد: ${e.supplier}`, subtitle: evalCode(e.eval_no) });
     }
     return out;
   }

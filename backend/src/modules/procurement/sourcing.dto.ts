@@ -157,6 +157,8 @@ export class OrderDto {
   @IsOptional() @Matches(DATE, { message: 'تاريخ التسليم غير صحيح' }) deliveryDate?: string | null;
   @IsOptional() @IsString() @MaxLength(500) @trim() deliveryPlace?: string | null;
   @IsOptional() @IsString() @MaxLength(8000) @trim() terms?: string | null;
+  /** العقد أو الاتفاقية الإطارية التي يصدر عليها التعميد */
+  @IsOptional() @IsUUID() contractId?: string | null;
 }
 
 export class AmendDto {

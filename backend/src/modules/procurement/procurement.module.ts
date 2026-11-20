@@ -11,10 +11,16 @@ import { PROCUREMENT_ENTITIES } from './entities/procurement.entity';
 import { SOURCING_ENTITIES } from './entities/sourcing.entity';
 import { STOCK_ENTITIES } from './entities/stock.entity';
 import { INVOICE_ENTITIES } from './entities/invoice.entity';
+import { CONTRACT_ENTITIES } from './entities/contract.entity';
+import { ContractsController } from './contracts.controller';
+import { ContractsService } from './contracts.service';
+import { EvaluationsService } from './evaluations.service';
+import { InsightsService } from './insights.service';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
 import { ProcurementController } from './procurement.controller';
 import { ProcurementReports } from './procurement.reports';
+import { ProcurementContractsReports } from './procurement-contracts.reports';
 import { ProcurementTasks } from './procurement.tasks';
 import { ProcurementCore } from './procurement-core.service';
 import { SupplierPortalController } from './supplier-portal.controller';
@@ -39,23 +45,23 @@ import { jwtOptionsFor } from '../../core/auth/token-keys';
 
 /**
  * المشتريات والمستودعات وبوابة الموردين (المرحلة الأولى: البيانات الأساسية، والثانية: طلبات الشراء والمنافسات والتعميدات،
- * والثالثة: الاستلام والفحص والصرف والتحويل والمرتجعات والتبرعات العينية والجرد والصلاحية بجرد مستمر وسندات مخازن، والرابعة: فواتير الموردين والمطابقة الثلاثية والمستحقات وكشوف الحساب).
+ * والثالثة: الاستلام والفحص والصرف والتحويل والمرتجعات والتبرعات العينية والجرد والصلاحية بجرد مستمر وسندات مخازن، والرابعة: فواتير الموردين والمطابقة الثلاثية والمستحقات وكشوف الحساب، والخامسة: العقود وتقييم الموردين والرقابة والمخاطر ومؤشرات الأداء).
  * يملك دليل الأصناف والمستودعات وسجل الموردين؛ ويقرأ من النظام المالي الدليل وتصنيفات الشركاء ومجموعات الأصول للاختيار،
  * وينشئ الشريك المقابل للمورد المعتمد عبر MastersService المصدّر من النظام المالي.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([...PROCUREMENT_ENTITIES, ...SOURCING_ENTITIES, ...STOCK_ENTITIES, ...INVOICE_ENTITIES]), CoreModule, AccountingModule, PlanningModule, FundraisingModule,
+  imports: [TypeOrmModule.forFeature([...PROCUREMENT_ENTITIES, ...SOURCING_ENTITIES, ...STOCK_ENTITIES, ...INVOICE_ENTITIES, ...CONTRACT_ENTITIES]), CoreModule, AccountingModule, PlanningModule, FundraisingModule,
     // رموز بوابة الموردين بمفتاح مستقل مشتق من سر النظام، فلا تصلح لغير بوابتها، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: jwtOptionsFor('supplier'),
     }),
   ],
-  controllers: [ProcurementController, SourcingController, StockController, InvoicesController, SupplierPortalController],
-  providers: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SupplierPortalGuard, ProcurementTasks, ProcurementReports,
+  controllers: [ProcurementController, SourcingController, StockController, InvoicesController, ContractsController, SupplierPortalController],
+  providers: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SupplierPortalGuard, ProcurementTasks, ProcurementReports, ProcurementContractsReports,
     SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService,
-    StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService, InvoicesService],
+    StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService, InvoicesService, ContractsService, EvaluationsService, InsightsService],
   exports: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService,
-    StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService, InvoicesService],
+    StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService, InvoicesService, ContractsService, EvaluationsService, InsightsService],
 })
 export class ProcurementModule {}
