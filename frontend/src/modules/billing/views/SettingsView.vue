@@ -75,6 +75,7 @@ async function save() {
       <button :class="{ on: tab === 'general' }" @click="tab = 'general'">الجمعية والضريبة</button>
       <button :class="{ on: tab === 'accounts' }" @click="tab = 'accounts'">الربط المالي</button>
       <button :class="{ on: tab === 'permissions' }" @click="tab = 'permissions'">الصلاحيات</button>
+      <RouterLink to="/billing/zatca" class="pc-tab-link">الربط مع «فاتورة»</RouterLink>
     </div>
     <form v-if="tab !== 'permissions'" class="card pm-panel" @submit.prevent="save">
       <template v-if="tab === 'general'">
@@ -82,7 +83,7 @@ async function save() {
         <div class="pc-check">
           <label v-for="(l, k) in lk.modes" :key="k" :class="['bl-mode', { on: f.mode === String(k), off: String(k) === 'integrated' }]">
             <input v-model="f.mode" type="radio" :value="String(k)" :disabled="String(k) === 'integrated'" /> <span>{{ l }}</span>
-            <small v-if="String(k) === 'integrated'" class="pm-muted">يُفعّل بعد اكتمال الربط (المرحلة الثانية)</small>
+            <small v-if="String(k) === 'integrated'" class="pm-muted">يُفعّل مع إرسال الفواتير للمنصة (المرحلة القادمة)</small>
           </label>
         </div>
         <p class="pc-sec">بيانات الجمعية في الفاتورة</p>
@@ -135,6 +136,7 @@ async function save() {
 </template>
 
 <style scoped>
+.pc-tab-link { align-self: center; padding: 6px 12px; font-size: .9rem; color: var(--primary); }
 .bl-mode { display: flex; gap: 8px; align-items: center; padding: 9px 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; }
 .bl-mode.on { border-color: var(--primary); background: var(--surface-2); }
 .bl-mode.off { opacity: .6; cursor: not-allowed; }

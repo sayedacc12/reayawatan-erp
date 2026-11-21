@@ -15,7 +15,7 @@ const P = BILLING_PERMISSIONS;
 export const billingManifest: ErpModuleManifest = {
   code: 'billing',
   name: 'الفوترة والمبيعات',
-  description: 'فواتير المبيعات الضريبية والمبسطة والإشعارات الدائنة والمدينة برمز QR، وسجل العملاء والأصناف والخدمات وفئات الضريبة، والقيود الآلية في النظام المالي وتحصيلها بسندات القبض، ومطابقة الذمم وضريبة المخرجات مع الدليل، تمهيدًا للربط مع منصة «فاتورة»',
+  description: 'فواتير المبيعات الضريبية والمبسطة والإشعارات الدائنة والمدينة برمز QR، وسجل العملاء والأصناف والخدمات وفئات الضريبة، والقيود الآلية في النظام المالي وتحصيلها بسندات القبض، ومطابقة الذمم وضريبة المخرجات مع الدليل، والربط مع منصة «فاتورة» بشهادة لكل جمعية وتوقيع كل فاتورة ضريبية إلكترونيًا',
   icon: 'receipt',
   version: '1.0.0',
   alwaysEnabled: true,
@@ -38,6 +38,7 @@ export const billingManifest: ErpModuleManifest = {
     { label: 'الأصناف والخدمات', path: '/billing/items', permission: P.read, anyOf: [P.items], group: 'المبيعات' },
     { label: 'المطابقة مع الدليل', path: '/billing/reconciliation', permission: P.read, anyOf: [P.reports] },
     { label: 'التقارير', path: '/billing/reports', permission: P.reports },
+    { label: 'الربط مع «فاتورة»', path: '/billing/zatca', permission: P.settings },
     { label: 'الإعدادات', path: '/billing/settings', permission: P.settings },
   ],
 };

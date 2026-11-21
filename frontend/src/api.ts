@@ -54,3 +54,19 @@ export async function openProtectedFile(path: string) {
     throw e;
   }
 }
+
+/** تنزيل ملف محمي باسمه (مثل ملف الفاتورة الإلكترونية) */
+export async function downloadProtectedFile(path: string, fileName: string) {
+  const t = token.get();
+  const res = await fetch(`/api${path}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new ApiError(res.status, data.message || 'تعذر تنزيل الملف');
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

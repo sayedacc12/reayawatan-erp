@@ -448,6 +448,26 @@ export class BlDocument {
   @Column({ name: 'issued_by_name', type: 'varchar', length: 200, nullable: true })
   issuedByName!: string | null;
 
+  /** بصمة المستند (SHA-256) في ملف الفاتورة الإلكترونية الموقّع (المرحلة الثانية) */
+  @Column({ name: 'invoice_hash', type: 'varchar', length: 100, nullable: true })
+  invoiceHash!: string | null;
+
+  /** بصمة المستند السابق في سلسلة الجمعية (PIH) */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  pih!: string | null;
+
+  /** ملف الفاتورة الإلكترونية الموقّع (UBL 2.1). لا يُعدّل بعد الإصدار */
+  @Column({ type: 'text', nullable: true })
+  xml!: string | null;
+
+  /** بيئة الشهادة التي وُقّع بها المستند (المطورين أو المحاكاة أو الإنتاج) */
+  @Column({ name: 'signed_env', type: 'varchar', length: 12, nullable: true })
+  signedEnv!: ZatcaEnv | null;
+
+  /** حالة الإرسال للمنصة: not_sent حتى تفعيل الإرسال في المرحلة الثالثة */
+  @Column({ name: 'zatca_status', type: 'varchar', length: 16, nullable: true })
+  zatcaStatus!: string | null;
+
   /** وقت الإصدار الفعلي (يظهر في رمز QR) */
   @Column({ name: 'issued_at', type: 'timestamptz', nullable: true })
   issuedAt!: Date | null;
@@ -462,4 +482,75 @@ export class BlDocument {
   updatedAt!: Date;
 }
 
-export const BILLING_ENTITIES = [BlSettings, BlCustomer, BlItem, BlDocument];
+export const ZATCA_ENVS = { sandbox: 'بيئة المطورين (للتجربة الفنية)', simulation: 'بيئة المحاكاة (لتجربة الجمعية قبل الإنتاج)', production: 'بيئة الإنتاج (الفواتير النظامية)' } as const;
+export type ZatcaEnv = keyof typeof ZATCA_ENVS;
+/**
+ * مراحل الربط: none لم يبدأ ← compliance صدرت شهادة الامتثال ← checked نجحت فحوص الامتثال ← production صدرت شهادة الإنتاج.
+ */
+export const ZATCA_STAGES = { none: 'لم يبدأ الربط', compliance: 'صدرت شهادة الامتثال', checked: 'نجحت فحوص الامتثال', production: 'مربوطة: صدرت شهادة الإنتاج' } as const;
+export type ZatcaStage = keyof typeof ZATCA_STAGES;
+export interface ZatcaCheck { label: string; kind: DocKind; docType: DocType; status: string; ok: boolean; messages: string[] }
+
+/** ربط الجمعية بمنصة «فاتورة» (صف واحد لكل جمعية). الأسرار تُحفظ مشفرة ولا تُعاد في أي استجابة */
+@Entity('bl_zatca')
+export class BlZatca {
+  @PrimaryColumn({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ type: 'varchar', length: 12, default: 'simulation' })
+  env!: ZatcaEnv;
+
+  @Column({ type: 'varchar', length: 12, default: 'none' })
+  stage!: ZatcaStage;
+
+  /** الرقم التسلسلي لوحدة الإصدار (1-اسم الحل|2-الإصدار|3-معرّف فريد) */
+  @Column({ name: 'egs_serial', type: 'varchar', length: 120, nullable: true })
+  egsSerial!: string | null;
+
+  @Column({ name: 'common_name', type: 'varchar', length: 120, nullable: true })
+  commonName!: string | null;
+
+  /** المفتاح الخاص (مشفر) */
+  @Column({ name: 'private_key_enc', type: 'text', nullable: true })
+  privateKeyEnc!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  csr!: string | null;
+
+  @Column({ name: 'compliance_cert', type: 'text', nullable: true })
+  complianceCert!: string | null;
+
+  @Column({ name: 'compliance_secret_enc', type: 'text', nullable: true })
+  complianceSecretEnc!: string | null;
+
+  @Column({ name: 'compliance_request_id', type: 'varchar', length: 60, nullable: true })
+  complianceRequestId!: string | null;
+
+  @Column({ name: 'production_cert', type: 'text', nullable: true })
+  productionCert!: string | null;
+
+  @Column({ name: 'production_secret_enc', type: 'text', nullable: true })
+  productionSecretEnc!: string | null;
+
+  @Column({ name: 'cert_expires_at', type: 'timestamptz', nullable: true })
+  certExpiresAt!: Date | null;
+
+  /** نتائج فحوص الامتثال الأخيرة */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  checks!: ZatcaCheck[];
+
+  /** بصمة آخر مستند موقّع في سلسلة الجمعية (PIH للمستند التالي) */
+  @Column({ name: 'last_hash', type: 'varchar', length: 100, nullable: true })
+  lastHash!: string | null;
+
+  @Column({ name: 'last_error', type: 'varchar', length: 2000, nullable: true })
+  lastError!: string | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  log!: LogEntry[];
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+export const BILLING_ENTITIES = [BlSettings, BlCustomer, BlItem, BlDocument, BlZatca];

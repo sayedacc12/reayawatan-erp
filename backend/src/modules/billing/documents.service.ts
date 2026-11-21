@@ -14,8 +14,9 @@ import {
   BillingCore, LineInput, addDays, addressProblems, blToday, buyerOf, computeDoc, customerCode, diffNote, docCode, fromH, logEntry, qrTlv, r2, toH,
 } from './billing-core.service';
 import { CatalogService } from './catalog.service';
+import { ZatcaService } from './zatca.service';
 import {
-  BlCustomer, BlDocument, BlItem, BlSettings, BuyerSnapshot, DOC_KINDS, DOC_STATUS, DOC_TYPES, DocKind, DocStatus, DocType, ISSUED, VAT_CATEGORIES,
+  BlCustomer, BlDocument, BlItem, BlSettings, BuyerSnapshot, DOC_KINDS, DOC_STATUS, DOC_TYPES, DocKind, DocStatus, DocType, ISSUED, VAT_CATEGORIES, ZATCA_ENVS,
 } from './entities/billing.entity';
 
 const can = (a: OrgUser, code: string) => a.isSuperadmin || a.permissions.includes(code);
@@ -41,7 +42,7 @@ export const outstandingOf = (d: Pick<BlDocument, 'kind' | 'total' | 'debitedAmo
 export class DocumentsService implements OnModuleInit {
   constructor(
     private readonly db: DataSource, private readonly core: BillingCore, private readonly catalog: CatalogService,
-    private readonly entries: EntriesService, private readonly vouchers: VouchersService,
+    private readonly entries: EntriesService, private readonly vouchers: VouchersService, private readonly zatca: ZatcaService,
   ) {}
 
   onModuleInit() {
@@ -335,11 +336,13 @@ export class DocumentsService implements OnModuleInit {
       d.qr = d.docType !== 'nontax' && s.vatNumber
         ? qrTlv({ seller: s.sellerName!, vatNumber: s.vatNumber, timestamp: `${date}T${issuedAt.toISOString().slice(11, 19)}Z`, total: d.total, vat: d.vat })
         : null;
+      // بعد الربط مع «فاتورة»: ملف إلكتروني موقّع وسلسلة بصمات ورمز QR بحقوله التسعة
+      const signed = await this.zatca.signOnIssue(em, s, d, ref ? docCode(ref.kind, ref.docNo) : null);
       d.entryId = (await this.postEntry(em, a, s, d, customer)).id;
       d.status = 'issued';
       d.issuedById = a.id;
       d.issuedByName = a.fullName;
-      d.log = [...d.log, logEntry(`إصدار ${DOC_KINDS[d.kind]}`, a.fullName, `العداد ${d.icv}`)];
+      d.log = [...d.log, logEntry(`إصدار ${DOC_KINDS[d.kind]}`, a.fullName, `العداد ${d.icv}${signed ? '، ووُقّع ملفه الإلكتروني' : ''}`)];
       await em.save(d);
       if (ref) {
         if (d.kind === 'credit_note') ref.creditedAmount = fromH(toH(ref.creditedAmount) + toH(d.total));
@@ -509,7 +512,7 @@ export class DocumentsService implements OnModuleInit {
       })
       : [];
     return {
-      ...d, buyer, categoryOverrides, code: docCode(d.kind, d.docNo), kindLabel: DOC_KINDS[d.kind], typeLabel: DOC_TYPES[d.docType], statusLabel: DOC_STATUS[d.status],
+      ...d, xml: undefined, hasXml: !!d.xml, signedEnvLabel: d.signedEnv ? ZATCA_ENVS[d.signedEnv] : null, buyer, categoryOverrides, code: docCode(d.kind, d.docNo), kindLabel: DOC_KINDS[d.kind], typeLabel: DOC_TYPES[d.docType], statusLabel: DOC_STATUS[d.status],
       lines: d.lines.map((l) => ({ ...l, categoryLabel: VAT_CATEGORIES[l.category], revenueAccount: accMap.get(l.revenueAccountId) ?? null })),
       qrImage: d.qr ? await QRCode.toDataURL(d.qr, { errorCorrectionLevel: 'M', margin: 1, width: 220 }) : null,
       ref: ref ? { id: ref.id, code: docCode(ref.kind, ref.docNo), issueDate: ref.issueDate, total: ref.total, uuid: ref.uuid } : null,

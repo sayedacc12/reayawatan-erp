@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { api } from '../../../api';
+import { api, downloadProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { CAT_COLOR, DOC_COLOR, addressText, billingLookups, fmtDate, fmtDateTime, money, sar, today } from '../lib';
 import '../../projects/projects.css';
@@ -21,6 +21,13 @@ const note = ref('');
 const issueDate = ref('');
 const pay = ref<any>({ date: today(), method: 'transfer', cashAccountId: '', amount: 0, note: '' });
 const base = () => `/billing/documents/${props.id}`;
+async function downloadXml() {
+  try {
+    await downloadProtectedFile(`${base()}/xml`, `${d.value.code}.xml`);
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
 
 async function load() {
   try {
@@ -165,6 +172,8 @@ const docTitle = computed(() => {
         <p v-if="d.notes" style="white-space: pre-line; margin-top: 12px; font-size: .86rem">{{ d.notes }}</p>
         <p v-if="d.terms && d.kind === 'invoice'" class="pm-muted" style="white-space: pre-line; font-size: .8rem">{{ d.terms }}</p>
         <p v-if="d.uuid" class="pm-muted" style="font-size: .72rem; margin: 10px 0 0">المعرّف الفريد <span class="pc-code">{{ d.uuid }}</span> · العداد {{ d.icv }}</p>
+        <p v-if="d.hasXml" class="pm-muted" style="font-size: .72rem; margin: 4px 0 0">بصمة المستند <span class="pc-code" dir="ltr">{{ d.invoiceHash }}</span></p>
+        <p v-if="d.hasXml && d.signedEnv !== 'production'" style="margin: 6px 0 0"><span class="bl-stamp">نسخة تجريبية: موقّعة بشهادة {{ d.signedEnvLabel }}</span></p>
       </section>
 
       <div style="display: grid; gap: 16px; align-content: start" class="pc-noprint">
@@ -186,6 +195,15 @@ const docTitle = computed(() => {
           <ul v-if="d.adjustments?.length" class="pc-log" style="margin-top: 8px">
             <li v-for="n in d.adjustments" :key="n.id"><span><RouterLink class="pm-link" :to="`/billing/invoices/${n.id}`">{{ n.kindLabel }} {{ n.code }}</RouterLink> · {{ sar(n.total) }} <small class="pm-muted">{{ n.statusLabel }}</small></span></li>
           </ul>
+        </section>
+        <section v-if="d.hasXml" class="card pm-panel">
+          <h2>الفاتورة الإلكترونية</h2>
+          <dl class="pc-dl" style="grid-template-columns: 1fr">
+            <div><dt>التوقيع</dt><dd>موقّعة بشهادة الجمعية ({{ d.signedEnvLabel }})</dd></div>
+            <div><dt>بصمة المستند السابق</dt><dd class="pc-code" dir="ltr" style="font-size: .72rem; word-break: break-all">{{ d.pih }}</dd></div>
+            <div><dt>الإرسال للمنصة</dt><dd>لم يُرسل بعد (يُفعّل الإرسال في المرحلة القادمة)</dd></div>
+          </dl>
+          <button class="btn" style="margin-top: 8px" @click="downloadXml">تنزيل ملف الفاتورة (XML)</button>
         </section>
         <section class="card pm-panel">
           <h2>الإعداد والإصدار</h2>

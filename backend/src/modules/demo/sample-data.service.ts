@@ -190,6 +190,10 @@ export class SampleDataService {
       if (!r) throw new NotFoundException('لم تُضف بيانات تجريبية لهذه الجمعية');
       if (r.status === 'cleared') throw new BadRequestException('سبق تحويل هذه الجمعية إلى جمعية فعلية');
       if (r.status === 'loading' && !this.stale(r)) throw new ConflictException('جارٍ إضافة البيانات التجريبية الآن، انتظر حتى تنتهي');
+      // بعد الربط مع «فاتورة» أو توقيع فواتير إلكترونية لا يُعاد ضبط البيانات، حتى لا تُفقد الشهادة أو سلسلة البصمات
+      const [linked] = await em.query(
+        `SELECT EXISTS (SELECT 1 FROM bl_zatca WHERE organization_id = $1 AND stage <> 'none') OR EXISTS (SELECT 1 FROM bl_documents WHERE organization_id = $1 AND invoice_hash IS NOT NULL) AS v`, [orgId]);
+      if (linked?.v) throw new ConflictException('الجمعية مربوطة بمنصة «فاتورة» أو أصدرت فواتير إلكترونية موقّعة، فلا يمكن تحويلها بحذف البيانات التجريبية');
       const tables = await orgTables(em);
       const current = await snapshot(em, orgId, tables);
       const plan = this.plan(current, r.baseline, r.sample);
