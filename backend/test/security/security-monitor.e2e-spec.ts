@@ -140,7 +140,7 @@ describe('Security monitor (sayed)', () => {
   });
 
   it('alerts on an account probing records it cannot see, ends its sessions only on a strong signal, and waits for approval to suspend it', async () => {
-    const probe = (n: number) => Promise.all(Array.from({ length: n }, () => http.get(`/api/beneficiaries/${randomUUID()}`).set(as(orgAdmin)).expect(404)));
+    const probe = (n: number) => Promise.all(Array.from({ length: n }, () => http.get(`/api/website/leads/${randomUUID()}`).set(as(orgAdmin)).expect(404)));
     await probe(20);
     const [inc] = await detector.run();
     expect(inc).toMatchObject({ rule: 'probe', severity: 'high', pendingAction: 'suspend_user' });
