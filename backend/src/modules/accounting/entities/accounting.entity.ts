@@ -44,8 +44,6 @@ export interface AssetConfig {
   alertDays?: number;
   /** الشهر الجزئي: days بالأيام الفعلية، next_month من بداية الشهر التالي للشراء ويُحسب شهر البيع كاملًا حتى تاريخه */
   partialMonth?: 'days' | 'next_month';
-  /** الحساب الافتراضي للتبرعات العينية من الأصول */
-  donationAccountId?: string | null;
   /** فائض إعادة التقييم (ضمن صافي الأصول) */
   revaluationAccountId?: string | null;
   /** خسائر هبوط قيمة الأصول (مصروف) */

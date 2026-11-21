@@ -130,10 +130,12 @@ describe('Procurement stage 3: receipts, stock and warehouse vouchers', () => {
 
   it('validates warehouse settings by account nature', async () => {
     const base = { expiryAlertDays: 60, overReceiptPct: 0, vatInCost: true, requireInspection: false };
-    const bad = await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({ ...base, grniAccountId: acc.grni, donationAccountId: acc.expense }).expect(400);
-    expect(bad.body.message).toContain('الإيرادات');
+    const bad = await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({ ...base, grniAccountId: acc.grni, openingAccountId: acc.expense }).expect(400);
+    expect(bad.body.message).toContain('صافي الأصول');
+    // لا حساب للتبرعات العينية في رعاية وطن
+    await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({ ...base, grniAccountId: acc.grni, donationAccountId: acc.donation }).expect(400);
     const s = (await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({
-      ...base, grniAccountId: acc.grni, adjustAccountId: acc.adjust, adjustAnalyticId: acc.cc, donationAccountId: acc.donation, openingAccountId: acc.opening, defaultExpenseAccountId: acc.expense,
+      ...base, grniAccountId: acc.grni, adjustAccountId: acc.adjust, adjustAnalyticId: acc.cc, openingAccountId: acc.opening, defaultExpenseAccountId: acc.expense,
     }).expect(200)).body;
     expect(s).toMatchObject({ grniAccountId: acc.grni, vatInCost: true });
   });
@@ -281,15 +283,16 @@ describe('Procurement stage 3: receipts, stock and warehouse vouchers', () => {
     expect(req.status).toBe('closed');
   });
 
-  it('records in-kind donations at fair value against donation revenue', async () => {
+  it('rejects in-kind donation receipts and records opening balances against the opening account', async () => {
+    // رعاية وطن: التبرع العيني بالمخزون أُلغي تمامًا
     await http.post(`${PR}/receipts`).set(as(tok.keeper)).send({ kind: 'donation', warehouseId: ids.main, date: today, lines: [{ itemId: ids.blanket, qty: 20, unitPrice: 50 }] }).expect(400);
     const d = (await http.post(`${PR}/receipts`).set(as(tok.keeper)).send({
-      kind: 'donation', warehouseId: ids.main, date: today, donorName: 'فاعل خير', lines: [{ itemId: ids.blanket, qty: 20, unitPrice: 50 }],
+      kind: 'opening', warehouseId: ids.main, date: today, lines: [{ itemId: ids.blanket, qty: 20, unitPrice: 50 }],
     }).expect(201)).body;
-    expect(d).toMatchObject({ kind: 'donation', total: 1000 });
+    expect(d).toMatchObject({ kind: 'opening', total: 1000 });
     const e = await entry(d.entryId);
     expect(e.net(acc.inventory)).toBe(1000);
-    expect(e.net(acc.donation)).toBe(-1000);
+    expect(e.net(acc.opening)).toBe(-1000);
     // رصيد افتتاحي يُلغى ما دام لم يُصرف منه
     const op = (await http.post(`${PR}/receipts`).set(as(tok.keeper)).send({ kind: 'opening', warehouseId: ids.main, date: today, lines: [{ itemId: ids.blanket, qty: 4, unitPrice: 40 }] }).expect(201)).body;
     expect(await balance(ids.blanket, ids.main)).toEqual({ qty: 24, value: 1160 });

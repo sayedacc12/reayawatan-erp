@@ -43,13 +43,12 @@ watch(() => [f.value.kind, f.value.warehouse, f.value.status], load);
       <div><h1>الاستلام والفحص</h1><p class="muted">محاضر استلام التعميدات والتبرعات العينية والأرصدة الافتتاحية. كل استلام يحدّث رصيد المستودع وقيمته فورًا ويصدر سند مخازن في النظام المالي.</p></div>
       <div v-if="canOperate" class="pc-inline">
         <button class="btn btn-primary" @click="router.push('/procurement/receipts/new?kind=order')">استلام تعميد</button>
-        <button class="btn" @click="router.push('/procurement/receipts/new?kind=donation')">تبرع عيني</button>
         <button class="btn btn-ghost" @click="router.push('/procurement/receipts/new?kind=opening')">رصيد افتتاحي</button>
       </div>
     </div>
     <div class="pc-toolbar">
-      <input v-model="f.q" class="input grow" placeholder="بحث بالرقم أو المورد أو المتبرع" />
-      <select v-model="f.kind" class="input"><option value="">كل الأنواع</option><option value="order">استلام بتعميد</option><option value="donation">تبرع عيني</option><option value="opening">رصيد افتتاحي</option></select>
+      <input v-model="f.q" class="input grow" placeholder="بحث بالرقم أو المورد" />
+      <select v-model="f.kind" class="input"><option value="">كل الأنواع</option><option value="order">استلام بتعميد</option><option value="opening">رصيد افتتاحي</option></select>
       <select v-model="f.warehouse" class="input"><option value="">كل المستودعات</option><option v-for="w in lk?.activeWarehouses ?? []" :key="w.id" :value="w.id">{{ w.code }} · {{ w.name }}</option></select>
       <select v-model="f.status" class="input"><option value="">كل الحالات</option><option value="posted">معتمد</option><option value="cancelled">ملغى</option></select>
     </div>
@@ -62,7 +61,7 @@ watch(() => [f.value.kind, f.value.warehouse, f.value.status], load);
             <td><span class="pm-pill" :style="{ '--c': RECEIPT_KIND_COLOR[r.kind] }">{{ r.kindLabel }}</span></td>
             <td>
               <template v-if="r.kind === 'order'">{{ r.supplierName }}<span class="pc-code" style="display: block">{{ r.orderCode }}</span></template>
-              <template v-else>{{ r.donorName ?? '—' }}</template>
+              <template v-else>—</template>
             </td>
             <td>{{ r.warehouseName ?? 'تسليم مباشر' }}</td>
             <td style="font-size: .85rem">{{ fmtDate(r.date) }}</td>

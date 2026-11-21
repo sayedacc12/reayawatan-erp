@@ -258,10 +258,12 @@ describe('Fixed assets', () => {
     expect((await http.get(`${F}/reconciliation`).set(as(admin)).expect(200)).body.ok).toBe(true);
   });
 
-  it('records in-kind donations and scrapping, and cancels a scrap', async () => {
-    const d = await http.post(F).set(as(admin)).send({ groupId: ids.it, name: 'شاشة عرض متبرع بها', custodianEmployeeId: ids.keeper }).expect(201);
-    const don = await http.post(`${F}/operations/donation`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-05`, amount: 1200, counterAccountId: acc['3120200101'], partyName: 'متبرع كريم' }).expect(201);
-    expect(don.body.entry.voucherNo).toBe(`1/${year}`);
+  it('has no in-kind donation operation, and scraps and cancels a scrap', async () => {
+    const d = await http.post(F).set(as(admin)).send({ groupId: ids.it, name: 'شاشة عرض', custodianEmployeeId: ids.keeper }).expect(201);
+    // رعاية وطن: التبرع العيني بالأصول أُلغي تمامًا
+    await http.post(`${F}/operations/donation`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-05`, amount: 1200 }).expect(404);
+    const buy = await http.post(`${F}/operations/purchase`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-05`, amount: 1200, method: 'credit', partnerId: ids.supplier }).expect(201);
+    await http.post(`${A}/voucher/${buy.body.voucher.id}/submit`).set(as(admin)).expect(201);
     const sc = await http.post(`${F}/operations/scrap`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-20`, notes: 'تلف كامل' }).expect(201);
     expect((await http.get(`${F}/${d.body.id}`).set(as(admin)).expect(200)).body.status).toBe('scrapped');
     expect((await http.get(`${F}/reconciliation`).set(as(admin)).expect(200)).body.ok).toBe(true);

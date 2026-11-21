@@ -11,11 +11,10 @@ import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 
-type Op = 'purchase' | 'addition' | 'donation' | 'wip' | 'capitalize' | 'revaluation' | 'impairment' | 'sale' | 'scrap';
+type Op = 'purchase' | 'addition' | 'wip' | 'capitalize' | 'revaluation' | 'impairment' | 'sale' | 'scrap';
 const OPS: { key: Op; label: string; icon: string; hint: string }[] = [
   { key: 'purchase', label: 'شراء أصل', icon: '🛒', hint: 'يصدر سند صرف (نقدي أو بنكي أو آجل على حساب المورد)، ولا يدخل الأصل الدفاتر ولا يُهلك إلا بعد اعتماد السند في مرحلته النهائية.' },
   { key: 'addition', label: 'إضافة وتحسين', icon: '🔧', hint: 'تكلفة رأسمالية تزيد قيمة الأصل (مثل تركيب مصعد)، ويُوزَّع إهلاكها على العمر المتبقي. يصدر بها سند صرف.' },
-  { key: 'donation', label: 'تبرع عيني', icon: '🎁', hint: 'أصل وصل تبرعًا: يُثبت بقيمته العادلة مقابل حساب التبرعات العينية، بسند أصول ثابتة وبدون سند صرف.' },
   { key: 'wip', label: 'دفعة تحت التنفيذ', icon: '🏗️', hint: 'دفعة للمقاول أو المورد على أصل لم يكتمل (مثل مبنى تحت الإنشاء): يصدر بها سند صرف على حساب المشروعات تحت التنفيذ، ولا تدخل تكلفة الأصل ولا يُهلك حتى رسملته.' },
   { key: 'capitalize', label: 'رسملة', icon: '🏁', hint: 'عند اكتمال الأصل تحت التنفيذ: تُنقل دفعاته المعتمدة من حساب المشروعات تحت التنفيذ إلى حساب الأصل بسند أصول، ويبدأ إهلاكه من تاريخ الرسملة.' },
   { key: 'revaluation', label: 'إعادة تقييم', icon: '📈', hint: 'إن زادت القيمة العادلة (بتقرير مقيّم معتمد) على صافي القيمة الدفترية: يزيد الفرق تكلفة الأصل مقابل حساب فائض إعادة التقييم، ويُهلك على العمر المتبقي.' },
@@ -66,7 +65,7 @@ const form = reactive({
 });
 watch(op, () => { form.assetId = null; form.amount = null; form.notes = ''; form.funded = false; form.budgetLineId = ''; });
 const STATUS_FOR: Record<Op, string[]> = {
-  purchase: ['draft'], donation: ['draft'], wip: ['draft', 'construction'], capitalize: ['construction'],
+  purchase: ['draft'], wip: ['draft', 'construction'], capitalize: ['construction'],
   addition: ['active'], revaluation: ['active'], impairment: ['active'], sale: ['active'], scrap: ['active'],
 };
 const wantDraft = computed(() => STATUS_FOR[op.value].includes('draft'));
@@ -88,9 +87,8 @@ const picked = computed(() => assets.value.find((a) => a.id === form.assetId) ??
 const cashOptions = computed(() => (lookups.value?.cash ?? []).filter((c) => c.kind === (form.method === 'bank' ? 'bank' : 'cash')));
 watch(() => form.method, () => { form.cashAccountId = cashOptions.value[0]?.id ?? ''; });
 watch(cashOptions, (o) => { if (!o.some((c) => c.id === form.cashAccountId)) form.cashAccountId = o[0]?.id ?? ''; }, { immediate: true });
-const donationOptions = computed(() => subOptions((a) => a.nature === 'revenue'));
 const hint = computed(() => OPS.find((o) => o.key === op.value)!.hint);
-const AMOUNT_LABEL: Partial<Record<Op, string>> = { sale: 'قيمة البيع', donation: 'القيمة العادلة', revaluation: 'القيمة العادلة حسب التقييم', impairment: 'القيمة القابلة للاسترداد', wip: 'مبلغ الدفعة' };
+const AMOUNT_LABEL: Partial<Record<Op, string>> = { sale: 'قيمة البيع', revaluation: 'القيمة العادلة حسب التقييم', impairment: 'القيمة القابلة للاسترداد', wip: 'مبلغ الدفعة' };
 const busy = ref(false);
 
 async function submit() {
@@ -107,7 +105,6 @@ async function submit() {
   if (op.value === 'revaluation') { path = 'revaluation'; body = { ...common, fairValue: form.amount }; }
   if (op.value === 'impairment') { path = 'impairment'; body = { ...common, recoverable: form.amount }; }
   if (op.value === 'capitalize') { path = 'capitalize'; body = common; }
-  if (op.value === 'donation') { path = 'donation'; body = { ...common, amount: form.amount, counterAccountId: form.counterAccountId }; }
   if (op.value === 'sale') { path = 'sale'; body = { ...common, ...pay, price: form.amount }; }
   if (op.value === 'scrap') { path = 'scrap'; body = common; }
   try {
@@ -135,7 +132,7 @@ async function cancelOp(m: Move) {
   }
 }
 const ST: Record<string, string> = { done: '#10b981', pending: '#6366f1', cancelled: '#b91c1c' };
-const CANCELLABLE = ['donation', 'scrap', 'revaluation', 'impairment', 'capitalize'];
+const CANCELLABLE = ['scrap', 'revaluation', 'impairment', 'capitalize'];
 </script>
 
 <template>
@@ -144,7 +141,7 @@ const CANCELLABLE = ['donation', 'scrap', 'revaluation', 'impairment', 'capitali
       <div>
         <p class="pm-kicker">الأصول الثابتة</p>
         <h1>عمليات الأصول</h1>
-        <p class="pm-sub">شراء وإضافة وتبرع عيني وبيع وتخريد، وكل عملية تصدر سندها وقيدها من الأصول مباشرة. ولإهلاك الأصول استخدم شاشة احتساب الإهلاك.</p>
+        <p class="pm-sub">شراء وإضافة وبيع وتخريد، وكل عملية تصدر سندها وقيدها من الأصول مباشرة. ولإهلاك الأصول استخدم شاشة احتساب الإهلاك.</p>
       </div>
       <div class="pm-actions"><RouterLink v-if="session.can(P.assetsDepreciate)" to="/accounting/assets/depreciation" class="btn ac-ghost">إهلاك الأصول</RouterLink></div>
     </section>
@@ -216,12 +213,6 @@ const CANCELLABLE = ['donation', 'scrap', 'revaluation', 'impairment', 'capitali
           </div>
         </template>
         <label v-if="op === 'revaluation'" class="field"><span>جهة التقييم (المقيّم المعتمد)</span><input v-model="form.partyName" class="input" required /></label>
-        <div v-if="op === 'donation'" class="field-row">
-          <label class="field"><span>حساب التبرعات العينية</span>
-            <SearchSelect v-model="form.counterAccountId" :options="donationOptions" :placeholder="lookups?.config.donationAccount ? `الافتراضي: ${lookups.config.donationAccount.code} ${lookups.config.donationAccount.name}` : 'اختر حساب الإيراد'" />
-          </label>
-          <label class="field"><span>اسم المتبرع</span><input v-model="form.partyName" class="input" /></label>
-        </div>
         <label class="field"><span>{{ op === 'scrap' ? 'سبب التخريد ومرجعه' : op === 'impairment' ? 'سبب هبوط القيمة' : 'ملاحظات' }}</span><input v-model="form.notes" class="input" :required="op === 'scrap' || op === 'impairment'" /></label>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy">{{ OPS.find((o) => o.key === op)!.label }}</button></div>
       </form>
@@ -229,7 +220,7 @@ const CANCELLABLE = ['donation', 'scrap', 'revaluation', 'impairment', 'capitali
 
     <section v-else class="card pm-panel">
       <div class="ac-toolbar">
-        <select v-model="lf.kind" class="input"><option value="">كل العمليات</option><option value="opening">رصيد افتتاحي</option><option value="purchase">شراء</option><option value="addition">إضافة</option><option value="donation">تبرع عيني</option><option value="wip">دفعة تحت التنفيذ</option><option value="capitalize">رسملة</option><option value="revaluation">إعادة تقييم</option><option value="impairment">هبوط قيمة</option><option value="sale">بيع</option><option value="scrap">تخريد</option></select>
+        <select v-model="lf.kind" class="input"><option value="">كل العمليات</option><option value="opening">رصيد افتتاحي</option><option value="purchase">شراء</option><option value="addition">إضافة</option><option value="wip">دفعة تحت التنفيذ</option><option value="capitalize">رسملة</option><option value="revaluation">إعادة تقييم</option><option value="impairment">هبوط قيمة</option><option value="sale">بيع</option><option value="scrap">تخريد</option></select>
         <select v-model="lf.status" class="input"><option value="">كل الحالات</option><option value="pending">تنتظر اعتماد السند</option><option value="done">منفذة</option><option value="cancelled">ملغاة</option></select>
       </div>
       <div class="table-wrap">

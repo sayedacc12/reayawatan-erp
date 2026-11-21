@@ -41,7 +41,7 @@ const allPicked = computed({
   set: (v: boolean) => { picked.value = v ? rows.value.map((r) => r.id) : []; },
 });
 const printLabels = () => router.push({ path: '/accounting/assets/labels', query: { ids: picked.value.join(',') } });
-const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purchase: 'شراء', donation: 'تبرع عيني', capitalize: 'رسملة أصل تحت التنفيذ' };
+const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purchase: 'شراء', capitalize: 'رسملة أصل تحت التنفيذ' };
 </script>
 
 <template>
@@ -50,7 +50,7 @@ const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purcha
       <div>
         <p class="pm-kicker">الأصول الثابتة</p>
         <h1>سجل الأصول</h1>
-        <p class="pm-sub">بطاقة لكل أصل برمز فريد وملصق QR: مجموعته، والموظف المسؤول عنه، وموقعه، وقيمته ومجمع إهلاكه. الأصل المسجل بلا قيمة يدخل الدفاتر برصيد افتتاحي أو شراء أو تبرع عيني.</p>
+        <p class="pm-sub">بطاقة لكل أصل برمز فريد وملصق QR: مجموعته، والموظف المسؤول عنه، وموقعه، وقيمته ومجمع إهلاكه. الأصل المسجل بلا قيمة يدخل الدفاتر برصيد افتتاحي أو شراء.</p>
       </div>
       <div class="pm-actions">
         <button v-if="session.can(P.assetsManage)" class="btn ac-glow" @click="showForm = true">أصل جديد</button>

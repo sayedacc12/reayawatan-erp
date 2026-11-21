@@ -119,12 +119,6 @@ export class AssetsController {
     return this.ops.purchase(a, b);
   }
 
-  @Post('operations/donation')
-  @RequirePermissions(P.assetsOperate)
-  donation(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {
-    return this.ops.donation(a, b);
-  }
-
   @Post('operations/sale')
   @RequirePermissions(P.assetsOperate)
   sale(@CurrentOrgUser() a: OrgUser, @Body() b: Dto) {

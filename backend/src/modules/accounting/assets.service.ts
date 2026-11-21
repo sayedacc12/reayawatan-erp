@@ -47,11 +47,11 @@ export const FIRST_KINDS: AssetMoveKind[] = ['opening', 'purchase', 'donation', 
 export const costMove = (m: { kind: AssetMoveKind }) => m.kind !== 'wip' && !DISPOSAL_KINDS.includes(m.kind);
 
 const DEFAULT_CONFIG: Required<AssetConfig> = {
-  prefix: 'FA', requireCustody: true, alertDays: 30, partialMonth: 'days', donationAccountId: null, revaluationAccountId: null, impairmentAccountId: null,
+  prefix: 'FA', requireCustody: true, alertDays: 30, partialMonth: 'days', revaluationAccountId: null, impairmentAccountId: null,
   wipAccountId: null, grantReleaseAccountId: null, maintenanceAccountId: null, budgetControl: 'warn',
 };
 /** حسابات الإعدادات */
-export const CONFIG_ACCOUNTS = ['donationAccountId', 'revaluationAccountId', 'impairmentAccountId', 'wipAccountId', 'grantReleaseAccountId', 'maintenanceAccountId'] as const;
+export const CONFIG_ACCOUNTS = ['revaluationAccountId', 'impairmentAccountId', 'wipAccountId', 'grantReleaseAccountId', 'maintenanceAccountId'] as const;
 
 export interface Emp { id: string; fullName: string; employeeNo: number; unitId: string | null; status: string }
 
@@ -89,7 +89,7 @@ export class AssetsService {
     const accs: { id: string; code: string; name: string }[] = ids.length ? await this.db.query('SELECT id, code, name FROM acc_accounts WHERE id = ANY($1)', [ids]) : [];
     const acc = (id: string | null) => (id ? accs.find((a) => a.id === id) ?? null : null);
     return {
-      ...c, donationAccount: acc(c.donationAccountId), revaluationAccount: acc(c.revaluationAccountId), impairmentAccount: acc(c.impairmentAccountId),
+      ...c, revaluationAccount: acc(c.revaluationAccountId), impairmentAccount: acc(c.impairmentAccountId),
       wipAccount: acc(c.wipAccountId), grantReleaseAccount: acc(c.grantReleaseAccountId), maintenanceAccount: acc(c.maintenanceAccountId),
     };
   }

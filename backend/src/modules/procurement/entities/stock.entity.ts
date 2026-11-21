@@ -10,7 +10,7 @@ const qty = (name: string) => ({ name, type: 'numeric' as const, precision: 14, 
 
 // ---------------- القوائم الثابتة ----------------
 
-export const RECEIPT_KINDS = { order: 'استلام بتعميد', donation: 'تبرع عيني', opening: 'رصيد افتتاحي' } as const;
+export const RECEIPT_KINDS = { order: 'استلام بتعميد', opening: 'رصيد افتتاحي' } as const;
 export type ReceiptKind = keyof typeof RECEIPT_KINDS;
 export const RECEIPT_STATUS = { posted: 'معتمد', cancelled: 'ملغى' } as const;
 export type ReceiptStatus = keyof typeof RECEIPT_STATUS;
@@ -59,7 +59,7 @@ export interface ReceiptLine {
   acceptedQty: number;
   rejectedQty: number;
   rejectReason: string | null;
-  /** سعر الوحدة في التعميد أو القيمة العادلة للتبرع */
+  /** سعر الوحدة في التعميد أو تكلفة الرصيد الافتتاحي */
   unitPrice: number;
   /** نصيب الوحدة من مصاريف النقل والتخليص */
   extraUnit: number;
@@ -88,7 +88,7 @@ export class PrReceipt {
   @Column({ name: 'supplier_id', type: 'uuid', nullable: true }) supplierId!: string | null;
   @Column({ name: 'warehouse_id', type: 'uuid', nullable: true }) warehouseId!: string | null;
   @Column({ type: 'date' }) date!: string;
-  /** رقم إشعار التسليم من المورد أو مرجع التبرع */
+  /** رقم إشعار التسليم من المورد */
   @Column({ name: 'delivery_ref', type: 'varchar', length: 80, nullable: true }) deliveryRef!: string | null;
   @Column({ name: 'donor_name', type: 'varchar', length: 250, nullable: true }) donorName!: string | null;
   /** مركز التكلفة للبنود التي تُحمّل مصروفًا مباشرًا */

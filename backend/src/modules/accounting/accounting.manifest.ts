@@ -59,7 +59,7 @@ export const accountingManifest: ErpModuleManifest = {
     { code: P.settings, name: 'إعدادات النظام المالي وتنصيب الدليل الموحد' },
     { code: P.assetsRead, name: 'الأصول الثابتة: عرض الأصول ولوحتها وتقاريرها' },
     { code: P.assetsManage, name: 'الأصول الثابتة: المجموعات وبطاقات الأصول والأرصدة الافتتاحية' },
-    { code: P.assetsOperate, name: 'الأصول الثابتة: الشراء والإضافات والتبرع العيني والبيع والتخريد' },
+    { code: P.assetsOperate, name: 'الأصول الثابتة: الشراء والإضافات والبيع والتخريد' },
     { code: P.assetsDepreciate, name: 'الأصول الثابتة: احتساب الإهلاك وترحيل قيده' },
     { code: P.assetsReverse, name: 'الأصول الثابتة: إلغاء حركات الإهلاك والعمليات' },
     { code: P.assetsCustody, name: 'الأصول الثابتة: تسليم العهد ونقلها واستلامها والجرد الدوري' },

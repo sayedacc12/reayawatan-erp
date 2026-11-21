@@ -57,7 +57,7 @@ export interface AssetDetail extends AssetRow {
 export interface Alert { kind: string; label: string; date: string; expired: boolean; assetId?: string; code?: string; name?: string }
 export interface Emp { id: string; fullName: string; employeeNo: number; unitId: string | null; status: string }
 export interface AssetConfig {
-  prefix: string; requireCustody: boolean; alertDays: number; partialMonth: 'days' | 'next_month'; donationAccountId: string | null; donationAccount?: AccRef | null;
+  prefix: string; requireCustody: boolean; alertDays: number; partialMonth: 'days' | 'next_month';
   revaluationAccountId: string | null; impairmentAccountId: string | null; wipAccountId: string | null; grantReleaseAccountId: string | null;
   maintenanceAccountId: string | null; budgetControl: 'warn' | 'block';
   revaluationAccount?: AccRef | null; impairmentAccount?: AccRef | null; wipAccount?: AccRef | null; grantReleaseAccount?: AccRef | null; maintenanceAccount?: AccRef | null;
