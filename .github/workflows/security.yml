@@ -47,6 +47,12 @@ jobs:
         run: npx jest test/security/route-authz.spec.ts
       - name: Tenant isolation on every read endpoint
         run: npx jest test/security/tenant-isolation.e2e-spec.ts
+      - name: Rate limits use the real client IP
+        run: npx jest test/security/client-ip.e2e-spec.ts
+      - name: PDF rendering cannot reach the network (SSRF)
+        run: npx jest test/security/pdf-ssrf.spec.ts
+      - name: Security monitor detects, contains and alerts
+        run: npx jest test/security/security-monitor.e2e-spec.ts
 
   frontend:
     name: Frontend typecheck + build
@@ -105,11 +111,12 @@ jobs:
         with: { persist-credentials: false }
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      # المستوى يرتفع إلى high بعد تحديث المكتبات في المرحلة 1
+      # يفشل عند أي ثغرة high/critical إلا المستثناة بسبب وتاريخ انتهاء في .github/scripts/audit-allowlist.json.
+      # المتبقي ثغرات متوسطة تحتاج ترقية NestJS وTypeORM لإصدار رئيسي جديد (مهمة مستقلة).
       - name: Backend production dependencies
-        run: cd backend && npm audit --omit=dev --audit-level=critical
+        run: (cd backend && npm audit --omit=dev --json || true) | node .github/scripts/audit-gate.js backend
       - name: Frontend production dependencies
-        run: cd frontend && npm audit --omit=dev --audit-level=high
+        run: (cd frontend && npm audit --omit=dev --json || true) | node .github/scripts/audit-gate.js frontend
 
   containers:
     name: Trivy (Dockerfiles and compose misconfiguration)

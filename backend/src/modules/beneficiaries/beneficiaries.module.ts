@@ -18,6 +18,7 @@ import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { TicketsController } from './tickets.controller';
 import { TicketsService } from './tickets.service';
+import { jwtOptionsFor } from '../../core/auth/token-keys';
 
 /**
  * وحدة المستفيدين: الملفات والأسر، شجرة الأنشطة، سير عمل الطلبات بمراحله ونماذجه،
@@ -28,10 +29,10 @@ import { TicketsService } from './tickets.service';
     TypeOrmModule.forFeature(BENEFICIARY_ENTITIES),
     // قائمة الجنسيات المشتركة (LookupsService)
     CoreModule,
-    // رموز البوابة بنفس سر النظام لكن بنوع portal، وحارس الموظفين يرفضها
+    // رموز البوابة بمفتاح مستقل مشتق من سر النظام، فلا تصلح لغير بوابتها، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({ secret: config.getOrThrow<string>('JWT_SECRET') }),
+      useFactory: jwtOptionsFor('portal'),
     }),
   ],
   // المسارات الأكثر تحديدًا أولًا: beneficiaries/settings و beneficiaries/requests قبل beneficiaries/:id

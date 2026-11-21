@@ -2,5 +2,23 @@
 # مع DOMAIN (مثل sanabelerp.com): يصدر شهادة HTTPS تلقائيًا من Let's Encrypt.
 {$DOMAIN} {
 	encode gzip
+
+	# ترويسات الأمان على كل الردود (الواجهة والـ API)
+	header {
+		# المتصفح يستخدم HTTPS فقط لهذا النطاق سنة كاملة
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# لا يُفتح النظام داخل إطار في موقع آخر (حماية من clickjacking)
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# الكاميرا لجرد الأصول فقط من نفس الموقع، ولا ميكروفون ولا موقع جغرافي ولا دفع من المتصفح
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		# سياسة المحتوى في وضع المراقبة أولًا (لا تمنع شيئًا)، وتُفعَّل بعد التأكد من عدم كسر أي صفحة
+		Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' https://www.google.com https://maps.google.com https://www.youtube.com; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+		-X-Powered-By
+	}
+
 	reverse_proxy frontend:80
 }

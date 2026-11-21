@@ -10,6 +10,7 @@ export const MAIL_EVENTS = {
   passwordReset: 'استعادة كلمة المرور',
   backups: 'تنبيه الإدارة عند فشل النسخ الاحتياطي أو تأخره',
   suppliers: 'إشعارات بوابة الموردين (الحسابات والاعتماد والمستندات)',
+  security: 'تنبيهات المراقب الأمني «سيد» وتقريره اليومي',
 } as const;
 export type MailEvent = keyof typeof MAIL_EVENTS;
 

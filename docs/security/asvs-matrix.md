@@ -11,7 +11,7 @@ Status legend: ✅ in place · 🟡 partial · ❌ missing · 📅 planned phase
 | 1.4.1 | Trusted, centralized access-control enforcement | 🟡 | Global `AuthGuard`; default-deny 📅2 |
 | 1.14.6 | No unsupported/insecure client tech | ✅ | Vue 3 SPA |
 | 2.1.1/2.1.7 | Password length; breached-password check | 🟡 | Length + letter/digit; breached list ❌ |
-| 2.2.1 | Anti-automation on auth | 🟡 | `@Throttle` on login/reset; real client IP 📅1 |
+| 2.2.1 | Anti-automation on auth | 🟡 | `@Throttle` on login/reset per real client IP; monitor blocks brute-force/spraying sources temporarily |
 | 2.2.3/2.5.x | Notify on credential change; secure recovery | 🟡 | Temp password flow (PR #54); email notice 📅4 |
 | 2.7/2.8 (L3 for admins) | MFA (TOTP) | ❌ | 📅4 platform owner, superadmin, financial approvers |
 | 2.4.1 | Passwords stored with adaptive hash | ✅ | bcrypt cost 12 |
@@ -26,21 +26,21 @@ Status legend: ✅ in place · 🟡 partial · ❌ missing · 📅 planned phase
 | 5.2.x | Sanitize HTML | ✅ | Escaped `v-html`, `esc()` in reports |
 | 5.3.4 | Parameterized queries | ✅ | Semgrep rule blocks new interpolation |
 | 7.1.1/7.1.2 | No credentials/PII in logs | 🟡 | Rule in CLAUDE.md; review |
-| 7.2.1/7.2.2 | Log auth and access-control events | ❌ | Unified `audit_events` 📅3 |
+| 7.2.1/7.2.2 | Log auth and access-control events | 🟡 | Security monitor `sec_events` (logins, 401/403/404/429/5xx, exports, admin changes) with alerts; unified `audit_events` 📅3 |
 | 7.3.x (L3) | Log integrity | ❌ | Hash-chained audit log 📅3 |
 | 8.2.2 | No sensitive data in browser storage | ❌ | JWT in localStorage 📅4 |
 | 8.3.x | Sensitive data minimized/encrypted | 🟡 | Backups encrypted; field-level encryption for IBAN/ID to evaluate |
 | 9.1.1 | TLS for all connections | ✅ | Caddy + Let's Encrypt |
-| 9.1.x | HSTS | ❌ | 📅1 |
+| 9.1.x | HSTS | ✅ | Caddy (phase 1) |
 | 10.3.2 | Dependency integrity / known vulns | 🟡 | Lockfiles; audit gate + Dependabot (phase 0); upgrades 📅1 |
 | 11.1.1/11.1.4 | Business-logic sequence and limits | 🟡 | Approval flows; concurrency tests 📅3 |
 | 11.1.6 (L2) | Race conditions on financial ops | 🟡 | Transactions; DB constraints 📅3 |
 | 12.1.1 | Upload size limits | ✅ | Multer limits |
 | 12.2.1 | Verify file type by content | ❌ | 📅 later |
 | 12.5.2 | Uploads served as attachments, not executed | ✅ | Served via API |
-| 12.6.1 | SSRF protection | 🟡 | PDF network blocking 📅1 |
+| 12.6.1 | SSRF protection | ✅ | PDF renderer blocks all network requests (phase 1, test-guarded) |
 | 13.1.x | API authz, rate limits | ✅ | Guard + throttler |
 | 14.1.x | Build/deploy reproducible, secure | 🟡 | Docker, CI gates (phase 0), no deploy from CI |
-| 14.2.1 | Components up to date | ❌ | 📅1 |
-| 14.4.x | Security headers (CSP, XFO, nosniff, Referrer-Policy) | ❌ | 📅1 |
-| 14.5.x | Validate HTTP request headers / trusted proxy | 🟡 | `trust proxy` fix 📅1 |
+| 14.2.1 | Components up to date | 🟡 | High advisories 14 -> 1 (no fix, unreachable); Nest 11 upgrade pending |
+| 14.4.x | Security headers (CSP, XFO, nosniff, Referrer-Policy) | 🟡 | All enforced except CSP (report-only), phase 1 |
+| 14.5.x | Validate HTTP request headers / trusted proxy | ✅ | Private-hop trust only (phase 1, test-guarded) |
