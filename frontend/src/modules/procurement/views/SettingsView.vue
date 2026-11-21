@@ -3,12 +3,15 @@
 import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
+import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { lookups, setLookups, stockLookups } from '../lib';
 import '../../projects/projects.css';
 import '../procurement.css';
 
 const toast = useToast();
+const supplierUrl = `${location.origin}/supplier/${useSession().user?.organizationSlug ?? ''}`;
+const copyUrl = () => navigator.clipboard.writeText(supplierUrl).then(() => toast.success('نُسخ الرابط'), () => toast.error('تعذر النسخ'));
 const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'stock' | 'invoices' | 'evaluation' | 'permissions'>('general');
 const ev = ref<any>(null);
 const METRICS: Record<string, string> = { onTimePct: 'التوريد في الموعد', fillPct: 'اكتمال الكميات', qualityPct: 'الجودة في الفحص', invoiceOkPct: 'مطابقة الفواتير', kpiPct: 'مستويات الخدمة' };
@@ -308,6 +311,8 @@ function addActivity() {
       </div>
 
       <section v-else-if="tab === 'portal'" class="card pm-panel">
+        <div class="field"><span>رابط بوابة الموردين (للتسجيل والدخول)</span>
+          <div class="pc-inline"><code dir="ltr">{{ supplierUrl }}</code><button type="button" class="btn btn-sm" @click="copyUrl">نسخ</button><a :href="supplierUrl" target="_blank" class="btn btn-sm">فتح</a></div></div>
         <label class="field"><span><input v-model="g.portalOpen" type="checkbox" /> البوابة مفتوحة لتسجيل موردين جدد</span>
           <small class="pm-muted">إن أُغلقت يبقى دخول الموردين المسجلين متاحًا.</small></label>
         <label class="field"><span>رسالة ترحيب تظهر في صفحة البوابة</span><textarea v-model="g.portalIntro" class="input" rows="4" /></label>
