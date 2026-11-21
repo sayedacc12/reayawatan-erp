@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useSession } from '../stores/session';
 import { launchView, loadOnboarding, markStep, onboarding, setLaunchHidden, type LaunchStep } from './onboarding';
 
-/** خطوات إطلاق الجمعية بالترتيب: مراحل، وفي كل مرحلة خطوات تُكتشف تلقائيًا أو تُعلَّم يدويًا */
+/** خطوات إطلاق الشركة بالترتيب: مراحل، وفي كل مرحلة خطوات تُكتشف تلقائيًا أو تُعلَّم يدويًا */
 const session = useSession();
 const v = launchView;
 const busy = ref('');
@@ -47,7 +47,7 @@ const C = 2 * Math.PI * 52;
       </div>
     </section>
 
-    <div v-if="!v" class="card empty">لا توجد خطوات إطلاق لحسابك. خطوات الإطلاق تظهر لمدير نظام الجمعية.</div>
+    <div v-if="!v" class="card empty">لا توجد خطوات إطلاق لحسابك. خطوات الإطلاق تظهر لمدير نظام الشركة.</div>
 
     <ol v-else class="lv-phases">
       <li v-for="(p, pi) in v.phases" :key="p.key" :class="['ph', { ok: p.complete, cur: v.next?.phase === p.key }]" :style="{ '--i': pi }">

@@ -253,7 +253,7 @@ export class BudgetsService {
     const units = new Map<string, { unitId: string | null; unitName: string; hr: number; opex: number; activity: number; total: number; ceiling: number | null }>();
     for (const l of exp) {
       const k = l.unitId ?? 'none';
-      const u = units.get(k) ?? { unitId: l.unitId, unitName: l.unitName ?? 'على مستوى الجمعية', hr: 0, opex: 0, activity: 0, total: 0, ceiling: null };
+      const u = units.get(k) ?? { unitId: l.unitId, unitName: l.unitName ?? 'على مستوى الشركة', hr: 0, opex: 0, activity: 0, total: 0, ceiling: null };
       u[l.section as 'hr' | 'opex' | 'activity'] = r2(u[l.section as 'hr' | 'opex' | 'activity'] + l.amount);
       u.total = r2(u.total + l.amount);
       units.set(k, u);

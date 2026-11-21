@@ -21,14 +21,14 @@ import { Actor, docTypesFor, SuppliersService } from './suppliers.service';
 const DUMMY_HASH = bcrypt.hashSync('supplier-timing-equalizer', 10);
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
-/** البيانات النظامية لا يغيرها المورد بعد إرسال طلبه، بل بطلب للجمعية */
+/** البيانات النظامية لا يغيرها المورد بعد إرسال طلبه، بل بطلب للشركة */
 const LEGAL: (keyof SupplierDto)[] = ['name', 'entityType', 'crNumber', 'vatNumber', 'nationalId'];
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 
 /**
  * بوابة الموردين ومزودي الخدمات (خارج دخول الموظفين):
  * التسجيل الذاتي، والدخول بالبريد، واستعادة كلمة المرور بالبريد، وتحديث البيانات، ورفع المستندات،
- * وطلبات الحسابات البنكية (تعتمدها الجمعية)، وعدة مستخدمين للحساب بأدوار، وسجل العمليات.
+ * وطلبات الحسابات البنكية (تعتمدها الشركة)، وعدة مستخدمين للحساب بأدوار، وسجل العمليات.
  */
 @Injectable()
 export class SupplierPortalService {
@@ -39,7 +39,7 @@ export class SupplierPortalService {
 
   async organization(slug: string) {
     const org = await this.db.getRepository(Organization).findOne({ where: { slug: slug.toLowerCase() } });
-    if (!org || accessProblem(org)) throw new NotFoundException('بوابة الموردين غير متاحة لهذه الجمعية حاليًا');
+    if (!org || accessProblem(org)) throw new NotFoundException('بوابة الموردين غير متاحة لهذه الشركة حاليًا');
     return org;
   }
 
@@ -68,7 +68,7 @@ export class SupplierPortalService {
   async register(slug: string, dto: PortalRegisterDto, ip: string | null) {
     const org = await this.organization(slug);
     const s = await this.core.settings(org.id);
-    if (!s.portalOpen) throw new ForbiddenException('التسجيل الذاتي للموردين مغلق حاليًا لدى الجمعية، تواصل معها مباشرة');
+    if (!s.portalOpen) throw new ForbiddenException('التسجيل الذاتي للموردين مغلق حاليًا لدى الشركة، تواصل معها مباشرة');
     await this.suppliers.assertUnique(org.id, dto);
     await this.suppliers.assertEmailFree(org.id, dto.ownerEmail);
     const cats = await this.suppliers.checkCategories(org.id, dto.categoryIds);
@@ -106,7 +106,7 @@ export class SupplierPortalService {
       }
       throw new UnauthorizedException('البريد الإلكتروني أو كلمة المرور غير صحيحة');
     }
-    if (!u.isActive) throw new UnauthorizedException('هذا المستخدم موقوف، تواصل مع مدير حساب منشأتكم أو مع الجمعية');
+    if (!u.isActive) throw new UnauthorizedException('هذا المستخدم موقوف، تواصل مع مدير حساب منشأتكم أو مع الشركة');
     await this.db.getRepository(PrSupplierUser).update({ id: u.id }, { lastLoginAt: new Date(), failedLogins: 0, lockedUntil: null });
     await this.event(org.id, u.supplierId, u.id, u.fullName, 'login', null, ip);
     return { ...(await this.issue(u.id)), mustChangePassword: u.mustChangePassword };
@@ -205,7 +205,7 @@ export class SupplierPortalService {
     if (!roles.includes(p.role)) throw new ForbiddenException(`هذا الإجراء لـ${roles.map((r) => `«${PORTAL_ROLES[r]}»`).join(' أو ')} فقط`);
     const sup = await this.suppliers.find(p.organizationId, p.supplierId);
     if (sup.status === 'rejected') throw new ForbiddenException('طلب التسجيل مرفوض، ولا يمكن تعديل البيانات');
-    if (sup.status === 'suspended') throw new ForbiddenException('التعامل مع حسابكم موقوف حاليًا، تواصلوا مع الجمعية');
+    if (sup.status === 'suspended') throw new ForbiddenException('التعامل مع حسابكم موقوف حاليًا، تواصلوا مع الشركة');
     return sup;
   }
 
@@ -220,7 +220,7 @@ export class SupplierPortalService {
       const before = sup as unknown as Record<string, unknown>;
       const after = dto as unknown as Record<string, unknown>;
       const changed = LEGAL.filter((k) => (after[k] ?? null) !== (before[k] ?? null));
-      if (changed.length) throw new ForbiddenException('الاسم ونوع الكيان والسجل التجاري والرقم الضريبي لا تتغير من البوابة بعد إرسال الطلب، تواصلوا مع الجمعية لتحديثها');
+      if (changed.length) throw new ForbiddenException('الاسم ونوع الكيان والسجل التجاري والرقم الضريبي لا تتغير من البوابة بعد إرسال الطلب، تواصلوا مع الشركة لتحديثها');
     }
     await this.suppliers.assertUnique(org, dto, sup.id);
     const cats = await this.suppliers.checkCategories(org, dto.categoryIds);

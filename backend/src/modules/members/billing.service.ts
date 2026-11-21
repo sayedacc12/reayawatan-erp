@@ -328,7 +328,7 @@ export class BillingService implements OnApplicationBootstrap, OnApplicationShut
     if (s.payment.provider === 'sandbox') return this.payInfo(t);
     const st = await new PaymentGateway(s.payment).status(inv.gatewayId);
     if (st.paid) {
-      if (st.amount !== null && Math.abs(st.amount - inv.amount) > 0.009) throw new ConflictException('المبلغ المسدد في البوابة لا يطابق المطالبة، تواصل مع الجمعية');
+      if (st.amount !== null && Math.abs(st.amount - inv.amount) > 0.009) throw new ConflictException('المبلغ المسدد في البوابة لا يطابق المطالبة، تواصل مع الشركة');
       await this.db.transaction(async (em) => {
         const locked = await this.byToken(t, em, true);
         if (locked.status !== 'unpaid' && locked.status !== 'review') return;
@@ -427,7 +427,7 @@ export class BillingService implements OnApplicationBootstrap, OnApplicationShut
   /** رسالة التذكير بمتغيراتها */
   reminderText(s: MemSettings, orgName: string, m: MemMember, amount: number, link: string) {
     return fillTemplate(s.renewal.message, {
-      'اسم العضو': m.fullName, 'رقم العضوية': String(m.memberNo), 'نوع العضوية': this.core.typeName(s, m.typeCode), 'اسم الجمعية': orgName,
+      'اسم العضو': m.fullName, 'رقم العضوية': String(m.memberNo), 'نوع العضوية': this.core.typeName(s, m.typeCode), 'اسم الشركة': orgName,
       'تاريخ الانتهاء': m.endDate, المبلغ: fmtMoney(amount), 'رابط السداد': link,
     });
   }

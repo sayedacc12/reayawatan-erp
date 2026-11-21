@@ -157,7 +157,7 @@ export class HrReports implements OnModuleInit {
         },
       },
       {
-        ...base, code: 'hr.leave-balances', category: 'الإجازات والحضور', title: 'أرصدة الإجازات', description: 'الاستحقاق والمأخوذ والمعلق والمتاح لكل موظف حسب لائحة الجمعية',
+        ...base, code: 'hr.leave-balances', category: 'الإجازات والحضور', title: 'أرصدة الإجازات', description: 'الاستحقاق والمأخوذ والمعلق والمتاح لكل موظف حسب لائحة الشركة',
         filters: [dynamicFilter('type', 'نوع الإجازة', async (u) => (await this.core.policy(u.organizationId)).leaveTypes
           .filter((t) => t.accrual !== 'per_request').map((t) => ({ value: t.code, label: t.name })), 'اختر...', true)],
         columns: [
@@ -221,17 +221,17 @@ export class HrReports implements OnModuleInit {
             })),
             summary: [
               { label: 'عدد الموظفين', value: lines.length, type: 'number' }, { label: 'صافي الرواتب', value: run.totals.net, type: 'money' },
-              { label: 'تكلفة الجمعية', value: run.totals.employerCost, type: 'money' },
+              { label: 'تكلفة الشركة', value: run.totals.employerCost, type: 'money' },
             ],
           };
         },
       },
       {
-        ...salary, code: 'hr.payroll-units', category: 'الرواتب والتأمينات', title: 'تكلفة الرواتب حسب الوحدة', description: 'إجمالي المستحق والصافي وتكلفة الجمعية لكل وحدة إدارية في كشف الشهر',
+        ...salary, code: 'hr.payroll-units', category: 'الرواتب والتأمينات', title: 'تكلفة الرواتب حسب الوحدة', description: 'إجمالي المستحق والصافي وتكلفة الشركة لكل وحدة إدارية في كشف الشهر',
         filters: [runFilter],
         columns: [
           { key: 'unitName', label: 'الوحدة الإدارية' }, { key: 'employees', label: 'الموظفون', type: 'number', total: true },
-          { key: 'earned', label: 'المستحق', type: 'money', total: true }, { key: 'gosiEmployer', label: 'تأمينات على الجمعية', type: 'money', total: true },
+          { key: 'earned', label: 'المستحق', type: 'money', total: true }, { key: 'gosiEmployer', label: 'تأمينات على الشركة', type: 'money', total: true },
           { key: 'net', label: 'الصافي', type: 'money', total: true }, { key: 'employerCost', label: 'التكلفة الكلية', type: 'money', total: true },
           { key: 'share', label: 'النسبة من الإجمالي', type: 'percent' },
         ],
@@ -253,12 +253,12 @@ export class HrReports implements OnModuleInit {
         },
       },
       {
-        ...salary, code: 'hr.gosi', category: 'الرواتب والتأمينات', title: 'اشتراكات التأمينات الاجتماعية', description: 'حصة الموظف وحصة الجمعية من اشتراكات التأمينات لكل موظف في كشف الشهر',
+        ...salary, code: 'hr.gosi', category: 'الرواتب والتأمينات', title: 'اشتراكات التأمينات الاجتماعية', description: 'حصة الموظف وحصة الشركة من اشتراكات التأمينات لكل موظف في كشف الشهر',
         filters: [runFilter],
         columns: [
           { key: 'employeeNo', label: 'الرقم' }, { key: 'fullName', label: 'الموظف' }, { key: 'nationality', label: 'الجنسية' },
           { key: 'gosiNumber', label: 'رقم الاشتراك' }, { key: 'gosiEmployee', label: 'حصة الموظف', type: 'money', total: true },
-          { key: 'gosiEmployer', label: 'حصة الجمعية', type: 'money', total: true }, { key: 'total', label: 'الإجمالي', type: 'money', total: true },
+          { key: 'gosiEmployer', label: 'حصة الشركة', type: 'money', total: true }, { key: 'total', label: 'الإجمالي', type: 'money', total: true },
         ],
         run: async (u, f) => {
           const { run, lines } = await this.runLines(u, f.runId!);

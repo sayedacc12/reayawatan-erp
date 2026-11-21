@@ -8,7 +8,7 @@ import SlaBadge from './SlaBadge.vue';
 import TicketThread from './TicketThread.vue';
 import { CATEGORY, PRIORITY, STATUS, fmtDT, historyLabel, historyNote, hoursLabel, type TicketDetail } from './support';
 
-/** تفاصيل طلب الصيانة لدى الجمعية */
+/** تفاصيل طلب الصيانة لدى الشركة */
 const route = useRoute();
 const toast = useToast();
 const t = ref<TicketDetail | null>(null);

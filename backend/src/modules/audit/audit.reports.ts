@@ -86,7 +86,7 @@ export class AuditReports implements OnModuleInit {
           const c = (await data(u, f)).riskCoverage;
           return {
             rows: c.risks.map((r) => ({ ...r, engagements: r.engagements.join('، ') || 'غير مغطى' })),
-            notes: c.registerAvailable ? [] : ['نظام المخاطر غير مفعّل لهذه الجمعية، لذلك لا تظهر مخاطر في هذا التقرير.'],
+            notes: c.registerAvailable ? [] : ['نظام المخاطر غير مفعّل لهذه الشركة، لذلك لا تظهر مخاطر في هذا التقرير.'],
           };
         },
       },

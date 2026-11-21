@@ -28,7 +28,7 @@ const steps = computed(() => {
   const order = ['none', 'compliance', 'checked', 'production'];
   const at = order.indexOf(st.value?.stage ?? 'none');
   return [
-    { n: 1, title: 'رمز التحقق وشهادة الامتثال', text: 'يولّد النظام مفتاح الجمعية وطلب الشهادة، ويرسله للمنصة مع رمز التحقق.', done: at >= 1 },
+    { n: 1, title: 'رمز التحقق وشهادة الامتثال', text: 'يولّد النظام مفتاح الشركة وطلب الشهادة، ويرسله للمنصة مع رمز التحقق.', done: at >= 1 },
     { n: 2, title: 'فحوص الامتثال', text: 'ستة مستندات تجريبية موقّعة: فاتورة وإشعار دائن ومدين، للضريبية والمبسطة.', done: at >= 2 },
     { n: 3, title: 'شهادة الإنتاج', text: 'بعدها يوقّع النظام كل فاتورة ضريبية عند إصدارها.', done: at >= 3 },
   ];
@@ -79,7 +79,7 @@ async function reset() {
     <div class="page-head">
       <div>
         <h1>الربط مع منصة «فاتورة»</h1>
-        <p class="muted">المرحلة الثانية من الفوترة الإلكترونية: تحصل الجمعية على شهادة من هيئة الزكاة والضريبة والجمارك، فيوقّع النظام كل فاتورة ضريبية عند إصدارها، ويبني ملفها الإلكتروني وسلسلة بصماتها ورمز QR الكامل.</p>
+        <p class="muted">المرحلة الثانية من الفوترة الإلكترونية: تحصل الشركة على شهادة من هيئة الزكاة والضريبة والجمارك، فيوقّع النظام كل فاتورة ضريبية عند إصدارها، ويبني ملفها الإلكتروني وسلسلة بصماتها ورمز QR الكامل.</p>
       </div>
     </div>
 
@@ -149,7 +149,7 @@ async function reset() {
     <div v-if="resetOpen" class="modal-backdrop" @click.self="resetOpen = false">
       <form class="card modal" style="max-width: 520px" @submit.prevent="reset">
         <h2>إلغاء الربط والبدء من جديد</h2>
-        <p class="pm-muted" style="font-size: .86rem">تُحذف شهادة الجمعية ومفتاحها من النظام، وتُصدر الفواتير بعدها دون توقيع حتى يكتمل الربط من جديد. سلسلة البصمات تستمر من آخر مستند موقّع.</p>
+        <p class="pm-muted" style="font-size: .86rem">تُحذف شهادة الشركة ومفتاحها من النظام، وتُصدر الفواتير بعدها دون توقيع حتى يكتمل الربط من جديد. سلسلة البصمات تستمر من آخر مستند موقّع.</p>
         <label class="field"><span>السبب</span><input v-model="resetReason" class="input" required minlength="3" maxlength="500" placeholder="مثل: تجديد الشهادة، أو الانتقال لبيئة الإنتاج" /></label>
         <div class="modal-actions"><button class="btn btn-primary" :disabled="busy">تأكيد</button><button type="button" class="btn" @click="resetOpen = false">رجوع</button></div>
       </form>

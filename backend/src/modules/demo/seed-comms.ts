@@ -9,13 +9,13 @@ import { TransactionsService } from '../comms/transactions.service';
 import { MEETINGS_PERMISSIONS as M } from '../meetings/meetings.manifest';
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 
-/** فريق الجمعية التجريبية بصلاحيات الاتصالات الإدارية والاجتماعات */
+/** فريق الشركة التجريبية بصلاحيات الاتصالات الإدارية والاجتماعات */
 export interface CommsTeam {
   admin: OrgUser; finance: OrgUser; caseManager: OrgUser; researcher: OrgUser; quality: OrgUser; fundraiser: OrgUser; projectsManager: OrgUser;
 }
 
 /**
- * الاتصالات الإدارية في الجمعية التجريبية: معاملات إدارية ومالية بكل درجات السرية وفي كل الحالات
+ * الاتصالات الإدارية في الشركة التجريبية: معاملات إدارية ومالية بكل درجات السرية وفي كل الحالات
  * (عند جهة، متأخرة، معادة، محفوظة، منتهية بسند صرف في النظام المالي)، قرار وتعميم بنسب اطلاع مختلفة،
  * ومهام بمسؤولين ومساندين (منجزة، متأخرة، ممددة، ومن معاملة).
  */
@@ -87,7 +87,7 @@ export class CommsSeed {
       body: 'نرفق جدول الزيارات لعشر حالات جديدة في حي المنسك والموظفين، مع طلب توفير سيارة يومي الأحد والثلاثاء.', toUserId: t.caseManager.id, purpose: 'approve', dueDate: daysAhead(2),
       followerUserIds: [t.quality.id],
     });
-    await this.txns.task(t.caseManager, visits.id, { title: 'حجز سيارة الجمعية لزيارات الأحد والثلاثاء', ownerUserId: t.researcher.id, dueDate: daysAhead(2) });
+    await this.txns.task(t.caseManager, visits.id, { title: 'حجز سيارة الشركة لزيارات الأحد والثلاثاء', ownerUserId: t.researcher.id, dueDate: daysAhead(2) });
 
     // ---- خطاب وارد من جهة خارجية: عند قسم الجودة ومتأخر عن موعده
     const incoming = await this.txns.create(t.admin, {

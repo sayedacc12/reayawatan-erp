@@ -146,7 +146,7 @@ function formatDate(d: string | null) {
             <td>{{ u.fullName }}</td>
             <td dir="ltr" style="text-align: right">{{ u.email }}</td>
             <td>
-              <span v-if="u.isSuperadmin" class="badge badge-primary">مدير نظام الجمعية</span>
+              <span v-if="u.isSuperadmin" class="badge badge-primary">مدير نظام الشركة</span>
               <span v-for="r in u.roles" :key="r.id" class="badge">{{ r.name }}</span>
               <span v-if="!u.isSuperadmin && !u.roles.length" class="muted">بدون دور</span>
             </td>
@@ -204,7 +204,7 @@ function formatDate(d: string | null) {
         </div>
         <div class="field" style="flex-direction: row; gap: 24px">
           <label class="check"><input v-model="form.isActive" type="checkbox" /> الحساب نشط</label>
-          <label v-if="session.user?.isSuperadmin" class="check"><input v-model="form.isSuperadmin" type="checkbox" /> مدير نظام الجمعية (كل الصلاحيات)</label>
+          <label v-if="session.user?.isSuperadmin" class="check"><input v-model="form.isSuperadmin" type="checkbox" /> مدير نظام الشركة (كل الصلاحيات)</label>
         </div>
         <div class="modal-actions">
           <button class="btn btn-primary" :disabled="saving">حفظ</button>

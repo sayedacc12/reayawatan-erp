@@ -16,7 +16,7 @@ import { DemoTeam, daysAhead } from './demo-context';
 const hoursAhead = (h: number) => new Date(Date.now() + h * 3600_000).toISOString();
 
 /**
- * دورة الشراء في الجمعية التجريبية (المرحلة الثانية)، بعد الموازنة لأن التعميد يحجز من بنودها ومن مصادر التمويل:
+ * دورة الشراء في الشركة التجريبية (المرحلة الثانية)، بعد الموازنة لأن التعميد يحجز من بنودها ومن مصادر التمويل:
  * - منافسة مكتملة: طلب ممول من مصدر تمويل برامجي، وعرض من بوابة المورد وآخر ورقي سجله الموظف، وفتح وتقييم لجنة وترسية،
  *   وتعميد معتمد حُجز مبلغه من مصدر التمويل، وأكد المورد استلامه وقبله من البوابة.
  * - تعميد مباشر معتمد على بند «صيانة وتجهيز المقر» (حجز فعلي في الموازنة)، وتعميد آخر بانتظار اعتماد المالية.
@@ -87,7 +87,7 @@ export class SourcingSeed {
         justification: 'توزيع 200 سلة على الأسر المسجلة في البرنامج قبل بداية الشهر', method: 'quotes', fundingBatchId: batch.id,
         lines: [
           { itemId: basketItem?.id ?? null, description: 'سلة غذائية متكاملة', qty: 200, uomId: uom('سلة') ?? uom('حبة'), estPrice: 140, specs: 'أرز بسمتي 5 كجم، سكر 2 كجم، زيت 1.5 لتر، تمر 1 كجم، عدس 1 كجم' },
-          { description: 'كيس تغليف قماشي بشعار الجمعية', qty: 200, uomId: uom('حبة'), estPrice: 5, specs: null },
+          { description: 'كيس تغليف قماشي بشعار الشركة', qty: 200, uomId: uom('حبة'), estPrice: 5, specs: null },
         ],
       });
       await this.requests.submit(pm, r.id, true);
@@ -147,7 +147,7 @@ export class SourcingSeed {
       const req2 = await this.requests.find(admin, r2.id);
       if (req2.status === 'approved') {
         const o2 = await this.orders.createDirect(admin, {
-          requestId: r2.id, supplierId: naql, vatRate: 0, deliveryDate: daysAhead(10), deliveryPlace: 'مقر الجمعية',
+          requestId: r2.id, supplierId: naql, vatRate: 0, deliveryDate: daysAhead(10), deliveryPlace: 'مقر الشركة',
           lines: [{ lineId: req2.lines[0].id, qty: 1, unitPrice: 8200 }],
         });
         await this.orders.submit(admin, o2.id);

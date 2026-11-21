@@ -60,7 +60,7 @@ const patch = (json: Record<string, unknown>, msg: string) => run(() => api<Tick
 const assign = (assigneeId: string) => assigneeId && patch({ assigneeId }, 'تم إسناد الطلب');
 const setStatus = (status: string) => patch({ status }, 'تم تحديث الحالة');
 async function changePriority() {
-  if (await patch({ priority: newPriority.value, priorityReason: priorityReason.value }, 'تم تعديل مستوى الخدمة وإبلاغ الجمعية')) priorityReason.value = '';
+  if (await patch({ priority: newPriority.value, priorityReason: priorityReason.value }, 'تم تعديل مستوى الخدمة وإبلاغ الشركة')) priorityReason.value = '';
 }
 async function escalate() {
   if (await run(() => api<TicketDetail>(`/support-desk/tickets/${id}/escalate`, { method: 'POST', json: { note: escNote.value } }), 'تم تصعيد الطلب')) escNote.value = '';
@@ -115,8 +115,8 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
             <dd><SlaBadge :state="t.sla.response" :due="t.sla.responseDueAt" label="الرد" :now="now" /><small class="muted block">{{ hoursLabel(t.level.responseHours) }} · {{ fmtDT(t.sla.responseDueAt) }}</small></dd>
             <dt>الحل</dt>
             <dd><SlaBadge :state="t.sla.resolution" :due="t.sla.resolutionDueAt" label="الحل" :now="now" /><small class="muted block">{{ hoursLabel(t.level.resolutionHours) }} · {{ fmtDT(t.sla.resolutionDueAt) }}</small></dd>
-            <template v-if="t.requestedPriority !== t.priority"><dt>طلبت الجمعية</dt><dd>{{ PRIORITY[t.requestedPriority].label }}</dd></template>
-            <template v-if="t.rating"><dt>تقييم الجمعية</dt><dd class="gold">{{ '★'.repeat(t.rating) }}</dd></template>
+            <template v-if="t.requestedPriority !== t.priority"><dt>طلبت الشركة</dt><dd>{{ PRIORITY[t.requestedPriority].label }}</dd></template>
+            <template v-if="t.rating"><dt>تقييم الشركة</dt><dd class="gold">{{ '★'.repeat(t.rating) }}</dd></template>
           </dl>
         </section>
 
@@ -144,7 +144,7 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
             <label>تعديل مستوى الخدمة</label>
             <select v-model="newPriority" class="input"><option v-for="(p, k) in PRIORITY" :key="k" :value="k">{{ p.icon }} {{ p.label }}</option></select>
             <template v-if="newPriority !== t.priority">
-              <input v-model="priorityReason" class="input mt" required minlength="3" placeholder="سبب التعديل (يظهر للجمعية)" />
+              <input v-model="priorityReason" class="input mt" required minlength="3" placeholder="سبب التعديل (يظهر للشركة)" />
               <small class="muted">تُعاد حساب المهل من وقت تقديم الطلب.</small>
               <button class="btn btn-sm btn-primary mt" :disabled="busy">حفظ المستوى</button>
             </template>

@@ -29,7 +29,7 @@ export interface AppEntry {
   icon?: string;
   menu: { label: string; path: string; group?: string }[];
 }
-/** الشاشات المسموحة والمحجوبة عن الجمعية (فارغة = كل الشاشات مسموحة) */
+/** الشاشات المسموحة والمحجوبة عن الشركة (فارغة = كل الشاشات مسموحة) */
 interface ScreenAccess { allowed: string[]; hidden: string[] }
 interface SessionPayload {
   user: SessionUser;
@@ -55,7 +55,7 @@ export const useSession = defineStore('session', {
       const best = [...allowed, ...hidden].filter(match).sort((a, b) => b.length - a.length)[0];
       return !!best && hidden.includes(best);
     },
-    /** login: البريد الإلكتروني أو اسم المستخدم. organization: slug صفحة دخول الجمعية */
+    /** login: البريد الإلكتروني أو اسم المستخدم. organization: slug صفحة دخول الشركة */
     async login(login: string, password: string, organization?: string) {
       const res = await api<SessionPayload & { accessToken: string }>('/auth/login', {
         method: 'POST',

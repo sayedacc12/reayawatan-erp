@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { CONTRACT_COLOR, fmtDate, sar } from '../modules/procurement/lib';
 import { supplierApi } from './supplier';
 
-/** عقود المورد السارية والمنتهية التي شاركتها الجمعية معه */
+/** عقود المورد السارية والمنتهية التي شاركتها الشركة معه */
 const route = useRoute();
 const router = useRouter();
 const slug = computed(() => route.params.slug as string);
@@ -28,7 +28,7 @@ onMounted(async () => {
     <div class="page-head">
       <div>
         <h1>العقود</h1>
-        <p class="muted">العقود والاتفاقيات المعتمدة بينكم وبين الجمعية: المدة والقيمة والأسعار التعاقدية ومستويات الخدمة والجزاءات المعتمدة.</p>
+        <p class="muted">العقود والاتفاقيات المعتمدة بينكم وبين الشركة: المدة والقيمة والأسعار التعاقدية ومستويات الخدمة والجزاءات المعتمدة.</p>
       </div>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>

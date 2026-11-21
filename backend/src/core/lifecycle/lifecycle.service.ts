@@ -16,8 +16,8 @@ const SWEEP_EVERY_MS = 60 * 60 * 1000;
 const event = (by: string, action: ClosureEvent['action'], note?: string): ClosureEvent => ({ at: new Date().toISOString(), by, action, note });
 
 /**
- * دورة حياة الجمعية بعد التعاقد أو التجربة:
- * - إنهاء العقد بالتراضي: يتوقف دخول الجمعية فورًا، وتُحذف بياناتها بعد مهلة يحددها مدير المنصة (يمكن الإلغاء خلالها).
+ * دورة حياة الشركة بعد التعاقد أو التجربة:
+ * - إنهاء العقد بالتراضي: يتوقف دخول الشركة فورًا، وتُحذف بياناتها بعد مهلة يحددها مدير المنصة (يمكن الإلغاء خلالها).
  * - جمعيات التجربة: تُحذف تلقائيًا بعد نهاية التجربة بمهلة (إعداد المنصة)، ما لم تُمدد التجربة أو يتم التعاقد.
  * - التصدير قبل الحذف، وسجل دائم بكل جمعية حُذفت.
  */
@@ -53,21 +53,21 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
 
   private async org(id: string) {
     const org = await this.db.getRepository(Organization).findOne({ where: { id } });
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
     return org;
   }
 
   private assertConfirm(org: Organization, confirm: string | undefined) {
-    if ((confirm ?? '').trim().toLowerCase() !== org.slug.toLowerCase()) throw new BadRequestException('اكتب معرّف الجمعية كما هو للتأكيد');
+    if ((confirm ?? '').trim().toLowerCase() !== org.slug.toLowerCase()) throw new BadRequestException('اكتب معرّف الشركة كما هو للتأكيد');
   }
 
-  /** موعد الحذف لجمعية (لملف الجمعية ولشريط التنبيه داخلها) */
+  /** موعد الحذف لجمعية (لملف الشركة ولشريط التنبيه داخلها) */
   async notice(orgId: string) {
     const org = await this.org(orgId);
     return deletionNotice(this.db, org);
   }
 
-  /** حالة الإغلاق في ملف الجمعية: الموعد، والإنهاء المجدول إن وجد */
+  /** حالة الإغلاق في ملف الشركة: الموعد، والإنهاء المجدول إن وجد */
   async status(orgId: string) {
     const org = await this.org(orgId);
     const scheduled = await this.db.getRepository(OrganizationClosure).findOne({ where: { organizationId: orgId, status: 'scheduled' } });
@@ -76,7 +76,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
   }
 
   /**
-   * إنهاء العقد بالتراضي: يُسجَّل الاتفاق، ويتوقف دخول الجمعية فورًا، وتُحذف بياناتها في يوم الحذف.
+   * إنهاء العقد بالتراضي: يُسجَّل الاتفاق، ويتوقف دخول الشركة فورًا، وتُحذف بياناتها في يوم الحذف.
    * المهلة 0 تعني الحذف في أول فحص (خلال ساعة) أو بزر «احذف الآن».
    */
   async terminate(orgId: string, dto: { agreementDate: string; charityRep: string; note?: string; graceDays: number; confirm: string }, actor: AuthUser) {
@@ -89,14 +89,14 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
   private async scheduleTermination(orgId: string, dto: { agreementDate: string; charityRep: string; note?: string; graceDays: number; confirm: string }, actor: AuthUser) {
     const org = await this.org(orgId);
     this.assertConfirm(org, dto.confirm);
-    if (org.slug === 'demo') throw new BadRequestException('الجمعية التجريبية العامة تُحذف من شاشة الجمعيات');
+    if (org.slug === 'demo') throw new BadRequestException('الشركة التجريبية العامة تُحذف من شاشة الجمعيات');
     const grace = Math.round(Number(dto.graceDays));
     if (!Number.isFinite(grace) || grace < 0 || grace > 365) throw new BadRequestException('مهلة الحذف بين 0 و365 يومًا');
-    if (!dto.charityRep?.trim()) throw new BadRequestException('اكتب اسم ممثل الجمعية في الاتفاق');
+    if (!dto.charityRep?.trim()) throw new BadRequestException('اكتب اسم ممثل الشركة في الاتفاق');
     return this.db.transaction(async (em) => {
       await em.query('SELECT 1 FROM organizations WHERE id = $1 FOR UPDATE', [orgId]);
       if (await em.exists(OrganizationClosure, { where: { organizationId: orgId, status: 'scheduled' } })) {
-        throw new ConflictException('يوجد إنهاء مجدول لهذه الجمعية بالفعل');
+        throw new ConflictException('يوجد إنهاء مجدول لهذه الشركة بالفعل');
       }
       const deleteOn = addDays(todayRiyadh(), grace);
       const c = await em.save(em.create(OrganizationClosure, {
@@ -113,11 +113,11 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
     });
   }
 
-  /** إلغاء الإنهاء خلال المهلة: تعود الجمعية نشطة */
+  /** إلغاء الإنهاء خلال المهلة: تعود الشركة نشطة */
   async cancel(orgId: string, actor: AuthUser) {
     return this.db.transaction(async (em) => {
       const c = await em.findOne(OrganizationClosure, { where: { organizationId: orgId, status: 'scheduled' }, lock: { mode: 'pessimistic_write' } });
-      if (!c) throw new NotFoundException('لا يوجد إنهاء مجدول لهذه الجمعية');
+      if (!c) throw new NotFoundException('لا يوجد إنهاء مجدول لهذه الشركة');
       c.status = 'cancelled';
       c.log = [...c.log, event(actor.fullName, 'cancelled')];
       await em.save(c);
@@ -135,7 +135,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
     return this.remove(org, actor.fullName);
   }
 
-  /** تصدير بيانات الجمعية (ملف JSON) لتسليمه لها قبل الحذف */
+  /** تصدير بيانات الشركة (ملف JSON) لتسليمه لها قبل الحذف */
   async export(orgId: string, actor: AuthUser) {
     const org = await this.org(orgId);
     const data = await exportOrganization(this.db.manager, orgId);
@@ -146,7 +146,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
     return { org, json: JSON.stringify({ exportedAt: new Date().toISOString(), organization: { name: org.name, slug: org.slug }, tables: data }, null, 1) };
   }
 
-  /** الحذف الفعلي: كل بيانات الجمعية، مع سجل دائم بلا بيانات من داخلها */
+  /** الحذف الفعلي: كل بيانات الشركة، مع سجل دائم بلا بيانات من داخلها */
   private async remove(org: Organization, by: string) {
     const n = await deletionNotice(this.db, org);
     const deleted = await this.db.transaction(async (em) => {
@@ -169,7 +169,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
     return { deleted, organization: { name: org.name, slug: org.slug } };
   }
 
-  /** بريد الجمعية للتذكيرات: حسابات مدير النظام، والمدير التنفيذي وبريد الجمعية من طلب الاشتراك */
+  /** بريد الشركة للتذكيرات: حسابات مدير النظام، والمدير التنفيذي وبريد الشركة من طلب الاشتراك */
   private async orgEmails(orgId: string): Promise<string[]> {
     const rows: { email: string | null }[] = await this.db.query(
       `SELECT email FROM users WHERE organization_id = $1 AND is_superadmin AND is_active
@@ -179,7 +179,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
   }
 
   /**
-   * التذكير بالبريد قبل حذف الجمعية (مرة واحدة لكل مرحلة وموعد):
+   * التذكير بالبريد قبل حذف الشركة (مرة واحدة لكل مرحلة وموعد):
    * قرب نهاية التجربة (3 أيام)، وبعد انتهائها، وعند الإنهاء بالتراضي، وتنبيه أخير قبل الحذف بيوم.
    */
   async remindOrg(org: Organization, today = todayRiyadh(), known?: DeletionNotice | null) {

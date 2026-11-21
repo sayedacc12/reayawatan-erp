@@ -30,7 +30,7 @@ const axisColor = (a: Axis) => scoreColor(a.score);
     <section class="pm-hero gv-hero">
       <div>
         <p class="pm-kicker">الحوكمة</p>
-        <h1>وضع الجمعية قبل التقييم الرسمي</h1>
+        <h1>وضع الشركة قبل التقييم الرسمي</h1>
         <p class="pm-sub">تقييم ذاتي دوري وفق أدلة حوكمة الجمعيات الأهلية الصادرة عن المركز الوطني لتنمية القطاع غير الربحي، مع مؤشرات السلامة المالية من الدفاتر مباشرة، وإنذار مبكر قبل المواعيد والمخالفات.</p>
       </div>
       <div class="pm-actions">
@@ -62,7 +62,7 @@ const axisColor = (a: Axis) => scoreColor(a.score);
                 <b>{{ num(a.score) }}%</b>
               </div>
             </div>
-            <p v-else class="pm-empty">ابدأ تقييماً ذاتياً لتظهر درجة الجمعية.</p>
+            <p v-else class="pm-empty">ابدأ تقييماً ذاتياً لتظهر درجة الشركة.</p>
           </div>
         </section>
 

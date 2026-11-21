@@ -57,7 +57,7 @@ export class ProcurementReports implements OnModuleInit {
                FROM pr_item_groups g LEFT JOIN acc_accounts ia ON ia.id = g.inventory_account_id LEFT JOIN acc_accounts ea ON ea.id = g.expense_account_id
               WHERE g.organization_id = $1 ORDER BY g.sort_order, g.code`, [org(u).organizationId]);
           return rows.map((r: Record<string, unknown>) => ({
-            ...r, kind: ar(ITEM_KINDS, r.kind), valuation: r.valuation ? ar(VALUATION, r.valuation) : 'إعداد الجمعية', _level: r.parent_id ? 1 : 0,
+            ...r, kind: ar(ITEM_KINDS, r.kind), valuation: r.valuation ? ar(VALUATION, r.valuation) : 'إعداد الشركة', _level: r.parent_id ? 1 : 0,
             inventory: r.inventory ?? (r.kind === 'service' ? '—' : 'غير محدد'),
           }));
         },
@@ -128,7 +128,7 @@ export class ProcurementReports implements OnModuleInit {
                 AND ($5::text IS NULL OR ($5 = 'expired' AND d.expiry_date < $2) OR ($5 = 'expiring' AND d.expiry_date BETWEEN $2 AND $3) OR ($5 = 'valid' AND (d.expiry_date IS NULL OR d.expiry_date > $3)))
               ORDER BY d.expiry_date NULLS LAST, s.name`, [o, t, soon, f.status ?? null, f.state ?? null]);
           return rows.map((r: Record<string, unknown>) => ({
-            ...r, supplier: `${supplierCode(Number(r.supplier_no))} ${r.supplier}`, status: ar(DOC_STATUS, r.status), via: r.via === 'portal' ? 'بوابة المورد' : 'موظف الجمعية',
+            ...r, supplier: `${supplierCode(Number(r.supplier_no))} ${r.supplier}`, status: ar(DOC_STATUS, r.status), via: r.via === 'portal' ? 'بوابة المورد' : 'موظف الشركة',
             _style: r.expiryDate && String(r.expiryDate) < t ? 'strong' : undefined,
           }));
         },

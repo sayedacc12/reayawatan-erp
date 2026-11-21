@@ -81,7 +81,7 @@ export class SecurityExceptionFilter extends BaseExceptionFilter {
       else this.monitor.record({ ...base, type: 'not_found', actor: user?.email ?? null, detail: route.includes(':') ? { ref: pathRef(path) } : null });
     } else if (status === 429) this.monitor.record({ ...base, type: 'rate_limited', severity: 'low' });
     else if (status >= 500) {
-      // نوع الخطأ فقط: رسائل قاعدة البيانات قد تحمل قيمًا من بيانات الجمعية
+      // نوع الخطأ فقط: رسائل قاعدة البيانات قد تحمل قيمًا من بيانات الشركة
       const kind = exception instanceof Error ? exception.constructor.name.slice(0, 60) : typeof exception;
       this.monitor.record({ ...base, type: 'server_error', severity: 'medium', detail: { error: kind } });
     }

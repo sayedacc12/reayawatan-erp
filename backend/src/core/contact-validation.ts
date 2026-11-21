@@ -23,7 +23,7 @@ const MOBILE = /^05\d{8}$/;
 /** أرقام مكررة بالكامل مثل 0500000000 */
 const fake = (p: string) => /^05(\d)\1{7}$/.test(p);
 export const isSaudiMobile = (p: string) => MOBILE.test(p) && !fake(p);
-/** هاتف الجمعية: جوال، أو ثابت (01x xxxxxxx)، أو موحّد 9200، أو مجاني 800 */
+/** هاتف الشركة: جوال، أو ثابت (01x xxxxxxx)، أو موحّد 9200، أو مجاني 800 */
 export const isSaudiPhone = (p: string) => isSaudiMobile(p) || /^01[1-7]\d{7}$/.test(p) || /^9200\d{5}$/.test(p) || /^800\d{7}$/.test(p);
 
 export const MOBILE_MSG = 'جوال سعودي من 10 أرقام يبدأ بـ 05، مثل 0512345678';

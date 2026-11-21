@@ -20,7 +20,7 @@ onMounted(async () => {
     error.value = (e as Error).message;
   }
 });
-const MSG: Record<string, string> = { acknowledge: 'أُكد استلام التعميد', accept: 'قُبل التعميد ✓', clarify: 'أُرسل طلب التوضيح للجمعية', decline: 'أُبلغت الجمعية باعتذاركم' };
+const MSG: Record<string, string> = { acknowledge: 'أُكد استلام التعميد', accept: 'قُبل التعميد ✓', clarify: 'أُرسل طلب التوضيح للشركة', decline: 'أُبلغت الشركة باعتذاركم' };
 async function respond(a: string, n: string | null = null) {
   busy.value = true;
   error.value = '';
@@ -36,7 +36,7 @@ async function respond(a: string, n: string | null = null) {
     busy.value = false;
   }
 }
-const RESP: Record<string, string> = { acknowledge: 'تأكيد الاستلام', accept: 'قبول التعميد', clarify: 'طلب توضيح', decline: 'اعتذار', reply: 'رد الجمعية' };
+const RESP: Record<string, string> = { acknowledge: 'تأكيد الاستلام', accept: 'قبول التعميد', clarify: 'طلب توضيح', decline: 'اعتذار', reply: 'رد الشركة' };
 </script>
 
 <template>
@@ -101,7 +101,7 @@ const RESP: Record<string, string> = { acknowledge: 'تأكيد الاستلام
             <dl class="pc-dl" style="grid-template-columns: 1fr">
               <div><dt>التاريخ</dt><dd>{{ fmtDate(o.deliveryDate) }}</dd></div>
               <div><dt>المكان</dt><dd>{{ o.warehouse ? `${o.warehouse.name}${o.warehouse.city ? ` · ${o.warehouse.city}` : ''}${o.warehouse.address ? ` · ${o.warehouse.address}` : ''}` : '' }} {{ o.deliveryPlace ?? '' }}</dd></div>
-              <div v-if="o.beneficiaryRef"><dt>مرجع المستفيد</dt><dd class="pc-code">{{ o.beneficiaryRef }}</dd></div>
+              <div v-if="o.beneficiaryRef"><dt>مرجع العميل أو البرنامج</dt><dd class="pc-code">{{ o.beneficiaryRef }}</dd></div>
             </dl>
           </section>
           <section class="card pm-panel">

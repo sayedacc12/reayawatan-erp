@@ -39,7 +39,7 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
-  /** مدير نظام الجمعية: له كل الصلاحيات في كل وحدات جمعيته */
+  /** مدير نظام الشركة: له كل الصلاحيات في كل وحدات شركته */
   @Column({ name: 'is_superadmin', default: false })
   isSuperadmin!: boolean;
 

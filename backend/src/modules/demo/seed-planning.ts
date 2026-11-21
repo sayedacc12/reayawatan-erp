@@ -14,7 +14,7 @@ type PlanView = Awaited<ReturnType<PlansService['get']>>;
 type Act = Partial<ItemDto> & { title: string; pace?: number; done?: boolean; corrective?: string; contributes?: [string, number | null][] };
 
 /**
- * التخطيط في الجمعية التجريبية: خطة استراتيجية خمسية من قالب الجمعيات الأهلية بإصدارين معتمدين (الثاني بمراجعة منتصف المدة)،
+ * التخطيط في الشركة التجريبية: خطة استراتيجية خمسية من قالب الجمعيات الأهلية بإصدارين معتمدين (الثاني بمراجعة منتصف المدة)،
  * وخطط تشغيلية للإدارات للسنة الحالية مرتبطة بمبادرات الخطة الاستراتيجية بنسب مساهمة، بأنشطة في كل حالات التنفيذ
  * (منجز، حسب الخطة، في خطر، متأخر بإجراء تصحيحي)، وخطة تشغيلية للعام السابق رُحّل منها نشاط غير منتهٍ،
  * وخطة قيد الاعتماد، وقراءات مؤشرات للعام السابق والحالي، وربط مبادرات بمشروع وبموازنة رأسمالية.
@@ -69,7 +69,7 @@ export class PlanningSeed {
     // ---------------- الخطة الاستراتيجية ----------------
     let sp = await this.plans.create(admin, {
       kind: 'strategic', title: `الخطة الاستراتيجية ${Y - 1} - ${Y + 3}`, startYear: Y - 1, endYear: Y + 3, periodicity: 'annual', templateKey: 'ncnp-strategic',
-      ownerName: admin.fullName, description: 'الخطة الاستراتيجية الخمسية للجمعية، معدة بمشاركة مجلس الإدارة والإدارات وأصحاب المصلحة، ومبنية على تحليل البيئة الداخلية والخارجية.',
+      ownerName: admin.fullName, description: 'الخطة الاستراتيجية الخمسية للشركة، معدة بمشاركة مجلس الإدارة والإدارات وأصحاب المصلحة، ومبنية على تحليل البيئة الداخلية والخارجية.',
     });
     const goalSetup: [string, string | null, string][] = [
       ['رفع جودة الخدمات المقدمة للمستفيدين وقياس أثرها', U.programs, caseManager.fullName],
@@ -92,7 +92,7 @@ export class PlanningSeed {
       ['تطبيق منهجية لقياس الأثر الاجتماعي للبرامج', cost(0, 60000, 40000, 20000), caseManager.fullName, 'unrestricted', U.programs],
       ['تطوير معايير الخدمة وأدلة الإجراءات', cost(30000, 20000, 0), quality.fullName, 'unrestricted', U.quality],
       ['برنامج التمكين الاقتصادي للأسر', cost(150000, 280000, 320000, 320000, 300000), projectsManager.fullName, 'restricted', U.programs],
-      ['إنشاء وقف استثماري للجمعية', cost(0, 500000, 1500000, 1000000), admin.fullName, 'mixed', U.resources],
+      ['إنشاء وقف استثماري للشركة', cost(0, 500000, 1500000, 1000000), admin.fullName, 'mixed', U.resources],
       ['برنامج الاستقطاع الشهري', cost(40000, 90000, 60000, 40000, 40000), fundraiser.fullName, 'unrestricted', U.resources],
       ['استكمال السياسات واللوائح ونشرها', cost(15000, 10000, 5000), admin.fullName, 'unrestricted', U.exec],
       ['برنامج تطوير القيادات والصف الثاني', cost(40000, 60000, 60000, 50000), finance.fullName, 'unrestricted', U.finance],
@@ -126,7 +126,7 @@ export class PlanningSeed {
       startDate: `${Y}-01-01`, endDate: `${Y + 2}-12-31`, costByYear: { [Y]: 70000, [Y + 1]: 30000, [Y + 2]: 20000 },
       targets: [{ kind: 'quantitative', text: 'تحصيل 15% من التبرعات إلكترونيًا', value: 15, unit: '%', dueDate: `${Y + 1}-12-31` }],
     });
-    await this.plans.updateItem(admin, this.find(sp, 'إنشاء وقف استثماري للجمعية').id, { costByYear: cost(0, 650000, 1500000, 1000000) });
+    await this.plans.updateItem(admin, this.find(sp, 'إنشاء وقف استثماري للشركة').id, { costByYear: cost(0, 650000, 1500000, 1000000) });
     const sustain = sp.kpis.find((k) => k.name.startsWith('نسبة الإيرادات من مصادر مستدامة'));
     if (sustain) await this.plans.updateKpi(admin, sustain.id, { targets: { ...sustain.targets, [Y + 3]: 35 } });
     await this.plans.submit(admin, sp.id, 'مراجعة منتصف المدة: إضافة منصة التبرع الإلكتروني، ورفع مخصص الوقف، ورفع مستهدف الإيرادات المستدامة');
@@ -222,7 +222,7 @@ export class PlanningSeed {
       {
         title: 'برنامج الشراكات المؤسسية', acts: [
           { title: 'زيارات تعريفية لعشرين شركة', startDate: d(2, 1), endDate: end(11), costByYear: { [Y]: 12000 }, pace: 0.45, contributes: [['برنامج الشراكة مع القطاع الخاص', 60]],
-            corrective: 'تكليف موظف إضافي بملف الشركات، وجدولة زيارتين أسبوعيًا حتى نهاية الربع', milestones: [{ title: 'إعداد ملف التعريف بالجمعية', dueDate: d(2, 28), done: false }] },
+            corrective: 'تكليف موظف إضافي بملف الشركات، وجدولة زيارتين أسبوعيًا حتى نهاية الربع', milestones: [{ title: 'إعداد ملف التعريف بالشركة', dueDate: d(2, 28), done: false }] },
           { title: 'توقيع اتفاقيات المسؤولية المجتمعية', startDate: d(4, 1), endDate: end(12), costByYear: { [Y]: 8000 }, pace: 0.85, contributes: [['برنامج الشراكة مع القطاع الخاص', 40]] },
         ],
       },
@@ -310,7 +310,7 @@ export class PlanningSeed {
       [pick('threat')?.id, 'تنويع مصادر الإيرادات وزيادتها', 'الاستجابة للتهديد بتنويع الإيرادات'],
       [pick('weakness')?.id, 'أتمتة الإجراءات الرئيسية', 'معالجة نقطة الضعف'],
       [pick('strength')?.id, 'برنامج التمكين الاقتصادي للأسر', 'البناء على نقطة القوة'],
-      [pick('economic')?.id, 'إنشاء وقف استثماري للجمعية', 'العامل الاقتصادي أساس قرار الوقف'],
+      [pick('economic')?.id, 'إنشاء وقف استثماري للشركة', 'العامل الاقتصادي أساس قرار الوقف'],
     ];
     for (const [refId, title, note] of anLinks) if (refId && has(sp, title)) await this.plans.addRef(admin, this.find(sp, title).id, { system: 'risk_analysis', refId, note }).catch(() => null);
 

@@ -36,7 +36,7 @@ export class AuthService {
     // وضع الشركة الواحدة: الدخول بلا رابط منشأة يعني منشأة الشركة
     const slug = orgSlug || companySlug() || undefined;
     const org = slug ? await this.findOrg(slug) : null;
-    if (slug && !org) throw new UnauthorizedException('رابط الجمعية غير صحيح');
+    if (slug && !org) throw new UnauthorizedException('رابط الشركة غير صحيح');
     const id = login.trim().toLowerCase();
     const user = await this.users.findOne({
       where: id.includes('@') ? { email: id } : { username: id },
@@ -47,26 +47,26 @@ export class AuthService {
     if (org && !(user.isPlatformAdmin && !orgSlug)) {
       if (user.organizationId !== org.id) throw fail();
     } else if (!user.isPlatformAdmin) {
-      // كلمة المرور صحيحة، فنوجّهه لصفحة جمعيته
+      // كلمة المرور صحيحة، فنوجّهه لصفحة شركته
       const own = user.organizationId ? await this.orgs.findOne({ where: { id: user.organizationId } }) : null;
       throw new UnauthorizedException(
-        own ? `هذا حساب موظف في "${own.name}". ادخل من صفحة جمعيتك: /o/${own.slug}` : 'بيانات الدخول أو كلمة المرور غير صحيحة',
+        own ? `هذا حساب موظف في "${own.name}". ادخل من صفحة شركتك: /o/${own.slug}` : 'بيانات الدخول أو كلمة المرور غير صحيحة',
       );
     }
     // كلمة المرور المؤقتة صالحة 24 ساعة فقط
     if (user.mustChangePassword && user.tempPasswordExpiresAt && user.tempPasswordExpiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('انتهت صلاحية كلمة المرور المؤقتة. اطلب كلمة جديدة من «نسيت كلمة المرور؟»');
     }
-    // الجمعية الموقوفة أو المنتهي اشتراكها: رسالة توضح السبب
+    // الشركة الموقوفة أو المنتهي اشتراكها: رسالة توضح السبب
     const problem = org ? accessProblem(org) : null;
     if (problem) {
-      // إن كان للجمعية موعد حذف (انتهاء التجربة أو إنهاء بالتراضي) توضح الرسالة موعده
+      // إن كان للشركة موعد حذف (انتهاء التجربة أو إنهاء بالتراضي) توضح الرسالة موعده
       const notice = await deletionNotice(this.users.manager, org!);
       throw new UnauthorizedException(notice && notice.reason !== 'trial' ? loginDeletionText(notice) : problem);
     }
-    // يتحقق من أن الحساب والجمعية نشطان
+    // يتحقق من أن الحساب والشركة نشطان
     if (!(await this.resolver.resolve(user.id))) {
-      throw new UnauthorizedException('الحساب أو الجمعية موقوف، تواصل مع الإدارة');
+      throw new UnauthorizedException('الحساب أو الشركة موقوف، تواصل مع الإدارة');
     }
     await this.users.update(user.id, { lastLoginAt: new Date() });
     // ts بالملي ثانية: يميّز الجلسات التي سبقت إصدار كلمة مؤقتة ولو في نفس الثانية
@@ -76,7 +76,7 @@ export class AuthService {
 
   async organizationLogin(slug: string) {
     const org = await this.findOrg(slug);
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
     return { name: org.name, slug: org.slug };
   }
 

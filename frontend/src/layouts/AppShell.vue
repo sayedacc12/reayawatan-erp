@@ -25,7 +25,7 @@ const currentApp = computed(() =>
 );
 
 /**
- * قائمة التطبيق الحالي. في النظام المالي تُضاف أنواع السندات الخاصة بالجمعية (من الإعدادات) تلقائيًا تحت «العمليات».
+ * قائمة التطبيق الحالي. في النظام المالي تُضاف أنواع السندات الخاصة بالشركة (من الإعدادات) تلقائيًا تحت «العمليات».
  */
 const menu = computed(() => {
   const app = currentApp.value;
@@ -40,7 +40,7 @@ const menu = computed(() => {
 });
 watch(() => currentApp.value?.code, (c) => { if (c === 'accounting' && session.can(ACC.read)) loadDocTypes(); }, { immediate: true });
 
-// هوية الجمعية (الشعار والألوان) إن اختارت تطبيقها داخل النظام
+// هوية الشركة (الشعار والألوان) إن اختارت تطبيقها داخل النظام
 watch(() => session.user?.organizationId, (o) => (o ? loadIdentity() : clearIdentity()), { immediate: true });
 
 /** كل مستخدمي الجمعيات يبدأون من لوحتهم /me (بياناتهم الوظيفية إن رُبطوا بملف موظف، وإلا لوحة المهام والأنظمة) */

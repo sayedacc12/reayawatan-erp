@@ -18,24 +18,24 @@ const emptyToUndefined = () => Transform(({ value }) => (value === '' || value =
 const toBool = () => Transform(({ value }) => value === true || value === 'true' || value === '1');
 
 /**
- * بيانات طلب الاشتراك (البيانات الرئيسية للجمعية). تصل من نموذج multipart مع ملف الترخيص.
+ * بيانات طلب الاشتراك (البيانات الرئيسية للشركة). تصل من نموذج multipart مع ملف الترخيص.
  * بيانات المدير التنفيذي وعضو مجلس الإدارة حقول مسطحة لتناسب النموذج.
  */
 export class ApplicationDto {
-  @trim() @IsString() @MinLength(3, { message: 'اسم الجمعية قصير جدًا' }) @MaxLength(200)
+  @trim() @IsString() @MinLength(3, { message: 'اسم الشركة قصير جدًا' }) @MaxLength(200)
   orgName!: string;
 
   @lower() @Matches(SLUG, { message: SLUG_MSG })
   proposedSlug!: string;
 
-  @trim() @IsString() @MinLength(2, { message: 'اكتب مدينة الجمعية' }) @MaxLength(100)
+  @trim() @IsString() @MinLength(2, { message: 'اكتب مدينة الشركة' }) @MaxLength(100)
   @Matches(/^[^0-9٠-٩]+$/, { message: 'اسم المدينة لا يحتوي على أرقام' })
   city!: string;
 
-  @IsCheckedEmail('بريد الجمعية')
+  @IsCheckedEmail('بريد الشركة')
   orgEmail!: string;
 
-  @IsSaudiPhone('هاتف الجمعية')
+  @IsSaudiPhone('هاتف الشركة')
   orgPhone!: string;
 
   @Transform(({ value }) => (typeof value === 'string' ? normalizeLicense(value) : value))
@@ -70,7 +70,7 @@ export class ApplicationDto {
   @IsCheckedEmail('بريد عضو مجلس الإدارة')
   boardEmail!: string;
 
-  /** مدير نظام الجمعية (يُنشأ حسابه عند الاعتماد). اختياري فقط عند استكمال بيانات جمعية قائمة */
+  /** مدير نظام الشركة (يُنشأ حسابه عند الاعتماد). اختياري فقط عند استكمال بيانات جمعية قائمة */
   @emptyToUndefined() @IsOptional() @IsPersonName('اسم مدير النظام')
   adminFullName?: string;
 
@@ -87,11 +87,11 @@ export class ApplicationDto {
 
 /** عند تعديل البيانات الرئيسية: كل الحقول اختيارية */
 export class UpdateApplicationDto {
-  @IsOptional() @trim() @IsString() @MinLength(3, { message: 'اسم الجمعية قصير جدًا' }) @MaxLength(200) orgName?: string;
+  @IsOptional() @trim() @IsString() @MinLength(3, { message: 'اسم الشركة قصير جدًا' }) @MaxLength(200) orgName?: string;
   @IsOptional() @lower() @Matches(SLUG, { message: SLUG_MSG }) proposedSlug?: string;
   @IsOptional() @trim() @IsString() @MinLength(2) @MaxLength(100) @Matches(/^[^0-9٠-٩]+$/, { message: 'اسم المدينة لا يحتوي على أرقام' }) city?: string;
-  @IsOptional() @IsCheckedEmail('بريد الجمعية') orgEmail?: string;
-  @IsOptional() @IsSaudiPhone('هاتف الجمعية') orgPhone?: string;
+  @IsOptional() @IsCheckedEmail('بريد الشركة') orgEmail?: string;
+  @IsOptional() @IsSaudiPhone('هاتف الشركة') orgPhone?: string;
   @IsOptional() @Transform(({ value }) => (typeof value === 'string' ? normalizeLicense(value) : value))
   @IsString() @Matches(LICENSE, { message: 'رقم الترخيص أرقام فقط (يُسمح بـ / أو -)' }) licenseNumber?: string;
   @IsOptional() @IsDateString({}, { message: 'تاريخ بداية الترخيص غير صحيح' }) @IsNotFutureDate('تاريخ بداية الترخيص لا يكون في المستقبل') licenseStartDate?: string;
@@ -267,8 +267,8 @@ export class SignContractDto {
   @trim() @IsString() @MinLength(2, { message: 'اكتب صفة الموقّع (مثل: المدير التنفيذي)' }) @MaxLength(200)
   signerTitle!: string;
 
-  /** تحقق بسيط من هوية الجمعية: رقم الترخيص المسجل */
-  @trim() @IsString() @MinLength(1, { message: 'اكتب رقم ترخيص الجمعية للتحقق' })
+  /** تحقق بسيط من هوية الشركة: رقم الترخيص المسجل */
+  @trim() @IsString() @MinLength(1, { message: 'اكتب رقم ترخيص الشركة للتحقق' })
   licenseNumber!: string;
 
   @toBool() @IsBoolean() @IsIn([true], { message: 'يجب الإقرار بالموافقة على بنود العقد' })

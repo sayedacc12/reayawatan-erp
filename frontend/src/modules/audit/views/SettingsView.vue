@@ -28,7 +28,7 @@ async function save() {
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات المراجعة الداخلية</h1><p class="muted">مستويات الخطر وتكرار المراجعة ومهل التوصيات، وصلاحيات الوحدة على أدوار الجمعية.</p></div></div>
+    <div class="page-head"><div><h1>إعدادات المراجعة الداخلية</h1><p class="muted">مستويات الخطر وتكرار المراجعة ومهل التوصيات، وصلاحيات الوحدة على أدوار الشركة.</p></div></div>
     <div class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'risk' }]" @click="tab = 'risk'">المخاطر والمهل</button>
       <button :class="['pm-tab', { on: tab === 'permissions' }]" @click="tab = 'permissions'">الصلاحيات</button>

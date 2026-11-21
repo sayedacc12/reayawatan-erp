@@ -36,7 +36,7 @@ export interface ErpModuleManifest {
   icon?: string;
   version: string;
   /**
-   * organization: وحدة تعمل داخل كل جمعية (الافتراضي) وصلاحياتها تظهر في أدوار الجمعية.
+   * organization: وحدة تعمل داخل كل جمعية (الافتراضي) وصلاحياتها تظهر في أدوار الشركة.
    * platform: وحدة إدارة المنصة نفسها، متاحة لمدير المنصة فقط.
    */
   scope?: 'organization' | 'platform';

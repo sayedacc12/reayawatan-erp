@@ -52,7 +52,7 @@ export const WF_ACTION: Record<string, string> = { submit: 'رفع للاعتم�
 export const SOURCES: Record<string, { label: string; color: string; hint: string }> = {
   internal: { label: 'داخلي', color: '#6366f1', hint: 'ينشأ من العمليات والأفراد والأنظمة والحوكمة' },
   external: { label: 'خارجي', color: '#0ea5e9', hint: 'ينشأ من البيئة المحيطة: الأنظمة والاقتصاد والمانحين والكوارث' },
-  product: { label: 'منتج / خدمة', color: '#d946ef', hint: 'يرتبط ببرامج الجمعية وخدماتها ومشاريعها وسلامة المستفيدين' },
+  product: { label: 'منتج / خدمة', color: '#d946ef', hint: 'يرتبط ببرامج الشركة وخدماتها ومشاريعها ورضا العملاء' },
 };
 export const TREATMENTS: Record<string, { label: string; hint: string }> = {
   avoid: { label: 'تجنب', hint: 'إيقاف النشاط المسبب للخطر' }, reduce: { label: 'تخفيف', hint: 'ضوابط وإجراءات تقلل الاحتمالية أو الأثر' },
@@ -87,8 +87,8 @@ export const TEAM_KINDS: Record<string, string> = { crisis: 'إدارة الأز
 export const SEVERITY: Record<string, { label: string; color: string }> = { minor: { label: 'محدودة', color: '#f59e0b' }, major: { label: 'كبيرة', color: '#f97316' }, critical: { label: 'حرجة', color: '#ef4444' } };
 export const DEP_KINDS: Record<string, string> = { people: 'أفراد', system: 'أنظمة', supplier: 'موردون', facility: 'مبانٍ ومرافق', data: 'بيانات' };
 export const DOMAINS: Record<string, string> = { risk: 'المخاطر', change: 'التغيير', compliance: 'الالتزام', continuity: 'الاستمرارية', procedures: 'الإجراءات', other: 'أخرى' };
-export const IMPACT_AREAS = ['الأفراد', 'العمليات والإجراءات', 'الأنظمة والتقنية', 'التكلفة والميزانية', 'المستفيدون', 'الالتزام النظامي'];
+export const IMPACT_AREAS = ['الأفراد', 'العمليات والإجراءات', 'الأنظمة والتقنية', 'التكلفة والميزانية', 'العملاء', 'الالتزام النظامي'];
 export const BIA_IMPACTS: { key: 'financial' | 'beneficiaries' | 'reputation' | 'legal' | 'operational'; label: string }[] = [
-  { key: 'financial', label: 'مالي' }, { key: 'beneficiaries', label: 'المستفيدون' }, { key: 'reputation', label: 'السمعة' }, { key: 'legal', label: 'نظامي' }, { key: 'operational', label: 'تشغيلي' },
+  { key: 'financial', label: 'مالي' }, { key: 'beneficiaries', label: 'العملاء' }, { key: 'reputation', label: 'السمعة' }, { key: 'legal', label: 'نظامي' }, { key: 'operational', label: 'تشغيلي' },
 ];
 export const hours = (h: number | null | undefined) => (h == null ? '—' : h < 24 ? `${h} ساعة` : h % 24 === 0 ? `${h / 24} يوم` : `${(h / 24).toFixed(1)} يوم`);

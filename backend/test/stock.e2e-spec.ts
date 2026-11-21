@@ -301,7 +301,7 @@ describe('Procurement stage 3: receipts, stock and warehouse vouchers', () => {
 
   it('blocks issuing expired lots, which leave only by an approved write-off', async () => {
     await db.query(`UPDATE pr_stock_layers SET expiry_date = $2 WHERE organization_id = $1 AND lot = 'L-3'`, [org, day(-1)]);
-    const r = (await http.post(`${PR}/issue-requests?submit=1`).set(as(tok.requester)).send({ warehouseId: ids.main, purpose: 'مطبخ الجمعية', analyticId: acc.cc, lines: [{ itemId: ids.rice, qty: 60 }] }).expect(201)).body;
+    const r = (await http.post(`${PR}/issue-requests?submit=1`).set(as(tok.requester)).send({ warehouseId: ids.main, purpose: 'مطبخ الشركة', analyticId: acc.cc, lines: [{ itemId: ids.rice, qty: 60 }] }).expect(201)).body;
     await http.post(`${PR}/issue-requests/${r.id}/approve`).set(as(tok.controller)).send({}).expect(200);
     const x = await http.post(`${PR}/stock-docs/issue`).set(as(tok.keeper)).send({ issueRequestId: r.id, date: today, lines: [{ itemId: ids.rice, qty: 60 }] }).expect(409);
     expect(x.body.message).toContain('منتهية الصلاحية');

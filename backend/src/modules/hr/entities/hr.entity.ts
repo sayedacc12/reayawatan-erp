@@ -37,7 +37,7 @@ export interface PayrollStage { name: string; roleId: string | null }
 export interface PayrollConfig {
   /** الرواتب المستحقة (الحساب الافتراضي لأي بند ليس له حساب استحقاق خاص) */
   payableAccountId: string | null;
-  /** التأمينات الاجتماعية المستحقة (حصة الموظف والجمعية) */
+  /** التأمينات الاجتماعية المستحقة (حصة الموظف والشركة) */
   gosiPayableAccountId: string | null;
   /** قديم: انتقل مصروف التأمينات إلى فئات تحميل المصروف (المفتاح gosi) */
   gosiExpenseAccountId?: string | null;
@@ -714,7 +714,7 @@ export class HrAllowanceType {
 }
 
 /**
- * فئة تحميل المصروف: مجموعة حسابات مصروف لبنود الراتب (والمفتاح gosi لحصة الجمعية في التأمينات).
+ * فئة تحميل المصروف: مجموعة حسابات مصروف لبنود الراتب (والمفتاح gosi لحصة الشركة في التأمينات).
  * تُختار في الوصف الوظيفي، فموظفو الإدارة يُحمَّلون على المصاريف الإدارية وموظفو الأنشطة على مصاريف البرامج.
  */
 @Entity('hr_expense_profiles')
@@ -802,7 +802,7 @@ export class HrAttendancePunch {
   @Column({ name: 'punch_date', type: 'date' })
   punchDate!: string;
 
-  /** الوقت HH:MM:SS بتوقيت الجمعية */
+  /** الوقت HH:MM:SS بتوقيت الشركة */
   @Column({ name: 'punch_time', length: 8 })
   punchTime!: string;
 

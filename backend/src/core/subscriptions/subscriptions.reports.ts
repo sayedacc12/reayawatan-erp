@@ -12,7 +12,7 @@ const STATE: Record<string, string> = {
   trial: 'فترة تجريبية', trial_expired: 'انتهت التجربة', awaiting_contract: 'بانتظار العقد', active: 'اشتراك ساري', expired: 'اشتراك منتهٍ', suspended: 'موقوفة',
 };
 const APP: Record<string, string> = { submitted: 'بانتظار المراجعة', returned: 'معاد للاستكمال', approved: 'معتمد', rejected: 'مرفوض' };
-const CONTRACT: Record<string, string> = { draft: 'مسودة', sent: 'بانتظار توقيع الجمعية', changes_requested: 'طلبت الجمعية تعديلًا', signed: 'موقّع وساري', cancelled: 'ملغى' };
+const CONTRACT: Record<string, string> = { draft: 'مسودة', sent: 'بانتظار توقيع الشركة', changes_requested: 'طلبت الشركة تعديلًا', signed: 'موقّع وساري', cancelled: 'ملغى' };
 const CYCLE: Record<string, string> = { monthly: 'شهرية', quarterly: 'ربع سنوية', semiannual: 'نصف سنوية', annual: 'سنوية' };
 const WITHIN: Record<string, string> = { '14': 'خلال 14 يومًا', '30': 'خلال 30 يومًا', '60': 'خلال 60 يومًا', '90': 'خلال 90 يومًا' };
 
@@ -28,7 +28,7 @@ export class SubscriptionsReports implements OnModuleInit {
         ...base, code: 'platform.organizations', category: 'الجمعيات', title: 'الجمعيات وحالة اشتراكها', description: 'كل الجمعيات بحالة الاشتراك وتواريخه وقيمته وعدد المستخدمين',
         filters: [selectFilter('state', 'الحالة', STATE)], link: '/platform/organizations/{id}', orientation: 'landscape',
         columns: [
-          { key: 'name', label: 'الجمعية' }, { key: 'slug', label: 'المعرّف' }, { key: 'state', label: 'الحالة' }, { key: 'createdAt', label: 'تاريخ التسجيل', type: 'date' },
+          { key: 'name', label: 'الشركة' }, { key: 'slug', label: 'المعرّف' }, { key: 'state', label: 'الحالة' }, { key: 'createdAt', label: 'تاريخ التسجيل', type: 'date' },
           { key: 'trialEndsOn', label: 'نهاية التجربة', type: 'date' }, { key: 'startsOn', label: 'بداية الاشتراك', type: 'date' },
           { key: 'endsOn', label: 'نهاية الاشتراك', type: 'date' }, { key: 'cycle', label: 'دورة الفوترة' }, { key: 'price', label: 'قيمة الدورة', type: 'money' },
           { key: 'annual', label: 'القيمة السنوية', type: 'money', total: true }, { key: 'users', label: 'المستخدمون', type: 'number', total: true },
@@ -47,7 +47,7 @@ export class SubscriptionsReports implements OnModuleInit {
         ...base, code: 'platform.renewals', category: 'الجمعيات', title: 'التجارب والاشتراكات القريبة من الانتهاء', description: 'الجمعيات التي تنتهي تجربتها أو اشتراكها خلال المدة المختارة أو انتهت، لمتابعة التجديد',
         filters: [{ ...selectFilter('days', 'المدة', WITHIN), default: '30', required: true }], link: '/platform/organizations/{id}',
         columns: [
-          { key: 'name', label: 'الجمعية' }, { key: 'state', label: 'الحالة' }, { key: 'kind', label: 'ما ينتهي' }, { key: 'date', label: 'تاريخ الانتهاء', type: 'date' },
+          { key: 'name', label: 'الشركة' }, { key: 'state', label: 'الحالة' }, { key: 'kind', label: 'ما ينتهي' }, { key: 'date', label: 'تاريخ الانتهاء', type: 'date' },
           { key: 'daysLeft', label: 'الأيام المتبقية', type: 'number' }, { key: 'annual', label: 'القيمة السنوية', type: 'money', total: true },
         ],
         run: async (_u, f) => {
@@ -91,7 +91,7 @@ export class SubscriptionsReports implements OnModuleInit {
         ...base, code: 'platform.applications', category: 'الطلبات والعقود', title: 'طلبات الاشتراك', description: 'طلبات تسجيل الجمعيات في الفترة بحالتها وبياناتها',
         filters: [...periodFilters('الطلب'), selectFilter('status', 'الحالة', APP)], link: '/platform/applications/{id}', orientation: 'landscape',
         columns: [
-          { key: 'number', label: 'رقم الطلب' }, { key: 'createdAt', label: 'التاريخ', type: 'date' }, { key: 'orgName', label: 'الجمعية' }, { key: 'city', label: 'المدينة' },
+          { key: 'number', label: 'رقم الطلب' }, { key: 'createdAt', label: 'التاريخ', type: 'date' }, { key: 'orgName', label: 'الشركة' }, { key: 'city', label: 'المدينة' },
           { key: 'license', label: 'رقم الترخيص' }, { key: 'licenseEnd', label: 'نهاية الترخيص', type: 'date' }, { key: 'director', label: 'المدير التنفيذي' },
           { key: 'phone', label: 'الجوال' }, { key: 'email', label: 'البريد' }, { key: 'status', label: 'الحالة' }, { key: 'decidedAt', label: 'تاريخ القرار', type: 'date' },
         ],
@@ -110,7 +110,7 @@ export class SubscriptionsReports implements OnModuleInit {
         ...base, code: 'platform.contracts', category: 'الطلبات والعقود', title: 'عقود الاشتراك', description: 'العقود الإلكترونية بحالتها وتواريخ الإرسال والتوقيع واسم الموقّع',
         filters: [selectFilter('status', 'الحالة', CONTRACT)], link: '/platform/contracts/{id}',
         columns: [
-          { key: 'number', label: 'رقم العقد' }, { key: 'orgName', label: 'الجمعية' }, { key: 'status', label: 'الحالة' }, { key: 'sentAt', label: 'تاريخ الإرسال', type: 'date' },
+          { key: 'number', label: 'رقم العقد' }, { key: 'orgName', label: 'الشركة' }, { key: 'status', label: 'الحالة' }, { key: 'sentAt', label: 'تاريخ الإرسال', type: 'date' },
           { key: 'signedAt', label: 'تاريخ التوقيع', type: 'date' }, { key: 'signer', label: 'الموقّع' }, { key: 'createdAt', label: 'تاريخ الإنشاء', type: 'date' },
         ],
         run: async (_u, f) => {

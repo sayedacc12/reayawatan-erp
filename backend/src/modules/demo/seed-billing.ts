@@ -13,8 +13,8 @@ import { DemoTeam, daysAgo } from './demo-context';
 const ADDRESS = { street: 'طريق الملك عبدالعزيز', buildingNo: '2471', additionalNo: '8123', district: 'الملقا', city: 'الرياض', postalCode: '13521', country: 'SA' };
 
 /**
- * الفوترة والمبيعات في الجمعية التجريبية (المرحلة الأولى):
- * - الجمعية مسجلة في الضريبة، وحساباتها في الدليل (مدينو العقود، ضريبة المخرجات، مبيعات السلع والخدمات).
+ * الفوترة والمبيعات في الشركة التجريبية (المرحلة الأولى):
+ * - الشركة مسجلة في الضريبة، وحساباتها في الدليل (مدينو العقود، ضريبة المخرجات، مبيعات السلع والخدمات).
  * - ثلاثة عملاء (منشأتان وفرد)، وأربعة أصناف وخدمات منها تأجير سكني معفى بسبب الهيئة.
  * - فاتورة ضريبية محصلة جزئيًا وعليها إشعار دائن، وفاتورة مبسطة محصلة بالكامل، وفاتورة إيجار معفاة غير محصلة،
  *   وفاتورة بانتظار الإصدار، ومسودة. يُعدّها المحاسب ويصدرها المدير (فصل المهام)، والتحصيل بسندات قبض تمر بمراحل اعتمادها.
@@ -50,9 +50,9 @@ export class BillingSeed {
     // المحاسب يعدّ الفواتير ويحصّلها، والمدير يصدرها
     const clerk = await this.grant(team.roles.finance, team.finance, [BP.read, BP.invoices, BP.customers, BP.items, BP.reports, ACC.receipts]);
     await this.ops.saveSettings(admin, {
-      mode: 'registered', sellerName: o?.name ?? 'الجمعية التجريبية', sellerNameEn: 'Sanabel Demo Charity', vatNumber: '310000000000003', idType: 'OTH', idNumber: '1234',
+      mode: 'registered', sellerName: o?.name ?? 'الشركة التجريبية', sellerNameEn: 'Sanabel Demo Charity', vatNumber: '310000000000003', idType: 'OTH', idNumber: '1234',
       address: ADDRESS, vatRate: 15, receivablesAccountId: ar, vatOutputAccountId: vat, revenueAccountId: revenue, customerCategoryId: cat?.id ?? null,
-      analyticId: null, paymentDays: 30, terms: 'السداد خلال 30 يومًا من تاريخ الفاتورة بتحويل إلى حساب الجمعية.',
+      analyticId: null, paymentDays: 30, terms: 'السداد خلال 30 يومًا من تاريخ الفاتورة بتحويل إلى حساب الشركة.',
     });
 
     const amal = await this.catalog.createCustomer(clerk, {

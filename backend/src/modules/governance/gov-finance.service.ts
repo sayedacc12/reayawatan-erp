@@ -70,7 +70,7 @@ export class GovFinance {
     return repo.findOneOrFail({ where: { organizationId: org } });
   }
 
-  /** ربط الأرقام بالحسابات: تعديلات الجمعية فوق الربط الافتراضي من الدليل */
+  /** ربط الأرقام بالحسابات: تعديلات الشركة فوق الربط الافتراضي من الدليل */
   mappingOf(s: Pick<GovSettings, 'mapping'>): Record<FinFigureKey, AccountRule[]> {
     return Object.fromEntries(FIGURES.map((f) => [f.key, s.mapping?.[f.key] ?? f.accounts])) as Record<FinFigureKey, AccountRule[]>;
   }

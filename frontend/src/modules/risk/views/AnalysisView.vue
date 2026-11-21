@@ -74,14 +74,14 @@ async function convert() {
   <div v-if="meta && (isNew || data)">
     <div class="page-head">
       <div><h1><span v-if="data" class="rk-code" style="font-size: 1rem">{{ data.code }}</span> {{ isNew ? `تحليل ${form.kind === 'pestel' ? 'PESTEL' : 'SWOT'} جديد` : form.title }}</h1>
-        <p class="muted">{{ form.kind === 'pestel' ? 'العوامل السياسية والاقتصادية والاجتماعية والتقنية والبيئية والقانونية المؤثرة على الجمعية.' : 'القوة والضعف (داخلية) والفرص والتهديدات (خارجية)، ثم الاستراتيجيات.' }} قيّم كل عامل بالأثر والاحتمالية من 1 إلى 5.</p></div>
+        <p class="muted">{{ form.kind === 'pestel' ? 'العوامل السياسية والاقتصادية والاجتماعية والتقنية والبيئية والقانونية المؤثرة على الشركة.' : 'القوة والضعف (داخلية) والفرص والتهديدات (خارجية)، ثم الاستراتيجيات.' }} قيّم كل عامل بالأثر والاحتمالية من 1 إلى 5.</p></div>
       <button v-if="canEdit" class="btn btn-primary" @click="save">حفظ التحليل</button>
     </div>
     <fieldset :disabled="!canEdit" style="border: 0; padding: 0; margin: 0">
       <section class="card pm-panel" style="margin-bottom: 16px">
         <div class="rk-fields">
           <label class="field"><span>العنوان</span><input v-model="form.title" class="input" /></label>
-          <label class="field"><span>النطاق (الجمعية أو برنامج أو مشروع)</span><input v-model="form.scope" class="input" /></label>
+          <label class="field"><span>النطاق (الشركة أو برنامج أو مشروع)</span><input v-model="form.scope" class="input" /></label>
           <label class="field"><span>تاريخ التحليل</span><input v-model="form.analysisDate" type="date" class="input" /></label>
         </div>
       </section>

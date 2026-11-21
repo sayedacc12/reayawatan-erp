@@ -145,9 +145,9 @@ export function normalizePolicy(input: unknown): HrPolicy {
     wageBase: (g.wageBase === 'basic' ? 'basic' : 'basic_housing') as 'basic' | 'basic_housing',
     saudi: {
       pensionEmployee: numIn(gs.pensionEmployee, 0, 30, 'المعاشات على الموظف'),
-      pensionEmployer: numIn(gs.pensionEmployer, 0, 30, 'المعاشات على الجمعية'),
+      pensionEmployer: numIn(gs.pensionEmployer, 0, 30, 'المعاشات على الشركة'),
       sanedEmployee: numIn(gs.sanedEmployee, 0, 10, 'ساند على الموظف'),
-      sanedEmployer: numIn(gs.sanedEmployer, 0, 10, 'ساند على الجمعية'),
+      sanedEmployer: numIn(gs.sanedEmployer, 0, 10, 'ساند على الشركة'),
       hazardsEmployer: numIn(gs.hazardsEmployer, 0, 10, 'الأخطار المهنية للسعوديين'),
     },
     nonSaudi: { hazardsEmployer: numIn(gn.hazardsEmployer, 0, 10, 'الأخطار المهنية لغير السعوديين') },

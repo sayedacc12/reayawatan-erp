@@ -26,9 +26,9 @@ export const PAYABLE_VOUCHER_TYPES = ['bill'] as const;
 /** قيود فواتير المبيعات والإشعارات: تصدر من نظام الفوترة عند إصدار المستند فقط، وتظهر في النظام المالي للاطلاع */
 export const BILLING_VOUCHER_TYPES = ['sale'] as const;
 export type BuiltinVoucherType = (typeof VOUCHER_TYPES)[number];
-/** نوع المستند: أحد الأنواع الأساسية، أو نوع سند خاص بالجمعية يُعرَّف من الإعدادات (رمزه يبدأ بـ d_) */
+/** نوع المستند: أحد الأنواع الأساسية، أو نوع سند خاص بالشركة يُعرَّف من الإعدادات (رمزه يبدأ بـ d_) */
 export type VoucherType = BuiltinVoucherType | `d_${string}`;
-/** صيغة رمز نوع السند الخاص بالجمعية */
+/** صيغة رمز نوع السند الخاص بالشركة */
 export const CUSTOM_TYPE_RE = /^d_[a-z0-9]{6,16}$/;
 export type EntryStatus = 'draft' | 'posted' | 'cancelled';
 export type EntrySource = 'manual' | 'system' | 'voucher' | 'assets' | 'stock' | 'payables' | 'billing';
@@ -114,7 +114,7 @@ export class FiscalYear {
   @Column({ name: 'end_date', type: 'date' })
   endDate!: string;
 
-  /** السنة المالية الأولى للجمعية في النظام */
+  /** السنة المالية الأولى للشركة في النظام */
   @Column({ name: 'is_first', default: false })
   isFirst!: boolean;
 
@@ -752,7 +752,7 @@ export class Voucher {
   @JoinColumn({ name: 'cash_account_id' })
   cashAccount?: CashAccount;
 
-  /** الطرف المقابل في حسابات الجمعية (الدائن في القبض، المدين في الصرف) */
+  /** الطرف المقابل في حسابات الشركة (الدائن في القبض، المدين في الصرف) */
   @Column({ name: 'counter_account_id', type: 'uuid' })
   counterAccountId!: string;
 
@@ -846,7 +846,7 @@ export class VoucherAction {
 }
 
 /**
- * أنواع سندات خاصة بالجمعية (مثل سند قيد عهدة، أو سند تسوية مخزون): تُعرَّف من الإعدادات وتظهر تحت «العمليات»،
+ * أنواع سندات خاصة بالشركة (مثل سند قيد عهدة، أو سند تسوية مخزون): تُعرَّف من الإعدادات وتظهر تحت «العمليات»،
  * وتعمل مثل قيد اليومية بتسلسل أرقام مستقل يبدأ من 1 كل سنة، وتدخل في الترحيل ومحضر الجرد. لا تُحذف بعد استخدامها بل توقف.
  */
 @Entity('acc_document_types')

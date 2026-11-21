@@ -37,7 +37,7 @@ export class InventoryService {
         for (const g of gaps) for (let k = Number(g.s) + 1; k < Number(g.n) && serials.length < 50; k++) serials.push({ s: k });
         missing = serials.map((x) => Number(x.s));
       }
-      // نوع السند الخاص بالجمعية لا يظهر في المحضر إلا إن صدر منه سند في السنة
+      // نوع السند الخاص بالشركة لا يظهر في المحضر إلا إن صدر منه سند في السنة
       if (!isBuiltin(t) && !r.count) continue;
       out.push({
         voucherType: t, first: r.first, last: r.last, count: r.count, posted: r.posted, cancelled: r.cancelled, draft: r.draft, missing,

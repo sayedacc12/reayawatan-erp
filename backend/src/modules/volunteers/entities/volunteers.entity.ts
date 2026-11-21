@@ -74,7 +74,7 @@ export class VolSettings {
   @Column({ name: 'volunteer_types', type: 'jsonb', default: () => `'[]'` })
   volunteerTypes!: LookupItem[];
 
-  /** مجالات التطوع المتاحة في الجمعية */
+  /** مجالات التطوع المتاحة في الشركة */
   @Column({ name: 'volunteer_fields', type: 'jsonb', default: () => `'[]'` })
   volunteerFields!: LookupItem[];
 
@@ -94,7 +94,7 @@ export class VolSettings {
   @Column({ name: 'certificate_templates', type: 'jsonb', default: () => `'{}'` })
   certificateTemplates!: Partial<CertificateTemplates>;
 
-  /** صفحة التسجيل العامة للمتطوعين والشكاوى (رابط /v/<معرف الجمعية>) */
+  /** صفحة التسجيل العامة للمتطوعين والشكاوى (رابط /v/<معرف الشركة>) */
   @Column({ name: 'public_registration', type: 'boolean', default: true })
   publicRegistration!: boolean;
 

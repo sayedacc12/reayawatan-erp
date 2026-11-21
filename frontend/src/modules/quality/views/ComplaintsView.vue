@@ -112,7 +112,7 @@ const can = computed(() => session.can(P.feedback));
         <button v-if="can" class="btn q-glow" @click="form.show = true">تسجيل شكوى</button>
       </div>
     </section>
-    <div v-if="pending && can" class="q-info">{{ pending }} شكوى واردة من بوابة المستفيدين أو صفحة التطوع لم تُسجل بعد في سجل الجودة. <a href="#" class="pm-link" @click.prevent="openPortal">راجعها وسجلها</a></div>
+    <div v-if="pending && can" class="q-info">{{ pending }} شكوى واردة من نماذج الموقع أو صفحة التطوع لم تُسجل بعد في سجل الجودة. <a href="#" class="pm-link" @click.prevent="openPortal">راجعها وسجلها</a></div>
     <section class="card pm-panel">
       <div class="q-tabs"><button v-for="t in TABS" :key="t.v" :class="['q-tab', { on: status === t.v }]" @click="status = t.v">{{ t.l }}</button></div>
       <div class="table-wrap"><table class="table">
@@ -155,7 +155,7 @@ const can = computed(() => session.can(P.feedback));
     <div v-if="portal" class="modal-backdrop" @click.self="portal = null">
       <div class="card modal" style="max-width: 720px">
         <h2>الشكاوى الواردة من البوابات</h2>
-        <p class="pm-muted">شكاوى أرسلها المستفيدون من بوابتهم، أو المتطوعون وغيرهم من صفحة التطوع العامة. سجّلها في سجل الجودة لتُدرس ويُرد عليها وتدخل في المؤشرات.</p>
+        <p class="pm-muted">شكاوى وصلت من المتطوعون وغيرهم من صفحة التطوع العامة. سجّلها في سجل الجودة لتُدرس ويُرد عليها وتدخل في المؤشرات.</p>
         <div v-for="p in portal" :key="p.id" class="card" style="padding: 12px; margin-bottom: 8px">
           <div style="display: flex; justify-content: space-between; gap: 8px"><b>{{ p.subject }}</b><span class="pm-muted q-num">{{ fmtDate(p.createdAt) }}</span></div>
           <p class="pm-muted" style="margin: 4px 0">{{ p.name }} · {{ p.sourceLabel }} · تذكرة رقم {{ p.ticketNo }}</p>

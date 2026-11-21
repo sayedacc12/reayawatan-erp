@@ -238,7 +238,7 @@ async function removeCand(c: Cand) {
       </section>
       <section class="card pm-panel">
         <h2>الجدارات الأكثر احتياجًا</h2>
-        <p class="pm-muted">مجموع الفجوات على مستوى الجمعية، يفيد في تخطيط برامج تدريب جماعية.</p>
+        <p class="pm-muted">مجموع الفجوات على مستوى الشركة، يفيد في تخطيط برامج تدريب جماعية.</p>
         <div class="hr-bars">
           <div v-for="g in gaps?.topGaps ?? []" :key="g.competencyId" class="r">
             <span>{{ g.name }}<span class="hr-mini">{{ g.employees }} موظف</span></span>

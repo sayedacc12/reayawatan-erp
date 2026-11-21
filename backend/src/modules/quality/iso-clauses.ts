@@ -1,6 +1,6 @@
 /**
  * بنود مواصفة ISO 9001:2015 من 4 إلى 10، وأين يُطبَّق كل بند في سنابل.
- * evidence: مفتاح الدليل الذي يحسبه تقرير المطابقة من بيانات الجمعية.
+ * evidence: مفتاح الدليل الذي يحسبه تقرير المطابقة من بيانات الشركة.
  */
 export interface IsoClause { code: string; title: string; how: string; path: string; evidence: string }
 
@@ -15,7 +15,7 @@ export const ISO_SECTIONS: { code: string; title: string }[] = [
 ];
 
 export const ISO_CLAUSES: IsoClause[] = [
-  { code: '4.1', title: 'فهم المنظمة وسياقها', how: 'القضايا الداخلية والخارجية في سياق الجمعية', path: '/quality/context', evidence: 'issues' },
+  { code: '4.1', title: 'فهم المنظمة وسياقها', how: 'القضايا الداخلية والخارجية في سياق الشركة', path: '/quality/context', evidence: 'issues' },
   { code: '4.2', title: 'فهم احتياجات الأطراف المعنية وتوقعاتها', how: 'سجل الأطراف المعنية واحتياجاتها وطريقة متابعتها', path: '/quality/context', evidence: 'parties' },
   { code: '4.3', title: 'تحديد نطاق نظام إدارة الجودة', how: 'نطاق النظام والاستثناءات ومبرراتها', path: '/quality/context', evidence: 'scope' },
   { code: '4.4', title: 'نظام إدارة الجودة وعملياته', how: 'قائمة العمليات ومُلّاكها ومؤشراتها، وخرائط الإجراءات', path: '/quality/maps', evidence: 'processes' },
@@ -31,13 +31,13 @@ export const ISO_CLAUSES: IsoClause[] = [
   { code: '7.4', title: 'التواصل', how: 'قنوات الشكاوى والاستبانات والتواصل مع الأطراف المعنية', path: '/quality/complaints', evidence: 'communication' },
   { code: '7.5', title: 'المعلومات الموثقة', how: 'سجل الوثائق المضبوطة: الترميز والإصدارات والاعتماد والتوزيع وسحب الملغى', path: '/quality/documents', evidence: 'documents' },
   { code: '8.1', title: 'التخطيط للتشغيل والتحكم فيه', how: 'الإجراءات المعتمدة وسير العمل في الأنظمة', path: '/quality/procedures', evidence: 'procedures' },
-  { code: '8.2', title: 'متطلبات الخدمات (التواصل مع المستفيدين)', how: 'بوابة المستفيدين ونماذج الطلبات المعتمدة', path: '/quality/documents', evidence: 'forms' },
-  { code: '8.3', title: 'تصميم الخدمات وتطويرها', how: 'إعداد المشاريع واعتمادها في نظام إدارة المشاريع', path: '/projects', evidence: 'design' },
+  { code: '8.2', title: 'متطلبات الخدمات (التواصل مع العملاء)', how: 'نماذج الموقع وطلبات العملاء والنماذج المعتمدة', path: '/quality/documents', evidence: 'forms' },
+  { code: '8.3', title: 'تصميم الخدمات وتطويرها', how: 'إعداد خدمات الشركة واعتمادها ونشرها في الموقع', path: '/website/services', evidence: 'design' },
   { code: '8.4', title: 'ضبط العمليات والخدمات المقدمة من جهات خارجية', how: 'إجراء تقييم الموردين والشركاء ومخاطرهم', path: '/quality/procedures', evidence: 'external' },
-  { code: '8.5', title: 'تقديم الخدمة', how: 'سير عمل طلبات المستفيدين بمراحله ونماذجه', path: '/beneficiaries', evidence: 'delivery' },
+  { code: '8.5', title: 'تقديم الخدمة', how: 'متابعة طلبات العملاء وحجوزات التشخيص حتى إغلاقها', path: '/website/leads', evidence: 'delivery' },
   { code: '8.6', title: 'إطلاق الخدمات', how: 'الاعتماد النهائي للطلبات قبل الصرف', path: '/beneficiaries', evidence: 'release' },
   { code: '8.7', title: 'ضبط المخرجات غير المطابقة', how: 'تسجيل عدم المطابقة والتصحيح الفوري', path: '/quality/ncr', evidence: 'nonconforming' },
-  { code: '9.1', title: 'الرصد والقياس والتحليل والتقييم (رضا المستفيدين)', how: 'استبانات قياس الرضا ومؤشرات الأهداف', path: '/quality/surveys', evidence: 'satisfaction' },
+  { code: '9.1', title: 'الرصد والقياس والتحليل والتقييم (رضا العملاء)', how: 'استبانات قياس الرضا ومؤشرات الأهداف', path: '/quality/surveys', evidence: 'satisfaction' },
   { code: '9.2', title: 'المراجعة الداخلية', how: 'برنامج المراجعة السنوي وقوائم التحقق والنتائج', path: '/quality/audits', evidence: 'audits' },
   { code: '9.3', title: 'مراجعة الإدارة', how: 'محضر مراجعة الإدارة بمدخلاته ومخرجاته', path: '/quality/reviews', evidence: 'reviews' },
   { code: '10.1', title: 'التحسين: عام', how: 'فرص التحسين من المراجعات والمخاطر', path: '/quality/risks', evidence: 'improvement' },
@@ -49,7 +49,7 @@ export const ISO_CLAUSES: IsoClause[] = [
 export const REVIEW_INPUTS: { key: string; title: string }[] = [
   { key: 'previous', title: 'حالة الإجراءات من مراجعات الإدارة السابقة' },
   { key: 'context', title: 'التغيرات في القضايا الداخلية والخارجية' },
-  { key: 'satisfaction', title: 'رضا المستفيدين والتغذية الراجعة من الأطراف المعنية' },
+  { key: 'satisfaction', title: 'رضا العملاء والتغذية الراجعة من الأطراف المعنية' },
   { key: 'objectives', title: 'مدى تحقق أهداف الجودة' },
   { key: 'processes', title: 'أداء العمليات ومطابقة الخدمات' },
   { key: 'ncr', title: 'حالات عدم المطابقة والإجراءات التصحيحية' },

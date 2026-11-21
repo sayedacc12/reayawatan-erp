@@ -63,7 +63,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
     return this.optionalModules().some((m) => m.code === code);
   }
 
-  /** أكواد وحدات الجمعية المفعلة لها: الأساسية دائمًا + الاختيارية المفعلة */
+  /** أكواد وحدات الشركة المفعلة لها: الأساسية دائمًا + الاختيارية المفعلة */
   async enabledModuleCodes(organizationId: string): Promise<Set<string>> {
     const rows = await this.db.getRepository(OrganizationModule).find({
       where: { organizationId },
@@ -77,7 +77,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
     );
   }
 
-  /** وحدات الجمعية المفعلة بصلاحياتها (لشاشة مصفوفة الصلاحيات) */
+  /** وحدات الشركة المفعلة بصلاحياتها (لشاشة مصفوفة الصلاحيات) */
   async organizationModules(organizationId: string) {
     const enabled = await this.enabledModuleCodes(organizationId);
     return this.manifests
@@ -96,7 +96,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
 
   /**
    * صلاحيات نطاق معين، ومع تمرير enabled تقتصر على الوحدات المفعلة.
-   * ومع تمرير screens (الشاشات المسموحة للجمعية) تُسحب صلاحيات الشاشات غير المسموحة:
+   * ومع تمرير screens (الشاشات المسموحة للشركة) تُسحب صلاحيات الشاشات غير المسموحة:
    * - وحدة لا يُسمح بأي شاشة منها تُستبعد بالكامل
    * - صلاحية تظهر في قوائم الوحدة تبقى فقط لو شاشة مسموحة واحدة على الأقل تستخدمها
    * - الصلاحيات الداخلية (غير المرتبطة بشاشة في القائمة) تبقى ما دامت الوحدة لها شاشة مسموحة
@@ -163,7 +163,7 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
       .filter((m) => m.menu.length > 0);
   }
 
-  /** للواجهة: الشاشات المحجوبة عن الجمعية والمسموحة، لمنع فتحها بالرابط المباشر */
+  /** للواجهة: الشاشات المحجوبة عن الشركة والمسموحة، لمنع فتحها بالرابط المباشر */
   screenAccess(screens: string[] | null) {
     if (!screens) return { allowed: [], hidden: [] };
     const all = this.screenPaths();

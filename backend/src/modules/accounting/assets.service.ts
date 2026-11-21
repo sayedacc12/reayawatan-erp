@@ -34,9 +34,9 @@ export const ASSET_STATUS_AR: Record<AssetStatus, string> = {
   sold: 'مُباع', scrapped: 'مُخرَّد',
 };
 export const CUSTODY_AR: Record<string, string> = { issue: 'تسليم عهدة', transfer: 'نقل عهدة', return: 'استلام عهدة من الموظف', release: 'إنهاء العهدة' };
-/** الحالات التي يكون فيها الأصل في دفاتر الجمعية */
+/** الحالات التي يكون فيها الأصل في دفاتر الشركة */
 export const IN_BOOKS: AssetStatus[] = ['active', 'pending_sale'];
-/** الحالات التي يكون فيها الأصل في حيازة الجمعية (يحتاج عهدة) */
+/** الحالات التي يكون فيها الأصل في حيازة الشركة (يحتاج عهدة) */
 export const HELD: AssetStatus[] = ['draft', 'construction', 'pending_purchase', 'active', 'pending_sale'];
 
 /** حركات الاستبعاد */
@@ -125,7 +125,7 @@ export class AssetsService {
     return this.getConfig(actor);
   }
 
-  /** قفل تسلسلي لعمليات الأصول في الجمعية (الترقيم والإهلاك) */
+  /** قفل تسلسلي لعمليات الأصول في الشركة (الترقيم والإهلاك) */
   async lock(em: EntityManager, org: string) {
     await em.query(`SELECT pg_advisory_xact_lock(hashtext('acc_assets:' || $1))`, [org]);
   }
@@ -745,9 +745,9 @@ export class AssetsService {
     await this.db.transaction(async (em) => {
       await this.lock(em, org);
       const a = await this.load(em, org, assetId);
-      if (!HELD.includes(a.status)) bad('الأصل مستبعد من الجمعية، ولا تُسجَّل عليه عهدة');
+      if (!HELD.includes(a.status)) bad('الأصل مستبعد من الشركة، ولا تُسجَّل عليه عهدة');
       const kind = input.kind === 'return' ? 'return' : a.custodianEmployeeId ? 'transfer' : 'issue';
-      const to = await this.activeEmployee(org, idOf(input.toEmployeeId, kind === 'return' ? 'الموظف المستلم نيابة عن الجمعية' : 'الموظف المستلم'), em);
+      const to = await this.activeEmployee(org, idOf(input.toEmployeeId, kind === 'return' ? 'الموظف المستلم نيابة عن الشركة' : 'الموظف المستلم'), em);
       if (to.id === a.custodianEmployeeId && (str(input.toLocation, 250) ?? a.location) === a.location) bad('الأصل في عهدة هذا الموظف وفي الموقع نفسه بالفعل');
       if (kind === 'return' && !a.custodianEmployeeId) bad('الأصل ليس في عهدة موظف');
       const date = dateOrToday(input.date);

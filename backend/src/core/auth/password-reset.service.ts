@@ -11,7 +11,7 @@ import { PasswordReset, ResetAudience } from './password-reset.entity';
 /**
  * قواعد استعادة كلمة المرور (المنصة لا ترسل بريدًا ولا رسائل نصية بعد):
  * - الطلب لا يكشف وجود الحساب: نفس الرد دائمًا، ولا يُسجل شيء لحساب غير موجود.
- * - الطلب يصل لمن يملك صلاحية تسليم كلمة مؤقتة: مدير الجمعية لموظفيها، ومالك المنصة لمديري الجمعيات وفريقه،
+ * - الطلب يصل لمن يملك صلاحية تسليم كلمة مؤقتة: مدير الشركة لموظفيها، ومالك المنصة لمديري الجمعيات وفريقه،
  *   وموظفو المساعدات الاجتماعية للمستفيدين (بعد مطابقة رقم الهوية مع الجوال المسجل).
  * - طلب مفتوح واحد لكل حساب، وثلاثة طلبات بحد أقصى في اليوم، إضافة لحد المحاولات لكل عنوان.
  * - كلمة المرور المؤقتة عشوائية، تظهر للمسؤول مرة واحدة، وصالحة 24 ساعة،
@@ -107,7 +107,7 @@ export class PasswordResetService {
     await em.getRepository(PasswordReset).update({ userId, status: 'issued' }, { status: 'completed', completedAt: new Date() });
   }
 
-  /** كلمة مؤقتة يصدرها مسؤول المستخدمين في الجمعية لأحد موظفيها */
+  /** كلمة مؤقتة يصدرها مسؤول المستخدمين في الشركة لأحد موظفيها */
   async issueByOrg(actor: OrgUser, userId: string) {
     const user = await this.db.getRepository(User).findOne({ where: { id: userId, organizationId: actor.organizationId } });
     if (!user) throw new NotFoundException('المستخدم غير موجود');
@@ -116,7 +116,7 @@ export class PasswordResetService {
     return this.issueForUser(user.id, actor.fullName);
   }
 
-  /** طلبات موظفي الجمعية المفتوحة وسجل آخر العمليات (لشاشة المستخدمين) */
+  /** طلبات موظفي الشركة المفتوحة وسجل آخر العمليات (لشاشة المستخدمين) */
   async orgOverview(actor: OrgUser) {
     const rows = await this.repo.find({
       where: { organizationId: actor.organizationId, audience: 'staff' },
@@ -156,7 +156,7 @@ export class PasswordResetService {
     const row = await this.repo.findOne({ where: { id: requestId, userId: Not(IsNull()) } });
     if (!row?.userId) throw new NotFoundException('الطلب غير موجود');
     const user = await this.db.getRepository(User).findOne({ where: { id: row.userId } });
-    if (!user || (!user.isSuperadmin && !(user.isPlatformAdmin && user.platformRole))) throw new ForbiddenException('هذا الحساب يستعيده مدير نظام جمعيته');
+    if (!user || (!user.isSuperadmin && !(user.isPlatformAdmin && user.platformRole))) throw new ForbiddenException('هذا الحساب يستعيده مدير نظام شركته');
     return this.issueForUser(user.id, `${actor.fullName} (إدارة المنصة)`);
   }
 
@@ -171,7 +171,7 @@ export class PasswordResetService {
     await this.repo.update({ beneficiaryId, status: 'issued' }, { status: 'completed', completedAt: new Date() });
   }
 
-  /** طلبات مستفيدي البوابة المفتوحة في الجمعية */
+  /** طلبات مستفيدي البوابة المفتوحة في الشركة */
   pendingPortal(organizationId: string, beneficiaryIds?: string[]) {
     return this.repo.find({
       where: {

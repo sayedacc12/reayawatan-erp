@@ -64,29 +64,29 @@ async function save() {
     <div class="page-head">
       <div>
         <h1>إعدادات الفوترة والمبيعات</h1>
-        <p class="muted">النظام اختياري لكل جمعية. اختر وضع الجمعية الضريبي، وأكمل بياناتها كما في شهادة التسجيل، وحدد حسابات القيود في الدليل.</p>
+        <p class="muted">النظام اختياري. اختر وضع الشركة الضريبي، وأكمل بياناتها كما في شهادة التسجيل، وحدد حسابات القيود في الدليل.</p>
       </div>
     </div>
     <div :class="['pc-check-box', lk.readiness.ready ? 'ok' : 'bad']" style="margin-bottom: 12px">
       {{ lk.readiness.ready ? '✓ النظام جاهز لإصدار الفواتير' : `ينقص لإصدار الفواتير: ${lk.readiness.missing.join('، ')}` }}
     </div>
-    <div v-if="lk.settings.mode === 'integrated'" class="alert alert-info">الجمعية مربوطة مع منصة «فاتورة»، فتُعدّل بياناتها الضريبية من شاشة الربط.</div>
+    <div v-if="lk.settings.mode === 'integrated'" class="alert alert-info">الشركة مربوطة مع منصة «فاتورة»، فتُعدّل بياناتها الضريبية من شاشة الربط.</div>
     <div class="pc-tabs">
-      <button :class="{ on: tab === 'general' }" @click="tab = 'general'">الجمعية والضريبة</button>
+      <button :class="{ on: tab === 'general' }" @click="tab = 'general'">الشركة والضريبة</button>
       <button :class="{ on: tab === 'accounts' }" @click="tab = 'accounts'">الربط المالي</button>
       <button :class="{ on: tab === 'permissions' }" @click="tab = 'permissions'">الصلاحيات</button>
       <RouterLink to="/billing/zatca" class="pc-tab-link">الربط مع «فاتورة»</RouterLink>
     </div>
     <form v-if="tab !== 'permissions'" class="card pm-panel" @submit.prevent="save">
       <template v-if="tab === 'general'">
-        <p class="pc-sec">وضع الجمعية</p>
+        <p class="pc-sec">وضع الشركة</p>
         <div class="pc-check">
           <label v-for="(l, k) in lk.modes" :key="k" :class="['bl-mode', { on: f.mode === String(k), off: String(k) === 'integrated' }]">
             <input v-model="f.mode" type="radio" :value="String(k)" :disabled="String(k) === 'integrated'" /> <span>{{ l }}</span>
             <small v-if="String(k) === 'integrated'" class="pm-muted">يُفعّل مع إرسال الفواتير للمنصة (المرحلة القادمة)</small>
           </label>
         </div>
-        <p class="pc-sec">بيانات الجمعية في الفاتورة</p>
+        <p class="pc-sec">بيانات الشركة في الفاتورة</p>
         <div class="pc-fields">
           <label class="field"><span>الاسم كما في السجل الضريبي</span><input v-model="f.sellerName" class="input" maxlength="250" /></label>
           <label class="field"><span>الاسم بالإنجليزية (اختياري)</span><input v-model="f.sellerNameEn" class="input" maxlength="250" dir="ltr" /></label>
@@ -95,7 +95,7 @@ async function save() {
           <label class="field"><span>المعرّف الآخر</span><select v-model="f.idType" class="input"><option value="">—</option><option v-for="(l, k) in sellerIdTypes" :key="k" :value="k">{{ l }}</option></select></label>
           <label class="field"><span>رقم المعرّف</span><input v-model="f.idNumber" class="input" maxlength="40" dir="ltr" /></label>
         </div>
-        <p class="pc-sec">العنوان الوطني للجمعية</p>
+        <p class="pc-sec">العنوان الوطني للشركة</p>
         <div class="pc-fields">
           <label class="field"><span>رقم المبنى</span><input v-model="f.address.buildingNo" class="input" maxlength="4" dir="ltr" /></label>
           <label class="field"><span>الشارع</span><input v-model="f.address.street" class="input" maxlength="200" /></label>
@@ -111,7 +111,7 @@ async function save() {
         </div>
         <p class="pc-sec">الرقابة الداخلية</p>
         <label class="bl-mode" :class="{ on: f.separateIssuer }"><input v-model="f.separateIssuer" type="checkbox" /> <span>يصدر الفاتورة موظف غير الذي أعدّها (فصل المهام)</span></label>
-        <p class="pm-muted" style="font-size: .82rem; margin: 6px 0 0">يُحدد حسب نظام الرقابة الداخلية للجمعية. عند إلغائه يستطيع من لديه صلاحية الإصدار أن يصدر ما أعدّه بنفسه، ويبقى ذلك مسجلًا في سجل المستند.</p>
+        <p class="pm-muted" style="font-size: .82rem; margin: 6px 0 0">يُحدد حسب نظام الرقابة الداخلية للشركة. عند إلغائه يستطيع من لديه صلاحية الإصدار أن يصدر ما أعدّه بنفسه، ويبقى ذلك مسجلًا في سجل المستند.</p>
       </template>
       <template v-else>
         <p class="pm-muted" style="font-size: .86rem">قيد كل فاتورة صادرة: مدين حساب العملاء بالإجمالي، ودائن حساب الإيراد (أو حساب الصنف) وحساب ضريبة المخرجات. والإشعار الدائن عكسه. والتحصيل بسند قبض: مدين البنك أو الصندوق، ودائن حساب العملاء.</p>

@@ -2,7 +2,7 @@ import { ref } from 'vue';
 import { api } from '../api';
 import { fontStack, IdentityColors, loadFont, themeVars } from './fonts';
 
-/** هوية الجمعية داخل النظام: الشعار يظهر في الشريط العلوي، والألوان تُطبق إن اختارت الجمعية ذلك */
+/** هوية الشركة داخل النظام: الشعار يظهر في الشريط العلوي، والألوان تُطبق إن اختارت الشركة ذلك */
 export const orgLogo = ref<string | null>(null);
 const applied = new Set<string>();
 

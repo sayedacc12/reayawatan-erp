@@ -248,8 +248,8 @@ export class PtContractsService {
     const or = (v: string | null | undefined) => (v && v.trim() ? v : '........');
     return {
       'رقم العقد': c.number, 'رقم الإصدار': String(version), 'تاريخ العقد': formatDate(issuedOn), 'عنوان العقد': c.title, 'نوع الشراكة': or(type?.name),
-      'اسم الجمعية': o?.name ?? '........', 'رقم ترخيص الجمعية': or(s.orgLicense), 'مدينة الجمعية': or(s.orgCity), 'ممثل الجمعية': or(c.orgSignerName),
-      'صفة ممثل الجمعية': or(c.orgSignerTitle), 'اسم الشريك': p.name, 'تصنيف الشريك': or(cls?.name), 'سجل الشريك': or(p.registrationNo), 'مدينة الشريك': or(p.city),
+      'اسم الشركة': o?.name ?? '........', 'رقم ترخيص الشركة': or(s.orgLicense), 'مدينة الشركة': or(s.orgCity), 'ممثل الشركة': or(c.orgSignerName),
+      'صفة ممثل الشركة': or(c.orgSignerTitle), 'اسم الشريك': p.name, 'تصنيف الشريك': or(cls?.name), 'سجل الشريك': or(p.registrationNo), 'مدينة الشريك': or(p.city),
       'ممثل الشريك': or(p.contactName), 'صفة ممثل الشريك': or(p.contactTitle), 'بريد الشريك': or(p.email), 'تاريخ بداية العقد': formatDate(c.startsOn),
       'تاريخ نهاية العقد': formatDate(c.endsOn), 'مدة العقد': durationLabel(c.startsOn, c.endsOn), 'قيمة الشراكة': c.value === null ? 'لا يوجد' : money(Number(c.value)),
       'اسم المشروع': proj?.name ?? 'البرامج المتفق عليها', 'مدينة المحكمة المختصة': or(s.courtCity ?? s.orgCity),
@@ -279,7 +279,7 @@ export class PtContractsService {
       if (!c.items.length) throw new BadRequestException('العقد بلا بنود');
       const unknown = unknownVars(c.items);
       if (unknown.length) throw new BadRequestException(`متغيرات غير معروفة في البنود: ${unknown.join('، ')}`);
-      if (!c.orgSignerName) throw new BadRequestException('اكتب اسم ممثل الجمعية في التوقيع (تبويب بيانات العقد)');
+      if (!c.orgSignerName) throw new BadRequestException('اكتب اسم ممثل الشركة في التوقيع (تبويب بيانات العقد)');
       c.status = 'review';
       c.log = [...c.log, logEntry('رفع للاعتماد', u.fullName)];
     });
@@ -422,7 +422,7 @@ export class PtContractsService {
       if (c.status !== 'sent') throw new BadRequestException(c.status === 'signed' ? 'العقد موقّع بالفعل' : 'العقد غير متاح للتوقيع');
       const p = await em.findOneOrFail(PtPartner, { where: { id: c.partnerId } });
       const norm = (s: string | null | undefined) => (s ?? '').replace(/\s/g, '').replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).toLowerCase();
-      if (p.registrationNo && norm(p.registrationNo) !== norm(dto.registrationNo)) throw new BadRequestException('رقم السجل أو الترخيص لا يطابق المسجل لدى الجمعية');
+      if (p.registrationNo && norm(p.registrationNo) !== norm(dto.registrationNo)) throw new BadRequestException('رقم السجل أو الترخيص لا يطابق المسجل لدى الشركة');
       this.outcome(c, 'وُقّع');
       Object.assign(c, {
         status: 'signed', signMethod: 'online', signedAt: new Date(), signerName: dto.signerName.trim(), signerTitle: dto.signerTitle.trim(), signerIp: ip.slice(0, 64),

@@ -7,7 +7,7 @@ import { configureApp } from '../src/main';
 
 /**
  * البيانات التجريبية داخل جمعية مشتركة في فترة التجربة، ثم تحويلها لجمعية فعلية:
- * لا تتأثر أي جمعية أخرى، ويبقى ما كان قبل البيانات التجريبية وحسابات الجمعية، ويُحذف الباقي بعد التأكيد.
+ * لا تتأثر أي جمعية أخرى، ويبقى ما كان قبل البيانات التجريبية وحسابات الشركة، ويُحذف الباقي بعد التأكيد.
  */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
@@ -41,7 +41,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     db = app.get(DataSource);
     platform = await login('admin', 'Platform123');
 
-    // الجمعية التجريبية العامة موجودة: يجب ألا تتعارض معها البيانات التجريبية ولا تتأثر بالتحويل
+    // الشركة التجريبية العامة موجودة: يجب ألا تتعارض معها البيانات التجريبية ولا تتأثر بالتحويل
     await http.post('/api/platform/demo-organization').set(as(platform)).expect(201);
 
     const org = (await http.post('/api/platform/organizations').set(as(platform)).send({
@@ -51,7 +51,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     await http.patch(`/api/platform/organizations/${orgId}/subscription`).set(as(platform))
       .send({ status: 'trial', trialEndsOn: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10) }).expect(200);
     admin = await login('owner@trial-one.sa', 'Owner12345', 'trial-one');
-    // قبل البيانات التجريبية: دور أنشأته الجمعية، وفتح بعض الشاشات (تُنشئ إعداداتها الافتراضية)
+    // قبل البيانات التجريبية: دور أنشأته الشركة، وفتح بعض الشاشات (تُنشئ إعداداتها الافتراضية)
     baselineRoleId = (await http.post('/api/roles').set(as(admin)).send({ name: 'منسق البرامج', permissions: [] }).expect(201)).body.id;
     await http.get('/api/website/content').set(as(admin));
     await http.get('/api/accounting/settings').set(as(admin));
@@ -65,7 +65,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
   it('offers the button only to the charity admin of a trial organization', async () => {
     const s = (await http.get('/api/sample-data').set(as(admin)).expect(200)).body;
     expect(s).toMatchObject({ status: 'none', canLoad: true, isTrial: true });
-    // الجمعية التجريبية العامة ليست في فترة تجربة، فلا يظهر لها الزر
+    // الشركة التجريبية العامة ليست في فترة تجربة، فلا يظهر لها الزر
     const demo = (await http.get(`/api/platform/organizations/${await demoId()}/sample-data`).set(as(platform)).expect(200)).body;
     expect(demo.canLoad).toBe(false);
     await http.post(`/api/platform/organizations/${await demoId()}/sample-data`).set(as(platform)).expect(400);
@@ -95,17 +95,17 @@ describe('Sample data in a trial organization and conversion to a real one', () 
 
   let ownUserEmail: string;
   it('previews what conversion deletes, separating records entered by the charity', async () => {
-    // بعد البيانات التجريبية: الجمعية أضافت موظفًا حقيقيًا وسجلًا من عندها
+    // بعد البيانات التجريبية: الشركة أضافت موظفًا حقيقيًا وسجلًا من عندها
     ownUserEmail = 'staff@trial-one.sa';
     await http.post('/api/users').set(as(admin)).send({ fullName: 'موظف حقيقي', email: ownUserEmail, password: 'Staff12345', roleIds: [baselineRoleId] }).expect(201);
-    await db.query(`INSERT INTO kn_categories (organization_id, name) VALUES ($1, 'تصنيف أدخلته الجمعية')`, [orgId]);
+    await db.query(`INSERT INTO kn_categories (organization_id, name) VALUES ($1, 'تصنيف أدخلته الشركة')`, [orgId]);
 
     const p = (await http.get(`/api/platform/organizations/${orgId}/sample-data/preview`).set(as(platform)).expect(200)).body;
     expect(p.sample.total).toBeGreaterThan(500);
     expect(p.own.total).toBe(1);
     expect(p.own.systems).toEqual([{ system: 'أرشيف المعرفة', count: 1 }]);
     expect(p.keptPeople).toEqual({ users: 1, roles: 0 });
-    // مستخدم الجمعية لا يصل لشاشات مدير المنصة
+    // مستخدم الشركة لا يصل لشاشات مدير المنصة
     await http.get(`/api/platform/organizations/${orgId}/sample-data/preview`).set(as(admin)).expect(403);
   });
 
@@ -119,7 +119,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     for (const t of ['rw_leads', 'rw_bookings', 'acc_entries', 'acc_vouchers', 'hr_employees', 'risk_register', 'mtg_meetings', 'kn_categories', 'quality_documents']) {
       expect([t, await count(t, orgId)]).toEqual([t, 0]);
     }
-    // يبقى: مدير النظام والموظف الذي أضافته الجمعية والدور الذي أنشأته قبل التجربة، والعقد والاشتراك
+    // يبقى: مدير النظام والموظف الذي أضافته الشركة والدور الذي أنشأته قبل التجربة، والعقد والاشتراك
     const users = (await db.query('SELECT email FROM users WHERE organization_id = $1 ORDER BY email', [orgId])).map((u: { email: string }) => u.email);
     expect(users).toEqual(['owner@trial-one.sa', ownUserEmail]);
     expect((await db.query('SELECT name FROM roles WHERE organization_id = $1', [orgId])).map((x: { name: string }) => x.name)).toEqual(['منسق البرامج']);
@@ -136,7 +136,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     expect(s.log.map((e: { action: string }) => e.action)).toEqual(['loaded', 'cleared']);
     await http.post(`/api/platform/organizations/${orgId}/sample-data/clear`).set(as(platform)).send({ confirm: 'trial-one' }).expect(400);
 
-    // الجمعية التجريبية العامة لم تتأثر
+    // الشركة التجريبية العامة لم تتأثر
     const demo = await demoId();
     expect({
       leads: await count('rw_leads', demo), entries: await count('acc_entries', demo), users: await count('users', demo),

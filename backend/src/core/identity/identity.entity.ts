@@ -10,15 +10,15 @@ export interface IdentityContact { phone: string; email: string; address: string
 export interface StoredImage { key: string; mime: string; v: number }
 
 /**
- * هوية الجمعية: الاسم والشعار والألوان والخطوط والرؤية والرسالة والأهداف والقيم وبيانات التواصل.
- * يديرها مدير نظام الجمعية، ويستخدمها الموقع الإلكتروني وصفحة الدخول، وتُطبَّق ألوانها داخل النظام إن رغبت الجمعية.
+ * هوية الشركة: الاسم والشعار والألوان والخطوط والرؤية والرسالة والأهداف والقيم وبيانات التواصل.
+ * يديرها مدير نظام الشركة، ويستخدمها الموقع الإلكتروني وصفحة الدخول، وتُطبَّق ألوانها داخل النظام إن رغبت الشركة.
  */
 @Entity('org_identity')
 export class OrgIdentity {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  /** الاسم الظاهر (null = اسم الجمعية المسجل في المنصة) */
+  /** الاسم الظاهر (null = اسم الشركة المسجل في المنصة) */
   @Column({ name: 'display_name', type: 'varchar', length: 200, nullable: true })
   displayName!: string | null;
 
@@ -32,7 +32,7 @@ export class OrgIdentity {
   @Column({ type: 'varchar', length: 300, nullable: true })
   slogan!: string | null;
 
-  /** نبذة عن الجمعية */
+  /** نبذة عن الشركة */
   @Column({ type: 'text', nullable: true })
   about!: string | null;
 
@@ -74,7 +74,7 @@ export class OrgIdentity {
   @Column({ name: 'founded_on', type: 'date', nullable: true })
   foundedOn!: string | null;
 
-  /** تطبيق ألوان الهوية وشعارها داخل النظام لموظفي الجمعية */
+  /** تطبيق ألوان الهوية وشعارها داخل النظام لموظفي الشركة */
   @Column({ name: 'apply_to_system', default: false })
   applyToSystem!: boolean;
 

@@ -56,7 +56,7 @@ function move(i: number, d: number) {
       <p class="pm-muted">عند الاعتماد النهائي لكشف الرواتب يصدر قيد في النظام المالي: مصروف كل بند على الحساب المحدد لفئة وظيفة الموظف (تبويب حسابات المصروف للوظائف)، محمّلًا على الحساب التحليلي لوحدته، مقابل الرواتب المستحقة والتأمينات والاستقطاعات. بنوك الصرف وحسابات الاستحقاق لكل بند في تبويب البدلات.</p>
       <label class="field"><span>الرواتب المستحقة (لكل بند ليس له حساب استحقاق خاص)</span>
         <select v-model="f.payableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
-      <label class="field"><span>التأمينات الاجتماعية المستحقة (حصة الموظف والجمعية)</span>
+      <label class="field"><span>التأمينات الاجتماعية المستحقة (حصة الموظف والشركة)</span>
         <select v-model="f.gosiPayableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
       <label class="field"><span>الاستقطاعات الأخرى (الجزاءات وغيرها)</span>
         <select v-model="f.deductionsAccountId" class="input"><option value="">—</option><option v-for="a in lk?.accounts ?? []" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>

@@ -103,7 +103,7 @@ export class VolunteersService {
     const data = await this.checkVolunteer(org, dto);
     return this.db.transaction(async (em) => {
       const exists = await em.getRepository(VolVolunteer).findOne({ where: { organizationId: org, nationalId: data.nationalId } });
-      if (exists) throw new ConflictException(source === 'public' ? 'رقم الهوية مسجل مسبقًا لدى الجمعية، تواصل معنا لتحديث بياناتك' : `رقم الهوية مسجل للمتطوع رقم ${exists.volunteerNo}`);
+      if (exists) throw new ConflictException(source === 'public' ? 'رقم الهوية مسجل مسبقًا لدى الشركة، تواصل معنا لتحديث بياناتك' : `رقم الهوية مسجل للمتطوع رقم ${exists.volunteerNo}`);
       const no = await this.core.nextNo(em, org, 'nextVolunteerNo');
       const staff = source === 'staff';
       return em.getRepository(VolVolunteer).save(em.getRepository(VolVolunteer).create({
@@ -115,7 +115,7 @@ export class VolunteersService {
 
   async register(org: string, dto: PublicVolunteerDto) {
     const s = await this.core.settings(org);
-    if (!s.publicRegistration) throw new BadRequestException('التسجيل الإلكتروني للمتطوعين متوقف حاليًا في الجمعية');
+    if (!s.publicRegistration) throw new BadRequestException('التسجيل الإلكتروني للمتطوعين متوقف حاليًا في الشركة');
     const v = await this.create(null, org, dto, 'public');
     return { volunteerNo: v.volunteerNo, fullName: v.fullName };
   }
@@ -200,7 +200,7 @@ export class VolunteersService {
     const to = dto.periodTo ?? rows[rows.length - 1]?.end_date ?? today();
     const titles = [...new Set(rows.map((r) => r.title))];
     const vars = {
-      'اسم الجمعية': actor.organizationName ?? 'الجمعية', 'اسم المتطوع': v.fullName, 'رقم الهوية': v.nationalId, 'عدد الساعات': String(hours),
+      'اسم الشركة': actor.organizationName ?? 'الشركة', 'اسم المتطوع': v.fullName, 'رقم الهوية': v.nationalId, 'عدد الساعات': String(hours),
       'من تاريخ': formatDate(from), 'إلى تاريخ': formatDate(to), 'تاريخ الإصدار': formatDate(today()),
       'الفعاليات': event ? `فعالية «${event.title}»` : titles.length === 1 ? `فعالية «${titles[0]}»` : `${titles.length} فعاليات تطوعية`,
       'اسم الفعالية': event?.title ?? titles.join('، '),
@@ -273,9 +273,9 @@ export class VolunteersService {
       const n = await this.core.nextNo(em, org, 'nextContractNo');
       const no = `VA-${year()}-${pad(n)}`;
       const vars = {
-        'اسم الجمعية': actor.organizationName ?? 'الجمعية', 'اسم المتطوع': v.fullName, 'رقم الهوية': v.nationalId, 'رقم الجوال': v.mobile, 'رقم العقد': no,
+        'اسم الشركة': actor.organizationName ?? 'الشركة', 'اسم المتطوع': v.fullName, 'رقم الهوية': v.nationalId, 'رقم الجوال': v.mobile, 'رقم العقد': no,
         'تاريخ العقد': formatDate(today()), 'تاريخ البداية': formatDate(dto.startDate), 'تاريخ النهاية': formatDate(dto.endDate),
-        'مجالات التطوع': v.fieldCodes.map((c) => this.core.label(s.volunteerFields, c)).join('، ') || 'المجالات التي تحددها الجمعية',
+        'مجالات التطوع': v.fieldCodes.map((c) => this.core.label(s.volunteerFields, c)).join('، ') || 'المجالات التي تحددها الشركة',
         'نوع التطوع': this.core.label(s.volunteerTypes, v.typeCode) ?? 'متطوع',
       };
       const clauses = s.contractClauses.filter((c) => c.isActive).map((c) => ({ title: c.title, body: fillTemplate(c.body, vars) }));

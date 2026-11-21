@@ -53,7 +53,7 @@ export class RiskReports implements OnModuleInit {
         },
       },
       {
-        ...base, code: 'risk.above-appetite', category: 'المخاطر', title: 'المخاطر فوق حد القابلية', description: 'المخاطر التي تتجاوز درجتها المتبقية حد قابلية الجمعية للمخاطر',
+        ...base, code: 'risk.above-appetite', category: 'المخاطر', title: 'المخاطر فوق حد القابلية', description: 'المخاطر التي تتجاوز درجتها المتبقية حد قابلية الشركة للمخاطر',
         link: '/risk/register/{id}',
         columns: [
           { key: 'code', label: 'الرمز' }, { key: 'title', label: 'الخطر' }, { key: 'score', label: 'الدرجة المتبقية', type: 'number' }, { key: 'level', label: 'المستوى' },

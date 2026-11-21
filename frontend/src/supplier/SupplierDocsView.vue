@@ -31,7 +31,7 @@ async function act(fn: () => Promise<any>, msg: string) {
 async function add() {
   const d = doc.value;
   if (!d.file) { error.value = 'اختر ملف المستند'; return; }
-  if (await act(() => supplierUpload('/docs', d.file, { docType: d.docType, number: d.number, issueDate: d.issueDate, expiryDate: d.expiryDate }), 'رُفع المستند، وتراجعه الجمعية ✓')) {
+  if (await act(() => supplierUpload('/docs', d.file, { docType: d.docType, number: d.number, issueDate: d.issueDate, expiryDate: d.expiryDate }), 'رُفع المستند، وتراجعه الشركة ✓')) {
     doc.value = { docType: '', number: '', issueDate: '', expiryDate: '', file: null };
     if (fileInput.value) fileInput.value.value = '';
   }

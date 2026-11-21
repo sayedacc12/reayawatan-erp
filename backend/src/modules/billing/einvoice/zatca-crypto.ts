@@ -41,7 +41,7 @@ export interface CsrInput {
   industry: string;
 }
 
-/** طلب شهادة بصيغة PEM موقّع بمفتاح الجمعية */
+/** طلب شهادة بصيغة PEM موقّع بمفتاح الشركة */
 export function buildCsr(privatePem: string, i: CsrInput) {
   const key = createPrivateKey(privatePem);
   const spki = createPublicKey(key).export({ type: 'spki', format: 'der' });
@@ -91,7 +91,7 @@ export function certInfo(body: string) {
 // ---------------- حفظ الأسرار مشفرة ----------------
 
 /**
- * المفتاح الخاص للجمعية وكلمة سر الشهادة يُحفظان مشفرين (AES-256-GCM).
+ * المفتاح الخاص للشركة وكلمة سر الشهادة يُحفظان مشفرين (AES-256-GCM).
  * مفتاح التشفير من ZATCA_KEY_SECRET إن وُجد في البيئة، وإلا يُشتق من JWT_SECRET (فلا يلزم متغير جديد).
  * تغيير JWT_SECRET بعد الربط يتطلب إعادة الربط، لذا يُفضّل ضبط ZATCA_KEY_SECRET على السيرفر.
  */
@@ -103,7 +103,7 @@ function vaultKey() {
   return createHmac('sha256', base).update('sanabel:zatca:vault').digest();
 }
 
-/** التشفير مربوط بالجمعية (بيانات إضافية موثّقة)، فلا يصلح سر جمعية إن نُقل إلى صف جمعية أخرى */
+/** التشفير مربوط بالشركة (بيانات إضافية موثّقة)، فلا يصلح سر جمعية إن نُقل إلى صف جمعية أخرى */
 export function seal(plain: string, org: string) {
   const iv = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', vaultKey(), iv, { authTagLength: 16 });
@@ -123,7 +123,7 @@ export function unseal(sealed: string, org: string) {
   return Buffer.concat([d.update(Buffer.from(ct, 'base64')), d.final()]).toString('utf8');
 }
 
-/** هل الشهادة صادرة على المفتاح العام لمفتاح الجمعية؟ */
+/** هل الشهادة صادرة على المفتاح العام لمفتاح الشركة؟ */
 export function certMatchesKey(body: string, privatePem: string) {
   return certInfo(body).publicKey.equals(createPublicKey(createPrivateKey(privatePem)).export({ type: 'spki', format: 'der' }));
 }

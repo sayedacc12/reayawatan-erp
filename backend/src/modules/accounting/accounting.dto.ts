@@ -45,7 +45,7 @@ export class SetupUpdateDto {
   taxNumber?: string | null;
 }
 
-/** نوع المستند: أساسي، أو نوع سند خاص بالجمعية (يُتحقق من وجوده في الخدمة) */
+/** نوع المستند: أساسي، أو نوع سند خاص بالشركة (يُتحقق من وجوده في الخدمة) */
 const TYPE_CODE = /^(journal|receipt|payment|opening|adjustment|d_[a-z0-9]{6,16})$/;
 
 export class SequenceDto {

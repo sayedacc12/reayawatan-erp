@@ -31,7 +31,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
 <template>
   <div>
     <section class="pm-hero hr-hero">
-      <div><p class="pm-kicker">شؤون الموظفين</p><h1>حاسبة نهاية الخدمة</h1><p class="pm-sub">حسب نظام العمل السعودي ونسب لائحة الجمعية: لموظف مسجل (مع تعويض رصيد الإجازة) أو لأي أجر ومدة.</p></div>
+      <div><p class="pm-kicker">شؤون الموظفين</p><h1>حاسبة نهاية الخدمة</h1><p class="pm-sub">حسب نظام العمل السعودي ونسب لائحة الشركة: لموظف مسجل (مع تعويض رصيد الإجازة) أو لأي أجر ومدة.</p></div>
     </section>
     <div class="hr-grid">
       <form class="card pm-panel" @submit.prevent="calc">

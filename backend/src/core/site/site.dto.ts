@@ -18,7 +18,7 @@ export class InquiryDto {
   @emptyToUndefined() @IsOptional() @IsIn(SERVICE_CODES, { message: 'اختر خدمة من القائمة' })
   serviceCode?: string;
 
-  @trim() @IsString() @MinLength(3, { message: 'اكتب اسم الجمعية' }) @MaxLength(200)
+  @trim() @IsString() @MinLength(3, { message: 'اكتب اسم الشركة' }) @MaxLength(200)
   orgName!: string;
 
   @trim() @IsString() @MinLength(3, { message: 'اكتب اسمك' }) @MaxLength(200)

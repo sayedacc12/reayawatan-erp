@@ -20,7 +20,7 @@ const FILE_FOLDER = 'platform/licenses';
 
 /**
  * طلبات اشتراك الجمعيات: التقديم (من صفحة التسجيل العامة أو من مدير المنصة)،
- * والإرجاع للاستكمال، والرفض، والاعتماد الذي ينشئ الجمعية ومدير نظامها ومسودة العقد.
+ * والإرجاع للاستكمال، والرفض، والاعتماد الذي ينشئ الشركة ومدير نظامها ومسودة العقد.
  */
 @Injectable()
 export class ApplicationsService {
@@ -88,9 +88,9 @@ export class ApplicationsService {
         let org: Organization | null = null;
         if (linking) {
           org = await em.findOne(Organization, { where: { id: dto.organizationId } });
-          if (!org) throw new NotFoundException('الجمعية غير موجودة');
+          if (!org) throw new NotFoundException('الشركة غير موجودة');
           if (await em.exists(SubscriptionApplication, { where: { organizationId: org.id } })) {
-            throw new ConflictException('للجمعية بيانات رئيسية مسجلة بالفعل. عدّلها بدل إنشاء جديدة');
+            throw new ConflictException('للشركة بيانات رئيسية مسجلة بالفعل. عدّلها بدل إنشاء جديدة');
           }
         } else {
           await this.assertAdminEmailFree(em, dto.adminEmail);
@@ -121,7 +121,7 @@ export class ApplicationsService {
     }
   }
 
-  // ---------- متابعة الطلب عند الجمعية (برابط سري) ----------
+  // ---------- متابعة الطلب عند الشركة (برابط سري) ----------
 
   private async byToken(em: EntityManager, token: string) {
     if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException('الرابط غير صحيح');
@@ -163,7 +163,7 @@ export class ApplicationsService {
     };
   }
 
-  /** الجمعية تعدّل طلبها المُعاد للاستكمال وتعيد تقديمه */
+  /** الشركة تعدّل طلبها المُعاد للاستكمال وتعيد تقديمه */
   async resubmit(token: string, dto: UpdateApplicationDto, file?: Express.Multer.File) {
     const app = await this.byToken(this.db.manager, token);
     if (app.status !== 'returned') throw new BadRequestException('لا يمكن تعديل الطلب إلا بعد إعادته للاستكمال');
@@ -226,7 +226,7 @@ export class ApplicationsService {
         if (app.status === 'rejected') throw new BadRequestException('الطلب مرفوض ولا يمكن تعديله');
         const approved = app.status === 'approved';
         if (approved && (dto.adminEmail || dto.adminPassword || dto.proposedSlug)) {
-          throw new BadRequestException('بعد الاعتماد يُدار حساب مدير النظام والمعرف من داخل الجمعية');
+          throw new BadRequestException('بعد الاعتماد يُدار حساب مدير النظام والمعرف من داخل الشركة');
         }
         if (dto.adminEmail && dto.adminEmail !== app.adminEmail) await this.assertAdminEmailFree(em, dto.adminEmail, app.id);
         Object.assign(app, this.fields(dto, app));
@@ -244,7 +244,7 @@ export class ApplicationsService {
           app.status = 'submitted';
           app.history = [...app.history, event('resubmitted', app.executiveDirector.name)];
         }
-        // اسم الجمعية المعتمدة يتبع البيانات الرئيسية
+        // اسم الشركة المعتمدة يتبع البيانات الرئيسية
         if (approved && app.organizationId && dto.orgName) await em.update(Organization, { id: app.organizationId }, { name: dto.orgName });
         await em.save(app);
       });
@@ -285,7 +285,7 @@ export class ApplicationsService {
   }
 
   /**
-   * اعتماد الطلب: ينشئ الجمعية بالشاشات المسموحة ومدير نظامها، ويفتح الفترة التجريبية إن وُجدت
+   * اعتماد الطلب: ينشئ الشركة بالشاشات المسموحة ومدير نظامها، ويفتح الفترة التجريبية إن وُجدت
    * (وإلا تبقى بانتظار توقيع العقد)، وينشئ مسودة عقد بالشروط المالية.
    */
   async approve(id: string, dto: ApproveDto, actor: AuthUser, origin?: string) {
@@ -298,7 +298,7 @@ export class ApplicationsService {
       });
       if (!app) throw new NotFoundException('الطلب غير موجود');
       if (app.status !== 'submitted') throw new BadRequestException('الطلب ليس بانتظار المراجعة');
-      if (await em.exists(Organization, { where: { slug: dto.slug } })) throw new ConflictException('معرف الجمعية مستخدم بالفعل، اختر معرفًا آخر');
+      if (await em.exists(Organization, { where: { slug: dto.slug } })) throw new ConflictException('معرف الشركة مستخدم بالفعل، اختر معرفًا آخر');
       if (await em.exists(User, { where: { email: app.adminEmail } })) throw new ConflictException('بريد مدير النظام مستخدم بالفعل في المنصة');
 
       const today = todayRiyadh();
@@ -340,7 +340,7 @@ export class ApplicationsService {
       }, actor.fullName, app.id);
       return { organizationId: org.id, slug: org.slug, contractId: contract.id, orgName: org.name, adminName: app.adminFullName, adminEmail: app.adminEmail };
     });
-    // رسالة ترحيب لمدير نظام الجمعية برابط الدخول (وكلمة المرور المولدة إن وُجدت)
+    // رسالة ترحيب لمدير نظام الشركة برابط الدخول (وكلمة المرور المولدة إن وُجدت)
     const emailedTo = await this.mail.queue({
       to: result.adminEmail, kind: 'admin_welcome', event: 'accounts', organizationId: result.organizationId,
       sensitive: !!generatedPassword, createdBy: actor.fullName,

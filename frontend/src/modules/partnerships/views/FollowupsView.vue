@@ -57,7 +57,7 @@ async function toggle(f: any) {
               <tr v-for="f in rows" :key="f.id">
                 <td>{{ KIND_ICON[f.kind] }} <b>{{ f.title }}</b><span class="pm-muted">{{ f.kindLabel }}{{ f.responsible ? ` · ${f.responsible}` : '' }}</span></td>
                 <td><RouterLink :to="`/partnerships/contracts/${f.contractId}`" class="pm-link">{{ f.partnerName }}</RouterLink><span class="pm-muted pt-code">{{ f.contractNumber }}</span></td>
-                <td>{{ f.party === 'partner' ? 'الشريك' : 'الجمعية' }}</td>
+                <td>{{ f.party === 'partner' ? 'الشريك' : 'الشركة' }}</td>
                 <td>{{ fmtDate(f.dueDate) }}</td>
                 <td><span v-if="f.doneAt" class="pt-days ok">منجز</span><span v-else-if="f.overdue" class="pt-days late">متأخر {{ -f.daysLeft }} يوم</span><span v-else class="pt-days">بعد {{ f.daysLeft }} يوم</span></td>
                 <td><button v-if="session.can(PT.contracts)" class="btn btn-sm" @click="toggle(f)">{{ f.doneAt ? 'إعادة فتح' : '✓ تم' }}</button></td>

@@ -126,7 +126,7 @@ export class PrSettings {
   @Column({ name: 'expiry_alert_days', type: 'int', default: 60 }) expiryAlertDays!: number;
   /** نسبة الزيادة المسموح استلامها عن كمية التعميد */
   @Column({ name: 'over_receipt_pct', type: 'int', default: 0 }) overReceiptPct!: number;
-  /** ضريبة القيمة المضافة جزء من تكلفة الصنف (الجمعية غير مسجلة في الضريبة أو لا تسترد ضريبة المشتريات) */
+  /** ضريبة القيمة المضافة جزء من تكلفة الصنف (الشركة غير مسجلة في الضريبة أو لا تسترد ضريبة المشتريات) */
   @Column({ name: 'vat_in_cost', default: true }) vatInCost!: boolean;
   /** فحص لجنة الاستلام إلزامي قبل اعتماد الاستلام */
   @Column({ name: 'require_inspection', default: false }) requireInspection!: boolean;
@@ -181,7 +181,7 @@ export class PrItemGroup {
   @Column({ name: 'expense_account_id', type: 'uuid', nullable: true }) expenseAccountId!: string | null;
   /** مجموعة الأصول الثابتة لأصناف «أصل ثابت» */
   @Column({ name: 'asset_group_id', type: 'uuid', nullable: true }) assetGroupId!: string | null;
-  /** طريقة التقييم (فارغة = إعداد الجمعية) */
+  /** طريقة التقييم (فارغة = إعداد الشركة) */
   @Column({ type: 'varchar', length: 6, nullable: true }) valuation!: Valuation | null;
   @Column({ type: 'varchar', length: 500, nullable: true }) description!: string | null;
   @Column({ name: 'sort_order', type: 'int', default: 0 }) sortOrder!: number;
@@ -225,7 +225,7 @@ export class PrItem {
   @Column(qty('reorder_point')) reorderPoint!: number | null;
   @Column(qty('reorder_qty')) reorderQty!: number | null;
   @Column({ name: 'issue_policy', type: 'varchar', length: 6, default: 'fifo' }) issuePolicy!: IssuePolicy;
-  /** طريقة التقييم (فارغة = إعداد المجموعة ثم الجمعية) */
+  /** طريقة التقييم (فارغة = إعداد المجموعة ثم الشركة) */
   @Column({ type: 'varchar', length: 6, nullable: true }) valuation!: Valuation | null;
   /** حسابات خاصة بالصنف (فارغة = حسابات المجموعة) */
   @Column({ name: 'inventory_account_id', type: 'uuid', nullable: true }) inventoryAccountId!: string | null;
@@ -266,7 +266,7 @@ export class PrWarehouse {
   @Column({ name: 'project_id', type: 'uuid', nullable: true }) projectId!: string | null;
   @Column({ type: 'varchar', length: 100, nullable: true }) city!: string | null;
   @Column({ type: 'varchar', length: 500, nullable: true }) address!: string | null;
-  /** أمين المستودع ومساعدوه (مستخدمو الجمعية) */
+  /** أمين المستودع ومساعدوه (مستخدمو الشركة) */
   @Column({ name: 'keeper_ids', type: 'jsonb', default: () => `'[]'` }) keeperIds!: string[];
   /** حساب المخزون في الدليل (عند تحديد الحسابات على مستوى المستودع) */
   @Column({ name: 'gl_account_id', type: 'uuid', nullable: true }) glAccountId!: string | null;
@@ -346,7 +346,7 @@ export class PrSupplier {
   @Column({ type: 'jsonb', default: () => `'[]'` }) contacts!: SupplierContact[];
   @Column({ type: 'jsonb', default: () => `'[]'` }) branches!: SupplierBranch[];
   @Column({ type: 'varchar', length: 10, default: 'pending' }) status!: SupplierStatus;
-  /** internal سجله موظف الجمعية، portal سجّل نفسه من البوابة */
+  /** internal سجله موظف الشركة، portal سجّل نفسه من البوابة */
   @Column({ type: 'varchar', length: 10, default: 'internal' }) source!: 'internal' | 'portal';
   @Column({ name: 'submitted_at', type: 'timestamptz', nullable: true }) submittedAt!: Date | null;
   /** ملاحظات المراجعة الأخيرة (سبب الإعادة أو الرفض أو الإيقاف) */

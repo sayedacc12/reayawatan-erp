@@ -29,7 +29,7 @@ function tlvFields(b64: string) {
 
 /**
  * منصة «فاتورة» وهمية للاختبار (الاختبارات لا تتصل بالإنترنت): تصدر شهادات من جهة إصدار تجريبية
- * على المفتاح العام في طلب الجمعية، وتتحقق في فحوص الامتثال من البصمة والتوقيع ورمز QR فعليًا.
+ * على المفتاح العام في طلب الشركة، وتتحقق في فحوص الامتثال من البصمة والتوقيع ورمز QR فعليًا.
  */
 class FakeZatca {
   readonly ca = generateKeyPairSync('ec', { namedCurve: 'secp256k1' }).privateKey;
@@ -260,7 +260,7 @@ describe('Billing stage 2: ZATCA onboarding, signed XML and the hash chain', () 
     const next = await issueNew({ kind: 'invoice', customerId: ids.business, lines: [{ itemId: ids.item, qty: 1, unitPrice: 100 }] });
     expect(next.pih).toBe(last);
 
-    // ملف تصدير بيانات الجمعية: بلا مفتاح ولا أسرار، ومعه بصمات الفواتير
+    // ملف تصدير بيانات الشركة: بلا مفتاح ولا أسرار، ومعه بصمات الفواتير
     const [{ id: orgId }] = await db.query(`SELECT id FROM organizations WHERE slug = 'sales'`);
     const out = await exportOrganization(db.manager, orgId);
     const z = out.bl_zatca[0] as Record<string, unknown>;

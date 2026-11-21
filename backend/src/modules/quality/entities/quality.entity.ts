@@ -39,7 +39,7 @@ export interface ReviewInput { key: string; title: string; summary: string }
 export interface ReviewOutput { id: string; type: 'improvement' | 'change' | 'resources'; decision: string; ownerName: string; dueDate: string | null; status: 'open' | 'done' }
 export interface SurveyQuestion { id: string; text: string; type: 'rating' | 'choice' | 'text'; options?: string[] }
 
-/** سياق الجمعية ونطاق النظام والسياسة (البندان 4 و5) */
+/** سياق الشركة ونطاق النظام والسياسة (البندان 4 و5) */
 export interface QmsContext {
   scope: string;
   exclusions: string;
@@ -56,7 +56,7 @@ export const DEFAULT_PREFIXES: Record<DocType, string> = {
 };
 /** رموز الإدارات والأنظمة في الترميز الموحد */
 export const DEFAULT_DEPARTMENTS = [
-  { code: 'QMS', name: 'الجودة' }, { code: 'ADM', name: 'الإدارة التنفيذية' }, { code: 'BEN', name: 'المستفيدون والبحث الاجتماعي' },
+  { code: 'QMS', name: 'الجودة' }, { code: 'ADM', name: 'الإدارة التنفيذية' }, { code: 'BEN', name: 'العملاء والبحث الاجتماعي' },
   { code: 'PRJ', name: 'المشاريع والبرامج' }, { code: 'FR', name: 'تنمية الموارد' }, { code: 'FIN', name: 'الشؤون المالية' },
   { code: 'HR', name: 'الموارد البشرية' }, { code: 'IT', name: 'تقنية المعلومات' }, { code: 'VOL', name: 'التطوع' },
 ];
@@ -670,7 +670,7 @@ export class QmsComplaint {
   @Column({ name: 'ncr_id', type: 'uuid', nullable: true })
   ncrId!: string | null;
 
-  /** مرجع خارجي: شكوى من بوابة المستفيدين أو من نظام آخر */
+  /** مرجع خارجي: شكوى من بوابة العملاء أو من نظام آخر */
   @Column({ name: 'external_ref', type: 'varchar', length: 100, nullable: true })
   externalRef!: string | null;
 

@@ -21,7 +21,7 @@ export const BUILTIN_VARS: Record<FormulaTarget, VarDoc[]> = {
   hr_monthly: [
     { key: 'basic', name: 'الراتب الأساسي الشهري' }, { key: 'housing', name: 'بدل السكن الشهري' }, { key: 'transport', name: 'بدل النقل الشهري' },
     { key: 'other', name: 'بدلات أخرى شهرية' }, { key: 'gross', name: 'إجمالي الراتب الشهري الحالي' },
-    { key: 'raise', name: 'نسبة العلاوة السارية في الشهر (0.05 = 5%)' }, { key: 'gosi', name: 'حصة الجمعية في التأمينات للشهر (بعد العلاوة، حسب لائحة الموارد البشرية)' },
+    { key: 'raise', name: 'نسبة العلاوة السارية في الشهر (0.05 = 5%)' }, { key: 'gosi', name: 'حصة الشركة في التأمينات للشهر (بعد العلاوة، حسب لائحة الموارد البشرية)' },
     { key: 'eos', name: 'مخصص مكافأة نهاية الخدمة للشهر' }, { key: 'month', name: 'رقم الشهر (1 إلى 12)' }, { key: 'is_saudi', name: '1 للسعودي و0 لغيره' },
     { key: 'service_years', name: 'سنوات الخدمة في الشهر' }, { key: 'is_new', name: '1 للوظيفة الجديدة' },
   ],
@@ -45,7 +45,7 @@ export interface FormulaSeed { code: string; name: string; target: FormulaTarget
 export const SYSTEM_FORMULAS: FormulaSeed[] = [
   {
     code: 'HR_MONTHLY', name: 'التكلفة الشهرية للموظف', target: 'hr_monthly', expression: 'gross * (1 + raise) + gosi + eos + medical_monthly',
-    description: 'إجمالي الراتب بعد العلاوة، وحصة الجمعية في التأمينات، ومخصص نهاية الخدمة، والتأمين الطبي الشهري.',
+    description: 'إجمالي الراتب بعد العلاوة، وحصة الشركة في التأمينات، ومخصص نهاية الخدمة، والتأمين الطبي الشهري.',
   },
   {
     code: 'HR_ANNUAL', name: 'التكاليف السنوية الإضافية للموظف', target: 'hr_annual', expression: 'basic * bonus_months * active_months / 12 + training_per_employee',

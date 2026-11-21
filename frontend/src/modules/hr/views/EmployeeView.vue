@@ -138,11 +138,11 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
           </div>
         </section>
         <section class="card pm-panel">
-          <h2>التكلفة على الجمعية</h2>
+          <h2>التكلفة على الشركة</h2>
           <dl class="pm-dl" style="grid-template-columns: 1fr">
             <div><dt>الأجر الخاضع للتأمينات</dt><dd>{{ sar(e.breakdown.gosi.base) }} <span class="pm-tag">{{ e.breakdown.gosi.rates.newLaw ? 'النظام الجديد' : e.isSaudi ? 'النظام السابق' : 'غير سعودي' }}</span></dd></div>
-            <div><dt>معاشات على الجمعية</dt><dd>{{ sar(e.breakdown.gosi.employer.pension) }}</dd></div>
-            <div><dt>ساند على الجمعية</dt><dd>{{ sar(e.breakdown.gosi.employer.saned) }}</dd></div>
+            <div><dt>معاشات على الشركة</dt><dd>{{ sar(e.breakdown.gosi.employer.pension) }}</dd></div>
+            <div><dt>ساند على الشركة</dt><dd>{{ sar(e.breakdown.gosi.employer.saned) }}</dd></div>
             <div><dt>الأخطار المهنية</dt><dd>{{ sar(e.breakdown.gosi.employer.hazards) }}</dd></div>
             <div><dt>مخصص نهاية الخدمة الشهري</dt><dd>{{ sar(e.breakdown.eosProvision) }}</dd></div>
             <div><dt>التكلفة الشهرية الكاملة</dt><dd class="pm-money" style="font-size: 1.2rem">{{ sar(e.breakdown.employerCost) }}</dd></div>
@@ -184,7 +184,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
           <h2>مكافأة نهاية الخدمة حتى اليوم</h2>
           <p class="pm-muted">الأجر المعتمد في الحساب {{ sar(e.eos.wage) }} · مدة الخدمة {{ span(e.eos.contractEnd.service) }}</p>
           <dl class="pm-dl">
-            <div><dt>عند انتهاء العقد أو الإنهاء من الجمعية</dt><dd class="pm-money" style="font-size: 1.2rem">{{ sar(e.eos.contractEnd.amount) }}</dd></div>
+            <div><dt>عند انتهاء العقد أو الإنهاء من الشركة</dt><dd class="pm-money" style="font-size: 1.2rem">{{ sar(e.eos.contractEnd.amount) }}</dd></div>
             <div><dt>عند الاستقالة</dt><dd class="pm-money" style="font-size: 1.2rem">{{ sar(e.eos.resignation.amount) }}</dd><small class="pm-muted">{{ e.eos.resignation.explanation }}</small></div>
             <div><dt>الشريحة الأولى</dt><dd>{{ sar(e.eos.contractEnd.firstPart) }}</dd></div>
             <div><dt>ما بعد الشريحة الأولى</dt><dd>{{ sar(e.eos.contractEnd.secondPart) }}</dd></div>

@@ -72,7 +72,7 @@ export const router = createRouter({
       children: [
         // الموظف يبدأ من لوحته /me والأنظمة المصرح بها في جانبها؛ شاشة التطبيقات لمدير المنصة فقط
         { path: 'home', component: () => import('./views/HomeView.vue'), meta: { title: 'التطبيقات' }, beforeEnter: homeOrDashboard },
-        // خطوات إطلاق الجمعية لمدير نظامها
+        // خطوات إطلاق الشركة لمدير نظامها
         { path: 'launch', component: () => import('./onboarding/LaunchView.vue'), meta: { title: 'خطوات الإطلاق' } },
         { path: 'account', component: () => import('./views/AccountView.vue'), meta: { title: 'حسابي' } },
         ...moduleRoutes,
@@ -106,7 +106,7 @@ router.beforeEach(async (to) => {
   if (!session.can(to.meta.permission as string | undefined)) return '/forbidden';
   const anyOf = to.meta.anyPermission as string[] | undefined;
   if (anyOf?.length && !anyOf.some((p) => session.can(p))) return '/forbidden';
-  // الشاشات غير المسموحة للجمعية لا تُفتح حتى بالرابط المباشر
+  // الشاشات غير المسموحة للشركة لا تُفتح حتى بالرابط المباشر
   if (session.screenHidden(to.path)) return '/forbidden';
   return true;
 });

@@ -10,7 +10,7 @@ import { AuthUser } from './decorators';
 /**
  * يحسب صلاحيات المستخدم الفعلية:
  * - مدير المنصة: صلاحيات وحدات المنصة فقط (لا يرى بيانات الجمعيات)
- * - مدير نظام الجمعية: كل صلاحيات وحدات الجمعية
+ * - مدير نظام الشركة: كل صلاحيات وحدات الشركة
  * - باقي المستخدمين: اتحاد صلاحيات أدوارهم
  * ويرفض المستخدم الموقوف أو التابع لجمعية موقوفة.
  */
@@ -27,7 +27,7 @@ export class PermissionResolver {
       relations: { roles: { permissions: true }, organization: true },
     });
     if (!user || !user.isActive) return null;
-    // الجمعية الموقوفة أو المنتهية فترتها التجريبية أو اشتراكها تمنع كل مستخدميها
+    // الشركة الموقوفة أو المنتهية فترتها التجريبية أو اشتراكها تمنع كل مستخدميها
     if (!user.isPlatformAdmin && (!user.organization || accessProblem(user.organization))) return null;
 
     let codes: string[];
@@ -36,9 +36,9 @@ export class PermissionResolver {
       // فريق الدعم يرى تطبيق الدعم الفني فقط حسب دوره
       codes = user.platformRole ? all.filter((c) => PLATFORM_ROLE_PERMISSIONS[user.platformRole!]?.includes(c)) : all;
     } else {
-      // صلاحيات الوحدات غير المفعلة للجمعية لا تُحسب حتى لو موجودة في الأدوار
+      // صلاحيات الوحدات غير المفعلة للشركة لا تُحسب حتى لو موجودة في الأدوار
       const enabled = await this.catalog.enabledModuleCodes(user.organizationId!);
-      // وصلاحيات الشاشات غير المسموحة للجمعية تُسحب كذلك
+      // وصلاحيات الشاشات غير المسموحة للشركة تُسحب كذلك
       const orgCodes = this.catalog.permissionCodes('organization', enabled, user.organization!.allowedScreens);
       codes = user.isSuperadmin ? orgCodes : this.fromRoles(user, new Set(orgCodes));
     }

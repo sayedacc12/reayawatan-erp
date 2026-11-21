@@ -9,8 +9,8 @@ import { SupportService } from '../../core/support/support.service';
 import { DEMO_EMAIL, DemoTeam } from './demo-context';
 
 /**
- * الدعم الفني: فريق دعم تجريبي (مدير دعم وموظف دعم) بحسابات منصة، وطلبات صيانة من الجمعية التجريبية بكل الحالات
- * (جديد، قيد المعالجة، بانتظار رد الجمعية، محلول، مغلق بتقييم)، ومهام وتكليفات منجزة وجارية ومتأخرة بساعات عمل مسجلة.
+ * الدعم الفني: فريق دعم تجريبي (مدير دعم وموظف دعم) بحسابات منصة، وطلبات صيانة من الشركة التجريبية بكل الحالات
+ * (جديد، قيد المعالجة، بانتظار رد الشركة، محلول، مغلق بتقييم)، ومهام وتكليفات منجزة وجارية ومتأخرة بساعات عمل مسجلة.
  */
 @Injectable()
 export class SupportSeed {
@@ -20,7 +20,7 @@ export class SupportSeed {
     private readonly desk: SupportDeskService,
   ) {}
 
-  /** عضو فريق الدعم: يُنشأ مرة واحدة، وتُحدَّث كلمة مروره مع كل إعادة إنشاء للجمعية التجريبية */
+  /** عضو فريق الدعم: يُنشأ مرة واحدة، وتُحدَّث كلمة مروره مع كل إعادة إنشاء للشركة التجريبية */
   private async member(name: string, fullName: string, role: PlatformRole, password: string): Promise<AuthUser> {
     const repo = this.db.getRepository(User);
     const email = DEMO_EMAIL(name);
@@ -57,7 +57,7 @@ export class SupportSeed {
     });
     await this.desk.logHours(agent, task2.id, { hours: 1.5, note: 'أُعيد إنتاج المشكلة من متصفح الجوال' });
 
-    // 3) بانتظار رد الجمعية
+    // 3) بانتظار رد الشركة
     const t3 = await this.tickets.create(admin, {
       subject: 'إضافة صلاحية اعتماد سندات القبض لموظف جديد', category: 'access', priority: 'medium',
       description: 'نريد إعطاء المحاسب الجديد صلاحية المرحلة الأولى في اعتماد سندات القبض فقط دون الصرف.',
@@ -67,7 +67,7 @@ export class SupportSeed {
       body: 'يمكن ذلك من الإعدادات > مراحل اعتماد القبض بربط المرحلة بدور المحاسب. هل تريدون أن نشرح لكم الخطوات في اتصال قصير؟', status: 'waiting_customer',
     });
 
-    // 4) محلول ثم مغلق بتقييم الجمعية، ومهمته منجزة
+    // 4) محلول ثم مغلق بتقييم الشركة، ومهمته منجزة
     const t4 = await this.tickets.create(finance, {
       subject: 'ميزان المراجعة لا يظهر الحسابات الفرعية', category: 'data', priority: 'medium', screen: 'النظام المالي · التقارير',
       description: 'عند عرض ميزان المراجعة يظهر المستوى الأول فقط، ونحتاج كل المستويات حتى الحسابات الفرعية.',

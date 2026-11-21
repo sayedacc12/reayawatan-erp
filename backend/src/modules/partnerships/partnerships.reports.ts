@@ -120,7 +120,7 @@ export class PartnershipsReports implements OnModuleInit {
               WHERE f.organization_id = $1 AND ($2::text IS NULL OR f.kind = $2) ORDER BY f.due_date`, [org(u).organizationId, f.kind ?? null]);
           return rows.map((r: Record<string, string | null>) => {
             const state = r.doneAt ? 'done' : r.dueDate! < t ? 'overdue' : 'open';
-            return { ...r, kind: ar(FOLLOWUP_KINDS, r.kind), party: r.party === 'partner' ? 'الشريك' : 'الجمعية', state, _style: state === 'overdue' ? 'strong' : undefined } as ReportRow;
+            return { ...r, kind: ar(FOLLOWUP_KINDS, r.kind), party: r.party === 'partner' ? 'الشريك' : 'الشركة', state, _style: state === 'overdue' ? 'strong' : undefined } as ReportRow;
           }).filter((r: ReportRow) => !f.state || r.state === f.state).map((r: ReportRow) => ({ ...r, state: ({ done: 'منجزة', overdue: 'متأخرة', open: 'مفتوحة' } as Record<string, string>)[String(r.state)] }));
         },
       },

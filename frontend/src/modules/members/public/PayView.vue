@@ -109,7 +109,7 @@ async function sendTransfer() {
           <div v-else-if="info.status === 'review'" key="rev" class="done">
             <div class="check wait">⏳</div>
             <h2>وصل إيصال التحويل</h2>
-            <p>ستؤكده الجمعية بعد مطابقته مع كشف الحساب، ثم تُفعَّل العضوية.</p>
+            <p>ستؤكده الشركة بعد مطابقته مع كشف الحساب، ثم تُفعَّل العضوية.</p>
           </div>
           <div v-else-if="info.status === 'cancelled'" key="c" class="done"><h2>المطالبة ملغاة</h2></div>
           <div v-else-if="sandboxRef" key="sbx" class="sandbox">
@@ -132,7 +132,7 @@ async function sendTransfer() {
             <div class="ways">
               <button v-if="info.methods.online" :class="{ on: way === 'online' }" @click="way = 'online'">💳 دفع إلكتروني<small>مدى، فيزا، ماستركارد، Apple Pay</small></button>
               <button v-if="info.methods.transfer" :class="{ on: way === 'transfer' }" @click="way = 'transfer'">🏦 تحويل بنكي<small>ورفع صورة الإيصال</small></button>
-              <button v-if="info.methods.cash" :class="{ on: way === 'cash' }" @click="way = 'cash'">🏢 في مقر الجمعية<small>نقدًا أو بالشبكة</small></button>
+              <button v-if="info.methods.cash" :class="{ on: way === 'cash' }" @click="way = 'cash'">🏢 في مقر الشركة<small>نقدًا أو بالشبكة</small></button>
             </div>
             <div v-if="way === 'online'">
               <button class="btn btn-primary go" :disabled="busy" @click="payOnline">ادفع الآن {{ sar(info.amount) }}</button>
@@ -149,7 +149,7 @@ async function sendTransfer() {
               <label class="field"><span>صورة إيصال التحويل *</span><input type="file" class="input" accept="image/jpeg,image/png,application/pdf" @change="receipt = ($event.target as HTMLInputElement).files?.[0] ?? null" /></label>
               <button class="btn btn-primary go" :disabled="busy" @click="sendTransfer">إرسال الإيصال</button>
             </div>
-            <div v-else-if="way === 'cash'" class="bank"><p>تفضل بزيارة مقر الجمعية وذكر رقم المطالبة <b class="mb-code">{{ info.invoiceNo }}</b>، وسيُسجل الموظف السداد وتُفعّل العضوية فورًا.</p></div>
+            <div v-else-if="way === 'cash'" class="bank"><p>تفضل بزيارة مقر الشركة وذكر رقم المطالبة <b class="mb-code">{{ info.invoiceNo }}</b>، وسيُسجل الموظف السداد وتُفعّل العضوية فورًا.</p></div>
           </div>
         </Transition>
       </section>

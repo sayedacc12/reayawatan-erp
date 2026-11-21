@@ -12,7 +12,7 @@ import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 type Decide = (decision: 'approve') => Promise<{ status: string }>;
 
 /**
- * المخاطر والتغيير والالتزام في الجمعية التجريبية: السياسة بإصدارين، سجل المنهجيات، سجل مخاطر متنوع
+ * المخاطر والتغيير والالتزام في الشركة التجريبية: السياسة بإصدارين، سجل المنهجيات، سجل مخاطر متنوع
  * (داخلية وخارجية ومنتجات) بمراجعات دورية خلال سنة، تحليل PESTEL وSWOT، ضوابط، طلبات تغيير بمهام متابعة
  * على الجهات، التزامات وتقييمات، تحليل أثر توقف وخطط تعافي، فريق أزمة معتمد وأزمة منتهية وأخرى مفعّلة،
  * وإجراءات موثقة. كل العمليات عبر خدمات الوحدة نفسها (بنفس التحقق والترقيم والاعتماد).
@@ -42,7 +42,7 @@ export class RiskSeed {
     const sections = defaultPolicy();
     await this.core.savePolicy(admin, { sections, effectiveDate: `${year}-01-01`, note: 'اعتماد مجلس الإدارة لسياسة المخاطر (قرار 3/1)', approvedBy: 'مجلس الإدارة' });
     const appetite = sections.find((s) => s.key === 'appetite');
-    if (appetite) appetite.body += '\nلا تقبل الجمعية أي خطر متبقٍ بدرجة 15 فأعلى في حماية المستفيدين أو الالتزام النظامي مهما كانت كلفة المعالجة.';
+    if (appetite) appetite.body += '\nلا تقبل الشركة أي خطر متبقٍ بدرجة 15 فأعلى في حماية المستفيدين أو الالتزام النظامي مهما كانت كلفة المعالجة.';
     await this.core.savePolicy(admin, { sections, effectiveDate: daysAgo(45), note: 'تشديد حد القابلية لمخاطر حماية المستفيدين والالتزام (قرار المجلس 7/2)', approvedBy: 'مجلس الإدارة' });
 
     // ---- سجل المنهجيات: المقترحة كإصدار أول، ثم إصدار ثانٍ لمنهجية المخاطر
@@ -145,7 +145,7 @@ export class RiskSeed {
 
     // ---- تحليل PESTEL وSWOT، وتحويل عامل إلى خطر في السجل
     const pestel = await this.register.createAnalysis(admin, {
-      kind: 'pestel', title: `تحليل البيئة الخارجية ${year}`, scope: 'الجمعية كاملة', analysisDate: daysAgo(100), summary: 'أبرز المؤثرات: اشتراطات الحوكمة، والوضع الاقتصادي، والتحول الرقمي في التبرع.',
+      kind: 'pestel', title: `تحليل البيئة الخارجية ${year}`, scope: 'الشركة كاملة', analysisDate: daysAgo(100), summary: 'أبرز المؤثرات: اشتراطات الحوكمة، والوضع الاقتصادي، والتحول الرقمي في التبرع.',
       items: [
         { factor: 'political', text: 'توجه الدولة لتمكين القطاع غير الربحي ضمن رؤية 2030', impact: 3, likelihood: 4 },
         { factor: 'economic', text: 'ارتفاع تكاليف المعيشة وزيادة الطلب على المساعدات', impact: 4, likelihood: 4 },
@@ -200,7 +200,7 @@ export class RiskSeed {
     await this.changes.progressTask(admin, t2.id, { status: 'in_progress', progress: 60, completionNote: null });
 
     const ch2 = await this.changes.createChange(admin, {
-      title: 'اعتماد نظام سنابل لإدارة الجمعية', changeType: 'technology', changeClass: 'normal', priority: 'medium', reason: 'توحيد الأنظمة وربط البيانات',
+      title: 'اعتماد نظام سنابل لإدارة الشركة', changeType: 'technology', changeClass: 'normal', priority: 'medium', reason: 'توحيد الأنظمة وربط البيانات',
       impacts: [{ area: 'الأفراد', level: 3 }, { area: 'الأنظمة والتقنية', level: 4 }], riskIds: [risks.systems], plannedStart: daysAgo(200), plannedEnd: daysAgo(60),
     });
     await this.changes.submitChange(admin, ch2.id);
@@ -271,7 +271,7 @@ export class RiskSeed {
 
     // ---- فريق الأزمات: لائحة صلاحيات وصلاحيات نظام تُمنح عند التفعيل
     const team1 = await this.continuity.saveTeam(admin, {
-      name: 'فريق إدارة الأزمات والطوارئ', kind: 'crisis', mandate: 'إدارة أي حدث يهدد سلامة المستفيدين أو استمرار الخدمات أو سمعة الجمعية حتى العودة للوضع الطبيعي',
+      name: 'فريق إدارة الأزمات والطوارئ', kind: 'crisis', mandate: 'إدارة أي حدث يهدد سلامة المستفيدين أو استمرار الخدمات أو سمعة الشركة حتى العودة للوضع الطبيعي',
       members: [
         { userId: admin.id, name: admin.fullName, teamRole: 'قائد الفريق', phone: '0500000001', alternate: finance.fullName },
         { userId: finance.id, name: finance.fullName, teamRole: 'مسؤول الصرف الطارئ', phone: '0500000002' },

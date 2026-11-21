@@ -13,11 +13,11 @@ const STALE_MS = 20 * 60 * 1000;
 
 /**
  * البيانات التجريبية داخل جمعية مشتركة في فترة التجربة:
- * - زر «إضافة بيانات تجريبية» لمدير نظام الجمعية (أو لمدير المنصة): يبني نفس بيانات الجمعية التجريبية
- *   داخل الجمعية، بعد أخذ لقطة من سجلاتها، ثم يحفظ معرف كل سجل تجريبي أُضيف.
- * - زر «تحويل إلى جمعية فعلية» لمدير المنصة: يحذف كل البيانات التي أضيفت بعد اللقطة (التجريبية وما أدخلته الجمعية
- *   خلال التجربة، بعد عرض عددها بوضوح)، ويعيد إعدادات الأنظمة كما كانت، ويبقي الجمعية واشتراكها وعقودها
- *   ومدير نظامها وكل حساب موظف أو دور أنشأته الجمعية بنفسها.
+ * - زر «إضافة بيانات تجريبية» لمدير نظام الشركة (أو لمدير المنصة): يبني نفس بيانات الشركة التجريبية
+ *   داخل الشركة، بعد أخذ لقطة من سجلاتها، ثم يحفظ معرف كل سجل تجريبي أُضيف.
+ * - زر «تحويل إلى جمعية فعلية» لمدير المنصة: يحذف كل البيانات التي أضيفت بعد اللقطة (التجريبية وما أدخلته الشركة
+ *   خلال التجربة، بعد عرض عددها بوضوح)، ويعيد إعدادات الأنظمة كما كانت، ويبقي الشركة واشتراكها وعقودها
+ *   ومدير نظامها وكل حساب موظف أو دور أنشأته الشركة بنفسها.
  */
 @Injectable()
 export class SampleDataService {
@@ -34,7 +34,7 @@ export class SampleDataService {
 
   private async org(id: string) {
     const org = await this.db.getRepository(Organization).findOne({ where: { id } });
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
     return org;
   }
 
@@ -59,22 +59,22 @@ export class SampleDataService {
 
   /**
    * إضافة البيانات التجريبية. تستغرق دقيقة أو دقيقتين لأن كل العمليات تمر عبر خدمات الأنظمة نفسها.
-   * إن فشلت أي خطوة تُحذف كل السجلات التي أضيفت، وتعود الجمعية كما كانت.
+   * إن فشلت أي خطوة تُحذف كل السجلات التي أضيفت، وتعود الشركة كما كانت.
    */
   async load(orgId: string, actor: AuthUser, origin: string) {
     const org = await this.org(orgId);
-    if (org.slug === DEMO_SLUG) throw new BadRequestException('الجمعية التجريبية العامة لها زر خاص في شاشة الجمعيات');
+    if (org.slug === DEMO_SLUG) throw new BadRequestException('الشركة التجريبية العامة لها زر خاص في شاشة الجمعيات');
     if (org.subscriptionStatus !== 'trial') throw new BadRequestException('البيانات التجريبية متاحة للجمعيات في الفترة التجريبية فقط');
     const admin = await this.db.getRepository(User).findOne({
       where: { organizationId: orgId, isSuperadmin: true, isActive: true }, order: { createdAt: 'ASC' },
     });
-    if (!admin) throw new BadRequestException('لا يوجد مدير نظام نشط في الجمعية');
+    if (!admin) throw new BadRequestException('لا يوجد مدير نظام نشط في الشركة');
 
     // حجز العملية: صف واحد لكل جمعية يمنع الإضافة مرتين أو في نفس الوقت
     const baseline = await this.db.transaction(async (em) => {
       const [existing] = await em.query('SELECT status FROM organization_sample_data WHERE organization_id = $1 FOR UPDATE', [orgId]);
       if (existing) {
-        throw new ConflictException(existing.status === 'loading' ? 'جارٍ إضافة البيانات التجريبية الآن، انتظر قليلًا' : 'سبق إضافة البيانات التجريبية لهذه الجمعية');
+        throw new ConflictException(existing.status === 'loading' ? 'جارٍ إضافة البيانات التجريبية الآن، انتظر قليلًا' : 'سبق إضافة البيانات التجريبية لهذه الشركة');
       }
       const snap = await snapshot(em, orgId);
       await em.insert(OrganizationSampleData, { organizationId: orgId, status: 'loading', loadedBy: actor.fullName, baseline: snap as never, log: [] });
@@ -107,16 +107,16 @@ export class SampleDataService {
       };
     } catch (e) {
       this.logger.error(`Sample data failed for ${org.slug}: ${(e as Error).message}`, (e as Error).stack);
-      // إرجاع الجمعية كما كانت تمامًا، ثم حذف الحجز ليمكن المحاولة مرة أخرى
+      // إرجاع الشركة كما كانت تمامًا، ثم حذف الحجز ليمكن المحاولة مرة أخرى
       await this.db.transaction(async (em) => {
         await purgeExcept(em, orgId, baseline.ids, baseline.settings);
         await em.query('DELETE FROM organization_sample_data WHERE organization_id = $1', [orgId]);
       }).catch((err) => this.logger.error(`Sample data rollback failed for ${org.slug}: ${(err as Error).message}`));
-      throw new BadRequestException(`تعذرت إضافة البيانات التجريبية، ولم يتغير شيء في الجمعية. السبب: ${(e as Error).message}`);
+      throw new BadRequestException(`تعذرت إضافة البيانات التجريبية، ولم يتغير شيء في الشركة. السبب: ${(e as Error).message}`);
     }
   }
 
-  /** ما سيحدث عند التحويل: عدد السجلات التجريبية، وعدد ما أُضيف بعدها (غالبًا من إدخال الجمعية) بحسب النظام */
+  /** ما سيحدث عند التحويل: عدد السجلات التجريبية، وعدد ما أُضيف بعدها (غالبًا من إدخال الشركة) بحسب النظام */
   async preview(orgId: string) {
     const org = await this.org(orgId);
     const r = await this.full(orgId);
@@ -137,15 +137,15 @@ export class SampleDataService {
       where: { organizationId: orgId },
       select: { organizationId: true, status: true, loadedAt: true, loadedBy: true, baseline: true, sample: true, log: true, clearedAt: true, clearedBy: true },
     });
-    if (!r) throw new NotFoundException('لم تُضف بيانات تجريبية لهذه الجمعية');
-    if (r.status === 'cleared') throw new BadRequestException('سبق تحويل هذه الجمعية إلى جمعية فعلية وحذف بياناتها التجريبية');
+    if (!r) throw new NotFoundException('لم تُضف بيانات تجريبية لهذه الشركة');
+    if (r.status === 'cleared') throw new BadRequestException('سبق تحويل هذه الشركة إلى جمعية فعلية وحذف بياناتها التجريبية');
     if (r.status === 'loading' && !this.stale(r)) throw new ConflictException('جارٍ إضافة البيانات التجريبية الآن، انتظر حتى تنتهي');
     return r;
   }
 
   /**
    * تقسيم السجلات الحالية: ما كان قبل البيانات التجريبية يبقى، والتجريبي يُحذف، وما أضيف بعدها يُحذف أيضًا
-   * (الجمعية تبدأ فارغة) عدا حسابات الموظفين والأدوار التي أنشأتها الجمعية بنفسها.
+   * (الشركة تبدأ فارغة) عدا حسابات الموظفين والأدوار التي أنشأتها الشركة بنفسها.
    * إن توقفت الإضافة قبل اكتمالها (sample فارغ) يُعد كل ما بعد اللقطة تجريبيًا.
    */
   private plan(current: Snapshot, baseline: Snapshot, sampleIds: Record<string, string[]> | null) {
@@ -173,13 +173,13 @@ export class SampleDataService {
   }
 
   /**
-   * التحويل إلى جمعية فعلية (مدير المنصة فقط): يتطلب كتابة معرف الجمعية للتأكيد.
+   * التحويل إلى جمعية فعلية (مدير المنصة فقط): يتطلب كتابة معرف الشركة للتأكيد.
    * كل الحذف في معاملة واحدة: إما يكتمل كله أو لا يتغير شيء. ويُسجل في سجل العمليات بالأعداد.
    */
   async clear(orgId: string, confirm: string, actor: AuthUser) {
     const org = await this.org(orgId);
     if ((confirm ?? '').trim().toLowerCase() !== org.slug.toLowerCase()) {
-      throw new BadRequestException('اكتب معرّف الجمعية كما هو للتأكيد');
+      throw new BadRequestException('اكتب معرّف الشركة كما هو للتأكيد');
     }
     const result = await this.db.transaction(async (em) => {
       await em.query('SELECT 1 FROM organization_sample_data WHERE organization_id = $1 FOR UPDATE', [orgId]);
@@ -187,13 +187,13 @@ export class SampleDataService {
         where: { organizationId: orgId },
         select: { organizationId: true, status: true, loadedAt: true, baseline: true, sample: true, log: true },
       });
-      if (!r) throw new NotFoundException('لم تُضف بيانات تجريبية لهذه الجمعية');
-      if (r.status === 'cleared') throw new BadRequestException('سبق تحويل هذه الجمعية إلى جمعية فعلية');
+      if (!r) throw new NotFoundException('لم تُضف بيانات تجريبية لهذه الشركة');
+      if (r.status === 'cleared') throw new BadRequestException('سبق تحويل هذه الشركة إلى جمعية فعلية');
       if (r.status === 'loading' && !this.stale(r)) throw new ConflictException('جارٍ إضافة البيانات التجريبية الآن، انتظر حتى تنتهي');
       // بعد الربط مع «فاتورة» أو توقيع فواتير إلكترونية لا يُعاد ضبط البيانات، حتى لا تُفقد الشهادة أو سلسلة البصمات
       const [linked] = await em.query(
         `SELECT EXISTS (SELECT 1 FROM bl_zatca WHERE organization_id = $1 AND stage <> 'none') OR EXISTS (SELECT 1 FROM bl_documents WHERE organization_id = $1 AND invoice_hash IS NOT NULL) AS v`, [orgId]);
-      if (linked?.v) throw new ConflictException('الجمعية مربوطة بمنصة «فاتورة» أو أصدرت فواتير إلكترونية موقّعة، فلا يمكن تحويلها بحذف البيانات التجريبية');
+      if (linked?.v) throw new ConflictException('الشركة مربوطة بمنصة «فاتورة» أو أصدرت فواتير إلكترونية موقّعة، فلا يمكن تحويلها بحذف البيانات التجريبية');
       const tables = await orgTables(em);
       const current = await snapshot(em, orgId, tables);
       const plan = this.plan(current, r.baseline, r.sample);

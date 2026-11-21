@@ -163,7 +163,7 @@ export class CatalogService {
     return [...out];
   }
 
-  /** الحسابات والتقييم الفعلي للصنف: من الصنف، ثم مجموعته وما فوقها، ثم إعداد الجمعية */
+  /** الحسابات والتقييم الفعلي للصنف: من الصنف، ثم مجموعته وما فوقها، ثم إعداد الشركة */
   async effective(org: string, item: Pick<PrItem, 'groupId' | 'inventoryAccountId' | 'expenseAccountId' | 'valuation'>, em: EntityManager = this.db.manager) {
     const groups = await em.getRepository(PrItemGroup).find({ where: { organizationId: org } });
     const s = await this.core.settings(org, em);

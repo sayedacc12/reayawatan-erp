@@ -19,7 +19,7 @@ export class BillingOpsService {
   async saveSettings(a: OrgUser, dto: BillingSettingsDto) {
     const org = a.organizationId;
     const s = await this.core.settings(org);
-    if (s.mode === 'integrated') throw new BadRequestException('الجمعية مربوطة مع منصة «فاتورة»، فتُعدّل بياناتها الضريبية من شاشة الربط');
+    if (s.mode === 'integrated') throw new BadRequestException('الشركة مربوطة مع منصة «فاتورة»، فتُعدّل بياناتها الضريبية من شاشة الربط');
     await this.core.account(org, dto.receivablesAccountId, 'assets', 'حساب الذمم المدينة');
     await this.core.account(org, dto.vatOutputAccountId, 'liabilities', 'حساب ضريبة المخرجات');
     await this.core.account(org, dto.revenueAccountId, 'revenue', 'حساب الإيراد الافتراضي');
@@ -34,15 +34,15 @@ export class BillingOpsService {
     if (dto.mode === 'registered') {
       const missing: string[] = [];
       if (!vatNumber) missing.push('الرقم الضريبي');
-      if (!dto.idType || !dto.idNumber) missing.push('المعرّف الآخر (السجل أو ترخيص الجمعية)');
+      if (!dto.idType || !dto.idNumber) missing.push('المعرّف الآخر (السجل أو ترخيص الشركة)');
       if (!dto.vatOutputAccountId) missing.push('حساب ضريبة المخرجات');
-      missing.push(...addressProblems(address, 'الجمعية'));
-      if (missing.length) throw new BadRequestException(`الجمعية المسجلة في الضريبة تحتاج: ${missing.join('، ')}`);
-      if (dto.vatRate <= 0) throw new BadRequestException('نسبة الضريبة الأساسية للجمعية المسجلة أكبر من صفر');
+      missing.push(...addressProblems(address, 'الشركة'));
+      if (missing.length) throw new BadRequestException(`الشركة المسجلة في الضريبة تحتاج: ${missing.join('، ')}`);
+      if (dto.vatRate <= 0) throw new BadRequestException('نسبة الضريبة الأساسية للشركة المسجلة أكبر من صفر');
     }
     if (s.mode !== dto.mode && s.mode !== 'off') {
       const [{ n }] = await this.db.query(`SELECT COUNT(*)::int AS n FROM bl_documents WHERE organization_id = $1 AND status IN ('draft', 'pending')`, [org]);
-      if (n) throw new BadRequestException(`يوجد ${n} مستند لم يصدر بعد. أصدرها أو ألغها قبل تغيير وضع الجمعية الضريبي`);
+      if (n) throw new BadRequestException(`يوجد ${n} مستند لم يصدر بعد. أصدرها أو ألغها قبل تغيير وضع الشركة الضريبي`);
     }
     const next: Partial<BlSettings> = {
       mode: dto.mode, sellerName: dto.sellerName ?? null, sellerNameEn: dto.sellerNameEn ?? null, vatNumber, idType: dto.idType ?? null, idNumber: cleanDigits(dto.idNumber),
@@ -51,7 +51,7 @@ export class BillingOpsService {
       paymentDays: dto.paymentDays, terms: dto.terms ?? null, separateIssuer: dto.separateIssuer ?? s.separateIssuer,
     };
     const note = diffNote(s as never, next as never, {
-      mode: 'الوضع', sellerName: 'اسم الجمعية', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
+      mode: 'الوضع', sellerName: 'اسم الشركة', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
       address: 'العنوان الوطني', vatRate: 'نسبة الضريبة', receivablesAccountId: 'حساب العملاء', vatOutputAccountId: 'حساب ضريبة المخرجات', revenueAccountId: 'حساب الإيراد',
       customerCategoryId: 'تصنيف العملاء', analyticId: 'مركز التكلفة', paymentDays: 'مدة السداد', terms: 'الشروط', separateIssuer: 'فصل المُعدّ عن المُصدِر',
     });

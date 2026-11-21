@@ -13,7 +13,7 @@ const kindOf = (k: string) => {
   return k as LogoKind;
 };
 
-/** هوية الجمعية داخل النظام: يقرؤها كل موظف (لتطبيق الألوان والشعار)، ويعدّلها من يملك صلاحية الهوية */
+/** هوية الشركة داخل النظام: يقرؤها كل موظف (لتطبيق الألوان والشعار)، ويعدّلها من يملك صلاحية الهوية */
 @Controller('identity')
 export class IdentityController {
   constructor(private readonly identity: IdentityService) {}

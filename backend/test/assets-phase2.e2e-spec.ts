@@ -76,7 +76,7 @@ describe('Fixed assets phase 2', () => {
         allowances: [], iban: 'SA0380000000608010167599', userId: null,
       }).expect(201)).body.id as string;
     };
-    ids.driver = await emp('سائق الجمعية');
+    ids.driver = await emp('سائق الشركة');
     ids.keeper = await emp('أمين المستودع');
 
     const group = (body: Record<string, unknown>) => http.post(`${F}/groups`).set(as(admin)).send({ gainLossAccountId: acc['3120500401'], analyticId: acc.CC01, ...body }).expect(201).then((r) => r.body.id as string);

@@ -162,7 +162,7 @@ const LOG_COLOR = (a: string) => (a.includes('اعتماد') ? '#10b981' : a.inc
           <tbody>
             <tr v-for="f in p.followups" :key="f.id" class="pt-row" @click="router.push(`/partnerships/contracts/${f.contractId}`)">
               <td>{{ KIND_ICON[f.kind] }} <b>{{ f.title }}</b><span class="pm-muted">{{ f.kindLabel }}</span></td><td class="pt-code">{{ f.contractNumber }}</td>
-              <td>{{ f.party === 'partner' ? 'الشريك' : 'الجمعية' }}</td><td>{{ fmtDate(f.dueDate) }}</td>
+              <td>{{ f.party === 'partner' ? 'الشريك' : 'الشركة' }}</td><td>{{ fmtDate(f.dueDate) }}</td>
               <td><span v-if="f.doneAt" class="pt-days ok">منجز</span><span v-else-if="f.overdue" class="pt-days late">متأخر</span><span v-else class="pt-days">بعد {{ f.daysLeft }} يوم</span></td>
             </tr>
             <tr v-if="!p.followups.length"><td colspan="5" class="pt-empty">لا توجد التزامات مسجلة</td></tr>

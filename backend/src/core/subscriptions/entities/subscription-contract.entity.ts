@@ -34,8 +34,8 @@ export interface ContractEvent {
 
 /**
  * عقد اشتراك إلكتروني بين المنصة وجمعية. الإجراءات:
- * مسودة ← مرسل للجمعية ← (طلب تعديل ← مسودة) ← موقّع إلكترونيًا (يُفعَّل الاشتراك) أو ملغى.
- * عند الإرسال تُثبَّت نسخة نصية نهائية وبصمتها (SHA-256)، وهي التي توقّعها الجمعية.
+ * مسودة ← مرسل للشركة ← (طلب تعديل ← مسودة) ← موقّع إلكترونيًا (يُفعَّل الاشتراك) أو ملغى.
+ * عند الإرسال تُثبَّت نسخة نصية نهائية وبصمتها (SHA-256)، وهي التي توقّعها الشركة.
  */
 @Entity('subscription_contracts')
 export class SubscriptionContract {
@@ -47,7 +47,7 @@ export class SubscriptionContract {
   @Column({ length: 32 })
   number!: string;
 
-  /** رمز سري لرابط مراجعة العقد وتوقيعه عند الجمعية (/contract/<token>) */
+  /** رمز سري لرابط مراجعة العقد وتوقيعه عند الشركة (/contract/<token>) */
   @Index({ unique: true })
   @Column({ length: 64, select: false })
   token!: string;

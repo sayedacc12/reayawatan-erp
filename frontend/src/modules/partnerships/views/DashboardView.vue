@@ -96,7 +96,7 @@ const maxClass = computed(() => Math.max(1, ...(d.value?.byClass ?? []).map((t: 
           <h2>التزامات متأخرة</h2>
           <p v-if="!d.overdue.length" class="pt-empty">لا توجد التزامات متأخرة ✓</p>
           <RouterLink v-for="f in d.overdue" :key="f.id" :to="`/partnerships/contracts/${f.contractId}`" class="line">
-            <span><b>{{ f.title }}</b><small class="pm-muted">{{ f.partnerName }} · {{ f.party === 'partner' ? 'على الشريك' : 'على الجمعية' }}</small></span>
+            <span><b>{{ f.title }}</b><small class="pm-muted">{{ f.partnerName }} · {{ f.party === 'partner' ? 'على الشريك' : 'على الشركة' }}</small></span>
             <span class="pt-days late">منذ {{ -f.daysLeft }} يوم</span>
           </RouterLink>
         </section>

@@ -11,10 +11,10 @@ export const COMPLAINT_STATUS_LABELS: Record<ComplaintStatus, string> = {
   received: 'مستلمة', investigating: 'قيد الدراسة', resolved: 'تمت المعالجة والرد', closed: 'مغلقة', rejected: 'غير مقبولة',
 };
 export const CHANNEL_LABELS: Record<string, string> = {
-  portal: 'بوابة المستفيدين', phone: 'الهاتف', email: 'البريد الإلكتروني', visit: 'زيارة مباشرة', social: 'وسائل التواصل', box: 'صندوق الشكاوى', other: 'أخرى',
+  portal: 'الموقع الإلكتروني', phone: 'الهاتف', email: 'البريد الإلكتروني', visit: 'زيارة مباشرة', social: 'وسائل التواصل', box: 'صندوق الشكاوى', other: 'أخرى',
 };
 export const PARTY_LABELS: Record<string, string> = {
-  beneficiary: 'مستفيد', donor: 'داعم ومتبرع', volunteer: 'متطوع', employee: 'موظف', partner: 'شريك', community: 'المجتمع',
+  beneficiary: 'عميل', donor: 'داعم أو مانح', volunteer: 'متطوع', employee: 'موظف', partner: 'شريك', community: 'المجتمع',
 };
 
 /** الشكاوى (9.1.2 و10.2) وقياس الرضا (9.1.2) */
@@ -108,8 +108,8 @@ export class FeedbackService {
   }
 
   /**
-   * الشكاوى الواردة من بوابة المستفيدين وصفحة التطوع العامة ولم تُسجَّل بعد في سجل الجودة
-   * (قراءة فقط من وحدتي المستفيدين والتطوع)
+   * الشكاوى الواردة من بوابة العملاء وصفحة التطوع العامة ولم تُسجَّل بعد في سجل الجودة
+   * (قراءة فقط من وحدتي العملاء والتطوع)
    */
   async portalComplaints(org: string) {
     const ben: { id: string; ticket_no: number; subject: string; message: string; created_at: Date; full_name: string; phone: string | null }[] = await this.db.query(
@@ -124,7 +124,7 @@ export class FeedbackService {
           AND NOT EXISTS (SELECT 1 FROM quality_complaints q WHERE q.organization_id = $1 AND q.external_ref = 'VOL-TKT:' || t.id::text)`, [org]).catch(() => []);
     return [
       ...ben.map((r) => ({
-        id: r.id, source: 'beneficiaries' as const, sourceLabel: 'بوابة المستفيدين', ticketNo: String(r.ticket_no), subject: r.subject, message: r.message, createdAt: r.created_at,
+        id: r.id, source: 'beneficiaries' as const, sourceLabel: 'الموقع الإلكتروني', ticketNo: String(r.ticket_no), subject: r.subject, message: r.message, createdAt: r.created_at,
         name: r.full_name, phone: r.phone, partyType: 'beneficiary',
       })),
       ...vol.map((r) => ({
@@ -141,7 +141,7 @@ export class FeedbackService {
     const want = t.source === 'volunteers' ? 'VOL' : 'BEN';
     return this.createComplaint(actor, {
       channel: t.source === 'volunteers' ? 'other' : 'portal', partyType: t.partyType, complainantName: t.name, contact: t.phone, subject: t.subject, details: t.message,
-      category: t.source === 'volunteers' ? 'التطوع' : 'خدمات المستفيدين', department: depts.find((d) => d.code === want) ? want : depts[0].code,
+      category: t.source === 'volunteers' ? 'التطوع' : 'خدمات العملاء', department: depts.find((d) => d.code === want) ? want : depts[0].code,
       receivedDate: new Date(new Date(t.createdAt).getTime() + 3 * 3600000).toISOString().slice(0, 10),
     }, `${t.source === 'volunteers' ? 'VOL' : 'BEN'}-TKT:${t.id}`);
   }

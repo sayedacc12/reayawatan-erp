@@ -17,7 +17,7 @@ export class AuthController {
     return this.auth.login(dto.login ?? dto.email ?? '', dto.password, dto.organization);
   }
 
-  /** بيانات صفحة دخول الجمعية (اسمها فقط) */
+  /** بيانات صفحة دخول الشركة (اسمها فقط) */
   @Public()
   @Get('org/:slug')
   organization(@Param('slug') slug: string) {

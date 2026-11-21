@@ -21,7 +21,7 @@ const contacts = (director: string, board: string, n: number) => ({
 });
 
 /**
- * إدارة المنصة: البيانات الرئيسية للجمعية التجريبية وعقدها الموقّع إلكترونيًا،
+ * إدارة المنصة: البيانات الرئيسية للشركة التجريبية وعقدها الموقّع إلكترونيًا،
  * وطلبا اشتراك من جمعيتين أخريين (قيد المراجعة، ومعاد للاستكمال) لتجربة دورة الاعتماد.
  */
 @Injectable()
@@ -39,7 +39,7 @@ export class PlatformSeed {
       licenseNumber, licenseStartDate: daysAgo(900), ...contacts('أحمد بن صالح المالكي', 'سليمان بن عبدالله الراشد', 1),
     } as AdminApplicationDto, licensePdf('ترخيص جمعية سنابل الخير'), platform);
 
-    // اشتراك سنوي بعقد إلكتروني: يُنشأ من الشروط الحالية ويُرسل ثم توقعه الجمعية
+    // اشتراك سنوي بعقد إلكتروني: يُنشأ من الشروط الحالية ويُرسل ثم توقعه الشركة
     await this.db.getRepository(Organization).update({ id: org.id }, { subscriptionPrice: '12000', billingCycle: 'annual' });
     const draft = await this.contracts.createForOrganization(org.id, platform);
     await this.contracts.send(draft.id, platform, origin);

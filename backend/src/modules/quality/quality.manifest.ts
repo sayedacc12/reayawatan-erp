@@ -19,7 +19,7 @@ export const QUALITY_PERMISSIONS = {
 } as const;
 
 const P = QUALITY_PERMISSIONS;
-const G = { plan: 'السياق والتخطيط', docs: 'التوثيق والإجراءات', eval: 'التقييم والتحسين', voice: 'رضا المستفيدين والشكاوى' };
+const G = { plan: 'السياق والتخطيط', docs: 'التوثيق والإجراءات', eval: 'التقييم والتحسين', voice: 'رضا العملاء والشكاوى' };
 
 export const qualityManifest: ErpModuleManifest = {
   code: 'quality',
@@ -31,7 +31,7 @@ export const qualityManifest: ErpModuleManifest = {
   sequence: 80,
   permissions: [
     { code: P.read, name: 'عرض لوحة الجودة والوثائق المعتمدة وسجلات الجودة' },
-    { code: P.context, name: 'تحديث سياق الجمعية ونطاق النظام وسياسة الجودة' },
+    { code: P.context, name: 'تحديث سياق الشركة ونطاق النظام وسياسة الجودة' },
     { code: P.documents, name: 'إنشاء الوثائق وخرائط الإجراءات وتعديلها وتوزيعها' },
     { code: P.reviewDocs, name: 'مراجعة الوثائق (مراجع الجودة)' },
     { code: P.approveDocs, name: 'اعتماد الوثائق وإلغاؤها' },
@@ -49,7 +49,7 @@ export const qualityManifest: ErpModuleManifest = {
   settingsPermission: P.settings,
   menu: [
     { label: 'لوحة الجودة', path: '/quality', permission: P.read },
-    { label: 'سياق الجمعية وسياسة الجودة', path: '/quality/context', permission: P.read, group: G.plan },
+    { label: 'سياق الشركة وسياسة الجودة', path: '/quality/context', permission: P.read, group: G.plan },
     { label: 'المخاطر والفرص', path: '/quality/risks', permission: P.read, group: G.plan },
     { label: 'أهداف الجودة ومؤشراتها', path: '/quality/objectives', permission: P.read, group: G.plan },
     { label: 'سجل الوثائق المضبوطة', path: '/quality/documents', permission: P.read, group: G.docs },

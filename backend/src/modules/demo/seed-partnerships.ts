@@ -7,7 +7,7 @@ import { PartnershipsService } from '../partnerships/partnerships.service';
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 
 /**
- * الشراكات في الجمعية التجريبية: شركاء بمراحل مختلفة (محتمل، قيد التقييم، بانتظار الاعتماد، معتمد، غير مقبول)،
+ * الشراكات في الشركة التجريبية: شركاء بمراحل مختلفة (محتمل، قيد التقييم، بانتظار الاعتماد، معتمد، غير مقبول)،
  * وعقود في كل حالة (مسودة، بانتظار الاعتماد، مرسل للتوقيع، موقّع إلكترونيًا، موقّع ورقيًا، منتهٍ ومجدَّد) مع التزامات ومتابعات.
  * تُنفَّذ عبر خدمات الوحدة نفسها كما لو نفذها الموظفون.
  */
@@ -91,7 +91,7 @@ export class PartnershipsSeed {
       about: 'عرضت تطوير تطبيق للتبرعات مقابل نسبة من التبرعات المحصلة.',
     });
     const ne = await evaluate(nama, type('شراكة معرفية وفنية'), [3, 1, 4, 4, 3, 2, 3], 'العرض مشروط بنسبة من التبرعات، وعليها ملاحظات تعاقدية سابقة مع جهات أخرى.');
-    await this.pt.decideEvaluation(admin, ne.id, { decision: 'reject', note: 'لم تجتز معيار السمعة والنزاهة، ونموذج النسبة من التبرعات لا يتوافق مع سياسة الجمعية.' });
+    await this.pt.decideEvaluation(admin, ne.id, { decision: 'reject', note: 'لم تجتز معيار السمعة والنزاهة، ونموذج النسبة من التبرعات لا يتوافق مع سياسة الشركة.' });
 
     await partner({
       name: 'مجمع الرعاية الطبية الأهلي', classId: cls('قطاع خاص'), typeIds: [type('شراكة مجتمعية وتطوعية')], contactName: 'د. هشام الغامدي', contactTitle: 'مدير العلاقات العامة',
@@ -151,7 +151,7 @@ export class PartnershipsSeed {
     await this.contracts.update(officer, uniC.id, {
       items: [...detail.items, {
         key: 'demo-training', clauseId: null, categoryId: 'duties', categoryName: '', mandatory: false, title: 'التدريب الميداني للطلاب',
-        paragraphs: ['تستقبل الجمعية عشرة طلاب متدربين في كل فصل دراسي، ويشرف عليهم مشرف من الكلية ومشرف من الجمعية.', 'تُقيَّم مخرجات التدريب بنموذج تقييم مشترك يعتمده الطرفان.'],
+        paragraphs: ['تستقبل الشركة عشرة طلاب متدربين في كل فصل دراسي، ويشرف عليهم مشرف من الكلية ومشرف من الشركة.', 'تُقيَّم مخرجات التدريب بنموذج تقييم مشترك يعتمده الطرفان.'],
       }],
     });
     await toSign(uniC);

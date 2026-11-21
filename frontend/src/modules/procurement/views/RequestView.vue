@@ -114,7 +114,7 @@ const TITLES = { approve: 'اعتماد الطلب', return: 'إعادة الط�
             <div><dt>المشروع</dt><dd>{{ r.projectName ?? '—' }}</dd></div>
             <div><dt>تاريخ الاحتياج</dt><dd>{{ fmtDate(r.neededBy) }}</dd></div>
             <div><dt>أسلوب الشراء</dt><dd>{{ r.methodLabel ?? r.suggestedMethodLabel }}<small v-if="r.method && r.method !== r.suggestedMethod" class="pc-warn" style="margin-inline-start: 6px">المقترح: {{ r.suggestedMethodLabel }}</small></dd></div>
-            <div v-if="r.beneficiaryRef"><dt>مرجع المستفيد</dt><dd class="pc-code">{{ r.beneficiaryRef }}</dd></div>
+            <div v-if="r.beneficiaryRef"><dt>مرجع العميل أو البرنامج</dt><dd class="pc-code">{{ r.beneficiaryRef }}</dd></div>
             <div v-if="r.methodReason" style="grid-column: 1 / -1"><dt>مبرر الأسلوب</dt><dd>{{ r.methodReason }}</dd></div>
             <div v-if="r.justification" style="grid-column: 1 / -1"><dt>المبررات</dt><dd style="white-space: pre-line">{{ r.justification }}</dd></div>
           </dl>

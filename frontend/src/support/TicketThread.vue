@@ -4,7 +4,7 @@ import { api, openProtectedFile } from '../api';
 import { useToast } from '../stores/toast';
 import { fmtDT, type TicketDetail } from './support';
 
-/** محادثة الطلب ونموذج الرد، مشترك بين الجمعية ومدير المنصة */
+/** محادثة الطلب ونموذج الرد، مشترك بين الشركة ومدير المنصة */
 const props = defineProps<{ ticket: TicketDetail; base: string; platform?: boolean }>();
 const emit = defineEmits<{ (e: 'updated', t: TicketDetail): void }>();
 const toast = useToast();
@@ -55,7 +55,7 @@ const pick = (e: Event) => { file.value = (e.target as HTMLInputElement).files?.
       <article v-for="m in ticket.messages" :key="m.id" :class="['msg', mine(m.side) ? 'me' : 'them', { internal: m.isInternal }]">
         <header>
           <b>{{ m.authorName }}</b>
-          <small>{{ m.side === 'platform' ? 'فريق الدعم' : 'الجمعية' }} · {{ fmtDT(m.createdAt) }}</small>
+          <small>{{ m.side === 'platform' ? 'فريق الدعم' : 'الشركة' }} · {{ fmtDT(m.createdAt) }}</small>
           <span v-if="m.isInternal" class="tone tone-warn">ملاحظة داخلية</span>
         </header>
         <p>{{ m.body }}</p>
@@ -65,14 +65,14 @@ const pick = (e: Event) => { file.value = (e.target as HTMLInputElement).files?.
 
     <form v-if="ticket.status !== 'closed'" class="composer" @submit.prevent="send">
       <textarea v-model="body" class="input" rows="3" required minlength="2"
-        :placeholder="platform ? (internal ? 'ملاحظة لفريق المنصة فقط، لا تراها الجمعية' : 'اكتب ردك للجمعية') : 'اكتب ردك أو معلومات إضافية لفريق الدعم'" />
+        :placeholder="platform ? (internal ? 'ملاحظة لفريق المنصة فقط، لا تراها الشركة' : 'اكتب ردك للشركة') : 'اكتب ردك أو معلومات إضافية لفريق الدعم'" />
       <div class="row">
         <label class="btn btn-sm file-btn">📎 {{ file ? file.name : 'إرفاق ملف' }}<input ref="fileInput" type="file" hidden @change="pick" /></label>
         <template v-if="platform">
           <label class="check"><input v-model="internal" type="checkbox" /> ملاحظة داخلية</label>
           <select v-if="!internal" v-model="status" class="input sel">
             <option value="">الحالة بعد الرد: قيد المعالجة</option>
-            <option value="waiting_customer">بانتظار رد الجمعية (تتوقف المهلة)</option>
+            <option value="waiting_customer">بانتظار رد الشركة (تتوقف المهلة)</option>
             <option value="resolved">تم الحل</option>
           </select>
         </template>

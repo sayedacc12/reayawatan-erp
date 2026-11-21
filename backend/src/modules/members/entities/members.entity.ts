@@ -65,7 +65,7 @@ export interface PaymentConfig {
   online: boolean;
   /** التحويل البنكي مع رفع إيصال التحويل */
   transfer: boolean;
-  /** الدفع النقدي في مقر الجمعية (يسجله الموظف) */
+  /** الدفع النقدي في مقر الشركة (يسجله الموظف) */
   cash: boolean;
   /** sandbox = بيئة تجريبية تحاكي الدفع، moyasar = بوابة ميسر */
   provider: GatewayProvider;
@@ -119,7 +119,7 @@ export class MemSettings {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  /** صفحة التقديم العامة /m/<معرف الجمعية> */
+  /** صفحة التقديم العامة /m/<معرف الشركة> */
   @Column({ name: 'public_enabled', type: 'boolean', default: true })
   publicEnabled!: boolean;
 

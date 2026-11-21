@@ -80,7 +80,7 @@ describe('Association subscriptions & e-contracts', () => {
       licenseNumber: 'abc', licenseEndDate: '2019-01-01', adminPasswordConfirm: 'Other12345',
     }).expect(400);
     const msg = JSON.stringify(bad.body.message);
-    for (const text of ['جوال المدير التنفيذي', 'جوال عضو مجلس الإدارة', 'هاتف الجمعية', 'gmail.com', 'بريد عضو مجلس الإدارة',
+    for (const text of ['جوال المدير التنفيذي', 'جوال عضو مجلس الإدارة', 'هاتف الشركة', 'gmail.com', 'بريد عضو مجلس الإدارة',
       'بالحروف الإنجليزية', 'الاسم الكامل', 'أرقام', 'رقم الترخيص', 'نهاية الترخيص', 'تأكيد كلمة المرور']) {
       expect(msg).toContain(text);
     }
@@ -172,7 +172,7 @@ describe('Association subscriptions & e-contracts', () => {
     const optional = c.items.filter((i: { mandatory: boolean }) => !i.mandatory);
     const items = [
       ...c.items.filter((i: { title: string }) => i.title !== optional[0].title),
-      { key: 'custom-1', clauseId: null, title: 'ملحق التدريب', paragraphs: ['يقدم الطرف الأول تدريبًا لـ {{اسم الجمعية}}.'], mandatory: true },
+      { key: 'custom-1', clauseId: null, title: 'ملحق التدريب', paragraphs: ['يقدم الطرف الأول تدريبًا لـ {{اسم الشركة}}.'], mandatory: true },
     ];
     const upd = await http.put(`/api/platform/contracts/${contractId}`).set(as(platform)).send({ items }).expect(200);
     expect(upd.body.items).toHaveLength(DEFAULT_CLAUSES.length);
@@ -194,7 +194,7 @@ describe('Association subscriptions & e-contracts', () => {
     expect(sent.body.status).toBe('sent');
     expect(sent.body.contentHash).toMatch(/^[a-f0-9]{64}$/);
     signPath = sent.body.signPath;
-    // رابط التوقيع يصل بالبريد للمدير التنفيذي وعضو المجلس وبريد الجمعية
+    // رابط التوقيع يصل بالبريد للمدير التنفيذي وعضو المجلس وبريد الشركة
     expect([...sent.body.emailed].sort()).toEqual(['ceo@namaa.org', 'chair@namaa.org', 'info@namaa.org']);
     await app.get(MailService).processQueue();
     expect(app.get(MailService).sentTo('chair@namaa.org')[0].html).toContain(`https://sanabel.test${signPath}`);
@@ -266,8 +266,8 @@ describe('Association subscriptions & e-contracts', () => {
 
   it('manages the clause library and reports', async () => {
     const created = await http.post('/api/platform/contract-clauses').set(as(platform))
-      .send({ title: 'بند جديد', paragraphs: ['نص {{اسم الجمعية}}', '  '] }).expect(201);
-    expect(created.body.paragraphs).toEqual(['نص {{اسم الجمعية}}']);
+      .send({ title: 'بند جديد', paragraphs: ['نص {{اسم الشركة}}', '  '] }).expect(201);
+    expect(created.body.paragraphs).toEqual(['نص {{اسم الشركة}}']);
     await http.put(`/api/platform/contract-clauses/${created.body.id}`).set(as(platform))
       .send({ title: 'بند معدل', paragraphs: ['نص'], isActive: false }).expect(200);
     await http.delete(`/api/platform/contract-clauses/${created.body.id}`).set(as(platform)).expect(204);

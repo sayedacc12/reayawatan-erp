@@ -70,7 +70,7 @@ async function save() {
         <div class="field"><label>قيمة الشراكة (ريال)</label><input v-model.number="f.value" type="number" min="0" step="0.01" class="input" placeholder="اتركه فارغًا إن لم توجد" /></div>
         <div class="field"><label>المشروع المرتبط</label>
           <select v-model="f.projectId" class="input"><option value="">بدون مشروع</option><option v-for="p in picks.projects" :key="p.id" :value="p.id">{{ p.name }}</option></select></div>
-        <div class="field"><label>ممثل الجمعية في التوقيع</label><input v-model="f.orgSignerName" class="input" /></div>
+        <div class="field"><label>ممثل الشركة في التوقيع</label><input v-model="f.orgSignerName" class="input" /></div>
         <div class="field"><label>صفته</label><input v-model="f.orgSignerTitle" class="input" /></div>
       </div>
       <div class="modal-actions">

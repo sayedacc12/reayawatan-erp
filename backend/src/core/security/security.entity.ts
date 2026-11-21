@@ -1,8 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
- * سجل المراقب الأمني «سيد». سجل المنصة وليس بيانات جمعية، لذلك عمود الجمعية اسمه org_id
- * (لا organization_id) فلا يدخل في تصدير بيانات الجمعية أو حذفها، ويُحذف تلقائيًا بعد مدة الاحتفاظ.
+ * سجل المراقب الأمني «سيد». سجل المنصة وليس بيانات جمعية، لذلك عمود الشركة اسمه org_id
+ * (لا organization_id) فلا يدخل في تصدير بيانات الشركة أو حذفها، ويُحذف تلقائيًا بعد مدة الاحتفاظ.
  */
 export type SecSeverity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 

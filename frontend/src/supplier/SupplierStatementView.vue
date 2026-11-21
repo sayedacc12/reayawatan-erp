@@ -5,7 +5,7 @@ import StatementTable from '../modules/procurement/components/StatementTable.vue
 import { sar } from '../modules/procurement/lib';
 import { supplierApi } from './supplier';
 
-/** كشف حساب المورد لدى الجمعية */
+/** كشف حساب المورد لدى الشركة */
 const st = ref<any>(null);
 const error = ref('');
 const f = ref({ from: '', to: '' });
@@ -27,7 +27,7 @@ const printPage = () => window.print();
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="st">
       <div class="page-head">
-        <div><h1>كشف الحساب</h1><p class="muted">{{ st.supplier.code }} · {{ st.supplier.name }}. يظهر في الكشف ما سجلته الجمعية من فواتير وإشعارات دائنة وما سددته.</p></div>
+        <div><h1>كشف الحساب</h1><p class="muted">{{ st.supplier.code }} · {{ st.supplier.name }}. يظهر في الكشف ما سجلته الشركة من فواتير وإشعارات دائنة وما سددته.</p></div>
         <div class="pc-noprint"><button class="btn" @click="printPage">طباعة</button></div>
       </div>
       <div class="pc-toolbar pc-noprint">

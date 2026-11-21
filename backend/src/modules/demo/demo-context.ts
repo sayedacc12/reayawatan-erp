@@ -17,7 +17,7 @@ import { PROCUREMENT_PERMISSIONS } from '../procurement/procurement.manifest';
 import { BILLING_PERMISSIONS } from '../billing/billing.manifest';
 
 export const DEMO_SLUG = 'demo';
-/** بريد الحسابات وطلبات الاشتراك التجريبية (تُحذف كلها عند إعادة إنشاء الجمعية التجريبية) */
+/** بريد الحسابات وطلبات الاشتراك التجريبية (تُحذف كلها عند إعادة إنشاء الشركة التجريبية) */
 export const DEMO_EMAIL = (name: string) => `demo-${name}@sanabelerp.com`;
 
 export const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
@@ -40,9 +40,9 @@ export function actorOf(
   };
 }
 
-/** فريق الجمعية التجريبية: كل موظف بدوره، وتُسجَّل العمليات بأسمائهم */
+/** فريق الشركة التجريبية: كل موظف بدوره، وتُسجَّل العمليات بأسمائهم */
 export interface DemoTeam {
-  /** معرّف الجمعية التي تُبنى فيها البيانات (demo أو جمعية تجريبية أضافت بيانات تجريبية) */
+  /** معرّف الشركة التي تُبنى فيها البيانات (demo أو جمعية تجريبية أضافت بيانات تجريبية) */
   slug: string;
   /** بريد حسابات الموظفين التجريبيين (فريد على مستوى المنصة) */
   email: (name: string) => string;
@@ -59,10 +59,10 @@ export interface DemoTeam {
 /** بريد الموظفين التجريبيين داخل جمعية حقيقية في فترة التجربة: فريد لكل جمعية */
 export const SAMPLE_EMAIL = (slug: string) => (name: string) => `sample-${name}.${slug}@sanabelerp.com`;
 
-/** إعدادات البناء: الجمعية التجريبية الكاملة، أو بيانات تجريبية داخل جمعية مشتركة */
+/** إعدادات البناء: الشركة التجريبية الكاملة، أو بيانات تجريبية داخل جمعية مشتركة */
 export interface SeedTarget {
   slug: string;
   email: (name: string) => string;
-  /** مدير نظام الجمعية الحالي: تُسجَّل باسمه عمليات «المدير» بدل إنشاء حساب مدير تجريبي */
+  /** مدير نظام الشركة الحالي: تُسجَّل باسمه عمليات «المدير» بدل إنشاء حساب مدير تجريبي */
   admin?: { id: string; fullName: string; email: string };
 }

@@ -53,7 +53,7 @@ export const isStockType = (t: string) => (STOCK_VOUCHER_TYPES as readonly strin
 export const isPayableType = (t: string) => (PAYABLE_VOUCHER_TYPES as readonly string[]).includes(t);
 export const isBillingType = (t: string) => (BILLING_VOUCHER_TYPES as readonly string[]).includes(t);
 export const isBuiltin = (t: string): t is BuiltinVoucherType => (VOUCHER_TYPES as readonly string[]).includes(t);
-/** رمز نوع مستند صالح الصيغة (أساسي أو خاص بالجمعية) */
+/** رمز نوع مستند صالح الصيغة (أساسي أو خاص بالشركة) */
 export const isTypeCode = (t: string): t is VoucherType => isBuiltin(t) || CUSTOM_TYPE_RE.test(t);
 
 /**
@@ -89,18 +89,18 @@ export class AccCore {
     return s;
   }
 
-  /** أنواع السندات الخاصة بالجمعية */
+  /** أنواع السندات الخاصة بالشركة */
   async documentTypes(org: string, em: EntityManager = this.db.manager) {
     return em.getRepository(DocumentType).find({ where: { organizationId: org }, order: { sortOrder: 'ASC', createdAt: 'ASC' } });
   }
 
-  /** أسماء كل أنواع المستندات للجمعية: الأساسية والخاصة */
+  /** أسماء كل أنواع المستندات للشركة: الأساسية والخاصة */
   async typeLabels(org: string, em: EntityManager = this.db.manager): Promise<Record<string, string>> {
     const custom = await this.documentTypes(org, em);
     return { ...VOUCHER_LABEL, ...Object.fromEntries(custom.map((d) => [d.code, d.name])) };
   }
 
-  /** كل أنواع المستندات للجمعية بالترتيب (للتسلسلات ومحضر الجرد) */
+  /** كل أنواع المستندات للشركة بالترتيب (للتسلسلات ومحضر الجرد) */
   async allTypes(org: string, em: EntityManager = this.db.manager): Promise<VoucherType[]> {
     return [...ALL_VOUCHER_TYPES, ...(await this.documentTypes(org, em)).map((d) => d.code)];
   }

@@ -72,7 +72,7 @@ function confirm() {
 const TITLES: Record<string, string> = { approve: 'اعتماد التعميد', return: 'إعادة التعميد للتعديل', cancel: 'إلغاء التعميد', reply: 'الرد على استفسار المورد', amend: 'تعديل التعميد الصادر', short: 'إغلاق التعميد بالمستلم' };
 const needsNote = computed(() => modal.value !== 'approve');
 const check = computed(() => o.value?.liveCheck ?? o.value?.budgetCheck);
-const RESP: Record<string, string> = { acknowledge: 'أكد الاستلام', accept: 'قبل التعميد', clarify: 'طلب توضيحًا', decline: 'اعتذر عن التنفيذ', reply: 'رد الجمعية' };
+const RESP: Record<string, string> = { acknowledge: 'أكد الاستلام', accept: 'قبل التعميد', clarify: 'طلب توضيحًا', decline: 'اعتذر عن التنفيذ', reply: 'رد الشركة' };
 const printPage = () => window.print();
 const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: number) => ({ ...l, done: o.value.approvals[i] ?? null, now: o.value.status === 'pending' && i === o.value.approvals.length })));
 </script>
@@ -123,7 +123,7 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
             <div><dt>المشروع</dt><dd>{{ o.projectName ?? '—' }}</dd></div>
             <div><dt>تاريخ التسليم</dt><dd>{{ fmtDate(o.deliveryDate) }}</dd></div>
             <div><dt>مكان التسليم</dt><dd>{{ o.warehouse ? `${o.warehouse.code} · ${o.warehouse.name}` : '' }}{{ o.deliveryPlace ? ` ${o.deliveryPlace}` : '' }}{{ !o.warehouse && !o.deliveryPlace ? '—' : '' }}</dd></div>
-            <div v-if="o.beneficiaryRef"><dt>مرجع المستفيد</dt><dd class="pc-code">{{ o.beneficiaryRef }}</dd></div>
+            <div v-if="o.beneficiaryRef"><dt>مرجع العميل أو البرنامج</dt><dd class="pc-code">{{ o.beneficiaryRef }}</dd></div>
             <div v-if="o.issuedAt"><dt>صدر في</dt><dd>{{ fmtDateTime(o.issuedAt) }}</dd></div>
           </dl>
         </section>

@@ -6,7 +6,7 @@ import { accLabel, type AccLookups, type AllowanceType } from '../lib';
 
 /**
  * حسابات المصروف حسب طبيعة الوظيفة: لكل فئة (إدارية، برامج وأنشطة، جمع أموال...) حساب مصروف لكل بند من بنود الراتب
- * ولحصة الجمعية في التأمينات. تُختار الفئة في الوصف الوظيفي، فيُحمَّل راتب كل موظف على حسابات فئة وظيفته.
+ * ولحصة الشركة في التأمينات. تُختار الفئة في الوصف الوظيفي، فيُحمَّل راتب كل موظف على حسابات فئة وظيفته.
  */
 interface Profile { id: string; name: string; description: string | null; accounts: Record<string, string>; isDefault: boolean; jobs: number }
 const toast = useToast();
@@ -24,8 +24,8 @@ async function load() {
   }
 }
 onMounted(load);
-/** البنود التي تحتاج حساب مصروف: بنود الراتب المفعّلة وحصة الجمعية في التأمينات */
-const items = computed(() => [...types.value.map((t) => ({ code: t.code, name: t.name })), { code: 'gosi', name: 'التأمينات (حصة الجمعية)' }]);
+/** البنود التي تحتاج حساب مصروف: بنود الراتب المفعّلة وحصة الشركة في التأمينات */
+const items = computed(() => [...types.value.map((t) => ({ code: t.code, name: t.name })), { code: 'gosi', name: 'التأمينات (حصة الشركة)' }]);
 const expenses = computed(() => lk.value?.accounts.filter((a) => a.nature === 'expenses') ?? []);
 const editing = ref<Profile | null>(null);
 const form = reactive({ show: false, name: '', description: '', isDefault: false, accounts: {} as Record<string, string> });

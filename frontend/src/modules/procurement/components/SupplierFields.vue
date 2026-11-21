@@ -30,7 +30,7 @@ function addActivity() {
 
 <template>
   <div>
-    <p v-if="legalLocked" class="alert alert-info">البيانات النظامية مقفلة بعد إرسال الطلب. لتعديلها تواصل مع الجمعية.</p>
+    <p v-if="legalLocked" class="alert alert-info">البيانات النظامية مقفلة بعد إرسال الطلب. لتعديلها تواصل مع الشركة.</p>
     <div class="pc-sec">بيانات المنشأة</div>
     <div class="pc-fields">
       <label class="field wide"><span>اسم المنشأة كما في السجل *</span><input v-model="f.name" class="input" :disabled="legalLocked" required /></label>

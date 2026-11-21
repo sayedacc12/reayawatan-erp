@@ -526,7 +526,7 @@ export class PayrollService {
         if (!gosiId) problems.add(`حساب مصروف التأمينات في فئة «${profile.name}»`);
         else {
           if (acc.get(gosiId)?.requiresAnalytic && !analyticId) problems.add(`الحساب التحليلي للوحدة «${l.unitName}»`);
-          add('debit', gosiId, l.gosiEmployer, analyticId, 'حصة الجمعية في التأمينات الاجتماعية');
+          add('debit', gosiId, l.gosiEmployer, analyticId, 'حصة الشركة في التأمينات الاجتماعية');
         }
       }
       if (cfg.gosiPayableAccountId) add('credit', cfg.gosiPayableAccountId, round2(l.gosiEmployee + l.gosiEmployer), analyticId, 'التأمينات الاجتماعية المستحقة');
@@ -675,7 +675,7 @@ export class PayrollService {
       for (const v of p.vouchers) {
         const names = v.codes.map(p.typeName).join(' و');
         const saved = await this.vouchers.insertDraft(em, actor, 'payment', {
-          voucherDate: dto.voucherDate, partyName: `موظفو الجمعية (${v.employees} موظفًا)`, amount: v.amount,
+          voucherDate: dto.voucherDate, partyName: `موظفو الشركة (${v.employees} موظفًا)`, amount: v.amount,
           purpose: `صرف ${names} لشهر ${label} حسب مسير الرواتب المعتمد`, sourceType: 'payroll', sourceRef: r.month, projectName: null,
           method: 'transfer', methodRef: null, cashAccountId: v.cashAccountId, counterAccountId: v.payableAccountId, partnerId: null, analytic: [],
         });

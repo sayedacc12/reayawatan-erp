@@ -4,7 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import { AuthUser } from '../auth/decorators';
 import { UserOnboarding } from './onboarding.entity';
 
-/** خطوة من خطوات إطلاق الجمعية. تُكتشف تلقائيًا من بيانات الجمعية، ويمكن تعليمها يدويًا */
+/** خطوة من خطوات إطلاق الشركة. تُكتشف تلقائيًا من بيانات الشركة، ويمكن تعليمها يدويًا */
 interface StepDef {
   key: string;
   phase: string;
@@ -12,26 +12,26 @@ interface StepDef {
   hint: string;
   /** الشاشة التي تبدأ منها الخطوة */
   link: string;
-  /** النظام الذي تتبعه الخطوة (تُخفى إن لم يكن متاحًا للجمعية) */
+  /** النظام الذي تتبعه الخطوة (تُخفى إن لم يكن متاحًا للشركة) */
   app: string;
   /** استعلام يعيد صفًا واحدًا فيه done (منطقي). بدونه تُعلَّم الخطوة يدويًا فقط */
   sql?: string;
-  /** يُمرَّر للاستعلام: الجمعية، أو الجمعية والمستخدم */
+  /** يُمرَّر للاستعلام: الشركة، أو الشركة والمستخدم */
   withUser?: boolean;
 }
 
 const exists = (table: string, extra = '') => `SELECT EXISTS (SELECT 1 FROM "${table}" WHERE organization_id = $1 ${extra}) AS done`;
 
 export const LAUNCH_PHASES = [
-  { key: 'foundation', title: 'التأسيس', icon: '🏛️', hint: 'هوية الجمعية وفريق العمل والصلاحيات' },
+  { key: 'foundation', title: 'التأسيس', icon: '🏛️', hint: 'هوية الشركة وفريق العمل والصلاحيات' },
   { key: 'team', title: 'الفريق والهيكل', icon: '👥', hint: 'الهيكل التنظيمي وملفات الموظفين' },
   { key: 'finance', title: 'المالية', icon: '💰', hint: 'دليل الحسابات والسنة المالية والبنوك' },
   { key: 'services', title: 'الخدمات', icon: '🤝', hint: 'برامج المساعدات والداعمون' },
-  { key: 'launch', title: 'الانطلاق', icon: '🚀', hint: 'الموقع وبوابة المستفيدين' },
+  { key: 'launch', title: 'الانطلاق', icon: '🚀', hint: 'الموقع الإلكتروني' },
 ] as const;
 
 const STEPS: StepDef[] = [
-  { key: 'identity', phase: 'foundation', app: 'core', title: 'أكمل هوية الجمعية', hint: 'ارفع الشعار واكتب الرؤية والرسالة، لتظهر في النظام والتقارير والموقع.', link: '/settings/identity', sql: `SELECT EXISTS (SELECT 1 FROM org_identity WHERE organization_id = $1 AND logo IS NOT NULL) AS done` },
+  { key: 'identity', phase: 'foundation', app: 'core', title: 'أكمل هوية الشركة', hint: 'ارفع الشعار واكتب الرؤية والرسالة، لتظهر في النظام والتقارير والموقع.', link: '/settings/identity', sql: `SELECT EXISTS (SELECT 1 FROM org_identity WHERE organization_id = $1 AND logo IS NOT NULL) AS done` },
   { key: 'roles', phase: 'foundation', app: 'core', title: 'حدد الأدوار والصلاحيات', hint: 'أنشئ أدوارًا مثل «محاسب» و«باحث اجتماعي»، واختر لكل دور ما يراه وما يعدّله.', link: '/settings/roles', sql: exists('roles') },
   { key: 'users', phase: 'foundation', app: 'core', title: 'أضف فريق العمل', hint: 'أنشئ حسابات الدخول لزملائك وامنح كل واحد منهم دوره المناسب.', link: '/settings/users', sql: `SELECT (SELECT count(*) FROM users WHERE organization_id = $1) > 1 AS done` },
   { key: 'structure', phase: 'team', app: 'hr', title: 'ابنِ الهيكل التنظيمي', hint: 'أضف الإدارات والأقسام، وحدد مدير كل وحدة.', link: '/hr/structure', sql: exists('hr_units') },
@@ -39,11 +39,10 @@ const STEPS: StepDef[] = [
   { key: 'link-me', phase: 'team', app: 'hr', title: 'اربط حسابك بملفك الوظيفي', hint: 'من ملف موظفك اختر حسابك في خانة «حساب الدخول»، لتظهر لك لوحتك الشخصية كاملة.', link: '/hr/employees', sql: exists('hr_employees', 'AND user_id = $2'), withUser: true },
   { key: 'chart', phase: 'finance', app: 'accounting', title: 'ثبّت دليل الحسابات', hint: 'ثبّت الدليل المحاسبي الموحد للقطاع غير الربحي بضغطة واحدة، أو أضف حساباتك.', link: '/accounting/accounts', sql: exists('acc_accounts') },
   { key: 'fiscal-year', phase: 'finance', app: 'accounting', title: 'افتح السنة المالية', hint: 'أنشئ السنة المالية الحالية وأدخل الأرصدة الافتتاحية.', link: '/accounting/setup', sql: exists('acc_fiscal_years') },
-  { key: 'banks', phase: 'finance', app: 'accounting', title: 'أضف البنوك والصناديق', hint: 'سجّل حسابات الجمعية البنكية والصناديق النقدية لتستخدمها في السندات.', link: '/accounting/banks', sql: exists('acc_cash_accounts') },
-  { key: 'programs', phase: 'services', app: 'beneficiaries', title: 'عرّف برامج المساعدات', hint: 'أضف البرامج والمساعدات التي تقدمها الجمعية ومسارات اعتماد طلباتها.', link: '/beneficiaries/settings', sql: exists('activities') },
+  { key: 'banks', phase: 'finance', app: 'accounting', title: 'أضف البنوك والصناديق', hint: 'سجّل حسابات الشركة البنكية والصناديق النقدية لتستخدمها في السندات.', link: '/accounting/banks', sql: exists('acc_cash_accounts') },
+  { key: 'programs', phase: 'services', app: 'beneficiaries', title: 'عرّف برامج المساعدات', hint: 'أضف البرامج والمساعدات التي تقدمها الشركة ومسارات اعتماد طلباتها.', link: '/beneficiaries/settings', sql: exists('activities') },
   { key: 'donors', phase: 'services', app: 'fundraising', title: 'سجّل الداعمين', hint: 'أضف الداعمين والمانحين لتتابع فرص الدعم والتعهدات.', link: '/fundraising/donors', sql: exists('fundraising_donors') },
-  { key: 'website', phase: 'launch', app: 'website', title: 'انشر موقع الجمعية', hint: 'راجع صفحات الموقع ثم فعّل النشر ليصل إليه الزوار والمتبرعون.', link: '/website/settings', sql: `SELECT EXISTS (SELECT 1 FROM web_settings WHERE organization_id = $1 AND published) AS done` },
-  { key: 'portal', phase: 'launch', app: 'beneficiaries', title: 'شارك رابط بوابة المستفيدين', hint: 'انسخ رابط البوابة وأرسله للمستفيدين ليقدموا طلباتهم ويتابعوها. علّمها «تمت» بعد المشاركة.', link: '/beneficiaries/settings' },
+  { key: 'website', phase: 'launch', app: 'website', title: 'انشر موقع الشركة', hint: 'راجع صفحات الموقع ثم فعّل النشر ليصل إليه الزوار والمتبرعون.', link: '/website/settings', sql: `SELECT EXISTS (SELECT 1 FROM web_settings WHERE organization_id = $1 AND published) AS done` },
 ];
 
 @Injectable()
@@ -61,7 +60,7 @@ export class OnboardingService {
 
   async state(user: AuthUser) {
     const r = await this.row(user.id);
-    // خطوات الإطلاق لمدير نظام الجمعية فقط؛ باقي الموظفين لهم الترحيب والجولة
+    // خطوات الإطلاق لمدير نظام الشركة فقط؛ باقي الموظفين لهم الترحيب والجولة
     const launch = user.organizationId && user.isSuperadmin ? await this.launch(user.organizationId, user.id, r.marks) : null;
     return {
       welcomeSeen: !!r.welcomeSeenAt,

@@ -6,7 +6,7 @@ export const BILLING_CYCLES = ['monthly', 'quarterly', 'semiannual', 'annual'] a
 export type BillingCycle = (typeof BILLING_CYCLES)[number];
 
 /**
- * الجمعية (المستأجر في المنصة). كل جدول بيانات في أي وحدة يحمل organization_id،
+ * الشركة (المستأجر في المنصة). كل جدول بيانات في أي وحدة يحمل organization_id،
  * وكل استعلام يُقيَّد بجمعية المستخدم الحالي، فلا ترى جمعية بيانات جمعية أخرى.
  */
 @Entity('organizations')
@@ -22,22 +22,22 @@ export class Organization {
   @Column({ length: 64 })
   slug!: string;
 
-  /** إيقاف الجمعية يمنع كل مستخدميها من الدخول */
+  /** إيقاف الشركة يمنع كل مستخدميها من الدخول */
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
   /**
-   * الشاشات المسموحة للجمعية (مسارات قوائم الوحدات). null = كل الشاشات.
-   * يحددها مدير المنصة عند اعتماد الاشتراك أو من شاشة الجمعية.
+   * الشاشات المسموحة للشركة (مسارات قوائم الوحدات). null = كل الشاشات.
+   * يحددها مدير المنصة عند اعتماد الاشتراك أو من شاشة الشركة.
    */
   @Column({ name: 'allowed_screens', type: 'jsonb', nullable: true })
   allowedScreens!: string[] | null;
 
-  /** قائمة الجنسيات المعتمدة في الجمعية (null = القائمة الافتراضية)، يستخدمها المستفيدون والموارد المالية */
+  /** قائمة الجنسيات المعتمدة في الشركة (null = القائمة الافتراضية)، يستخدمها المستفيدون والموارد المالية */
   @Column({ type: 'jsonb', nullable: true })
   nationalities!: string[] | null;
 
-  /** الرقم الضريبي للجمعية (إن وجد)، من البيانات الأساسية */
+  /** الرقم الضريبي للشركة (إن وجد)، من البيانات الأساسية */
   @Column({ name: 'tax_number', type: 'varchar', length: 30, nullable: true })
   taxNumber!: string | null;
 

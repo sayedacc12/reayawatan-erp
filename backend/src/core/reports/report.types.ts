@@ -41,7 +41,7 @@ export interface ReportFilter {
   default?: string | ReportDefault;
   /** خيارات ثابتة للقائمة */
   options?: ReportOption[];
-  /** خيارات تُحمّل من بيانات الجمعية (مثل الحسابات أو المشاريع) */
+  /** خيارات تُحمّل من بيانات الشركة (مثل الحسابات أو المشاريع) */
   loadOptions?: (user: AuthUser) => Promise<ReportOption[]>;
   /** نص الخيار الفارغ في القائمة (مثل «الكل») */
   placeholder?: string;

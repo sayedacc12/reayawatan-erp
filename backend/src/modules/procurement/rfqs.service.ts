@@ -178,7 +178,7 @@ export class RfqsService {
     const settings = await this.core.settings(org);
     const s = sourcingSettings(settings);
     let invited = q.invitedIds;
-    // استبعاد الموردين ضعيفي الأداء (التقدير D) إذا فعّلته الجمعية في إعدادات التقييم
+    // استبعاد الموردين ضعيفي الأداء (التقدير D) إذا فعّلته الشركة في إعدادات التقييم
     const blockWeak = !!settings.blockWeak;
     if (blockWeak && invited.length) {
       const weak: { id: string }[] = await this.db.query(
@@ -283,7 +283,7 @@ export class RfqsService {
     return this.get(a, id);
   }
 
-  // ---------------- العروض (من جانب الجمعية) ----------------
+  // ---------------- العروض (من جانب الشركة) ----------------
 
   /** إدخال عرض ورد ورقيًا أو بالبريد نيابة عن مورد مدعو */
   async staffQuote(a: OrgUser, id: string, dto: StaffQuoteDto) {

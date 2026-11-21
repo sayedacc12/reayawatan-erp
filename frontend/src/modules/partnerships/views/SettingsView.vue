@@ -75,7 +75,7 @@ const newKey = () => `tier_${Date.now().toString(36).slice(-5)}`;
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات الشراكات</h1><p class="muted">معايير اختيار الشركاء وأوزانها، وأنواع الشراكة وتصنيفات الشركاء، والتنبيهات وبيانات الجمعية في العقود. تبويب بنود العقود من <RouterLink to="/partnerships/clauses" class="pm-link">مكتبة البنود</RouterLink>.</p></div></div>
+    <div class="page-head"><div><h1>إعدادات الشراكات</h1><p class="muted">معايير اختيار الشركاء وأوزانها، وأنواع الشراكة وتصنيفات الشركاء، والتنبيهات وبيانات الشركة في العقود. تبويب بنود العقود من <RouterLink to="/partnerships/clauses" class="pm-link">مكتبة البنود</RouterLink>.</p></div></div>
     <nav class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'criteria' }]" @click="tab = 'criteria'">معايير الاختيار والمستويات</button>
       <button :class="['pm-tab', { on: tab === 'types' }]" @click="tab = 'types'">أنواع الشراكة</button>
@@ -159,12 +159,12 @@ const newKey = () => `tier_${Date.now().toString(36).slice(-5)}`;
           <div class="field"><label>التنبيه قبل انتهاء العقد (يوم)</label><input v-model.number="general.alertDays" type="number" min="7" max="365" class="input" /></div>
           <div class="field"><label>صلاحية تقييم الشريك (شهر)</label><input v-model.number="general.evaluationMonths" type="number" min="3" max="60" class="input" /></div>
         </div>
-        <div class="pt-sec">بيانات الجمعية في تمهيد العقود</div>
+        <div class="pt-sec">بيانات الشركة في تمهيد العقود</div>
         <div class="pt-fields">
-          <div class="field"><label>ممثل الجمعية في التوقيع (افتراضيًا)</label><input v-model="general.signerName" class="input" /></div>
+          <div class="field"><label>ممثل الشركة في التوقيع (افتراضيًا)</label><input v-model="general.signerName" class="input" /></div>
           <div class="field"><label>صفته</label><input v-model="general.signerTitle" class="input" /></div>
-          <div class="field"><label>رقم ترخيص الجمعية</label><input v-model="general.orgLicense" class="input" dir="ltr" /></div>
-          <div class="field"><label>مدينة الجمعية</label><input v-model="general.orgCity" class="input" /></div>
+          <div class="field"><label>رقم ترخيص الشركة</label><input v-model="general.orgLicense" class="input" dir="ltr" /></div>
+          <div class="field"><label>مدينة الشركة</label><input v-model="general.orgCity" class="input" /></div>
           <div class="field"><label>مدينة المحكمة المختصة</label><input v-model="general.courtCity" class="input" /></div>
         </div>
         <button class="btn btn-primary" :disabled="busy" @click="saveGeneral">حفظ</button>

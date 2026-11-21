@@ -13,7 +13,7 @@ import { PlansService } from '../planning/plans.service';
 import { DemoTeam, daysAgo } from './demo-context';
 
 /**
- * الموازنة التقديرية في الجمعية التجريبية للسنة القادمة، مبنية من بيانات الأنظمة الأخرى:
+ * الموازنة التقديرية في الشركة التجريبية للسنة القادمة، مبنية من بيانات الأنظمة الأخرى:
  * الموظفون ورواتبهم من الموارد البشرية، وخطة تعيين للسنة القادمة، والمصروفات والإيرادات الفعلية من المحاسبة،
  * وأنشطة خطة تشغيلية معتمدة للسنة القادمة، وموازنات المشاريع. مع افتراضات بقيم مرحلية، وقواعد علاوات،
  * ومعادلة خاصة، واستبعاد مصروف غير متكرر، وعقد جديد، وتعديل يدوي بمبرر، وسقوف للإدارات.
@@ -131,7 +131,7 @@ export class BudgetSeed {
     let opv = await this.plans.get(admin, op.id);
     for (let i = 0; i < 8 && opv.status === 'in_review'; i++) opv = await this.plans.decide(admin, op.id, { decision: 'approve', note: null });
 
-    // ---- معادلة خاصة بالجمعية
+    // ---- معادلة خاصة بالشركة
     await this.formulas.create(finance, {
       code: 'OPEX_FLEET', name: 'مصروفات الأسطول حسب عدد الرحلات', target: 'opex', expression: 'hist_avg * volume_ratio * (1 + fuel_increase)',
       description: 'المصروف التاريخي معدّلًا بنسبة الزيادة في رحلات نقل المستفيدين وزيادة أسعار الوقود.',

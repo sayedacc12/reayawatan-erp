@@ -19,13 +19,13 @@ import { suggestChoices } from '../src/modules/governance/gov-signals.service';
  */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
-/** أرقام الجمعية (أ) في الدليل (الجزء الثالث، ص 18–19) */
+/** أرقام الشركة (أ) في الدليل (الجزء الثالث، ص 18–19) */
 const A_FIG = {
   ...EMPTY_FIGURES(), adminExpenses: 1150000, programExpenses: 8810000, adminAllocated: 510000, sustExpenses: 890000, sustExpensesRestricted: 80000,
   fundraisingExpenses: 350000, sustReturns: 1970000, sustReturnsRestricted: 320000, sustAssets: 25200000, donations: 10890000, cash: 5000000,
   currentInvestments: 1800000, currentLiabilities: 200000, restrictedNetAssets: 5180000, totalExpenses: 11200000,
 };
-/** أرقام الجمعية (ب) */
+/** أرقام الشركة (ب) */
 const B_FIG = {
   ...EMPTY_FIGURES(), adminExpenses: 760000, programExpenses: 2070000, adminAllocated: 500000, sustExpenses: 120000, fundraisingExpenses: 290000,
   sustReturns: 240000, sustAssets: 6220000, donations: 5110000, cash: 1820000, currentInvestments: 600000, currentLiabilities: 350000,

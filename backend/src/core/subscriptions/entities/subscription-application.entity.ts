@@ -31,7 +31,7 @@ export interface ApprovedTerms {
 }
 
 /**
- * طلب اشتراك جمعية في المنصة، وهو في نفس الوقت "البيانات الرئيسية" للجمعية بعد اعتمادها
+ * طلب اشتراك جمعية في المنصة، وهو في نفس الوقت "البيانات الرئيسية" للشركة بعد اعتمادها
  * (الترخيص، المدير التنفيذي، عضو مجلس الإدارة، بيانات التواصل).
  * دورة الطلب: مقدم ← (معاد للاستكمال ← مقدم) ← معتمد أو مرفوض.
  */
@@ -45,7 +45,7 @@ export class SubscriptionApplication {
   @Column({ length: 32 })
   number!: string;
 
-  /** رمز سري لرابط متابعة الطلب عند الجمعية (/register/<token>) */
+  /** رمز سري لرابط متابعة الطلب عند الشركة (/register/<token>) */
   @Index({ unique: true })
   @Column({ length: 64, select: false })
   token!: string;
@@ -93,7 +93,7 @@ export class SubscriptionApplication {
   @Column({ name: 'board_member', type: 'jsonb' })
   boardMember!: Contact;
 
-  /** مدير نظام الجمعية: يُنشأ حسابه بهذه البيانات عند الاعتماد */
+  /** مدير نظام الشركة: يُنشأ حسابه بهذه البيانات عند الاعتماد */
   @Column({ name: 'admin_full_name', length: 200 })
   adminFullName!: string;
 
@@ -116,7 +116,7 @@ export class SubscriptionApplication {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   history!: ApplicationEvent[];
 
-  /** الجمعية بعد الاعتماد */
+  /** الشركة بعد الاعتماد */
   @Index()
   @Column({ name: 'organization_id', type: 'uuid', nullable: true })
   organizationId!: string | null;

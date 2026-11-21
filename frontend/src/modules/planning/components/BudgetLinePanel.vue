@@ -91,7 +91,7 @@ const fmtVar = (k: string, v: number) => (['raise', 'growth', 'inflation', 'hist
       <button class="btn btn-sm" @click="emit('close')">✕</button>
     </h2>
     <p class="pm-muted" style="margin-top: -6px">
-      {{ l.unitName ?? 'على مستوى الجمعية' }}<template v-if="l.accountCode"> · حساب {{ l.accountCode }} {{ l.accountName }}</template>
+      {{ l.unitName ?? 'على مستوى الشركة' }}<template v-if="l.accountCode"> · حساب {{ l.accountCode }} {{ l.accountName }}</template>
       <template v-if="l.costCenterName"> · {{ l.costCenterName }}</template><template v-if="l.fundingType"> · تمويل {{ FUNDING[l.fundingType] }}</template>
       <template v-if="l.sourceRef"> · المصدر {{ l.sourceRef }}</template>
     </p>
@@ -199,7 +199,7 @@ const fmtVar = (k: string, v: number) => (['raise', 'growth', 'inflation', 'hist
       </div>
       <div class="rk-sec">الإدارة والتمويل</div>
       <div class="rk-fields">
-        <label class="field"><span>الإدارة</span><select v-model="f.unitId" class="input"><option value="">الجمعية</option><option v-for="u in lookups.units" :key="u.id" :value="u.id">{{ u.name }}</option></select></label>
+        <label class="field"><span>الإدارة</span><select v-model="f.unitId" class="input"><option value="">الشركة</option><option v-for="u in lookups.units" :key="u.id" :value="u.id">{{ u.name }}</option></select></label>
         <label class="field"><span>مركز التكلفة</span><select v-model="f.costCenterId" class="input"><option value="">—</option><option v-for="c in lookups.costCenters" :key="c.id" :value="c.id">{{ c.code }} {{ c.name }}</option></select></label>
         <label v-if="l.section !== 'revenue'" class="field"><span>نوع التمويل</span><select v-model="f.fundingType" class="input"><option value="">—</option><option v-for="(t, k) in FUNDING" :key="k" :value="k">{{ t }}</option></select></label>
       </div>

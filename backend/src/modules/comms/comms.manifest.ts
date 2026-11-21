@@ -32,7 +32,7 @@ export const commsManifest: ErpModuleManifest = {
     { code: P.decisions, name: 'إصدار القرارات والتعاميم' },
     { code: P.financial, name: 'إغلاق المعاملات المالية بإنشاء سند قبض أو صرف' },
     { code: P.tasks, name: 'إسناد المهام للموظفين' },
-    { code: P.tasksAll, name: 'متابعة كل المهام في الجمعية (عدا مهام الاجتماعات السرية)' },
+    { code: P.tasksAll, name: 'متابعة كل المهام في الشركة (عدا مهام الاجتماعات السرية)' },
     { code: P.reports, name: 'تقارير الاتصالات الإدارية والمهام' },
     { code: P.settings, name: 'إعدادات الاتصالات الإدارية وصلاحياتها' },
   ],

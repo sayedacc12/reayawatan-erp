@@ -30,7 +30,7 @@ const SAMPLE_BUYER = {
 
 /**
  * الربط مع منصة «فاتورة» (المرحلة الثانية):
- * 1) رمز OTP من بوابة «فاتورة» ← مفتاح الجمعية وطلب الشهادة ← شهادة الامتثال.
+ * 1) رمز OTP من بوابة «فاتورة» ← مفتاح الشركة وطلب الشهادة ← شهادة الامتثال.
  * 2) فحوص الامتثال: ستة مستندات تجريبية موقّعة تُرسل للمنصة.
  * 3) شهادة الإنتاج. بعدها يُوقّع كل مستند ضريبي عند إصداره، ويُبنى ملفه وسلسلة بصماته ورمز QR بحقوله التسعة.
  * الإرسال الفعلي للمستندات (التخليص والإبلاغ) في المرحلة الثالثة.
@@ -79,7 +79,7 @@ export class ZatcaService {
     };
   }
 
-  /** ما ينقص الجمعية قبل الربط */
+  /** ما ينقص الشركة قبل الربط */
   private problems(s: BlSettings) {
     const out = [...this.core.readiness(s).missing];
     if (s.mode !== 'registered' && s.mode !== 'integrated') out.unshift('اختيار وضع «مسجلة في الضريبة» في إعدادات الفوترة');
@@ -127,7 +127,7 @@ export class ZatcaService {
       const problems = this.problems(s);
       if (problems.length) throw new BadRequestException(`أكمل قبل الربط: ${problems.join('، ')}`);
       let z = await this.row(org);
-      if (z.stage === 'production') throw new ConflictException('الجمعية مربوطة بالفعل. لتجديد الشهادة ابدأ الربط من جديد');
+      if (z.stage === 'production') throw new ConflictException('الشركة مربوطة بالفعل. لتجديد الشهادة ابدأ الربط من جديد');
       try {
         if (z.stage === 'none') {
           if (!otp || !/^\d{6}$/.test(otp)) throw new BadRequestException('اكتب رمز التحقق (OTP) المكوّن من 6 أرقام من بوابة «فاتورة»');
@@ -157,19 +157,19 @@ export class ZatcaService {
     const commonName = `${SOLUTION}-${s.vatNumber}-${z.env}`.slice(0, 64);
     const csr = buildCsr(key, {
       env: z.env, commonName, orgUnit: (s.sellerName ?? '').slice(0, 64) || 'Main', orgName: s.sellerName!.slice(0, 64), serial, vatNumber: s.vatNumber!,
-      invoiceTypes: '1100', location: [s.address?.city, s.address?.district].filter(Boolean).join(' - ').slice(0, 64) || 'SA', industry: 'جمعية أهلية',
+      invoiceTypes: '1100', location: [s.address?.city, s.address?.district].filter(Boolean).join(' - ').slice(0, 64) || 'SA', industry: 'شركة غير ربحية',
     });
     const r = await this.api.complianceCsid(z.env, csr, otp);
     if (!r?.binarySecurityToken || !r.secret || !r.requestID) throw new ZatcaApiError(0, r?.dispositionMessage || 'لم تصدر شهادة الامتثال');
     const cert = certBody(Buffer.from(r.binarySecurityToken, 'base64').toString('utf8'));
-    if (!certMatchesKey(cert, key)) throw new ZatcaApiError(0, 'الشهادة المستلمة لا تطابق مفتاح الجمعية');
+    if (!certMatchesKey(cert, key)) throw new ZatcaApiError(0, 'الشهادة المستلمة لا تطابق مفتاح الشركة');
     await this.save(z.organizationId, {
       stage: 'compliance', egsSerial: serial, commonName, privateKeyEnc: seal(key, z.organizationId), csr, complianceCert: cert, complianceSecretEnc: seal(r.secret, z.organizationId),
       complianceRequestId: String(r.requestID), lastError: null, checks: [],
     }, logEntry('صدرت شهادة الامتثال', a.fullName, `البيئة: ${ZATCA_ENVS[z.env]}`), 'none');
   }
 
-  /** بيانات مستند تجريبي لفحص الامتثال من بيانات الجمعية الحقيقية */
+  /** بيانات مستند تجريبي لفحص الامتثال من بيانات الشركة الحقيقية */
   private sample(s: BlSettings, i: number, pih: string, x: (typeof SAMPLES)[number]): UblInput {
     const rate = Number(s.vatRate);
     const c = computeDoc([{ itemId: null, description: 'خدمة تجريبية لفحص الامتثال', unit: null, qty: 1, unitPrice: 100, discount: 0, category: 'S', reasonCode: null, revenueAccountId: '', refLineId: null }], rate, true);
@@ -213,7 +213,7 @@ export class ZatcaService {
     if (!r?.binarySecurityToken || !r.secret) throw new ZatcaApiError(0, r?.dispositionMessage || 'لم تصدر شهادة الإنتاج');
     const cert = certBody(Buffer.from(r.binarySecurityToken, 'base64').toString('utf8'));
     const ci = certInfo(cert);
-    if (!certMatchesKey(cert, unseal(z.privateKeyEnc!, z.organizationId))) throw new ZatcaApiError(0, 'شهادة الإنتاج لا تطابق مفتاح الجمعية');
+    if (!certMatchesKey(cert, unseal(z.privateKeyEnc!, z.organizationId))) throw new ZatcaApiError(0, 'شهادة الإنتاج لا تطابق مفتاح الشركة');
     await this.save(z.organizationId, { stage: 'production', productionCert: cert, productionSecretEnc: seal(r.secret, z.organizationId), certExpiresAt: ci.validTo, lastError: null },
       logEntry('صدرت شهادة الإنتاج', a.fullName, `البيئة: ${ZATCA_ENVS[z.env]}، تنتهي ${ci.validTo.toISOString().slice(0, 10)}`), 'checked');
   }

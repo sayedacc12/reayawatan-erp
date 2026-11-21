@@ -6,7 +6,7 @@ export type SampleDataStatus = 'loading' | 'loaded' | 'cleared';
 export interface SampleDataEvent { at: string; by: string; action: 'loaded' | 'failed' | 'cleared'; note?: string; counts?: Record<string, number> }
 
 /**
- * البيانات التجريبية داخل جمعية مشتركة (فترة التجربة): لقطة سجلات الجمعية قبل الإضافة،
+ * البيانات التجريبية داخل جمعية مشتركة (فترة التجربة): لقطة سجلات الشركة قبل الإضافة،
  * ومعرفات كل سجل تجريبي أُضيف، وسجل العمليات (إضافة، فشل، تحويل لجمعية فعلية).
  */
 @Entity('organization_sample_data')
@@ -27,7 +27,7 @@ export class OrganizationSampleData {
   @Column({ name: 'loaded_at', type: 'timestamptz', default: () => 'now()' })
   loadedAt!: Date;
 
-  /** سجلات الجمعية قبل إضافة البيانات التجريبية (تبقى عند التحويل) */
+  /** سجلات الشركة قبل إضافة البيانات التجريبية (تبقى عند التحويل) */
   @Column({ type: 'jsonb', select: false })
   baseline!: Snapshot;
 

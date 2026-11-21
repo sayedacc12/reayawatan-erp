@@ -43,7 +43,7 @@ const printNow = () => window.print();
           <tr v-if="d.form.notes"><th>ملاحظات</th><td colspan="3">{{ d.form.notes }}</td></tr>
         </tbody>
       </table>
-      <p class="pledge" v-if="d.to">أقر أنا الموقع أدناه باستلام الأصل الموضح أعلاه بحالته المذكورة، وأتعهد بالمحافظة عليه واستخدامه لأغراض الجمعية فقط، وإعادته عند طلبه أو عند انتهاء علاقتي بالجمعية، ولا يتم إخلاء طرفي إلا بعد إرجاعه أو نقله لموظف آخر.</p>
+      <p class="pledge" v-if="d.to">أقر أنا الموقع أدناه باستلام الأصل الموضح أعلاه بحالته المذكورة، وأتعهد بالمحافظة عليه واستخدامه لأغراض الشركة فقط، وإعادته عند طلبه أو عند انتهاء علاقتي بالشركة، ولا يتم إخلاء طرفي إلا بعد إرجاعه أو نقله لموظف آخر.</p>
       <div class="sign">
         <div><span>المسلِّم</span><b>{{ d.from?.name ?? d.form.createdByName }}</b><i /></div>
         <div><span>المستلِم</span><b>{{ d.to?.name ?? '' }}</b><i /><small v-if="d.form.confirmedAt">أكّد الاستلام إلكترونيًا: {{ d.form.confirmedByName }} · {{ dt(d.form.confirmedAt) }}</small></div>

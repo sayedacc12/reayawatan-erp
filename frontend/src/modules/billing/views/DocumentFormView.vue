@@ -133,7 +133,7 @@ const title = computed(() => `${props.id ? 'تعديل' : 'إعداد'} ${lk.val
         </p>
       </div>
     </div>
-    <div v-if="lk.settings.mode === 'off'" class="alert alert-error">فعّل نظام الفوترة واختر وضع الجمعية الضريبي من الإعدادات أولًا.</div>
+    <div v-if="lk.settings.mode === 'off'" class="alert alert-error">فعّل نظام الفوترة واختر وضع الشركة الضريبي من الإعدادات أولًا.</div>
 
     <form class="card pm-panel" @submit.prevent="save(false)">
       <div class="pc-fields">

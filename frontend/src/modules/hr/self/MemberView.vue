@@ -42,7 +42,7 @@ onMounted(async () => {
               <p class="sub">{{ m.employee.jobTitle }} · {{ m.employee.unitName }}</p>
             </div>
           </div>
-          <div class="ess-badge-mgr">⏳ في الجمعية منذ {{ m.service.years }} سنة و{{ m.service.months }} شهر و{{ m.service.days }} يوم</div>
+          <div class="ess-badge-mgr">⏳ في الشركة منذ {{ m.service.years }} سنة و{{ m.service.months }} شهر و{{ m.service.days }} يوم</div>
         </div>
       </section>
       <div class="ess-grid">

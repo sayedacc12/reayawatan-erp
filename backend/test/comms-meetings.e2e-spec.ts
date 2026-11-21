@@ -153,7 +153,7 @@ describe('Comms, tasks and meetings', () => {
       ],
     }).expect(201)).body;
     const m0 = (await http.post(M).set(as(tok.admin)).send({
-      bodyId: body.id, title: 'الاجتماع الأول', meetingType: 'ordinary', mode: 'in_person', location: 'مقر الجمعية', meetingDate: inDays(2), startTime: '10:00', endTime: '12:00',
+      bodyId: body.id, title: 'الاجتماع الأول', meetingType: 'ordinary', mode: 'in_person', location: 'مقر الشركة', meetingDate: inDays(2), startTime: '10:00', endTime: '12:00',
       agenda: ['اعتماد الميزانية', 'خطة التدريب'],
     }).expect(201)).body;
     const id = m0.id;

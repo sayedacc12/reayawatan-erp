@@ -32,7 +32,7 @@ export const DOC_TYPES = [
   { value: 'form', label: 'نموذج' }, { value: 'record', label: 'سجل' }, { value: 'plan', label: 'خطة' }, { value: 'external', label: 'وثيقة خارجية' },
 ];
 export const NCR_SOURCES = [
-  { value: 'audit', label: 'مراجعة داخلية' }, { value: 'complaint', label: 'شكوى' }, { value: 'process', label: 'متابعة العمليات' }, { value: 'beneficiary', label: 'ملاحظة مستفيد' },
+  { value: 'audit', label: 'مراجعة داخلية' }, { value: 'complaint', label: 'شكوى' }, { value: 'process', label: 'متابعة العمليات' }, { value: 'beneficiary', label: 'ملاحظة عميل' },
   { value: 'supplier', label: 'مورد أو جهة خارجية' }, { value: 'review', label: 'مراجعة الإدارة' }, { value: 'risk', label: 'خطر تحقق' }, { value: 'other', label: 'أخرى' },
 ];
 export const AUDIT_RESULTS = [
@@ -44,11 +44,11 @@ export const TREATMENTS = [
   { value: 'exploit', label: 'استغلال (فرصة)' }, { value: 'enhance', label: 'تعزيز (فرصة)' }, { value: 'share', label: 'مشاركة (فرصة)' },
 ];
 export const CHANNELS = [
-  { value: 'portal', label: 'بوابة المستفيدين' }, { value: 'phone', label: 'الهاتف' }, { value: 'email', label: 'البريد الإلكتروني' }, { value: 'visit', label: 'زيارة مباشرة' },
+  { value: 'portal', label: 'الموقع الإلكتروني' }, { value: 'phone', label: 'الهاتف' }, { value: 'email', label: 'البريد الإلكتروني' }, { value: 'visit', label: 'زيارة مباشرة' },
   { value: 'social', label: 'وسائل التواصل' }, { value: 'box', label: 'صندوق الشكاوى' }, { value: 'other', label: 'أخرى' },
 ];
 export const PARTIES = [
-  { value: 'beneficiary', label: 'مستفيد' }, { value: 'donor', label: 'داعم ومتبرع' }, { value: 'volunteer', label: 'متطوع' }, { value: 'employee', label: 'موظف' },
+  { value: 'beneficiary', label: 'عميل' }, { value: 'donor', label: 'داعم أو مانح' }, { value: 'volunteer', label: 'متطوع' }, { value: 'employee', label: 'موظف' },
   { value: 'partner', label: 'شريك' }, { value: 'community', label: 'المجتمع' },
 ];
 export const FREQUENCIES = [{ value: 'monthly', label: 'شهري' }, { value: 'quarterly', label: 'ربع سنوي' }, { value: 'semiannual', label: 'نصف سنوي' }, { value: 'annual', label: 'سنوي' }];

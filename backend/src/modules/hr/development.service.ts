@@ -125,7 +125,7 @@ export class DevelopmentService {
         plan: plan ? { id: plan.id, serial: plan.serial, status: plan.status, statusLabel: DEV_STATUS_AR[plan.status] } : null,
       };
     });
-    // الجدارات الأكثر فجوة على مستوى الجمعية (لتخطيط التدريب الجماعي)
+    // الجدارات الأكثر فجوة على مستوى الشركة (لتخطيط التدريب الجماعي)
     const byComp = new Map<string, { competencyId: string; name: string; employees: number; totalGap: number }>();
     rows.forEach((r) => r.competencies.filter((g) => (g.gap ?? 0) > 0).forEach((g) => {
       const x = byComp.get(g.competencyId) ?? { competencyId: g.competencyId, name: g.name, employees: 0, totalGap: 0 };

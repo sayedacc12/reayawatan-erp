@@ -306,7 +306,7 @@ export class OrdersService {
     return this.get(a, id);
   }
 
-  /** رد الجمعية على طلب توضيح من المورد */
+  /** رد الشركة على طلب توضيح من المورد */
   async reply(a: OrgUser, id: string, note: string) {
     const o = await this.find(a.organizationId, id);
     if (o.status !== 'clarification') throw new ConflictException('لا يوجد طلب توضيح قائم');

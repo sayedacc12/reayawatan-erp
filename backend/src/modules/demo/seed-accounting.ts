@@ -10,7 +10,7 @@ import { VouchersService } from '../accounting/vouchers.service';
 import { DemoTeam } from './demo-context';
 
 /**
- * النظام المالي في الجمعية التجريبية (مستقل حاليًا عن باقي الأنظمة): تنصيب الدليل الموحد، الافتتاحيات،
+ * النظام المالي في الشركة التجريبية (مستقل حاليًا عن باقي الأنظمة): تنصيب الدليل الموحد، الافتتاحيات،
  * البنوك والشركاء، مراحل الاعتماد، سندات قبض وصرف بحالات مختلفة، قيود يدوية، وإغلاق الشهور السابقة.
  */
 @Injectable()
@@ -178,7 +178,7 @@ export class AccountingSeed {
       });
     }
 
-    // نوع سند خاص بالجمعية (يظهر تحت العمليات): سند العهدة النثرية بتسلسل مستقل
+    // نوع سند خاص بالشركة (يظهر تحت العمليات): سند العهدة النثرية بتسلسل مستقل
     const types = await this.masters.createDocumentType(admin, { name: 'سند عهدة نثرية', description: 'صرف وتسوية العهد النقدية للموظفين' });
     const custody = types.find((t) => t.name === 'سند عهدة نثرية')!.code;
     for (const [m, amount, text, post] of [[Math.max(1, month - 1), 600, 'تسوية عهدة مشتريات مكتبية', true], [month, 420, 'عهدة ضيافة لقاء المتطوعين', false]] as const) {

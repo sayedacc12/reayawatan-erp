@@ -79,7 +79,7 @@ async function save(submit: boolean) {
     if (submit) v = await supplierApi(`/invoices/${v.id}/submit`, { method: 'POST', json: {} });
     if (!id.value) await router.replace(`/supplier/${slug.value}/invoices/${v.id}`);
     show(v);
-    ok.value = submit ? 'أُرسلت الفاتورة للجمعية للمطابقة ✓' : 'حُفظت المسودة. أرفق صورة الفاتورة ثم أرسلها.';
+    ok.value = submit ? 'أُرسلت الفاتورة للشركة للمطابقة ✓' : 'حُفظت المسودة. أرفق صورة الفاتورة ثم أرسلها.';
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -108,7 +108,7 @@ const openFile = (key: string) => openSupplierFile(`/invoices/${id.value}/files/
     <div v-if="ok" class="alert alert-success">{{ ok }}</div>
 
     <template v-if="!id">
-      <div class="page-head"><div><h1>رفع فاتورة</h1><p class="muted">اختر التعميد، ثم أدخل الكميات المفوترة بحسب ما استلمته الجمعية وقبلته.</p></div></div>
+      <div class="page-head"><div><h1>رفع فاتورة</h1><p class="muted">اختر التعميد، ثم أدخل الكميات المفوترة بحسب ما استلمته الشركة وقبلته.</p></div></div>
       <section class="card pm-panel" style="margin-bottom: 14px">
         <label class="field"><span>التعميد</span>
           <select v-model="orderId" class="input"><option value="">اختر التعميد…</option><option v-for="o in orders" :key="o.id" :value="o.id">{{ o.code }} · {{ o.title }} ({{ sar(o.total) }})</option></select>
@@ -139,7 +139,7 @@ const openFile = (key: string) => openSupplierFile(`/invoices/${id.value}/files/
       <InvoiceEditor :billable="billable" :form="form" />
       <div class="pc-inline" style="margin-top: 14px">
         <button class="btn" :disabled="busy">حفظ مسودة</button>
-        <button type="button" class="btn btn-primary" :disabled="busy" @click="save(true)">حفظ وإرسال للجمعية</button>
+        <button type="button" class="btn btn-primary" :disabled="busy" @click="save(true)">حفظ وإرسال للشركة</button>
       </div>
     </form>
 
@@ -161,11 +161,11 @@ const openFile = (key: string) => openSupplierFile(`/invoices/${id.value}/files/
         <section class="card pm-panel">
           <h2>الاستفسارات</h2>
           <ul class="pc-log">
-            <li v-for="(m, i) in d.messages" :key="i"><span><b>{{ m.from === 'supplier' ? 'أنتم' : 'الجمعية' }}: {{ m.byName }}</b> <small class="pm-muted">{{ fmtDateTime(m.at) }}</small><div style="white-space: pre-line">{{ m.text }}</div></span></li>
+            <li v-for="(m, i) in d.messages" :key="i"><span><b>{{ m.from === 'supplier' ? 'أنتم' : 'الشركة' }}: {{ m.byName }}</b> <small class="pm-muted">{{ fmtDateTime(m.at) }}</small><div style="white-space: pre-line">{{ m.text }}</div></span></li>
             <li v-if="!d.messages.length" class="pm-muted">لا توجد استفسارات.</li>
           </ul>
           <form class="pc-inline" style="margin-top: 8px" @submit.prevent="send">
-            <input v-model="msg" class="input grow" maxlength="2000" minlength="2" required placeholder="اكتب استفسارك للجمعية" />
+            <input v-model="msg" class="input grow" maxlength="2000" minlength="2" required placeholder="اكتب استفسارك للشركة" />
             <button class="btn" :disabled="busy">إرسال</button>
           </form>
         </section>

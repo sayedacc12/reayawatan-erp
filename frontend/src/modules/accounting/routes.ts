@@ -14,7 +14,7 @@ export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting/payments', component: () => import('./views/VouchersView.vue'), props: { kind: 'payment' }, meta: meta('سندات الصرف') },
   { path: '/accounting/vouchers/:id', component: () => import('./views/VoucherView.vue'), props: true, meta: meta('السند') },
   { path: '/accounting/entries', component: () => import('./views/EntriesView.vue'), meta: meta('قيود اليومية') },
-  { path: '/accounting/documents/:code', component: () => import('./views/EntriesView.vue'), props: (r) => ({ fixedType: String(r.params.code) }), meta: meta('سندات الجمعية') },
+  { path: '/accounting/documents/:code', component: () => import('./views/EntriesView.vue'), props: (r) => ({ fixedType: String(r.params.code) }), meta: meta('سندات الشركة') },
   { path: '/accounting/adjustments', component: () => import('./views/EntriesView.vue'), props: { fixedType: 'adjustment' }, meta: meta('قيود التسوية') },
   { path: '/accounting/entries/new', component: () => import('./views/EntryEditor.vue'), meta: meta('قيد جديد', P.entries) },
   { path: '/accounting/entries/:id', component: () => import('./views/EntryEditor.vue'), props: true, meta: meta('القيد') },

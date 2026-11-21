@@ -229,7 +229,7 @@ export class PlanningReports implements OnModuleInit {
         link: '/planning/plans/{id}',
         run: async (u, f) => (await this.plans.list(org(u), { kind: f.kind, status: f.status })).map((p) => ({
           id: p.id, code: p.code, title: p.title, kind: p.kind === 'strategic' ? 'استراتيجية' : 'تشغيلية', period: p.startYear === p.endYear ? String(p.startYear) : `${p.startYear} - ${p.endYear}`,
-          unitName: p.unitName ?? 'الجمعية', status: ar(WF, p.status), version: p.version, progress: p.summary.progress, performance: p.summary.performance, cost: p.summary.totalCost,
+          unitName: p.unitName ?? 'الشركة', status: ar(WF, p.status), version: p.version, progress: p.summary.progress, performance: p.summary.performance, cost: p.summary.totalCost,
         })),
       },
       {

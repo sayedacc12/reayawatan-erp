@@ -3,13 +3,13 @@ import { EntityManager } from 'typeorm';
 
 /**
  * أدوات عامة على بيانات جمعية واحدة عبر كل جداول الأنظمة (كل جدول يحمل organization_id).
- * تُستخدم لأخذ «لقطة» من سجلات الجمعية قبل إضافة البيانات التجريبية، ثم حذف ما سواها عند التحويل لجمعية فعلية.
+ * تُستخدم لأخذ «لقطة» من سجلات الشركة قبل إضافة البيانات التجريبية، ثم حذف ما سواها عند التحويل لجمعية فعلية.
  */
 
-/** جداول لا تُمس أبدًا: اشتراك الجمعية وعقودها ووحداتها وتذاكر الدعم الفني مع المنصة */
+/** جداول لا تُمس أبدًا: اشتراك الشركة وعقودها ووحداتها وتذاكر الدعم الفني مع المنصة */
 export const PROTECTED_TABLES = new Set(['organization_sample_data', 'organization_closures', 'organization_modules', 'subscription_applications', 'subscription_contracts', 'support_tickets']);
 
-/** جداول يُحذف منها التجريبي فقط ويبقى ما أنشأته الجمعية بنفسها (حسابات الموظفين وأدوارهم) */
+/** جداول يُحذف منها التجريبي فقط ويبقى ما أنشأته الشركة بنفسها (حسابات الموظفين وأدوارهم) */
 export const PEOPLE_TABLES = new Set(['users', 'roles']);
 
 export interface OrgTable {
@@ -72,7 +72,7 @@ export function diff(after: Snapshot, before: Snapshot): Record<string, string[]
 export const countOf = (m: Record<string, string[]>) => Object.values(m).reduce((s, ids) => s + ids.length, 0);
 
 /**
- * حذف كل سجلات الجمعية عدا keep، وإعادة جداول الإعدادات لما كانت عليه في settings.
+ * حذف كل سجلات الشركة عدا keep، وإعادة جداول الإعدادات لما كانت عليه في settings.
  * بعض العلاقات تمنع حذف سجل قبل السجلات المعتمدة عليه، فيُحذف كل جدول بعد الجداول المعتمدة عليه بالمحاولة المتكررة.
  * تُنفَّذ داخل معاملة واحدة: إن تعذر أي جزء لا يُحذف شيء.
  */
@@ -145,7 +145,7 @@ export function bySystem(m: Record<string, string[] | number>) {
 }
 
 /**
- * حذف الجمعية نهائيًا بكل بياناتها من كل الجداول (بما فيها اشتراكها وعقودها وتذاكر دعمها)، ثم صف الجمعية.
+ * حذف الشركة نهائيًا بكل بياناتها من كل الجداول (بما فيها اشتراكها وعقودها وتذاكر دعمها)، ثم صف الشركة.
  * يعيد عدد السجلات المحذوفة. داخل معاملة واحدة: إما يُحذف كل شيء أو لا شيء.
  */
 export async function deleteOrganization(em: EntityManager, orgId: string): Promise<number> {
@@ -169,16 +169,16 @@ export async function deleteOrganization(em: EntityManager, orgId: string): Prom
         failed.push(t);
       }
     }
-    if (failed.length === tables.length) throw new ConflictException(`تعذر حذف بيانات الجمعية من: ${failed.join('، ')}. لم يُحذف شيء.`);
+    if (failed.length === tables.length) throw new ConflictException(`تعذر حذف بيانات الشركة من: ${failed.join('، ')}. لم يُحذف شيء.`);
     tables = failed;
   }
   await em.query('DELETE FROM organizations WHERE id = $1', [orgId]);
   return total;
 }
 
-/** تصدير كل بيانات الجمعية (عدا كلمات المرور والرموز السرية) لتسليمها قبل الحذف */
+/** تصدير كل بيانات الشركة (عدا كلمات المرور والرموز السرية) لتسليمها قبل الحذف */
 export async function exportOrganization(em: EntityManager, orgId: string): Promise<Record<string, unknown[]>> {
-  // المفاتيح المشفرة (مثل مفتاح توقيع الفواتير) لا تخرج من النظام، وبصمات الفواتير الإلكترونية تُسلّم لأنها جزء من سجل الجمعية
+  // المفاتيح المشفرة (مثل مفتاح توقيع الفواتير) لا تخرج من النظام، وبصمات الفواتير الإلكترونية تُسلّم لأنها جزء من سجل الشركة
   const SECRET = /password|token|secret|hash|_enc$|private_key/i;
   const KEEP = new Set(['invoice_hash', 'last_hash']);
   const tables: { table_name: string }[] = await em.query(

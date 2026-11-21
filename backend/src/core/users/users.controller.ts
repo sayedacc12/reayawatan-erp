@@ -15,7 +15,7 @@ export class UsersController {
     return this.users.list(actor);
   }
 
-  /** طلبات «نسيت كلمة المرور» من موظفي الجمعية وسجل كلمات المرور المؤقتة */
+  /** طلبات «نسيت كلمة المرور» من موظفي الشركة وسجل كلمات المرور المؤقتة */
   @Get('password-resets')
   @RequirePermissions(CORE_PERMISSIONS.usersManage)
   passwordResets(@CurrentOrgUser() actor: OrgUser) {

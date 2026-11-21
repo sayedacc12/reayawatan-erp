@@ -157,7 +157,7 @@ describe('Security monitor (sayed)', () => {
     await http.get('/api/auth/me').set(as(orgAdmin)).expect(401);
     orgAdmin = (await login('192.0.2.202', { email: 'admin@bir.org', password: 'Admin12345', organization: 'al-bir' }).expect(200)).body.accessToken;
     await http.get('/api/auth/me').set(as(orgAdmin)).expect(200);
-    // لا يتكرر الإجراء على نفس الطلبات القديمة (والدخول من عنوان جديد لمدير الجمعية يُنبَّه عنه فقط)
+    // لا يتكرر الإجراء على نفس الطلبات القديمة (والدخول من عنوان جديد لمدير الشركة يُنبَّه عنه فقط)
     expect((await detector.run()).map((i) => i.rule)).toEqual(['new_admin_ip']);
 
     // الإيقاف بموافقة الإدارة فقط، ويمكن التراجع عنه

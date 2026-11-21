@@ -86,7 +86,7 @@ export class SourcingCore {
         await this.mail.queue({
           to, kind: m.kind, organizationId: org, dedupeKey: `${m.dedupe}:${r.id}`,
           ...mailLayout({
-            title: m.title, greeting: `السادة ${r.name} المحترمين`, paragraphs: [...m.paragraphs, `من ${o?.name ?? 'الجمعية'}.`], facts: m.facts,
+            title: m.title, greeting: `السادة ${r.name} المحترمين`, paragraphs: [...m.paragraphs, `من ${o?.name ?? 'الشركة'}.`], facts: m.facts,
             button: { label: 'فتح بوابة الموردين', url },
           }),
         });
@@ -96,7 +96,7 @@ export class SourcingCore {
     }
   }
 
-  /** الرقم التالي في جدول (تحت قفل الجمعية) */
+  /** الرقم التالي في جدول (تحت قفل الشركة) */
   async nextNo(em: EntityManager, table: 'pr_requests' | 'pr_rfqs' | 'pr_orders', column: 'request_no' | 'rfq_no' | 'order_no', org: string) {
     await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${table}:${org}`]);
     const [{ n }] = await em.query(`SELECT COALESCE(MAX(${column}), 0)::int + 1 AS n FROM ${table} WHERE organization_id = $1`, [org]);
@@ -226,7 +226,7 @@ export class SourcingCore {
     };
   }
 
-  /** يتحقق أن بند الموازنة ومصدر التمويل موجودان في الجمعية */
+  /** يتحقق أن بند الموازنة ومصدر التمويل موجودان في الشركة */
   async assertFinance(org: string, budgetLineId: string | null | undefined, fundingBatchId: string | null | undefined) {
     if (budgetLineId) await this.avail.line(org, budgetLineId);
     if (fundingBatchId) {

@@ -111,7 +111,7 @@ ${opts.print ? '@media screen { body { padding: 16px; background: #fff; } }' : '
     <h1>${esc(r.title)}</h1>
     <p>${esc(r.description)}</p>
   </div>
-  <div class="brand"><b>سنابل</b>منصة إدارة الجمعيات</div>
+  <div class="brand"><b>رعاية وطن</b>National Care</div>
 </header>
 ${r.subtitle ? `<div class="sub">${esc(r.subtitle)}</div>` : ''}
 <div class="meta">${filters}<span class="chip"><i>عدد السطور:</i> ${esc(formatValue(r.rows.length, 'number') || '٠')}</span></div>

@@ -15,7 +15,7 @@ const units = ref<Unit[]>([]);
 const grades = ref<Grade[]>([]);
 const managers = ref<EmpRow[]>([]);
 const types = ref<AllowanceType[]>([]);
-/** حسابات الدخول في الجمعية لربط الموظف بحسابه (للخدمة الذاتية) */
+/** حسابات الدخول في الشركة لربط الموظف بحسابه (للخدمة الذاتية) */
 const users = ref<{ id: string; fullName: string; email: string; isActive: boolean; employeeId: string | null; employeeName: string | null }[]>([]);
 const saving = ref(false);
 const e = props.employee;

@@ -2,7 +2,7 @@ import { computed, reactive } from 'vue';
 import { api } from '../api';
 import { useSession } from '../stores/session';
 
-/** التعريف بالنظام: الترحيب والجولة الإرشادية وخطوات إطلاق الجمعية والتهاني */
+/** التعريف بالنظام: الترحيب والجولة الإرشادية وخطوات إطلاق الشركة والتهاني */
 export interface LaunchStep {
   key: string; phase: string; title: string; hint: string; link: string; app: string;
   auto: boolean; done: boolean; skipped: boolean;
@@ -44,7 +44,7 @@ export function resetOnboarding() {
   onboarding.queue = [];
 }
 
-/** الخطوات الظاهرة: التابعة لأنظمة متاحة للجمعية فقط */
+/** الخطوات الظاهرة: التابعة لأنظمة متاحة للشركة فقط */
 export function visibleSteps(s: OnboardingState | null) {
   const session = useSession();
   if (!s?.launch) return [];
@@ -93,7 +93,7 @@ function absorb(s: OnboardingState) {
   }
   if (view.complete && !seen.has('launch:all')) {
     keys.push('launch:all');
-    fresh.push({ key: 'launch:all', kind: 'all', icon: '🎉', title: 'مبارك! جمعيتك جاهزة للانطلاق', text: 'أكملت كل خطوات الإطلاق. صار نظامك جاهزًا لخدمة المستفيدين والداعمين بكفاءة. نتمنى لكم التوفيق.' });
+    fresh.push({ key: 'launch:all', kind: 'all', icon: '🎉', title: 'مبارك! شركتك جاهزة للانطلاق', text: 'أكملت كل خطوات الإطلاق. صار نظامك جاهزًا لخدمة المستفيدين والداعمين بكفاءة. نتمنى لكم التوفيق.' });
   }
   if (!keys.length) return;
   if (silent) {

@@ -17,7 +17,7 @@ export interface SupplierPortalUser {
   mustChangePassword: boolean;
 }
 
-/** حارس بوابة الموردين: رمز دخول من نوع supplier، والمستخدم نشط، والجمعية متاحة */
+/** حارس بوابة الموردين: رمز دخول من نوع supplier، والمستخدم نشط، والشركة متاحة */
 @Injectable()
 export class SupplierPortalGuard implements CanActivate {
   constructor(private readonly jwt: JwtService, private readonly db: DataSource, private readonly reflector: Reflector) {}

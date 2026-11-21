@@ -54,7 +54,7 @@ function exportRows() {
   <div>
     <section class="pm-hero vt-hero">
       <div><p class="pm-kicker">المتطوعون</p><h1>سجل المتطوعين</h1>
-        <p class="pm-sub">كل متطوع بنوع تطوعه ومجالاته وساعاته. التسجيل من الموظف، أو من المتطوع نفسه عبر صفحة الجمعية العامة ثم يقبله الموظف.</p></div>
+        <p class="pm-sub">كل متطوع بنوع تطوعه ومجالاته وساعاته. التسجيل من الموظف، أو من المتطوع نفسه عبر صفحة الشركة العامة ثم يقبله الموظف.</p></div>
       <div class="pm-actions">
         <button v-if="session.can(P.volunteers)" class="btn vt-glow" @click="showNew = true">تسجيل متطوع</button>
         <button class="btn vt-ghost" @click="copyJoin">نسخ رابط التسجيل العام</button>

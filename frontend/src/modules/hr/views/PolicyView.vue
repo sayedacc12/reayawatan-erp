@@ -50,7 +50,7 @@ const factorLabel = (f: number) => (f === 0 ? 'لا شيء' : Math.abs(f - 1 / 3
     <section class="pm-hero hr-hero">
       <div><p class="pm-kicker">لائحة الموارد البشرية{{ data.current ? ` · الإصدار ${data.current.version}` : ' · القيم الافتراضية' }}</p>
         <h1>لائحة مستقلة لكل قواعد الموارد البشرية</h1>
-        <p class="pm-sub">تأتي بقيم نظام العمل السعودي ونظام التأمينات جاهزة، وتعدّلها الجمعية حسب لائحتها المعتمدة. كل حفظ إصدار جديد بتاريخ اعتماده، والحسابات كلها تأخذ من الإصدار الساري.</p></div>
+        <p class="pm-sub">تأتي بقيم نظام العمل السعودي ونظام التأمينات جاهزة، وتعدّلها الشركة حسب لائحتها المعتمدة. كل حفظ إصدار جديد بتاريخ اعتماده، والحسابات كلها تأخذ من الإصدار الساري.</p></div>
       <div v-if="data.current" class="pm-actions"><span class="pm-pill" style="--c: #10b981; background: rgba(255,255,255,.9)">سارية من {{ fmtDate(data.current.effectiveDate) }}</span></div>
     </section>
     <div class="hr-tabs"><button v-for="t in tabs" :key="t.k" :class="['hr-tab', { on: tab === t.k }]" @click="tab = t.k">{{ t.l }}</button></div>
@@ -65,7 +65,7 @@ const factorLabel = (f: number) => (f === 0 ? 'لا شيء' : Math.abs(f - 1 / 3
             <label class="field"><span>أجر الساعة الإضافية (مضاعف الأجر)</span><input v-model.number="policy.work.overtimeRate" type="number" step="0.05" class="input" /></label>
             <label class="field"><span>فترة التجربة الافتراضية (يوم)</span><input v-model.number="policy.work.probationDays" type="number" class="input" /></label>
             <label class="field"><span>الحد الأعلى لفترة التجربة مع التمديد</span><input v-model.number="policy.work.maxProbationDays" type="number" class="input" /></label>
-            <label class="field"><span>مهلة الإشعار من الجمعية (يوم)</span><input v-model.number="policy.work.noticeDaysEmployer" type="number" class="input" /></label>
+            <label class="field"><span>مهلة الإشعار من الشركة (يوم)</span><input v-model.number="policy.work.noticeDaysEmployer" type="number" class="input" /></label>
             <label class="field"><span>مهلة الإشعار من الموظف (يوم)</span><input v-model.number="policy.work.noticeDaysEmployee" type="number" class="input" /></label>
             <label class="field"><span>أيام الشهر في احتساب الأجر اليومي</span><input v-model.number="policy.payroll.dayBasis" type="number" class="input" /></label>
           </div>
@@ -90,9 +90,9 @@ const factorLabel = (f: number) => (f === 0 ? 'لا شيء' : Math.abs(f - 1 / 3
           <div class="hr-sec">السعوديون (النظام السابق) %</div>
           <div class="hr-fields">
             <label class="field"><span>المعاشات على الموظف</span><input v-model.number="policy.gosi.saudi.pensionEmployee" type="number" step="0.25" class="input" /></label>
-            <label class="field"><span>المعاشات على الجمعية</span><input v-model.number="policy.gosi.saudi.pensionEmployer" type="number" step="0.25" class="input" /></label>
+            <label class="field"><span>المعاشات على الشركة</span><input v-model.number="policy.gosi.saudi.pensionEmployer" type="number" step="0.25" class="input" /></label>
             <label class="field"><span>ساند على الموظف</span><input v-model.number="policy.gosi.saudi.sanedEmployee" type="number" step="0.25" class="input" /></label>
-            <label class="field"><span>ساند على الجمعية</span><input v-model.number="policy.gosi.saudi.sanedEmployer" type="number" step="0.25" class="input" /></label>
+            <label class="field"><span>ساند على الشركة</span><input v-model.number="policy.gosi.saudi.sanedEmployer" type="number" step="0.25" class="input" /></label>
             <label class="field"><span>الأخطار المهنية</span><input v-model.number="policy.gosi.saudi.hazardsEmployer" type="number" step="0.25" class="input" /></label>
             <label class="field"><span>الأخطار المهنية لغير السعوديين</span><input v-model.number="policy.gosi.nonSaudi.hazardsEmployer" type="number" step="0.25" class="input" /></label>
           </div>

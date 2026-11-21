@@ -155,9 +155,9 @@ async function saveTax() {
             <label class="field"><span>السنة المالية</span><input v-model.number="form.fiscalYear" class="input" type="number" min="2000" max="2100" required /></label>
             <label class="field"><span>بداية السنة المالية</span><input v-model="form.startDate" class="input" type="date" required /></label>
             <label class="field"><span>نهاية السنة المالية</span><input v-model="form.endDate" class="input" type="date" required /></label>
-            <label class="field"><span>الرقم الضريبي (من البيانات الأساسية للجمعية)</span><input v-model="form.taxNumber" class="input ac-code" inputmode="numeric" maxlength="15" placeholder="15 رقمًا" /></label>
+            <label class="field"><span>الرقم الضريبي (من البيانات الأساسية للشركة)</span><input v-model="form.taxNumber" class="input ac-code" inputmode="numeric" maxlength="15" placeholder="15 رقمًا" /></label>
           </div>
-          <label class="check first"><input v-model="form.isFirstYear" type="checkbox" /> هل هذه هي السنة المالية الأولى للجمعية؟</label>
+          <label class="check first"><input v-model="form.isFirstYear" type="checkbox" /> هل هذه هي السنة المالية الأولى للشركة؟</label>
           <Transition name="fade">
             <div v-if="form.isFirstYear" class="field-row firstbox">
               <label class="field"><span>بداية السنة المالية الأولى</span><input v-model="form.firstYearStart" class="input" type="date" required /></label>
@@ -240,7 +240,7 @@ async function saveTax() {
           <section v-if="session.can(P.setup)" class="card pm-panel" style="margin-top: 16px">
             <h2>البيانات الأساسية</h2>
             <div class="ac-toolbar">
-              <label class="field" style="margin: 0"><span>الرقم الضريبي للجمعية</span><input v-model="tax" class="input ac-code" maxlength="15" style="width: 220px" /></label>
+              <label class="field" style="margin: 0"><span>الرقم الضريبي للشركة</span><input v-model="tax" class="input ac-code" maxlength="15" style="width: 220px" /></label>
               <button class="btn" style="align-self: flex-end" @click="saveTax">حفظ</button>
             </div>
           </section>

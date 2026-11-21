@@ -95,7 +95,7 @@ export async function loadAnalytic() {
   return r;
 }
 
-// ---------------- أنواع السندات الخاصة بالجمعية ----------------
+// ---------------- أنواع السندات الخاصة بالشركة ----------------
 
 export interface DocType { id: string; code: string; name: string; description: string | null; isActive: boolean; sortOrder: number; entries: number }
 /** قائمة مشتركة بين الشاشات والقائمة الجانبية، وتُحدَّث بعد أي تعديل في الإعدادات */
@@ -107,6 +107,6 @@ export function loadDocTypes(force = false) {
   }
   return docTypesLoaded;
 }
-/** كل أنواع المستندات: الأساسية ثم الخاصة بالجمعية */
+/** كل أنواع المستندات: الأساسية ثم الخاصة بالشركة */
 export const allTypes = computed(() => [...VOUCHER_TYPES, ...docTypes.value.map((d) => ({ value: d.code, label: d.name }))]);
 export const typeLabel = (code: string) => allTypes.value.find((t) => t.value === code)?.label ?? code;

@@ -95,17 +95,17 @@ export const templates = {
     greeting: v.name ? `السلام عليكم ${v.name}،` : 'السلام عليكم،',
     paragraphs: [
       `نرفق لكم رابط عقد اشتراك ${v.orgName} في منصة سنابل. يمكنكم قراءة العقد كاملًا ثم توقيعه إلكترونيًا، أو طلب تعديل عليه.`,
-      'سيُطلب منكم رقم ترخيص الجمعية للتحقق قبل التوقيع.',
+      'سيُطلب منكم رقم ترخيص الشركة للتحقق قبل التوقيع.',
     ],
     button: btn('فتح العقد وتوقيعه', v.path, v.origin),
-    note: 'الرابط خاص بجمعيتكم، فلا تشاركوه خارجها.',
+    note: 'الرابط خاص بشركتكم، فلا تشاركوه خارجها.',
   }),
 
   adminWelcome: (v: { orgName: string; name: string; login: string; path: string; password: string | null; origin?: string | null }) => mailLayout({
     title: `مرحبًا بكم في سنابل: تم اعتماد ${v.orgName}`,
     greeting: `السلام عليكم ${v.name}،`,
     paragraphs: [
-      'تم اعتماد طلب اشتراك جمعيتكم، وأصبح حساب مدير النظام جاهزًا.',
+      'تم اعتماد طلب اشتراك شركتكم، وأصبح حساب مدير النظام جاهزًا.',
       v.password ? 'هذه كلمة مرور مؤقتة، غيّرها بعد أول دخول من صفحة «حسابي».' : 'ادخل بكلمة المرور التي اخترتها عند التسجيل.',
     ],
     facts: [
@@ -130,13 +130,13 @@ export const templates = {
       trial_ending: 'الفترة التجريبية تنتهي قريبًا',
       trial_expired: 'انتهت الفترة التجريبية',
       mutual: 'تأكيد إنهاء العقد وموعد حذف البيانات',
-      final: 'تنبيه أخير: حذف بيانات الجمعية',
+      final: 'تنبيه أخير: حذف بيانات الشركة',
     } as const;
     const daysText = v.days === 0 ? 'اليوم' : v.days === 1 ? 'غدًا' : v.days === 2 ? 'بعد يومين' : v.days <= 10 ? `بعد ${v.days} أيام` : `بعد ${v.days} يومًا`;
     const paragraphs = {
-      trial_ending: [`تنتهي الفترة التجريبية لـ${v.orgName} في ${v.endsOn}.`, `إذا لم يتم التعاقد، ستُحذف الجمعية وكل بياناتها نهائيًا في ${v.deleteOn}. للتعاقد أو التمديد تواصلوا مع إدارة المنصة.`],
-      trial_expired: [`انتهت الفترة التجريبية لـ${v.orgName} وتوقف الدخول.`, `ستُحذف الجمعية وكل بياناتها نهائيًا ${daysText} (${v.deleteOn}) ما لم يتم التعاقد.`],
-      mutual: [`تم إنهاء عقد ${v.orgName} بالتراضي، وتوقف الدخول.`, `ستُحذف الجمعية وكل بياناتها نهائيًا في ${v.deleteOn}. إذا رغبتم في نسخة من بياناتكم فاطلبوها من إدارة المنصة قبل هذا الموعد.`],
+      trial_ending: [`تنتهي الفترة التجريبية لـ${v.orgName} في ${v.endsOn}.`, `إذا لم يتم التعاقد، ستُحذف الشركة وكل بياناتها نهائيًا في ${v.deleteOn}. للتعاقد أو التمديد تواصلوا مع إدارة المنصة.`],
+      trial_expired: [`انتهت الفترة التجريبية لـ${v.orgName} وتوقف الدخول.`, `ستُحذف الشركة وكل بياناتها نهائيًا ${daysText} (${v.deleteOn}) ما لم يتم التعاقد.`],
+      mutual: [`تم إنهاء عقد ${v.orgName} بالتراضي، وتوقف الدخول.`, `ستُحذف الشركة وكل بياناتها نهائيًا في ${v.deleteOn}. إذا رغبتم في نسخة من بياناتكم فاطلبوها من إدارة المنصة قبل هذا الموعد.`],
       final: [`ستُحذف ${v.orgName} وكل بياناتها نهائيًا ${daysText} (${v.deleteOn}).`, 'بعد الحذف لا يمكن استرجاع أي بيانات. للتعاقد أو طلب نسخة من البيانات تواصلوا مع إدارة المنصة الآن.'],
     } as const;
     return mailLayout({
@@ -144,7 +144,7 @@ export const templates = {
       subject: `${titles[v.stage]} - ${v.orgName}`,
       greeting: 'السلام عليكم،',
       paragraphs: [...paragraphs[v.stage]],
-      button: btn('صفحة دخول الجمعية', `/o/${v.slug}`),
+      button: btn('صفحة دخول الشركة', `/o/${v.slug}`),
     });
   },
 
@@ -167,7 +167,7 @@ export const templates = {
 
   inquiryAck: (v: { number: number; contactName: string; kindLabel: string }) => mailLayout({
     title: 'استلمنا طلبكم',
-    subject: `استلمنا طلبكم رقم ${v.number} - سنابل`,
+    subject: `استلمنا طلبكم رقم ${v.number} - رعاية وطن`,
     greeting: `السلام عليكم ${v.contactName}،`,
     paragraphs: [`شكرًا لتواصلكم مع سنابل. استلمنا طلبكم (${v.kindLabel}) برقم ${v.number}، وسيتواصل معكم فريقنا قريبًا.`],
     button: btn('زيارة موقع سنابل', '/'),
@@ -177,15 +177,15 @@ export const templates = {
   passwordReset: (v: { name?: string; url: string; minutes: number }) => mailLayout({
     title: 'إعادة تعيين كلمة المرور',
     greeting: v.name ? `السلام عليكم ${v.name}،` : 'السلام عليكم،',
-    paragraphs: [`وصلنا طلب لإعادة تعيين كلمة المرور لحسابك في سنابل. الرابط صالح لمدة ${v.minutes} دقيقة ويُستخدم مرة واحدة.`],
+    paragraphs: [`وصلنا طلب لإعادة تعيين كلمة المرور لحسابك في نظام رعاية وطن. الرابط صالح لمدة ${v.minutes} دقيقة ويُستخدم مرة واحدة.`],
     button: { label: 'تعيين كلمة مرور جديدة', url: v.url },
     note: 'إذا لم تطلب ذلك فتجاهل هذه الرسالة، وستبقى كلمة مرورك كما هي.',
   }),
 
   backupAlert: (v: { target: string; problem: string; lastSuccess: string; detail?: string | null }) => mailLayout({
     title: `تنبيه: ${v.problem} (${v.target})`,
-    subject: `تنبيه النسخ الاحتياطي: ${v.problem} - سنابل`,
-    paragraphs: ['يحتاج النسخ الاحتياطي لمنصة سنابل إلى مراجعة. البيانات الحالية لم تتأثر، لكن آخر نسخة سليمة أقدم من المعتاد.'],
+    subject: `تنبيه النسخ الاحتياطي: ${v.problem} - رعاية وطن`,
+    paragraphs: ['يحتاج النسخ الاحتياطي لنظام رعاية وطن إلى مراجعة. البيانات الحالية لم تتأثر، لكن آخر نسخة سليمة أقدم من المعتاد.'],
     facts: [
       { label: 'الوجهة', value: v.target },
       { label: 'المشكلة', value: v.problem },
@@ -198,7 +198,7 @@ export const templates = {
 
   securityAlert: (v: { severity: string; title: string; summary: string; facts: { label: string; value: string; ltr?: boolean }[]; actions: string[]; pending?: string | null }) => mailLayout({
     title: `${v.severity}: ${v.title}`,
-    subject: `تنبيه أمني (${v.severity}): ${v.title} - سنابل`,
+    subject: `تنبيه أمني (${v.severity}): ${v.title} - رعاية وطن`,
     paragraphs: [
       v.summary,
       ...(v.actions.length ? [`ما فعله «سيد» تلقائيًا: ${v.actions.join('، ')}.`] : ['لم يتخذ «سيد» أي إجراء تلقائي، والتنبيه للعلم والمراجعة.']),
@@ -212,7 +212,7 @@ export const templates = {
 
   securityDaily: (v: { day: string; status: string; paragraphs: string[]; facts: { label: string; value: string; ltr?: boolean }[]; recommendations: string[] }) => mailLayout({
     title: `التقرير اليومي للمراقب الأمني «سيد»: ${v.day}`,
-    subject: `تقرير سنابل اليومي (${v.day}): ${v.status}`,
+    subject: `تقرير رعاية وطن اليومي (${v.day}): ${v.status}`,
     greeting: 'السلام عليكم،',
     paragraphs: [...v.paragraphs, ...(v.recommendations.length ? ['التوصيات:', ...v.recommendations.map((r, i) => `${i + 1}. ${r}`)] : [])],
     facts: v.facts,

@@ -53,7 +53,7 @@ function move(i: number, d: number) {
     </div>
     <section v-if="tab === 'structure'" class="card pm-panel" style="max-width: 640px">
       <h2>مستويات الهيكل التنظيمي</h2>
-      <p class="pm-muted">رتّب المستويات من الأعلى للأدنى بالأسماء التي تستخدمها الجمعية (مثل: قطاع، إدارة، قسم، وحدة). يمكن أن تتبع الوحدة أي مستوى أعلى منها، فلا يلزم المرور بكل المستويات. لا يُحذف مستوى عليه وحدات.</p>
+      <p class="pm-muted">رتّب المستويات من الأعلى للأدنى بالأسماء التي تستخدمها الشركة (مثل: قطاع، إدارة، قسم، وحدة). يمكن أن تتبع الوحدة أي مستوى أعلى منها، فلا يلزم المرور بكل المستويات. لا يُحذف مستوى عليه وحدات.</p>
       <div v-for="(l, i) in levels" :key="i" style="display: flex; gap: 6px; margin-bottom: 8px; align-items: center">
         <span class="pm-tag" style="min-width: 28px; text-align: center">{{ i + 1 }}</span>
         <input v-model="levels[i]" class="input" />

@@ -47,18 +47,18 @@ const link = (p: string) => publicUrl(p);
 async function copyLink(p: string) {
   if (await copy(link(p))) toast.success('نُسخ الرابط');
 }
-const CONTRACT_VARS = ['اسم الجمعية', 'اسم المتطوع', 'رقم الهوية', 'رقم الجوال', 'رقم العقد', 'تاريخ العقد', 'تاريخ البداية', 'تاريخ النهاية', 'مجالات التطوع', 'نوع التطوع'];
-const CERT_VARS = ['اسم الجمعية', 'اسم المتطوع', 'رقم الهوية', 'عدد الساعات', 'الفعاليات', 'اسم الفعالية', 'من تاريخ', 'إلى تاريخ', 'تاريخ الإصدار'];
+const CONTRACT_VARS = ['اسم الشركة', 'اسم المتطوع', 'رقم الهوية', 'رقم الجوال', 'رقم العقد', 'تاريخ العقد', 'تاريخ البداية', 'تاريخ النهاية', 'مجالات التطوع', 'نوع التطوع'];
+const CERT_VARS = ['اسم الشركة', 'اسم المتطوع', 'رقم الهوية', 'عدد الساعات', 'الفعاليات', 'اسم الفعالية', 'من تاريخ', 'إلى تاريخ', 'تاريخ الإصدار'];
 </script>
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات التطوع</h1><p class="muted">كل النماذج والقوائم والقوالب هنا مرنة: أضف واحذف وعدّل بما يناسب الجمعية. اللائحة والميثاق في <RouterLink to="/volunteers/policy" class="pm-link">لائحة التطوع وميثاقه</RouterLink>.</p></div></div>
+    <div class="page-head"><div><h1>إعدادات التطوع</h1><p class="muted">كل النماذج والقوائم والقوالب هنا مرنة: أضف واحذف وعدّل بما يناسب الشركة. اللائحة والميثاق في <RouterLink to="/volunteers/policy" class="pm-link">لائحة التطوع وميثاقه</RouterLink>.</p></div></div>
     <div class="vt-tabs"><button v-for="t in TABS" :key="t.k" :class="['vt-tab', { on: tab === t.k }]" @click="tab = t.k">{{ t.l }}</button></div>
     <template v-if="s">
       <Transition name="page" mode="out-in">
         <section v-if="tab === 'general'" key="g" class="card pm-panel" style="max-width: 760px">
-          <h2>صفحة التطوع العامة للجمعية</h2>
+          <h2>صفحة التطوع العامة للشركة</h2>
           <p class="pm-muted">صفحة بدون دخول يسجل منها المتطوع نفسه (ويظهر طلبه «بانتظار القبول»)، ويرسل منها أي شخص شكوى أو مقترحًا أو استفسارًا ويتابعه.</p>
           <label class="check" style="margin-bottom: 12px"><input v-model="s.publicRegistration" type="checkbox" /> السماح بالتسجيل الذاتي للمتطوعين</label>
           <div class="vt-chips" style="flex-direction: column; align-items: stretch">
@@ -70,7 +70,7 @@ const CERT_VARS = ['اسم الجمعية', 'اسم المتطوع', 'رقم ا�
 
         <section v-else-if="tab === 'registration'" key="r" class="card pm-panel">
           <h2>نموذج تسجيل المتطوع</h2>
-          <FieldsEditor v-model="s.registrationFields" hint="البيانات الأساسية ثابتة (الاسم، الهوية، الجوال، البريد، الجنس، الميلاد، المدينة، المؤهل، نوع التطوع، المجالات، الإتاحة، المهارات). أضف هنا ما تحتاجه الجمعية فوقها، ويظهر في التسجيل الذاتي وتسجيل الموظف." />
+          <FieldsEditor v-model="s.registrationFields" hint="البيانات الأساسية ثابتة (الاسم، الهوية، الجوال، البريد، الجنس، الميلاد، المدينة، المؤهل، نوع التطوع، المجالات، الإتاحة، المهارات). أضف هنا ما تحتاجه الشركة فوقها، ويظهر في التسجيل الذاتي وتسجيل الموظف." />
           <div class="modal-actions"><button class="btn btn-primary" @click="save('registration', { registrationFields: s.registrationFields })">حفظ النموذج</button></div>
         </section>
 
@@ -97,7 +97,7 @@ const CERT_VARS = ['اسم الجمعية', 'اسم المتطوع', 'رقم ا�
           </div>
           <button class="btn btn-sm" :disabled="s.eventStages.length >= 8" @click="s.eventStages.push({ name: '', roleId: null })">+ مرحلة</button>
           <div class="vt-sec">حقول إضافية في نموذج الفعالية</div>
-          <FieldsEditor v-model="s.eventFields" hint="الحقول الأساسية ثابتة (الاسم، النوع ميداني أو عن بعد، الموقع أو المنصة، الموعد، الساعات، المستهدفات، الوصف). أضف ما تحتاجه الجمعية فوقها." />
+          <FieldsEditor v-model="s.eventFields" hint="الحقول الأساسية ثابتة (الاسم، النوع ميداني أو عن بعد، الموقع أو المنصة، الموعد، الساعات، المستهدفات، الوصف). أضف ما تحتاجه الشركة فوقها." />
           <div class="modal-actions"><button class="btn btn-primary" @click="save('events', { eventFields: s.eventFields, eventStages: s.eventStages })">حفظ</button></div>
         </section>
 
