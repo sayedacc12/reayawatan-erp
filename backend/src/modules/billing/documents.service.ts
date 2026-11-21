@@ -296,7 +296,7 @@ export class DocumentsService implements OnModuleInit {
     await this.db.transaction(async (em) => {
       const d = await this.lock(em, org, id);
       if (d.status !== 'pending') throw new ConflictException(d.status === 'draft' ? 'أرسل المستند للإصدار أولًا' : 'المستند لا ينتظر الإصدار');
-      if (!a.isSuperadmin && (d.createdById === a.id || d.editorIds.includes(a.id))) throw new ForbiddenException('لا يصدر الموظف مستندًا أنشأه أو عدّله أو أرسله بنفسه (فصل المهام)');
+      if (s.separateIssuer && !a.isSuperadmin && (d.createdById === a.id || d.editorIds.includes(a.id))) throw new ForbiddenException('لا يصدر الموظف مستندًا أنشأه أو عدّله أو أرسله بنفسه (فصل المهام)');
       if (s.mode === 'unregistered' && d.docType !== 'nontax') throw new ConflictException('الجمعية غير مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة عادية');
       if (s.mode !== 'unregistered' && d.docType === 'nontax') throw new ConflictException('الجمعية مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة ضريبية');
       let ref: BlDocument | null = null;
@@ -490,8 +490,8 @@ export class DocumentsService implements OnModuleInit {
     const pendingCollect = fromH(receipts.filter((r) => PENDING_VOUCHER.includes(r.status)).reduce((t, r) => t + toH(r.amount), 0));
     const outstanding = outstandingOf(d);
     const accMap = new Map(accounts.map((x) => [x.id, x]));
-    const notMine = a.isSuperadmin || (d.createdById !== a.id && !d.editorIds.includes(a.id));
     const s = await this.core.settings(org);
+    const notMine = !s.separateIssuer || a.isSuperadmin || (d.createdById !== a.id && !d.editorIds.includes(a.id));
     // سطور غيّر فيها المُعدّ الفئة الضريبية عن فئة الصنف: تُعرض للمصدِر قبل قراره
     const itemIds = [...new Set(d.lines.map((l) => l.itemId).filter(Boolean))] as string[];
     const itemCats: { id: string; name: string; vat_category: string }[] = itemIds.length

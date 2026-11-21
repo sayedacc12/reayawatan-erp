@@ -183,6 +183,10 @@ export class BlSettings {
   @Column({ name: 'payment_days', type: 'int', default: 30 })
   paymentDays!: number;
 
+  /** فصل المُعدّ عن المُصدِر: قرار من نظام الرقابة الداخلية لكل جمعية، ومفعّل افتراضيًا */
+  @Column({ name: 'separate_issuer', type: 'boolean', default: true })
+  separateIssuer!: boolean;
+
   /** شروط وملاحظات تطبع أسفل الفاتورة */
   @Column({ type: 'varchar', length: 2000, nullable: true })
   terms!: string | null;

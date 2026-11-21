@@ -23,6 +23,7 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
   let db: DataSource;
   const tok: Record<string, string> = {};
   const ids: Record<string, string> = {};
+  let settingsBase: Record<string, unknown> = {};
   const acc: Record<string, string> = {};
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
   const login = async (login: string, password: string, organization?: string) =>
@@ -112,7 +113,9 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     expect(noAddr.body.message).toContain('رقم المبنى');
     await http.put(`${B}/settings`).set(as(tok.admin)).send({ ...base, revenueAccountId: acc.expense }).expect(400);
     await http.put(`${B}/settings`).set(as(tok.admin)).send({ ...base, customerCategoryId: ids.supplierCat }).expect(400);
+    settingsBase = base;
     const ok = (await http.put(`${B}/settings`).set(as(tok.admin)).send(base).expect(200)).body;
+    expect(ok.settings.separateIssuer).toBe(true);
     expect(ok.readiness).toEqual({ ready: true, missing: [] });
     expect(ok.settings).toMatchObject({ mode: 'registered', vatNumber: '310123456700003', vatRate: 15 });
   });
@@ -277,5 +280,17 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     await http.post(`${B}/documents/${ids.inv}/collect`).set(as(tok.other)).send({ date: today, method: 'transfer', cashAccountId: ids.bank, amount: 1 }).expect(404);
     const list = (await http.get(`${B}/documents`).set(as(tok.other)).expect(200)).body;
     expect(list.rows ?? list).toHaveLength(0);
+  });
+
+  it('lets each organization turn off the preparer and issuer separation in its settings', async () => {
+    const off = (await http.put(`${B}/settings`).set(as(tok.admin)).send({ ...settingsBase, separateIssuer: false }).expect(200)).body;
+    expect(off.settings.separateIssuer).toBe(false);
+    expect(off.settings.log.at(-1).note).toContain('فصل المُعدّ عن المُصدِر');
+    const mine = (await http.post(`${B}/documents`).set(as(tok.both)).send({ kind: 'invoice', buyerName: 'زائر', lines: [{ description: 'رسوم فعالية', qty: 1, unitPrice: 20 }] }).expect(200)).body;
+    await http.post(`${B}/documents/${mine.id}/submit`).set(as(tok.both)).expect(200);
+    expect((await http.get(`${B}/documents/${mine.id}`).set(as(tok.both)).expect(200)).body.can.issue).toBe(true);
+    await http.post(`${B}/documents/${mine.id}/issue`).set(as(tok.both)).send({}).expect(200);
+    const on = (await http.put(`${B}/settings`).set(as(tok.admin)).send({ ...settingsBase, separateIssuer: true }).expect(200)).body;
+    expect(on.settings.separateIssuer).toBe(true);
   });
 });

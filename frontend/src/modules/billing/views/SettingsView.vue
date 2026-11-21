@@ -20,6 +20,7 @@ function fill(l: any) {
     mode: s.mode === 'integrated' ? 'registered' : s.mode, sellerName: s.sellerName ?? '', sellerNameEn: s.sellerNameEn ?? '', vatNumber: s.vatNumber ?? '', idType: s.idType ?? '', idNumber: s.idNumber ?? '',
     address: { ...emptyAddress(), ...(s.address ?? {}) }, vatRate: s.vatRate, receivablesAccountId: s.receivablesAccountId ?? '', vatOutputAccountId: s.vatOutputAccountId ?? '',
     revenueAccountId: s.revenueAccountId ?? '', customerCategoryId: s.customerCategoryId ?? '', analyticId: s.analyticId ?? '', paymentDays: s.paymentDays, terms: s.terms ?? '',
+    separateIssuer: s.separateIssuer ?? true,
   };
 }
 onMounted(async () => {
@@ -43,6 +44,7 @@ async function save() {
         mode: x.mode, sellerName: x.sellerName || null, sellerNameEn: x.sellerNameEn || null, vatNumber: x.vatNumber || null, idType: x.idType || null, idNumber: x.idNumber || null,
         address: addressPayload(x.address), vatRate: Number(x.vatRate), receivablesAccountId: x.receivablesAccountId || null, vatOutputAccountId: x.vatOutputAccountId || null,
         revenueAccountId: x.revenueAccountId || null, customerCategoryId: x.customerCategoryId || null, analyticId: x.analyticId || null, paymentDays: Number(x.paymentDays), terms: x.terms || null,
+        separateIssuer: !!x.separateIssuer,
       },
     });
     lk.value = r;
@@ -106,6 +108,9 @@ async function save() {
           <label class="field"><span>مدة السداد الافتراضية (يوم)</span><input v-model.number="f.paymentDays" type="number" min="0" max="365" class="input" required /></label>
           <label class="field wide"><span>شروط تظهر أسفل الفاتورة</span><textarea v-model="f.terms" class="input" rows="2" maxlength="2000" /></label>
         </div>
+        <p class="pc-sec">الرقابة الداخلية</p>
+        <label class="bl-mode" :class="{ on: f.separateIssuer }"><input v-model="f.separateIssuer" type="checkbox" /> <span>يصدر الفاتورة موظف غير الذي أعدّها (فصل المهام)</span></label>
+        <p class="pm-muted" style="font-size: .82rem; margin: 6px 0 0">يُحدد حسب نظام الرقابة الداخلية للجمعية. عند إلغائه يستطيع من لديه صلاحية الإصدار أن يصدر ما أعدّه بنفسه، ويبقى ذلك مسجلًا في سجل المستند.</p>
       </template>
       <template v-else>
         <p class="pm-muted" style="font-size: .86rem">قيد كل فاتورة صادرة: مدين حساب العملاء بالإجمالي، ودائن حساب الإيراد (أو حساب الصنف) وحساب ضريبة المخرجات. والإشعار الدائن عكسه. والتحصيل بسند قبض: مدين البنك أو الصندوق، ودائن حساب العملاء.</p>

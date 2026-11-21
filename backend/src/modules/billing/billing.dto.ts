@@ -33,6 +33,7 @@ export class BillingSettingsDto {
   @IsOptional() @IsUUID() customerCategoryId?: string | null;
   @IsOptional() @IsUUID() analyticId?: string | null;
   @IsInt() @Min(0) @Max(365) paymentDays!: number;
+  @IsOptional() @IsBoolean() separateIssuer?: boolean;
   @IsOptional() @IsString() @MaxLength(2000) @trim() terms?: string | null;
 }
 

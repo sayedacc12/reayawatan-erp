@@ -48,12 +48,12 @@ export class BillingOpsService {
       mode: dto.mode, sellerName: dto.sellerName ?? null, sellerNameEn: dto.sellerNameEn ?? null, vatNumber, idType: dto.idType ?? null, idNumber: cleanDigits(dto.idNumber),
       address, vatRate: r2(dto.vatRate), receivablesAccountId: dto.receivablesAccountId ?? null, vatOutputAccountId: dto.vatOutputAccountId ?? null,
       revenueAccountId: dto.revenueAccountId ?? null, customerCategoryId: dto.customerCategoryId ?? null, analyticId: dto.analyticId ?? null,
-      paymentDays: dto.paymentDays, terms: dto.terms ?? null,
+      paymentDays: dto.paymentDays, terms: dto.terms ?? null, separateIssuer: dto.separateIssuer ?? s.separateIssuer,
     };
     const note = diffNote(s as never, next as never, {
       mode: 'الوضع', sellerName: 'اسم الجمعية', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
       address: 'العنوان الوطني', vatRate: 'نسبة الضريبة', receivablesAccountId: 'حساب العملاء', vatOutputAccountId: 'حساب ضريبة المخرجات', revenueAccountId: 'حساب الإيراد',
-      customerCategoryId: 'تصنيف العملاء', analyticId: 'مركز التكلفة', paymentDays: 'مدة السداد', terms: 'الشروط',
+      customerCategoryId: 'تصنيف العملاء', analyticId: 'مركز التكلفة', paymentDays: 'مدة السداد', terms: 'الشروط', separateIssuer: 'فصل المُعدّ عن المُصدِر',
     });
     await this.db.getRepository(BlSettings).update({ organizationId: org }, {
       ...next, log: [...s.log, logEntry('تعديل إعدادات الفوترة', a.fullName, note)].slice(-200), updatedAt: new Date(),

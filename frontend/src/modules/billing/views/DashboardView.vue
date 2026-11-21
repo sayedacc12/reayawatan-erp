@@ -32,7 +32,7 @@ const taxPct = computed(() => (d.value ? Math.min(100, Math.round((d.value.kpis.
       <div>
         <p class="pm-kicker">الفوترة والمبيعات</p>
         <h1>فواتير ضريبية برمز QR، وقيود آلية، وتحصيل منظم</h1>
-        <p class="pm-sub">فواتير المبيعات والإيجارات والخدمات بمعرّف فريد وعداد متسلسل ورمز QR، يُعدّها موظف ويصدرها آخر، فيُنشأ قيدها في النظام المالي تلقائيًا، ويُحصّل مبلغها بسندات القبض. تمهيدًا للربط مع منصة «فاتورة».</p>
+        <p class="pm-sub">فواتير المبيعات والإيجارات والخدمات بمعرّف فريد وعداد متسلسل ورمز QR، يُعدّها موظف ويصدرها المختص، فيُنشأ قيدها في النظام المالي تلقائيًا، ويُحصّل مبلغها بسندات القبض. تمهيدًا للربط مع منصة «فاتورة».</p>
       </div>
       <div class="pm-actions">
         <RouterLink v-if="session.can(BL.invoices)" to="/billing/invoices/new" class="btn bl-glow">+ فاتورة جديدة</RouterLink>
@@ -51,7 +51,7 @@ const taxPct = computed(() => (d.value ? Math.min(100, Math.round((d.value.kpis.
         <div class="pm-kpi" style="--a: #dc2626; --i: 3"><span>متأخرة السداد</span><strong>{{ d.kpis.overdue }}</strong><small>{{ sar(d.kpis.overdueAmount) }}</small></div>
       </div>
       <div class="pc-cards" style="margin-bottom: 18px">
-        <RouterLink class="pc-kpi" :class="{ hot: d.kpis.pending }" to="/billing/invoices?view=pending"><small class="pm-muted">بانتظار الإصدار</small><b style="font-size: 1.5rem">{{ d.kpis.pending }}</b><small class="pm-muted">يصدرها موظف غير من أعدّها</small></RouterLink>
+        <RouterLink class="pc-kpi" :class="{ hot: d.kpis.pending }" to="/billing/invoices?view=pending"><small class="pm-muted">بانتظار الإصدار</small><b style="font-size: 1.5rem">{{ d.kpis.pending }}</b><small class="pm-muted">تنتظر قرار الإصدار</small></RouterLink>
         <RouterLink class="pc-kpi" to="/billing/invoices?view=drafts"><small class="pm-muted">مسودات</small><b style="font-size: 1.5rem">{{ d.kpis.drafts }}</b><small class="pm-muted">لم تُرسل للإصدار</small></RouterLink>
         <RouterLink class="pc-kpi" to="/billing/customers"><small class="pm-muted">العملاء النشطون</small><b style="font-size: 1.5rem">{{ d.kpis.customers }}</b><small class="pm-muted">{{ d.kpis.items }} صنف وخدمة</small></RouterLink>
         <RouterLink class="pc-kpi" to="/billing/reconciliation"><small class="pm-muted">المطابقة مع الدليل</small><b style="font-size: 1.3rem" :style="{ color: d.reconciliation.ok ? '#047857' : '#b91c1c' }">{{ d.reconciliation.ok ? '✓ مطابق' : `✕ ${d.reconciliation.issues} فرق` }}</b><small class="pm-muted">الذمم وضريبة المخرجات</small></RouterLink>
