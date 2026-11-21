@@ -9,7 +9,9 @@ import '../../projects/projects.css';
 import '../procurement.css';
 
 const toast = useToast();
-const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'stock' | 'invoices' | 'permissions'>('general');
+const tab = ref<'general' | 'sourcing' | 'docs' | 'suppliers' | 'portal' | 'accounting' | 'stock' | 'invoices' | 'evaluation' | 'permissions'>('general');
+const ev = ref<any>(null);
+const METRICS: Record<string, string> = { onTimePct: 'التوريد في الموعد', fillPct: 'اكتمال الكميات', qualityPct: 'الجودة في الفحص', invoiceOkPct: 'مطابقة الفواتير', kpiPct: 'مستويات الخدمة' };
 const inv = ref<any>({ matchTolerancePct: 0, vatInputAccountId: '', paymentDays: 30 });
 const slk = ref<any>(null);
 const st = ref<any>({});
@@ -112,6 +114,38 @@ async function save(patch: Record<string, unknown>, ok = 'حُفظت الإعد�
     busy.value = false;
   }
 }
+async function openEval() {
+  tab.value = 'evaluation';
+  if (ev.value) return;
+  try {
+    const x = await api<any>('/procurement/evaluation-lookups');
+    ev.value = {
+      criteria: x.criteria.map((c: any) => ({ ...c, metric: c.metric ?? '' })), gradeA: x.gradeLimits.A, gradeB: x.gradeLimits.B, gradeC: x.gradeLimits.C,
+      blockWeak: x.blockWeak, auditAreaIds: [...(x.auditAreaIds ?? [])], areas: x.auditAreas,
+    };
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
+const evWeight = () => (ev.value?.criteria ?? []).reduce((t: number, c: any) => t + Number(c.weight || 0), 0);
+async function saveEval() {
+  busy.value = true;
+  try {
+    const e = ev.value;
+    await api('/procurement/evaluation-settings', {
+      method: 'PUT',
+      json: {
+        criteria: e.criteria.map((c: any) => ({ key: c.key, name: c.name, weight: Number(c.weight), metric: c.metric || null })),
+        gradeA: Number(e.gradeA), gradeB: Number(e.gradeB), gradeC: Number(e.gradeC), blockWeak: e.blockWeak, auditAreaIds: e.auditAreaIds,
+      },
+    });
+    toast.success('حُفظت إعدادات التقييم');
+  } catch (err) {
+    toast.error((err as Error).message);
+  } finally {
+    busy.value = false;
+  }
+}
 async function saveInvoices() {
   busy.value = true;
   try {
@@ -159,6 +193,7 @@ function addActivity() {
       <button :class="{ on: tab === 'accounting' }" @click="tab = 'accounting'">الربط المالي</button>
       <button :class="{ on: tab === 'stock' }" @click="openStock">المستودعات</button>
       <button :class="{ on: tab === 'invoices' }" @click="tab = 'invoices'">الفواتير والمطابقة</button>
+      <button :class="{ on: tab === 'evaluation' }" @click="openEval">تقييم الموردين والرقابة</button>
       <button :class="{ on: tab === 'permissions' }" @click="tab = 'permissions'">الصلاحيات</button>
     </div>
 
@@ -301,6 +336,34 @@ function addActivity() {
             <small class="pm-muted">مطلوب لتسجيل الفواتير في المالي إذا كانت الضريبة لا تدخل في تكلفة المشتريات (من تبويب المستودعات).</small></label>
         </div>
         <button class="btn btn-primary" :disabled="busy" @click="saveInvoices">حفظ</button>
+      </section>
+
+      <section v-else-if="tab === 'evaluation' && ev" class="card pm-panel">
+        <p class="pm-muted">معايير تقييم أداء الموردين وأوزانها (مجموعها 100). المعيار المرتبط بمؤشر تُقترح درجته آليًا من بيانات المورد، والمعيار اليدوي يقدّره المقيّم.</p>
+        <table class="pc-lines">
+          <thead><tr><th>المعيار</th><th>الوزن %</th><th>المؤشر المحسوب</th><th></th></tr></thead>
+          <tbody>
+            <tr v-for="(c, i) in ev.criteria" :key="i">
+              <td><input v-model="c.name" class="input" maxlength="200" /></td>
+              <td><input v-model.number="c.weight" type="number" min="0" max="100" step="any" class="input" style="width: 90px" /></td>
+              <td><select v-model="c.metric" class="input"><option value="">يدوي</option><option v-for="(l, k) in METRICS" :key="k" :value="k">{{ l }}</option></select></td>
+              <td><button type="button" class="btn btn-ghost" @click="ev.criteria.splice(i, 1)">✕</button></td>
+            </tr>
+          </tbody>
+          <tfoot><tr><td>المجموع</td><td :class="{ 'pc-flag': evWeight() !== 100 }">{{ evWeight() }}</td><td colspan="2"></td></tr></tfoot>
+        </table>
+        <button type="button" class="btn" style="margin: 8px 0" @click="ev.criteria.push({ key: `c${Date.now().toString(36)}`, name: '', weight: 0, metric: '' })">إضافة معيار</button>
+        <div class="pc-fields">
+          <label class="field"><span>ممتاز (A) من درجة</span><input v-model.number="ev.gradeA" type="number" min="1" max="100" class="input" /></label>
+          <label class="field"><span>جيد (B) من درجة</span><input v-model.number="ev.gradeB" type="number" min="1" max="100" class="input" /></label>
+          <label class="field"><span>مقبول (C) من درجة</span><input v-model.number="ev.gradeC" type="number" min="1" max="100" class="input" /><small class="pm-muted">وما دونها ضعيف (D)</small></label>
+        </div>
+        <label class="pc-inline" style="margin: 8px 0"><input v-model="ev.blockWeak" type="checkbox" /> منع دعوة الموردين ذوي التقدير الضعيف (D) إلى المنافسات الجديدة</label>
+        <div v-if="ev.areas.length" style="margin-bottom: 10px">
+          <span class="pm-muted" style="font-size: .85rem">مجالات المراجعة الداخلية الخاصة بالمشتريات (تظهر توصياتها في شاشة الرقابة)</span>
+          <div class="pc-chips" style="margin-top: 6px"><label v-for="a in ev.areas" :key="a.id" class="pc-chip"><input v-model="ev.auditAreaIds" type="checkbox" :value="a.id" /> {{ a.name }}</label></div>
+        </div>
+        <button class="btn btn-primary" :disabled="busy" @click="saveEval">حفظ</button>
       </section>
 
       <section v-else-if="tab === 'stock'" class="card pm-panel">

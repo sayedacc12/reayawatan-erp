@@ -115,6 +115,9 @@ const steps = computed(() => (o.value?.requiredLevels ?? []).map((l: any, i: num
             <div><dt>المورد</dt><dd><RouterLink class="pm-link" :to="`/procurement/suppliers/${o.supplier.id}`">{{ o.supplier.name }}</RouterLink> <span class="pc-code">{{ o.supplier.code }}</span></dd></div>
             <div><dt>الرقم الضريبي</dt><dd class="pc-code">{{ o.supplier.vatNumber ?? '—' }}</dd></div>
             <div><dt>طلب الشراء</dt><dd><RouterLink class="pm-link" :to="`/procurement/requests/${o.request.id}`">{{ o.request.code }}</RouterLink> {{ o.request.methodLabel ?? '' }}</dd></div>
+            <div v-if="o.contract"><dt>العقد</dt><dd><RouterLink class="pm-link" :to="`/procurement/contracts/${o.contract.id}`">{{ o.contract.code }}</RouterLink> {{ o.contract.title }}
+              <small class="pm-muted" style="display: block">المستخدم {{ sar(o.contract.used) }} من {{ sar(o.contract.value) }}</small>
+              <small v-for="(w, i) in o.contract.warnings" :key="i" class="pc-flag" style="display: block">⚠ {{ w }}</small></dd></div>
             <div v-if="o.rfq"><dt>المنافسة</dt><dd><RouterLink class="pm-link" :to="`/procurement/rfqs/${o.rfq.id}`">{{ o.rfq.code }}</RouterLink></dd></div>
             <div><dt>الإدارة</dt><dd>{{ o.unitName ?? '—' }}</dd></div>
             <div><dt>المشروع</dt><dd>{{ o.projectName ?? '—' }}</dd></div>

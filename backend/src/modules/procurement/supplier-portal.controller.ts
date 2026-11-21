@@ -15,6 +15,9 @@ import { SourcingPortalService } from './sourcing-portal.service';
 import { InvoiceDto, InvoiceMessageDto, StatementQueryDto } from './invoice.dto';
 import { InvoicesService } from './invoices.service';
 import { QuestionDto, QuoteDto, RespondDto } from './sourcing.dto';
+import { SupplierResponseDto } from './contract.dto';
+import { ContractsService } from './contracts.service';
+import { EvaluationsService } from './evaluations.service';
 
 const uuid = new ParseUUIDPipe();
 const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
@@ -27,7 +30,10 @@ const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fil
 @Public()
 @Controller('supplier-portal')
 export class SupplierPortalController {
-  constructor(private readonly portal: SupplierPortalService, private readonly sourcing: SourcingPortalService, private readonly invoices: InvoicesService) {}
+  constructor(
+    private readonly portal: SupplierPortalService, private readonly sourcing: SourcingPortalService, private readonly invoices: InvoicesService,
+    private readonly contracts: ContractsService, private readonly evaluations: EvaluationsService,
+  ) {}
 
   @Get('o/:slug')
   info(@Param('slug') slug: string) { return this.portal.info(slug); }
@@ -197,4 +203,28 @@ export class SupplierPortalController {
   @UseGuards(SupplierPortalGuard)
   @Get('statement')
   statement(@CurrentSupplier() p: SupplierPortalUser, @Query() q: StatementQueryDto) { return this.invoices.portalStatement(p, q); }
+
+  // ---------------- العقود والتقييمات ----------------
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('contracts')
+  contractList(@CurrentSupplier() p: SupplierPortalUser) { return this.contracts.portalList(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('contracts/:id')
+  contract(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string) { return this.contracts.portalGet(p, id); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('contracts/:id/files/:key')
+  async contractFile(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Param('key') key: string, @Res({ passthrough: true }) res: Response) {
+    return sendFile(res, await this.contracts.portalFile(p, id, key));
+  }
+
+  @UseGuards(SupplierPortalGuard)
+  @Get('evaluations')
+  evaluationList(@CurrentSupplier() p: SupplierPortalUser) { return this.evaluations.portalList(p); }
+
+  @UseGuards(SupplierPortalGuard)
+  @Post('evaluations/:id/respond') @HttpCode(200)
+  respondEvaluation(@CurrentSupplier() p: SupplierPortalUser, @Param('id', uuid) id: string, @Body() dto: SupplierResponseDto) { return this.evaluations.portalRespond(p, id, dto); }
 }

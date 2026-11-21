@@ -138,6 +138,16 @@ export class PrSettings {
   @Column({ name: 'vat_input_account_id', type: 'uuid', nullable: true }) vatInputAccountId!: string | null;
   /** مدة السداد الافتراضية بالأيام من تاريخ الفاتورة */
   @Column({ name: 'payment_days', type: 'int', default: 30 }) paymentDays!: number;
+
+  // ---- العقود وتقييم الموردين (المرحلة الخامسة) ----
+  /** معايير تقييم الموردين وأوزانها، وكل معيار يقترح درجته من مؤشر محسوب */
+  @Column({ name: 'supplier_criteria', type: 'jsonb', nullable: true }) supplierCriteria!: { key: string; name: string; weight: number; metric: string | null }[] | null;
+  /** الحد الأدنى للتقديرات: ممتاز وجيد ومقبول، وما دونه ضعيف */
+  @Column({ name: 'grade_limits', type: 'jsonb', nullable: true }) gradeLimits!: { A: number; B: number; C: number } | null;
+  /** لا يُدعى المورد ذو التقدير الضعيف للمنافسات */
+  @Column({ name: 'block_weak', default: false }) blockWeak!: boolean;
+  /** مجالات المراجعة الداخلية المتعلقة بالمشتريات والمستودعات */
+  @Column({ name: 'audit_area_ids', type: 'jsonb', default: () => `'[]'` }) auditAreaIds!: string[];
 }
 
 // ---------------- الأصناف ----------------
@@ -345,6 +355,10 @@ export class PrSupplier {
   @Column({ name: 'decided_at', type: 'timestamptz', nullable: true }) decidedAt!: Date | null;
   /** الشريك المقابل في النظام المالي (حساب الدائنين) */
   @Column({ name: 'acc_partner_id', type: 'uuid', nullable: true }) accPartnerId!: string | null;
+  /** نتيجة آخر تقييم معتمد: الدرجة والتقدير وتاريخه */
+  @Column({ type: 'numeric', precision: 5, scale: 2, nullable: true, transformer: { to: (v?: number | null) => v, from: (v?: string | null) => (v === null || v === undefined ? null : Number(v)) } }) rating!: number | null;
+  @Column({ type: 'varchar', length: 1, nullable: true }) grade!: 'A' | 'B' | 'C' | 'D' | null;
+  @Column({ name: 'rated_at', type: 'timestamptz', nullable: true }) ratedAt!: Date | null;
   @Column({ type: 'jsonb', default: () => `'[]'` }) log!: LogEntry[];
   @Column({ name: 'created_by_name', length: 200 }) createdByName!: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;

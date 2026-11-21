@@ -5,7 +5,7 @@ import { api, openProtectedFile } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import SupplierFields from '../components/SupplierFields.vue';
-import { BANK_COLOR, DOC_COLOR, INV_READ, PR, SUPPLIER_COLOR, fmtDate, fmtDateTime, ibanView, lookups, supplierForm, supplierPayload, upload } from '../lib';
+import { BANK_COLOR, CT_READ, DOC_COLOR, EV_READ, GRADE_COLOR, INV_READ, PR, SUPPLIER_COLOR, fmtDate, fmtDateTime, ibanView, lookups, supplierForm, supplierPayload, upload } from '../lib';
 import '../../projects/projects.css';
 import '../procurement.css';
 
@@ -132,10 +132,13 @@ const EVENT: Record<string, string> = {
         <h1>{{ s.name }}</h1>
         <p class="muted"><span class="pc-code">{{ s.code }}</span> · {{ s.entityTypeLabel }} · {{ s.kindLabel }} ·
           <span class="pm-pill" :style="{ '--c': SUPPLIER_COLOR[s.status] }">{{ s.statusLabel }}</span>
-          <span class="pm-muted"> · {{ s.source === 'portal' ? 'سجّل عبر البوابة' : 'سجّله موظف' }}</span></p>
+          <span class="pm-muted"> · {{ s.source === 'portal' ? 'سجّل عبر البوابة' : 'سجّله موظف' }}</span>
+          <span v-if="s.grade" class="pm-pill" :style="{ '--c': GRADE_COLOR[s.grade], marginInlineStart: '6px' }" :title="`آخر تقييم معتمد ${fmtDate(s.ratedAt)}`">التقدير {{ s.grade }} · {{ s.rating }}</span></p>
       </div>
       <div class="pc-inline">
         <RouterLink v-if="INV_READ.some(can)" class="btn" :to="`/procurement/suppliers/${s.id}/statement`">كشف الحساب</RouterLink>
+        <RouterLink v-if="CT_READ.some(can)" class="btn" :to="`/procurement/contracts?q=${encodeURIComponent(s.name)}`">العقود</RouterLink>
+        <RouterLink v-if="EV_READ.some(can)" class="btn" :to="`/procurement/evaluations?supplier=${s.id}`">التقييمات</RouterLink>
         <button v-if="can(P.suppliers)" class="btn" @click="startEdit">تعديل البيانات</button>
         <button v-if="can(P.approveSuppliers) && s.status === 'approved'" class="btn btn-danger" @click="suspending = true">إيقاف التعامل</button>
         <button v-if="can(P.approveSuppliers) && s.status === 'suspended'" class="btn" :disabled="busy" @click="reactivate">إعادة التفعيل</button>

@@ -46,6 +46,14 @@ async function load() {
 onMounted(load);
 watch(() => props.id, load);
 
+// عقود الموردين المرتبطة بهذه الشراكة (عندما يكون الشريك موردًا أيضًا)، لمن يملك عرض عقود المشتريات
+const supplyContracts = ref<any[]>([]);
+async function loadSupply() {
+  supplyContracts.value = await api<any[]>(`/procurement/contracts?ptContract=${props.id}`).catch(() => []);
+}
+onMounted(loadSupply);
+watch(() => props.id, loadSupply);
+
 // ---------- البنود مجمعة حسب التبويب ----------
 const cats = computed<any[]>(() => lk.value?.categories ?? []);
 const rank = (id: string) => { const i = cats.value.findIndex((x) => x.id === id); return i === -1 ? 99 : i; };
@@ -241,6 +249,13 @@ const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || '�
           <button v-if="c.can.cancel" class="btn pt-ghost" :disabled="busy" @click="cancel">إلغاء</button>
           <button v-if="c.can.remove" class="btn pt-ghost" :disabled="busy" @click="removeDraft">حذف المسودة</button>
         </div>
+      </section>
+      <section v-if="supplyContracts.length" class="card pm-panel" style="margin-bottom: 14px; border-inline-start: 4px solid #b45309">
+        <h2>عقود توريد مشتركة مع هذا الشريك</h2>
+        <p class="pm-muted" style="font-size: .85rem; margin: 0 0 6px">الشريك مورد للجمعية أيضًا، وهذه عقود التوريد المرتبطة بهذه الشراكة في نظام المشتريات.</p>
+        <ul style="margin: 0; padding-inline-start: 18px">
+          <li v-for="k in supplyContracts" :key="k.id"><RouterLink :to="`/procurement/contracts/${k.id}`">{{ k.code }} · {{ k.title }}</RouterLink> · {{ k.statusLabel }} · {{ sar(k.value) }} (المستخدم {{ sar(k.used) }})</li>
+        </ul>
       </section>
 
       <div v-if="!['cancelled', 'terminated'].includes(c.status)" class="pt-steps">
