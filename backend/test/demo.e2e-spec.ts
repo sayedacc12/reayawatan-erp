@@ -364,6 +364,25 @@ describe('Demo association across all modules', () => {
     expect(st.underReview.count).toBe(1);
   });
 
+  it('billing: registered tax settings, customers and items, issued invoices with QR and entries, a credit note, collection and a clean reconciliation', async () => {
+    const admin = await staff('admin');
+    const finance = await staff('finance');
+    const dash = (await http.get('/api/billing/dashboard').set(as(finance)).expect(200)).body;
+    expect(dash.mode).toBe('registered');
+    expect(dash.readiness.ready).toBe(true);
+    expect(dash.kpis).toMatchObject({ customers: 3, items: 4, pending: 1, drafts: 1 });
+    const rows = (await http.get('/api/billing/documents').set(as(finance)).expect(200)).body as { id: string; kind: string; status: string; docType: string }[];
+    expect(rows.map((r) => r.status).sort()).toEqual(['draft', 'issued', 'issued', 'paid', 'partial', 'pending']);
+    expect(rows.filter((r) => r.kind === 'credit_note')).toHaveLength(1);
+    const partial = rows.find((r) => r.status === 'partial')!;
+    const inv = (await http.get(`/api/billing/documents/${partial.id}`).set(as(finance)).expect(200)).body;
+    expect(inv.qrImage).toMatch(/^data:image\/png;base64,/);
+    expect(inv.entry.status).toBe('posted');
+    expect(inv.creditedAmount).toBeGreaterThan(0);
+    const rec = (await http.get('/api/billing/reconciliation').set(as(admin)).expect(200)).body;
+    expect(rec.ok).toBe(true);
+  });
+
   it('members: registry in every status, applications in every stage, payments as receipt vouchers', async () => {
     const admin = await staff('admin');
     const d = (await http.get('/api/members/dashboard').set(as(admin)).expect(200)).body;

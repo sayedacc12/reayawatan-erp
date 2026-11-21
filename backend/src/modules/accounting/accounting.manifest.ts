@@ -79,6 +79,7 @@ export const accountingManifest: ErpModuleManifest = {
     { label: 'سندات المخازن', path: '/accounting/documents/stock', permission: P.read, group: 'العمليات' },
     { label: 'مستحقات الموردين', path: '/accounting/payables', permission: P.payables, anyOf: [P.payments], group: 'العمليات' },
     { label: 'قيود فواتير الموردين', path: '/accounting/documents/bill', permission: P.read, group: 'العمليات' },
+    { label: 'قيود فواتير المبيعات', path: '/accounting/documents/sale', permission: P.read, group: 'العمليات' },
     { label: 'ترحيل القيود', path: '/accounting/posting', permission: P.post, group: 'الترحيل والإغلاق' },
     { label: 'إغلاق الفترات', path: '/accounting/periods', permission: P.closePeriods, anyOf: [P.reopenPeriods], group: 'الترحيل والإغلاق' },
     { label: 'محاضر جرد السندات', path: '/accounting/inventory', permission: P.read, group: 'الترحيل والإغلاق' },

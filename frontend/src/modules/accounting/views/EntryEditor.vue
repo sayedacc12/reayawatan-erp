@@ -173,6 +173,12 @@ loadDocTypes();
         <RouterLink to="/accounting/payables" class="pm-link">مستحقات الموردين</RouterLink>.</span>
     </div>
 
+    <div v-if="entry?.source === 'billing'" class="ro-note no-print">
+      <b>🔒 للاطلاع فقط</b>
+      <span>هذا قيد فاتورة مبيعات أو إشعار أنشأه نظام الفوترة عند إصدار المستند، ولا يُعدَّل ولا يُلغى من النظام المالي. الفاتورة الصادرة تُصحح بإشعار دائن أو مدين من
+        <RouterLink to="/billing/invoices" class="pm-link">فواتير المبيعات</RouterLink>.</span>
+    </div>
+
     <section :class="['card', 'pm-panel', 'sheet', { 'is-void': entry?.status === 'cancelled' }]">
       <div v-if="entry?.status === 'cancelled'" class="stamp">ملغي</div>
       <div class="head">
@@ -185,6 +191,7 @@ loadDocTypes();
           <span v-if="entry.source === 'assets'" class="pm-tag">من الأصول الثابتة</span>
           <span v-if="entry.source === 'stock'" class="pm-tag">من المستودعات</span>
           <span v-if="entry.source === 'payables'" class="pm-tag">من مستحقات الموردين</span>
+          <span v-if="entry.source === 'billing'" class="pm-tag">من الفوترة والمبيعات</span>
           <span v-if="entry.periodLocked" class="pm-tag">الفترة مغلقة</span>
         </div>
         <div class="field-row">

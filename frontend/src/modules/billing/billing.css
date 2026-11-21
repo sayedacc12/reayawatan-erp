@@ -1,0 +1,39 @@
+/* الفوترة والمبيعات: يعتمد على أنماط المشاريع (pm-) والمشتريات (pc-) ويضيف ما يخصه */
+.bl-hero { background: linear-gradient(120deg, #101a33, #1e2a5a 45%, #0e3b4a 100%); }
+.bl-hero .pm-kicker { color: #a5b4fc; }
+.bl-qr { position: absolute !important; inset-inline-end: 4%; top: 16px; display: grid; grid-template-columns: repeat(4, 14px); gap: 4px; opacity: .55; }
+.bl-qr i { width: 14px; height: 14px; border-radius: 3px; background: #c7d2fe; animation: bl-blink 3.2s infinite; }
+.bl-qr i:nth-child(3n) { background: transparent; border: 2px solid #67e8f9; animation-delay: .8s; }
+.bl-qr i:nth-child(5n) { animation-delay: 1.6s; }
+@keyframes bl-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.bl-glow { background: linear-gradient(135deg, #818cf8, #22d3ee); color: #0b1330; border: 0; font-weight: 700; }
+.bl-glow:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.bl-months { display: flex; align-items: flex-end; gap: 6px; height: 150px; }
+.bl-months .c { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.bl-months i { width: 100%; max-width: 28px; min-height: 3px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #818cf8, #0369a1); }
+.bl-months small { font-size: .68rem; color: var(--muted); }
+.bl-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--border); color: var(--text); }
+.bl-line:hover { background: var(--surface-2); }
+.bl-line small { display: block; }
+.bl-lines { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.bl-lines th, .bl-lines td { padding: 7px 6px; border-bottom: 1px solid var(--border); text-align: start; vertical-align: top; }
+.bl-lines th { font-size: .76rem; color: var(--muted); font-weight: 600; }
+.bl-lines tfoot td { font-weight: 600; }
+.bl-lines .input { min-width: 0; padding: 6px 8px; }
+.bl-totals { display: grid; gap: 4px; max-width: 340px; margin-inline-start: auto; font-size: .9rem; }
+.bl-totals div { display: flex; justify-content: space-between; gap: 10px; }
+.bl-totals .grand { font-size: 1.05rem; font-weight: 700; border-top: 1px solid var(--border); padding-top: 6px; }
+/* الفاتورة المطبوعة */
+.bl-invoice { padding: 22px; }
+.bl-invoice-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 2px solid var(--text); padding-bottom: 12px; margin-bottom: 12px; }
+.bl-invoice-head h2 { font-size: 1.2rem; margin: 0 0 4px; }
+.bl-invoice-head img { width: 132px; height: 132px; }
+.bl-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; font-size: .84rem; }
+.bl-parties h3 { font-size: .86rem; margin: 0 0 4px; color: var(--muted); }
+.bl-parties p { margin: 2px 0; }
+.bl-stamp { display: inline-block; border: 2px dashed #94a3b8; color: #64748b; padding: 4px 10px; border-radius: 8px; font-size: .8rem; }
+@media (max-width: 720px) { .bl-parties { grid-template-columns: 1fr; } .bl-invoice-head { flex-direction: column-reverse; } }
+@media print {
+  .pc-noprint, .page-head .pc-inline { display: none !important; }
+  .bl-invoice { box-shadow: none; border: 0; padding: 0; }
+}
