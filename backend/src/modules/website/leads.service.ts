@@ -82,11 +82,10 @@ export class LeadsService {
    * وحد لكل بريد زائر حتى لا يُستخدم الموقع لإغراق بريد شخص آخر.
    */
   private async mailBudget(org: string, kind: string, perDay: number, to?: string) {
-    const params: unknown[] = [org, kind];
-    let extra = '';
-    if (to) { params.push(to.trim().toLowerCase()); extra = ` AND to_email = $${params.length}`; }
     const [{ n }] = await this.db.query(
-      `SELECT count(*)::int AS n FROM mail_outbox WHERE organization_id = $1 AND kind = $2 AND created_at > now() - interval '1 day'${extra}`, params);
+      `SELECT count(*)::int AS n FROM mail_outbox
+        WHERE organization_id = $1 AND kind = $2 AND created_at > now() - interval '1 day' AND ($3::text IS NULL OR lower(to_email) = $3)`,
+      [org, kind, to ? to.trim().toLowerCase() : null]);
     return (n as number) < perDay;
   }
 
