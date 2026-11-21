@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AccCore, cents, fromCents } from './acc-core.service';
 import { CashAccountDto, CategoryDto, DocumentTypeDto, PartnerDto, SettingsDto } from './accounting.dto';
@@ -233,6 +233,11 @@ export class MastersService {
     Object.assign(p, this.partnerFields(dto, cat.behavior));
     await this.partners.save(p);
     return (await this.listPartners(actor)).find((x) => x.id === id);
+  }
+
+  /** مزامنة اسم الشريك ورقمه الضريبي من نظام مصدر (مثل سجل عملاء الفوترة) دون المساس ببقية بياناته */
+  async syncPartnerIdentity(org: string, id: string, name: string, taxNumber: string | null, em?: EntityManager) {
+    await (em ?? this.db.manager).getRepository(Partner).update({ id, organizationId: org }, { name, taxNumber });
   }
 
   // ---------------- البنوك والنقدية ----------------

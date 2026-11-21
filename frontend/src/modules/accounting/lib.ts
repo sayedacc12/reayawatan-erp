@@ -38,7 +38,7 @@ export const VOUCHER_TYPES = [
   { value: 'journal', label: 'قيد يومية' }, { value: 'receipt', label: 'سند قبض' }, { value: 'payment', label: 'سند صرف' },
   { value: 'opening', label: 'قيد افتتاحي' }, { value: 'adjustment', label: 'قيد تسوية' },
   { value: 'depreciation', label: 'سند إهلاك' }, { value: 'asset', label: 'سند أصول ثابتة' }, { value: 'stock', label: 'سند مخازن' },
-  { value: 'bill', label: 'قيد فاتورة مورد' },
+  { value: 'bill', label: 'قيد فاتورة مورد' }, { value: 'sale', label: 'قيد فاتورة مبيعات' },
 ];
 /** سندات تصدر من الأصول الثابتة فقط، ولا تُنشأ أو تُعدَّل أو تُلغى من النظام المالي */
 export const ASSET_TYPES = ['depreciation', 'asset'];
@@ -47,7 +47,9 @@ export const STOCK_TYPES = ['stock'];
 /** كل السندات التي تملكها أنظمة أخرى ولا تُنشأ يدويًا */
 /** قيود فواتير الموردين: تُسجل من مستحقات الموردين بعد مطابقة الفاتورة في المشتريات */
 export const PAYABLE_TYPES = ['bill'];
-export const SOURCE_TYPES = [...ASSET_TYPES, ...STOCK_TYPES, ...PAYABLE_TYPES];
+/** قيود فواتير المبيعات والإشعارات: تصدر من نظام الفوترة عند إصدار المستند */
+export const BILLING_TYPES = ['sale'];
+export const SOURCE_TYPES = [...ASSET_TYPES, ...STOCK_TYPES, ...PAYABLE_TYPES, ...BILLING_TYPES];
 export const ENTRY_STATUS: Record<string, { label: string; color: string }> = {
   draft: { label: 'غير مرحّل', color: '#f59e0b' }, posted: { label: 'مرحّل', color: '#10b981' }, cancelled: { label: 'ملغي', color: '#ef4444' },
 };

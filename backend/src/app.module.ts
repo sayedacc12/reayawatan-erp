@@ -28,6 +28,7 @@ import { CommsModule } from './modules/comms/comms.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { PlanningModule } from './modules/planning/planning.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -62,6 +63,7 @@ import { HealthController } from './health.controller';
     MeetingsModule,
     PlanningModule,
     ProcurementModule,
+    BillingModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],

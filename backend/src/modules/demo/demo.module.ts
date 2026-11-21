@@ -48,12 +48,14 @@ import { ProcurementSeed } from './seed-procurement';
 import { SourcingSeed } from './seed-sourcing';
 import { InvoicesSeed } from './seed-invoices';
 import { ContractsSeed } from './seed-contracts';
+import { BillingSeed } from './seed-billing';
+import { BillingModule } from '../billing/billing.module';
 import { StockSeed } from './seed-stock';
 
 /** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, TypeOrmModule.forFeature([OrganizationSampleData])],
+  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, BillingModule, TypeOrmModule.forFeature([OrganizationSampleData])],
   controllers: [DemoController, SampleDataController, PlatformSampleDataController],
-  providers: [DemoService, SampleDataService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed, StockSeed, InvoicesSeed, ContractsSeed],
+  providers: [DemoService, SampleDataService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed, StockSeed, InvoicesSeed, ContractsSeed, BillingSeed],
 })
 export class DemoModule {}

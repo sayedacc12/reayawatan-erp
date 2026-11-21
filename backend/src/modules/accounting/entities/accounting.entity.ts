@@ -16,20 +16,22 @@ export const NATURES = ['assets', 'liabilities', 'net_assets', 'revenue', 'expen
 export type AccountNature = (typeof NATURES)[number];
 export const ACCOUNT_KINDS = ['root', 'main', 'sub'] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
-export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment', 'depreciation', 'asset', 'stock', 'bill'] as const;
+export const VOUCHER_TYPES = ['journal', 'receipt', 'payment', 'opening', 'adjustment', 'depreciation', 'asset', 'stock', 'bill', 'sale'] as const;
 /** سندات تصدر من الأصول الثابتة فقط: لا تُنشأ ولا تُعدَّل ولا تُلغى من النظام المالي */
 export const ASSET_VOUCHER_TYPES = ['depreciation', 'asset'] as const;
 /** سندات المخازن: تصدر من المستودعات (الاستلام والصرف والتحويل والمرتجعات والإتلاف والجرد) فقط، وتظهر في النظام المالي للاطلاع */
 export const STOCK_VOUCHER_TYPES = ['stock'] as const;
 /** قيود فواتير الموردين: يسجلها المالي من شاشة مستحقات الموردين بعد المطابقة الثلاثية في المشتريات، ولا تُنشأ من شاشة القيود */
 export const PAYABLE_VOUCHER_TYPES = ['bill'] as const;
+/** قيود فواتير المبيعات والإشعارات: تصدر من نظام الفوترة عند إصدار المستند فقط، وتظهر في النظام المالي للاطلاع */
+export const BILLING_VOUCHER_TYPES = ['sale'] as const;
 export type BuiltinVoucherType = (typeof VOUCHER_TYPES)[number];
 /** نوع المستند: أحد الأنواع الأساسية، أو نوع سند خاص بالجمعية يُعرَّف من الإعدادات (رمزه يبدأ بـ d_) */
 export type VoucherType = BuiltinVoucherType | `d_${string}`;
 /** صيغة رمز نوع السند الخاص بالجمعية */
 export const CUSTOM_TYPE_RE = /^d_[a-z0-9]{6,16}$/;
 export type EntryStatus = 'draft' | 'posted' | 'cancelled';
-export type EntrySource = 'manual' | 'system' | 'voucher' | 'assets' | 'stock' | 'payables';
+export type EntrySource = 'manual' | 'system' | 'voucher' | 'assets' | 'stock' | 'payables' | 'billing';
 export type FiscalYearStatus = 'open' | 'closed';
 
 /** إعدادات الأصول الثابتة داخل النظام المالي */
@@ -648,7 +650,7 @@ export class VoucherInventory {
 export type VoucherKind = 'receipt' | 'payment';
 export type VoucherStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected' | 'cancelled';
 export type VoucherMethod = 'cash' | 'transfer' | 'cheque' | 'card' | 'credit';
-export type VoucherSource = 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms' | 'assets' | 'procurement';
+export type VoucherSource = 'manual' | 'opportunity' | 'store' | 'payroll' | 'membership' | 'separation' | 'comms' | 'assets' | 'procurement' | 'billing';
 
 /** مرحلة من مراحل اعتماد سندات القبض أو الصرف (مستقلة لكل نوع) */
 @Entity('acc_voucher_stages')
