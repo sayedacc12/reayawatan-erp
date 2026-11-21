@@ -1,11 +1,16 @@
 # إعدادات الإنتاج: Caddy أمام النظام ويصدر شهادة HTTPS تلقائيًا للدومين.
 # التشغيل: docker compose -f docker-compose.yml -f deploy/compose.prod.yml up -d --build
 services:
+  backend:
+    environment:
+      # Caddy ثم nginx أمام الخادم: وسيطان موثوقان لمعرفة عنوان العميل الحقيقي
+      TRUST_PROXY: "2"
+
   frontend:
     ports: !reset []
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.9-alpine
     ports:
       - "80:80"
       - "443:443"

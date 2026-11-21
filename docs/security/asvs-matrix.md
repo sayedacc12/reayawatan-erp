@@ -31,16 +31,16 @@ Status legend: ✅ in place · 🟡 partial · ❌ missing · 📅 planned phase
 | 8.2.2 | No sensitive data in browser storage | ❌ | JWT in localStorage 📅4 |
 | 8.3.x | Sensitive data minimized/encrypted | 🟡 | Backups encrypted; field-level encryption for IBAN/ID to evaluate |
 | 9.1.1 | TLS for all connections | ✅ | Caddy + Let's Encrypt |
-| 9.1.x | HSTS | ❌ | 📅1 |
+| 9.1.x | HSTS | ✅ | Caddy (phase 1) |
 | 10.3.2 | Dependency integrity / known vulns | 🟡 | Lockfiles; audit gate + Dependabot (phase 0); upgrades 📅1 |
 | 11.1.1/11.1.4 | Business-logic sequence and limits | 🟡 | Approval flows; concurrency tests 📅3 |
 | 11.1.6 (L2) | Race conditions on financial ops | 🟡 | Transactions; DB constraints 📅3 |
 | 12.1.1 | Upload size limits | ✅ | Multer limits |
 | 12.2.1 | Verify file type by content | ❌ | 📅 later |
 | 12.5.2 | Uploads served as attachments, not executed | ✅ | Served via API |
-| 12.6.1 | SSRF protection | 🟡 | PDF network blocking 📅1 |
+| 12.6.1 | SSRF protection | ✅ | PDF renderer blocks all network requests (phase 1, test-guarded) |
 | 13.1.x | API authz, rate limits | ✅ | Guard + throttler |
 | 14.1.x | Build/deploy reproducible, secure | 🟡 | Docker, CI gates (phase 0), no deploy from CI |
-| 14.2.1 | Components up to date | ❌ | 📅1 |
-| 14.4.x | Security headers (CSP, XFO, nosniff, Referrer-Policy) | ❌ | 📅1 |
-| 14.5.x | Validate HTTP request headers / trusted proxy | 🟡 | `trust proxy` fix 📅1 |
+| 14.2.1 | Components up to date | 🟡 | High advisories 14 -> 1 (no fix, unreachable); Nest 11 upgrade pending |
+| 14.4.x | Security headers (CSP, XFO, nosniff, Referrer-Policy) | 🟡 | All enforced except CSP (report-only), phase 1 |
+| 14.5.x | Validate HTTP request headers / trusted proxy | ✅ | Private-hop trust only (phase 1, test-guarded) |
