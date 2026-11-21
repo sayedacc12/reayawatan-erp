@@ -43,33 +43,31 @@ export class EvaluationsService {
   /** المؤشرات المحسوبة للمورد في الفترة (أو لتعميد أو عقد محدد) */
   async metrics(org: string, supplierId: string, from: string, to: string, scope: { orderId?: string | null; contractId?: string | null } = {}, em: EntityManager = this.db.manager): Promise<EvalMetrics> {
     const args = [org, supplierId, from, to, scope.orderId ?? null, scope.contractId ?? null];
-    const orderScope = `o.organization_id = $1 AND o.supplier_id = $2 AND ($5::uuid IS NULL OR o.id = $5::uuid) AND ($6::uuid IS NULL OR o.contract_id = $6::uuid)
-      AND o.status IN ('issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed')`;
     const [ord] = await em.query(
       `SELECT COUNT(*)::int AS n, AVG(EXTRACT(EPOCH FROM (o.acknowledged_at - o.issued_at)) / 3600)::float AS resp
-         FROM pr_orders o WHERE ${orderScope} AND o.issued_at::date BETWEEN $3 AND $4`, args);
+         FROM pr_orders o WHERE o.organization_id = $1 AND o.supplier_id = $2 AND ($5::uuid IS NULL OR o.id = $5::uuid) AND ($6::uuid IS NULL OR o.contract_id = $6::uuid) AND o.status IN ('issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed') AND o.issued_at::date BETWEEN $3 AND $4`, args);
     const [del] = await em.query(
       `SELECT COUNT(*)::int AS n,
               COUNT(*) FILTER (WHERE o.delivery_date IS NULL OR r.date <= o.delivery_date)::int AS on_time,
               AVG(GREATEST(0, r.date - o.delivery_date)) FILTER (WHERE o.delivery_date IS NOT NULL AND r.date > o.delivery_date)::float AS delay
          FROM pr_receipts r JOIN pr_orders o ON o.id = r.order_id AND o.organization_id = r.organization_id
-        WHERE ${orderScope} AND r.status = 'posted' AND r.date BETWEEN $3 AND $4`, args);
+        WHERE o.organization_id = $1 AND o.supplier_id = $2 AND ($5::uuid IS NULL OR o.id = $5::uuid) AND ($6::uuid IS NULL OR o.contract_id = $6::uuid) AND o.status IN ('issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed') AND r.status = 'posted' AND r.date BETWEEN $3 AND $4`, args);
     const [qty] = await em.query(
       `SELECT COALESCE(SUM((l->>'acceptedQty')::numeric), 0)::float AS accepted, COALESCE(SUM(COALESCE((l->>'rejectedQty')::numeric, 0)), 0)::float AS rejected
          FROM pr_receipts r JOIN pr_orders o ON o.id = r.order_id AND o.organization_id = r.organization_id, jsonb_array_elements(r.lines) l
-        WHERE ${orderScope} AND r.status = 'posted' AND r.date BETWEEN $3 AND $4`, args);
+        WHERE o.organization_id = $1 AND o.supplier_id = $2 AND ($5::uuid IS NULL OR o.id = $5::uuid) AND ($6::uuid IS NULL OR o.contract_id = $6::uuid) AND o.status IN ('issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed') AND r.status = 'posted' AND r.date BETWEEN $3 AND $4`, args);
     // نسبة التنفيذ: للتعميدات المستحقة التسليم في الفترة (أو المغلقة)
     const [fill] = await em.query(
       `SELECT COALESCE(SUM((l->>'qty')::numeric), 0)::float AS ordered,
               COALESCE(SUM((SELECT COALESCE(SUM((rl->>'acceptedQty')::numeric), 0) FROM pr_receipts r, jsonb_array_elements(r.lines) rl
                               WHERE r.order_id = o.id AND r.status = 'posted' AND rl->>'orderLineId' = l->>'lineId')), 0)::float AS received
          FROM pr_orders o, jsonb_array_elements(o.lines) l
-        WHERE ${orderScope} AND (o.status = 'closed' OR COALESCE(o.delivery_date, o.issued_at::date) BETWEEN $3 AND $4)`, args);
+        WHERE o.organization_id = $1 AND o.supplier_id = $2 AND ($5::uuid IS NULL OR o.id = $5::uuid) AND ($6::uuid IS NULL OR o.contract_id = $6::uuid) AND o.status IN ('issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed') AND (o.status = 'closed' OR COALESCE(o.delivery_date, o.issued_at::date) BETWEEN $3 AND $4)`, args);
     const [inv] = await em.query(
       `SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE (i.match->>'ok')::boolean IS FALSE)::int AS ex,
               COALESCE(SUM(CASE WHEN i.status IN ('posted', 'partial', 'paid') THEN (CASE WHEN i.kind = 'credit_note' THEN -i.total ELSE i.total END) ELSE 0 END), 0)::float AS spend
          FROM pr_invoices i JOIN pr_orders o ON o.id = i.order_id AND o.organization_id = i.organization_id
-        WHERE ${orderScope} AND i.kind = 'invoice' AND i.status NOT IN ('draft', 'cancelled') AND i.invoice_date BETWEEN $3 AND $4`, args);
+        WHERE o.organization_id = $1 AND o.supplier_id = $2 AND ($5::uuid IS NULL OR o.id = $5::uuid) AND ($6::uuid IS NULL OR o.contract_id = $6::uuid) AND o.status IN ('issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed') AND i.kind = 'invoice' AND i.status NOT IN ('draft', 'cancelled') AND i.invoice_date BETWEEN $3 AND $4`, args);
     const contracts = await em.getRepository(PrContract).find({ where: { organizationId: org, supplierId, ...(scope.contractId ? { id: scope.contractId } : {}) } });
     const fromP = from.slice(0, 7);
     const toP = to.slice(0, 7);

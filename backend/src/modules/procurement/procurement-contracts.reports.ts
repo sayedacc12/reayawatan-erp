@@ -12,7 +12,6 @@ import { invoiceCode } from './invoices.service';
 import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { prToday, supplierCode } from './procurement-core.service';
 
-const USED_ORDERS = `('pending', 'issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed')`;
 
 /** تقارير المرحلتين الرابعة والخامسة: الفواتير وأعمار المستحقات، والعقود والتزاماتها، وتقييم الموردين، والرقابة ومؤشرات الأداء */
 @Injectable()
@@ -103,7 +102,7 @@ export class ProcurementContractsReports implements OnModuleInit {
           const rows: Record<string, unknown>[] = await this.db.query(
             `SELECT c.id, c.contract_no, c.title, c.kind, s.supplier_no, s.name AS supplier, c.starts_on::text AS "startsOn", c.ends_on::text AS "endsOn",
                     c.value::float AS value, c.status, c.alert_pct, c.alert_days, c.pt_contract_id IS NOT NULL AS partner,
-                    (SELECT COALESCE(SUM(o.total), 0) FROM pr_orders o WHERE o.organization_id = c.organization_id AND o.contract_id = c.id AND o.status IN ${USED_ORDERS})::float AS used,
+                    (SELECT COALESCE(SUM(o.total), 0) FROM pr_orders o WHERE o.organization_id = c.organization_id AND o.contract_id = c.id AND o.status IN ('pending', 'issued', 'acknowledged', 'accepted', 'clarification', 'partial', 'closed'))::float AS used,
                     (SELECT COALESCE(SUM((p->>'amount')::numeric), 0) FROM jsonb_array_elements(c.penalties) p WHERE p->>'status' = 'approved')::float AS penalties
                FROM pr_contracts c JOIN pr_suppliers s ON s.id = c.supplier_id AND s.organization_id = c.organization_id
               WHERE c.organization_id = $1 AND ($2::text IS NULL OR c.status = $2) AND ($3::text IS NULL OR c.kind = $3) ORDER BY c.contract_no DESC`,
