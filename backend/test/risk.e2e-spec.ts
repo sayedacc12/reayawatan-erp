@@ -15,7 +15,7 @@ import { defaultConfig } from '../src/modules/risk/risk-defaults';
  * الضوابط، سجل التغيير ومهامه، الالتزام، استمرارية الأعمال وتفعيل فريق الأزمة، اللائحة وسجل المنهجيات، والربط مع المراجعة الداخلية.
  */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
-const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+const ago = (days: number) => new Date(Date.now() + 3 * 3600000 - days * 86400000).toISOString().slice(0, 10);
 
 describe('Risk calculations', () => {
   it('levels and criticality', () => {

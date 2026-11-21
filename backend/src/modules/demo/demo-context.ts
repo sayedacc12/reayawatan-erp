@@ -20,7 +20,8 @@ export const DEMO_SLUG = 'demo';
 /** بريد الحسابات وطلبات الاشتراك التجريبية (تُحذف كلها عند إعادة إنشاء الشركة التجريبية) */
 export const DEMO_EMAIL = (name: string) => `demo-${name}@sanabelerp.com`;
 
-export const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+/** تاريخ اليوم بتوقيت الرياض (UTC+3) مثل خدمات النظام، حتى لا تتعارض البيانات التجريبية معها بين 21:00 و24:00 UTC */
+export const daysAgo = (n: number) => new Date(Date.now() + 3 * 3600000 - n * 86400000).toISOString().slice(0, 10);
 export const daysAhead = (n: number) => daysAgo(-n);
 
 export const ALL_PERMISSIONS = [
