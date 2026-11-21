@@ -19,6 +19,8 @@ services:
     environment:
       DATABASE_URL: postgres://erp:${DB_PASSWORD:-erp}@db:5432/charity_erp
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      # تشفير مفتاح الجمعية وأسرار شهادتها في الربط مع «فاتورة» (يُنشئه deploy/setup.sh تلقائيًا)
+      ZATCA_KEY_SECRET: ${ZATCA_KEY_SECRET:-}
       PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-platform@example.org}
       PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-}
       # البريد الصادر (SMTP). تُضبط بالأمر: bash deploy/mail-setup.sh
