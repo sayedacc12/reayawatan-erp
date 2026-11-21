@@ -9,7 +9,7 @@
   في ملف compose الخاص به أضف الشبكة كـ `external: true` باسم `caddy-edge` وصِل بها الخدمة التي يوجّه إليها Caddy،
   ثم استخدم اسم الخدمة في `reverse_proxy`. لا تفتح لهذا النظام أي منفذ على السيرفر.
 - **مهم:** أي خدمة تنضم إلى `caddy-edge` يجب أن يكون اسمها فريدًا (مثل `rw-frontend`)، ولا تُسمّى
-  `frontend` أو `backend` أو `db`، وإلا قد يوجّه Caddy زوار سنابل إليها بالخطأ. ولا تصل قاعدة البيانات بهذه الشبكة أبدًا.
+  `sanabel-frontend` (الاسم الذي يصل به Caddy إلى سنابل)، ويُفضّل ألا تُسمّى `frontend` أو `backend` أو `db`. ولا تصل قاعدة البيانات بهذه الشبكة أبدًا.
 
 ## إضافة موقع
 ```bash
@@ -18,6 +18,8 @@ docker compose -f docker-compose.yml -f deploy/compose.prod.yml exec caddy caddy
 docker compose -f docker-compose.yml -f deploy/compose.prod.yml exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 `caddy reload` لا يوقف سنابل، وإذا كان في الإعداد خطأ يرفضه Caddy ويبقي الإعداد القديم يعمل.
+**تحذير:** لا تترك ملف `.caddy` فيه خطأ أو يكرر دومين سنابل: عند إعادة تشغيل Caddy (تحديث سنابل أو إعادة تشغيل السيرفر)
+سيرفض Caddy البدء وتتوقف سنابل وكل المواقع معه. نفّذ `caddy validate` دائمًا قبل الحفظ النهائي.
 تصدر شهادة HTTPS للدومين الجديد تلقائيًا بعد أن يشير سجل `A` الخاص به إلى السيرفر.
 
 ## إزالة موقع

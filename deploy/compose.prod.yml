@@ -8,6 +8,11 @@ services:
 
   frontend:
     ports: !reset []
+    networks:
+      default:
+        # اسم فريد يصل به Caddy إلى واجهة سنابل، حتى لا يختلط بخدمة اسمها frontend في نظام آخر على الشبكة caddy-edge
+        aliases:
+          - sanabel-frontend
 
   caddy:
     image: caddy:2.11.9-alpine

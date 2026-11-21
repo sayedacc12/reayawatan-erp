@@ -24,5 +24,6 @@ import /etc/caddy/sites/*.caddy
 		-X-Powered-By
 	}
 
-	reverse_proxy frontend:80
+	# اسم فريد معرّف في deploy/compose.prod.yml (لا تستخدم frontend لأن أنظمة أخرى قد تحمله على الشبكة caddy-edge)
+	reverse_proxy sanabel-frontend:80
 }
