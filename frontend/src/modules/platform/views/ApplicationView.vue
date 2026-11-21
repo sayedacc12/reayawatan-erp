@@ -204,6 +204,7 @@ const copy = (s: string) => { copyText(s); toast.success('تم النسخ'); };
                 <div class="field"><label>المعرف في الروابط</label><input v-model="approve.slug" class="input" dir="ltr" pattern="[a-z0-9\-]+" required /></div>
                 <div class="p-link-box"><span>دخول الموظفين</span><code>{{ origin }}/o/{{ approve.slug }}</code></div>
                 <div class="p-link-box"><span>بوابة المستفيدين</span><code>{{ origin }}/portal/{{ approve.slug }}</code></div>
+                <div class="p-link-box"><span>بوابة الموردين</span><code>{{ origin }}/supplier/{{ approve.slug }}</code></div>
                 <p class="muted small">ستُنشأ مسودة عقد إلكتروني من بنود العقد بهذه الشروط، فتراجعها وترسلها للجمعية للتوقيع.</p>
               </div>
             </div>

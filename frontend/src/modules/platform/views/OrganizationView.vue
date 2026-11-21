@@ -302,6 +302,7 @@ const STATUS_OPTIONS = [
             <h2>الروابط المولدة</h2>
             <div class="p-link-box"><span>دخول الموظفين</span><code>{{ origin }}/o/{{ org.slug }}</code><button class="btn btn-sm" @click="copy(`${origin}/o/${org.slug}`)">نسخ</button></div>
             <div class="p-link-box"><span>بوابة المستفيدين</span><code>{{ origin }}/portal/{{ org.slug }}</code><button class="btn btn-sm" @click="copy(`${origin}/portal/${org.slug}`)">نسخ</button></div>
+            <div class="p-link-box"><span>بوابة الموردين</span><code>{{ origin }}/supplier/{{ org.slug }}</code><button class="btn btn-sm" @click="copy(`${origin}/supplier/${org.slug}`)">نسخ</button></div>
             <p class="muted small">يتوقف الدخول على الرابطين تلقائيًا عند انتهاء التجربة أو الاشتراك أو إيقاف الجمعية.</p>
           </section>
           <section class="card p-panel">

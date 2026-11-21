@@ -178,6 +178,7 @@ const until = (o: Org) => (o.state === 'trial' ? o.trialEndsOn : o.subscriptionE
                 <code dir="ltr">{{ o.slug }}</code>
                 <a :href="`/o/${o.slug}`" target="_blank" class="portal-link">دخول الموظفين ↗</a>
                 <a :href="`/portal/${o.slug}`" target="_blank" class="portal-link">بوابة المستفيدين ↗</a>
+                <a :href="`/supplier/${o.slug}`" target="_blank" class="portal-link">بوابة الموردين ↗</a>
               </div>
               <span v-if="!o.hasProfile" class="tone tone-warn" style="margin-top: 4px">البيانات الرئيسية غير مكتملة</span>
             </td>

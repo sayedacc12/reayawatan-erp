@@ -109,6 +109,7 @@ const copy = (s: string) => copyText(s);
           <h3>روابط جمعيتك</h3>
           <div class="linkbox"><span>دخول الموظفين</span><code dir="ltr">{{ origin }}/o/{{ t.organization.slug }}</code><a class="btn btn-sm" :href="`/o/${t.organization.slug}`" target="_blank">فتح</a></div>
           <div class="linkbox"><span>بوابة المستفيدين</span><code dir="ltr">{{ origin }}/portal/{{ t.organization.slug }}</code><a class="btn btn-sm" :href="`/portal/${t.organization.slug}`" target="_blank">فتح</a></div>
+          <div class="linkbox"><span>بوابة الموردين</span><code dir="ltr">{{ origin }}/supplier/{{ t.organization.slug }}</code><a class="btn btn-sm" :href="`/supplier/${t.organization.slug}`" target="_blank">فتح</a></div>
           <p class="muted small">يدخل مدير النظام بالبريد <b dir="ltr">{{ t.data.adminEmail }}</b> وكلمة المرور التي اخترتها عند التسجيل.</p>
           <div v-if="t.contract" class="contract-cta">
             <div>
