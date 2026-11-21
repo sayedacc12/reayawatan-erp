@@ -106,7 +106,7 @@ function vaultKey() {
 /** التشفير مربوط بالجمعية (بيانات إضافية موثّقة)، فلا يصلح سر جمعية إن نُقل إلى صف جمعية أخرى */
 export function seal(plain: string, org: string) {
   const iv = randomBytes(12);
-  const c = createCipheriv('aes-256-gcm', vaultKey(), iv);
+  const c = createCipheriv('aes-256-gcm', vaultKey(), iv, { authTagLength: 16 });
   c.setAAD(Buffer.from(`sanabel:zatca:${org}`));
   const ct = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
   return `v1:${iv.toString('base64')}:${c.getAuthTag().toString('base64')}:${ct.toString('base64')}`;
@@ -115,9 +115,11 @@ export function seal(plain: string, org: string) {
 export function unseal(sealed: string, org: string) {
   const [v, iv, tag, ct] = sealed.split(':');
   if (v !== 'v1' || !iv || !tag || !ct) throw new Error('unknown vault format');
-  const d = createDecipheriv('aes-256-gcm', vaultKey(), Buffer.from(iv, 'base64'));
+  const tagBuf = Buffer.from(tag, 'base64');
+  if (tagBuf.length !== 16) throw new Error('invalid vault tag');
+  const d = createDecipheriv('aes-256-gcm', vaultKey(), Buffer.from(iv, 'base64'), { authTagLength: 16 });
   d.setAAD(Buffer.from(`sanabel:zatca:${org}`));
-  d.setAuthTag(Buffer.from(tag, 'base64'));
+  d.setAuthTag(tagBuf);
   return Buffer.concat([d.update(Buffer.from(ct, 'base64')), d.final()]).toString('utf8');
 }
 
