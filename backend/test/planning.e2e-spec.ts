@@ -131,7 +131,7 @@ describe('Strategic and operational planning', () => {
     expect(p.stages).toHaveLength(3);
     // كل المستهدفات موزعة على سنوات الخطة
     expect(Object.keys(p.kpis[0].targets)).toEqual([String(Y), String(Y + 1), String(Y + 2)]);
-    const init = p.items.find((i: { title: string }) => i.title === 'برنامج الاستقطاع الشهري');
+    const init = p.items.find((i: { title: string }) => i.title === 'برنامج العقود الإطارية');
     ids.init = init.id;
     await http.patch(`${R}/items/${init.id}`).set(as(admin)).send({ costByYear: { [Y]: 120000, [Y + 1]: 80000 }, fundingType: 'unrestricted', ownerName: 'مدير تنمية الموارد' }).expect(200);
     await http.patch(`${R}/items/${init.id}`).set(as(admin)).send({ costByYear: { [Y + 5]: 1 } }).expect(400);
