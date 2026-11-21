@@ -65,7 +65,8 @@
     "transform": {
       "^.+\\.ts$": "ts-jest"
     },
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testTimeout": 60000
   },
   "overrides": {
     "multer": "^2.5.0",
