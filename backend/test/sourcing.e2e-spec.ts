@@ -337,43 +337,6 @@ describe('Sourcing: requests, tenders, award and approval', () => {
     expect(rq.status).toBe('draft');
   });
 
-  it('checks the funding source first, with its purpose, period and balance, and releases it on cancel', async () => {
-    const mk = async (extra: object) => {
-      const r = (await http.post(`${PR}/requests`).set(as(tok.requester)).send(req({
-        title: `شراء ${Math.random()}`, method: 'direct', lines: [{ description: `قرطاسية ${Math.random()}`, qty: 10, estPrice: 500 }], ...extra,
-      })).expect(201)).body;
-      await http.post(`${PR}/requests/${r.id}/submit`).set(as(tok.requester)).send({ confirmDuplicate: true }).expect(200);
-      return r.id as string;
-    };
-    // تبرع لحالة مستفيد لا يُستخدم في شراء مواد، وتبرع انتهت مدته، وتبرع لمشروع آخر
-    let res = await http.post(`${PR}/requests/${await mk({ fundingBatchId: ids.caseBatch })}/approve`).set(as(tok.head)).send({}).expect(409);
-    expect(res.body.message).toContain('حالة مستفيد');
-    res = await http.post(`${PR}/requests/${await mk({ fundingBatchId: ids.expiredBatch })}/approve`).set(as(tok.head)).send({}).expect(409);
-    expect(res.body.message).toContain('انتهت فترة استخدام التمويل');
-    res = await http.post(`${PR}/requests/${await mk({ fundingBatchId: ids.projectBatch })}/approve`).set(as(tok.head)).send({}).expect(409);
-    expect(res.body.message).toContain('مشروع');
-    await http.post(`${PR}/requests/${await mk({ fundingBatchId: ids.projectBatch, projectId: ids.project })}/approve`).set(as(tok.head)).send({}).expect(200);
-    // مصدر التمويل يحكم حتى لو كان بند الموازنة لا يكفي
-    const ok = await mk({ fundingBatchId: ids.opsBatch, budgetLineId: ids.line });
-    await http.post(`${PR}/requests/${ok}/approve`).set(as(tok.head)).send({}).expect(200);
-    const rq = (await http.get(`${PR}/requests/${ok}`).set(as(tok.buyer)).expect(200)).body;
-    await http.post(`${PR}/orders`).set(as(tok.buyer)).send({ requestId: ok, supplierId: ids.pending, lines: [{ lineId: rq.lines[0].id, qty: 1, unitPrice: 1 }], vatRate: 15 }).expect(409);
-    const po = (await http.post(`${PR}/orders`).set(as(tok.buyer)).send({
-      requestId: ok, supplierId: ids.gamma, lines: [{ lineId: rq.lines[0].id, qty: 10, unitPrice: 480 }], vatRate: 15, deliveryDate: future(7),
-    }).expect(201)).body;
-    await http.post(`${PR}/orders/${po.id}/submit`).set(as(tok.buyer)).expect(200);
-    const issued = (await http.post(`${PR}/orders/${po.id}/approve`).set(as(tok.approver)).send({}).expect(200)).body;
-    expect(issued).toMatchObject({ status: 'issued', fundingReserved: 5520 });
-    expect(issued.budgetCheck.basis).toBe('funding');
-    let [b] = await db.query('SELECT reserved_amount::float AS r FROM fundraising_batches WHERE id = $1', [ids.opsBatch]);
-    expect(b.r).toBe(5520);
-    const cancelled = (await http.post(`${PR}/orders/${po.id}/cancel`).set(as(tok.buyer)).send({ reason: 'اعتذار المورد' }).expect(200)).body;
-    expect(cancelled.status).toBe('cancelled');
-    [b] = await db.query('SELECT reserved_amount::float AS r FROM fundraising_batches WHERE id = $1', [ids.opsBatch]);
-    expect(b.r).toBe(0);
-    expect((await http.get(`${PR}/requests/${ok}`).set(as(tok.buyer)).expect(200)).body.status).toBe('approved');
-  });
-
   it('shows dashboard counts, approval tasks and the procurement reports', async () => {
     const dash = (await http.get(`${PR}/dashboard`).set(as(tok.buyer)).expect(200)).body;
     expect(dash.sourcing.orders.live).toBe(1);

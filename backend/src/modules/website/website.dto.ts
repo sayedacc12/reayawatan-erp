@@ -6,22 +6,25 @@ import { BOOKING_STATUSES, LEAD_STATUSES } from './entities/website.entity';
 import { SERVICE_ICONS } from './website-defaults';
 
 const PHONE = /^[0-9+\s()-]{7,20}$/;
+/** نص سطر واحد بلا محارف تحكم (يظهر في عناوين البريد وجداول التصدير) */
+const LINE = /^[^\x00-\x1F\x7F]*$/;
+const LINE_MSG = { message: 'النص يحتوي محارف غير مسموحة' };
 
 /** حقول التواصل المشتركة في كل نماذج الموقع */
 class VisitorDto {
-  @IsString() @MinLength(2, { message: 'اكتبوا الاسم' }) @MaxLength(160)
+  @IsString() @MinLength(2, { message: 'اكتبوا الاسم' }) @MaxLength(160) @Matches(LINE, LINE_MSG)
   name!: string;
 
   @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' }) @MaxLength(200)
   email!: string;
 
-  @IsOptional() @IsString() @MaxLength(200)
+  @IsOptional() @IsString() @MaxLength(200) @Matches(LINE, LINE_MSG)
   orgName?: string;
 
   @IsOptional() @IsString() @Matches(PHONE, { message: 'رقم الجوال غير صحيح' })
   phone?: string;
 
-  @IsOptional() @IsString() @MaxLength(60)
+  @IsOptional() @IsString() @MaxLength(60) @Matches(LINE, LINE_MSG)
   orgType?: string;
 
   /** حقل مخفي لاصطياد البرامج الآلية: الإنسان لا يراه فيتركه فارغًا */
@@ -76,7 +79,7 @@ export class BookingRequestDto extends VisitorDto {
   @IsISO8601({ strict: true }, { message: 'اختاروا موعدًا' })
   startsAt!: string;
 
-  @IsOptional() @IsString() @MaxLength(300)
+  @IsOptional() @IsString() @MaxLength(300) @Matches(LINE, LINE_MSG)
   topic?: string;
 
   @IsOptional() @ValidateNested() @Type(() => CalculatorInputDto)

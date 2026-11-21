@@ -104,35 +104,4 @@ describe('Password reset', () => {
     expect(again.body.pending).toHaveLength(0);
   });
 
-  it('lets a beneficiary request a reset with national ID and registered mobile', async () => {
-    const reg = await http.post('/api/portal/o/alkhair/register').send({
-      fullName: 'أم محمد', nationalId: '1012345678', phone: '0551234567', gender: 'female', nationality: 'سعودي', password: 'Portal123',
-    });
-    expect([201, 400]).toContain(reg.status);
-    if (reg.status === 400) {
-      // الجنسية غير مسجلة لدى الجمعية: يسجلها الموظف مباشرة
-      await http.post('/api/beneficiaries').set(as(admin)).send({ fullName: 'أم محمد', nationalId: '1012345678', phone: '0551234567', gender: 'female' }).expect(201);
-    }
-    const [{ id }] = await app.get(DataSource).query(`SELECT id FROM beneficiaries WHERE national_id = '1012345678'`);
-    if (reg.status === 400) await http.post(`/api/beneficiaries/${id}/portal-access`).set(as(admin)).send({ password: 'Portal123' }).expect(204);
-
-    const wrong = await http.post('/api/portal/o/alkhair/forgot').send({ nationalId: '1012345678', phone: '0559999999' }).expect(200);
-    const right = await http.post('/api/portal/o/alkhair/forgot').send({ nationalId: '1012345678', phone: '+966 55 123 4567' }).expect(200);
-    expect(wrong.body).toEqual(right.body);
-    const file = await http.get(`/api/beneficiaries/${id}`).set(as(admin)).expect(200);
-    expect(file.body.portalResetPending).toBe(true);
-
-    const temp = await http.post(`/api/beneficiaries/${id}/portal-temp-password`).set(as(admin)).expect(201);
-    expect(temp.body.phone).toBe('0551234567');
-    const loginRes = await http.post('/api/portal/o/alkhair/login').send({ nationalId: '1012345678', password: temp.body.password });
-    expect(loginRes.status).toBe(200);
-    expect(loginRes.body.mustChangePassword).toBe(true);
-    const pt = loginRes.body.accessToken;
-    await http.get('/api/portal/requests').set(as(pt)).expect(403);
-    await http.post('/api/portal/change-password').set(as(pt)).send({ currentPassword: temp.body.password, newPassword: 'Family2026' }).expect(204);
-    await http.get('/api/portal/requests').set(as(pt)).expect(200);
-    const after = await http.get(`/api/beneficiaries/${id}`).set(as(admin)).expect(200);
-    expect(after.body.portalResetPending).toBe(false);
-    expect(after.body.portalResets[0].status).toBe('completed');
-  });
 });

@@ -15,6 +15,9 @@ import { configureApp } from '../src/main';
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 
+/** أول موعد متاح غير الموعد المحجوز */
+const after0 = (days: { slots: string[] }[], taken: string) => days.flatMap((d) => d.slots).find((x) => x !== taken)!;
+
 describe('Reaya Watan website module', () => {
   let app: NestExpressApplication;
   let http: ReturnType<typeof request>;
@@ -27,7 +30,7 @@ describe('Reaya Watan website module', () => {
   beforeAll(async () => {
     Object.assign(process.env, {
       DATABASE_URL: DB, JWT_SECRET: 'test-secret', COMPANY_SLUG: 'rw-test', COMPANY_NAME: 'رعاية وطن',
-      DIRECTOR_EMAIL: 'director@rw.test', DIRECTOR_USERNAME: 'director', DIRECTOR_PASSWORD: 'Director123',
+      DIRECTOR_EMAIL: 'director@rw.test', DIRECTOR_USERNAME: 'director', DIRECTOR_PASSWORD: 'RwAdmin2026',
       PLATFORM_ADMIN_EMAIL: 'platform@test.org', PLATFORM_ADMIN_PASSWORD: 'Platform123', UPLOAD_DIR: '/tmp/rw-test-uploads',
     });
     const reset = new DataSource({ type: 'postgres', url: DB });
@@ -38,7 +41,7 @@ describe('Reaya Watan website module', () => {
     app = configureApp(moduleRef.createNestApplication<NestExpressApplication>());
     await app.init();
     http = request(app.getHttpServer());
-    director = (await http.post('/api/auth/login').send({ login: 'director', password: 'Director123' }).expect(200)).body.accessToken;
+    director = (await http.post('/api/auth/login').send({ login: 'director', password: 'RwAdmin2026' }).expect(200)).body.accessToken;
 
     // موظف يرى العملاء المحتملين فقط
     const role = await http.post('/api/roles').set(as(director)).send({ name: 'مطلع', permissions: ['website.dashboard.read', 'website.leads.read'] }).expect(201);
@@ -124,6 +127,10 @@ describe('Reaya Watan website module', () => {
     const ok = await http.post('/api/public/web/booking').send({ ...visitor, startsAt: slot, topic: 'الحوكمة', assessment: { answers: [2, 2, 2, 2, 2, 2, 2] } }).expect(201);
     expect(ok.body.manageToken).toHaveLength(43);
     await http.post('/api/public/web/booking').send({ ...visitor, email: 'b@b.org', startsAt: slot }).expect(409);
+    // موعد قادم واحد لكل بريد: نفس الزائر لا يحجز موعدًا ثانيًا قبل إلغاء الأول
+    const other2 = after0(slots.body.days, slot);
+    const dup = await http.post('/api/public/web/booking').send({ ...visitor, startsAt: other2 }).expect(409);
+    expect(dup.body.message).toContain('موعد قادم');
     const after = await http.get('/api/public/web/booking/slots').expect(200);
     expect(after.body.days.flatMap((d: { slots: string[] }) => d.slots)).not.toContain(slot);
 
@@ -180,6 +187,17 @@ describe('Reaya Watan website module', () => {
     await http.put(`/api/website/services/${svc.id}`).set(as(director)).send({ ...body, published: false }).expect(200);
     const after = await http.get('/api/public/web').expect(200);
     expect(after.body.services).toHaveLength(6);
+
+    // كل تعديل يُسجل: من، ومتى، وما قبل وما بعد
+    await http.get('/api/website/content-history').set(as(viewer)).expect(403);
+    const hist = (await http.get('/api/website/content-history').set(as(director)).expect(200)).body as { area: string; action: string; target: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null; userName: string }[];
+    const home = hist.find((e) => e.area === 'content' && e.target === 'home')!;
+    expect(home.action).toBe('save');
+    expect(home.after?.title).toBe('عنوان جديد');
+    expect(home.userName).toBeTruthy();
+    const svcEv = hist.find((e) => e.area === 'service' && e.action === 'update')!;
+    expect(svcEv.before?.published).toBe(true);
+    expect(svcEv.after?.published).toBe(false);
   });
 
   it('shows a dashboard and bell tasks for new leads', async () => {

@@ -83,9 +83,18 @@ export class ReayaWatanWebsite1795300000000 implements MigrationInterface {
       CONSTRAINT "FK_rw_guide_downloads_lead" FOREIGN KEY ("lead_id") REFERENCES "rw_leads"("id") ON DELETE CASCADE)`);
     await q.query(`CREATE INDEX "IDX_rw_guide_downloads_org" ON "rw_guide_downloads" ("organization_id")`);
     await q.query(`CREATE UNIQUE INDEX "UQ_rw_guide_downloads_token" ON "rw_guide_downloads" ("token_hash")`);
+
+    await q.query(`CREATE TABLE "rw_content_events" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "organization_id" uuid NOT NULL,
+      "area" character varying(20) NOT NULL, "action" character varying(20) NOT NULL, "target" character varying(200),
+      "before" jsonb, "after" jsonb, "user_id" uuid, "user_name" character varying(200),
+      "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+      CONSTRAINT "PK_rw_content_events" PRIMARY KEY ("id"),
+      CONSTRAINT "FK_rw_content_events_org" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE)`);
+    await q.query(`CREATE INDEX "IDX_rw_content_events_org" ON "rw_content_events" ("organization_id", "created_at")`);
   }
 
   public async down(q: QueryRunner): Promise<void> {
+    await q.query(`DROP TABLE "rw_content_events"`);
     await q.query(`DROP TABLE "rw_guide_downloads"`);
     await q.query(`DROP TABLE "rw_guides"`);
     await q.query(`DROP TABLE "rw_bookings"`);

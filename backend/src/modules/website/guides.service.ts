@@ -6,6 +6,7 @@ import { FileStore } from '../../core/files/file-store.service';
 import { publicOrigin } from '../../core/mail/mail-templates';
 import { Guide, GuideDownload, LeadEvent } from './entities/website.entity';
 import { tokenHash } from './booking.service';
+import { ContentService, snap } from './content.service';
 import { LeadsService } from './leads.service';
 import { GuideDto, GuideRequestDto } from './website.dto';
 
@@ -15,7 +16,7 @@ const LINK_MAX_USES = 5;
 
 @Injectable()
 export class GuidesService {
-  constructor(private readonly db: DataSource, private readonly files: FileStore, private readonly leads: LeadsService) {}
+  constructor(private readonly db: DataSource, private readonly files: FileStore, private readonly leads: LeadsService, private readonly content: ContentService) {}
 
   list(u: OrgUser) {
     return this.db.getRepository(Guide).find({ where: { organizationId: u.organizationId }, order: { sortOrder: 'ASC', createdAt: 'ASC' } });
@@ -32,7 +33,9 @@ export class GuidesService {
     if (await repo.exists({ where: { organizationId: u.organizationId, slug: dto.slug } })) throw new ConflictException('المعرف مستخدم لدليل آخر');
     if (dto.published) throw new BadRequestException('ارفعوا ملف الدليل أولًا ثم انشروه');
     const [{ n }] = await this.db.query('SELECT COALESCE(MAX(sort_order), 0)::int + 1 AS n FROM rw_guides WHERE organization_id = $1', [u.organizationId]);
-    return repo.save(repo.create({ ...dto, serviceSlug: dto.serviceSlug || null, pages: dto.pages ?? null, organizationId: u.organizationId, sortOrder: n }));
+    const g = await repo.save(repo.create({ ...dto, serviceSlug: dto.serviceSlug || null, pages: dto.pages ?? null, organizationId: u.organizationId, sortOrder: n }));
+    await this.content.audit(u, 'guide', 'create', g.slug, null, snap(g));
+    return g;
   }
 
   async update(u: OrgUser, id: string, dto: GuideDto) {
@@ -40,12 +43,16 @@ export class GuidesService {
     const g = await this.get(u.organizationId, id);
     if (dto.slug !== g.slug && (await repo.exists({ where: { organizationId: u.organizationId, slug: dto.slug } }))) throw new ConflictException('المعرف مستخدم لدليل آخر');
     if (dto.published && !g.fileKey) throw new BadRequestException('ارفعوا ملف الدليل (PDF) قبل النشر');
+    const before = snap(g);
     Object.assign(g, { ...dto, serviceSlug: dto.serviceSlug || null, pages: dto.pages ?? null });
-    return repo.save(g);
+    const saved = await repo.save(g);
+    await this.content.audit(u, 'guide', 'update', saved.slug, before, snap(saved));
+    return saved;
   }
 
   async upload(u: OrgUser, id: string, kind: 'file' | 'cover', file: Express.Multer.File | undefined) {
     const g = await this.get(u.organizationId, id);
+    const before = snap(g);
     const saved = await this.files.save(`website/${u.organizationId}`, file, kind === 'file' ? 'ملف الدليل' : 'صورة الغلاف');
     if (kind === 'file') {
       if (saved.mime !== 'application/pdf') { await this.files.remove(saved.key); throw new BadRequestException('ملف الدليل بصيغة PDF فقط'); }
@@ -60,6 +67,7 @@ export class GuidesService {
       await this.db.getRepository(Guide).save(g);
       if (old) await this.files.remove(old);
     }
+    await this.content.audit(u, 'guide', 'upload', g.slug, before, snap(g));
     return g;
   }
 
@@ -67,11 +75,14 @@ export class GuidesService {
     const g = await this.get(u.organizationId, id);
     // الدليل الذي نُزِّل يبقى سجله مع العملاء المحتملين: يُخفى بدل الحذف
     if (g.downloads > 0) {
+      const before = snap(g);
       g.published = false;
       await this.db.getRepository(Guide).save(g);
+      await this.content.audit(u, 'guide', 'hide', g.slug, before, snap(g));
       return { ok: true, hidden: true };
     }
     await this.db.getRepository(Guide).delete({ id: g.id, organizationId: u.organizationId });
+    await this.content.audit(u, 'guide', 'delete', g.slug, snap(g), null);
     if (g.fileKey) await this.files.remove(g.fileKey);
     if (g.coverKey) await this.files.remove(g.coverKey);
     return { ok: true };
@@ -81,7 +92,9 @@ export class GuidesService {
     await this.db.transaction(async (em) => {
       for (const [i, id] of ids.entries()) await em.update(Guide, { id, organizationId: u.organizationId }, { sortOrder: i + 1 });
     });
-    return this.list(u);
+    const list = await this.list(u);
+    await this.content.audit(u, 'guide', 'order', null, null, { order: list.map((x) => x.slug) });
+    return list;
   }
 
   /** معاينة ملف الدليل للموظفين */

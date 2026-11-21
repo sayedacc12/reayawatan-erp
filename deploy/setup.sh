@@ -27,8 +27,8 @@ JWT_SECRET=$(rand 48)
 DB_PASSWORD=$(rand 24)
 ZATCA_KEY_SECRET=$(rand 48)
 COMPANY_SLUG=reayawatan
-COMPANY_NAME=رعاية وطن
-DIRECTOR_NAME=${DIRECTOR_NAME:-مدير المنظمة}
+COMPANY_NAME="رعاية وطن"
+DIRECTOR_NAME="${DIRECTOR_NAME:-مدير المنظمة}"
 DIRECTOR_EMAIL=${DIRECTOR_EMAIL}
 DIRECTOR_USERNAME=${DIRECTOR_USERNAME:-director}
 DOMAIN=${DOMAIN:-reayawatan.com}
@@ -51,8 +51,13 @@ for _ in $(seq 1 60); do
   if DC exec -T rw-frontend wget -qO- http://rw-backend:3000/api/public/web >/dev/null 2>&1; then READY=1; break; fi
   sleep 5
 done
-[ "${READY:-0}" = 1 ] || die "الخادم لم يجهز بعد. راجع السجل: $DOCKER compose -p rw logs --tail 80 rw-backend"
+[ "${READY:-0}" = 1 ] || { unset DIRECTOR_PASSWORD DIRECTOR_PASSWORD_TEMPORARY; DC up -d rw-backend >/dev/null 2>&1 || true; die "الخادم لم يجهز بعد. راجع السجل: $DOCKER compose -p rw logs --tail 80 rw-backend"; }
 if [ "$NEW_INSTALL" = 1 ]; then
+  echo
+  echo "=============================================="
+  echo " كلمة المرور المؤقتة للمدير: ${DIRECTOR_PASSWORD_SHOWN}"
+  echo " (تظهر هنا مرة واحدة، صالحة 24 ساعة، ويطلب النظام تغييرها عند أول دخول. احفظوها الآن)"
+  echo "=============================================="
   # إعادة إنشاء الخادم بلا كلمة المرور في متغيراته (المدير أُنشئ وكلمته محفوظة مشفّرة في القاعدة)
   unset DIRECTOR_PASSWORD DIRECTOR_PASSWORD_TEMPORARY
   DC up -d rw-backend
@@ -87,7 +92,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now rw-backup.timer >/dev/null
 if sudo test -s /etc/reayawatan-backup/rclone.conf; then BACKUP_STATE="مفعّل"; else BACKUP_STATE="لم يُربط بعد: اتبع deploy/BACKUP.md"; fi
 
-set -a; . ./.env; set +a
+envval() { grep -m1 "^$1=" .env | cut -d= -f2- | sed 's/^"//; s/"$//'; }
+DOMAIN="$(envval DOMAIN)"; DIRECTOR_USERNAME="$(envval DIRECTOR_USERNAME)"; DIRECTOR_EMAIL="$(envval DIRECTOR_EMAIL)"
 echo
 echo "=============================================="
 echo " ✅ رعاية وطن تعمل داخل Docker (المشروع rw)"
@@ -95,8 +101,7 @@ echo " الرابط بعد ربط Caddy: https://${DOMAIN}"
 echo " دخول الموظفين: https://${DOMAIN}/login"
 if [ "$NEW_INSTALL" = 1 ]; then
   echo " اسم دخول المدير: ${DIRECTOR_USERNAME}  (أو ${DIRECTOR_EMAIL})"
-  echo " كلمة المرور المؤقتة: ${DIRECTOR_PASSWORD_SHOWN}"
-  echo " (تظهر هنا مرة واحدة، صالحة 24 ساعة، ويطلب النظام تغييرها عند أول دخول)"
+  echo " كلمة المرور المؤقتة: ظهرت أعلاه بعد جاهزية الخادم"
 fi
 echo " النسخ الاحتياطي: ${BACKUP_STATE}"
 echo "=============================================="

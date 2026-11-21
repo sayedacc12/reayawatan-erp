@@ -341,4 +341,42 @@ export class GuideDownload {
   createdAt!: Date;
 }
 
-export const WEBSITE_ENTITIES = [SiteContent, SiteService, Lead, LeadEvent, Booking, Guide, GuideDownload];
+/** سجل تعديلات محتوى الموقع وخدماته وأدلته وإعداداته: من عدّل ومتى، وما قبل التعديل وما بعده */
+@Entity('rw_content_events')
+@Index(['organizationId', 'createdAt'])
+export class ContentEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  /** content | service | guide */
+  @Column({ length: 20 })
+  area!: string;
+
+  /** save | reset | create | update | delete | hide | upload | order */
+  @Column({ length: 20 })
+  action!: string;
+
+  /** مفتاح القسم أو معرف الخدمة أو الدليل */
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  target!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  before!: unknown;
+
+  @Column({ type: 'jsonb', nullable: true })
+  after!: unknown;
+
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId!: string | null;
+
+  @Column({ name: 'user_name', type: 'varchar', length: 200, nullable: true })
+  userName!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+export const WEBSITE_ENTITIES = [SiteContent, SiteService, Lead, LeadEvent, Booking, Guide, GuideDownload, ContentEvent];

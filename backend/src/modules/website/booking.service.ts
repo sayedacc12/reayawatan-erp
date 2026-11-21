@@ -82,6 +82,12 @@ export class BookingService {
       const avail = await this.slots(org, em);
       if (!avail.enabled) throw new BadRequestException('الحجز الإلكتروني متوقف حاليًا، تواصلوا معنا من نموذج طلب الاستشارة');
       if (!avail.days.some((d) => d.slots.includes(start.toISOString()))) throw new ConflictException('هذا الموعد لم يعد متاحًا، اختاروا موعدًا آخر');
+      // موعد قادم واحد لكل بريد، حتى لا تُحجز المواعيد كلها من جهة واحدة
+      const [{ n }] = await em.query(
+        `SELECT count(*)::int AS n FROM rw_bookings b JOIN rw_leads l ON l.id = b.lead_id AND l.organization_id = b.organization_id
+          WHERE b.organization_id = $1 AND b.status = ANY($2) AND b.ends_at > now() AND l.email = $3`,
+        [org, ACTIVE_BOOKING, dto.email.trim().toLowerCase()]);
+      if (n > 0) throw new ConflictException('لديكم موعد قادم محجوز بهذا البريد. لتغييره ألغوه من الرابط المرسل لكم ثم احجزوا موعدًا جديدًا');
       const result: Record<string, unknown> = { startsAt: start.toISOString(), slotMinutes: settings.slotMinutes };
       if (dto.calculator) result.calculator = calculatorResult(dto.calculator);
       let score: number | null = null;
@@ -112,7 +118,8 @@ export class BookingService {
   private async byToken(org: string, token: string, em: EntityManager = this.db.manager) {
     if (!/^[A-Za-z0-9_-]{40,60}$/.test(token)) throw new NotFoundException('الرابط غير صحيح أو انتهت صلاحيته');
     const b = await em.findOne(Booking, { where: { organizationId: org, manageTokenHash: tokenHash(token) } });
-    if (!b) throw new NotFoundException('الرابط غير صحيح أو انتهت صلاحيته');
+    // رابط إدارة الموعد ينتهي بعد 30 يومًا من موعد الجلسة
+    if (!b || b.endsAt.getTime() < Date.now() - 30 * DAY_MS) throw new NotFoundException('الرابط غير صحيح أو انتهت صلاحيته');
     return b;
   }
 

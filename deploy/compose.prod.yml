@@ -10,8 +10,10 @@ services:
   rw-frontend:
     ports: !reset []
     networks:
-      - default
-      - edge
+      default: {}
+      # اسم فريد على الشبكة المشتركة حتى لا يلتبس بأي خدمة أخرى عليها
+      edge:
+        aliases: [reayawatan-frontend]
 
   # قاعدة البيانات على الشبكة الداخلية فقط، ولا تنضم إلى caddy-edge أبدًا
   rw-db:

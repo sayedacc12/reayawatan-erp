@@ -3,7 +3,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { findCompany } from '../../core/company';
 import { EMAIL_RE } from '../../core/mail/mail-settings';
-import { SiteContent, SiteService as ServiceRow } from './entities/website.entity';
+import { ContentEvent, SiteContent, SiteService as ServiceRow } from './entities/website.entity';
 import { BookingSettings, CONTENT_KEYS, ContentKey, DEFAULT_CONTENT, DEFAULT_SERVICES, NotifySettings, PRIVATE_KEYS } from './website-defaults';
 import { ServiceDto } from './website.dto';
 
@@ -90,6 +90,12 @@ export class ContentService {
     const k = key as ContentKey;
     const clean = shape(DEFAULT_CONTENT[k], data, '') as Record<string, unknown>;
     if (k === 'booking') this.checkBooking(clean as unknown as BookingSettings);
+    if (k === 'assessment') {
+      const q = (clean as { questions: { text: string }[]; options: string[] });
+      if (q.questions.length < 1 || q.questions.length > 20) throw new BadRequestException('التقييم من سؤال واحد إلى عشرين سؤالًا');
+      if (q.questions.some((x) => !x.text.trim())) throw new BadRequestException('اكتبوا نص كل سؤال');
+      if (q.options.length !== 3) throw new BadRequestException('خيارات الإجابة ثلاثة: نعم، جزئيًا، لا');
+    }
     if (k === 'notify') {
       const n = clean as unknown as NotifySettings;
       n.emails = [...new Set(n.emails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
@@ -97,13 +103,17 @@ export class ContentService {
       if (bad.length) throw new BadRequestException(`بريد غير صحيح: ${bad.join('، ')}`);
       if (n.emails.length > 10) throw new BadRequestException('عشرة عناوين بريد كحد أعلى');
     }
+    const prev = await this.db.getRepository(SiteContent).findOne({ where: { organizationId: u.organizationId, key: k } });
     await this.db.getRepository(SiteContent).upsert({ organizationId: u.organizationId, key: k, data: clean as never, updatedBy: u.id }, ['organizationId', 'key']);
+    await this.audit(u, 'content', 'save', k, prev?.data ?? null, clean);
     return { key: k, data: clean };
   }
 
   async resetSection(u: OrgUser, key: string) {
     if (!(CONTENT_KEYS as readonly string[]).includes(key)) throw new BadRequestException('القسم غير معروف');
+    const prev = await this.db.getRepository(SiteContent).findOne({ where: { organizationId: u.organizationId, key } });
     await this.db.getRepository(SiteContent).delete({ organizationId: u.organizationId, key });
+    if (prev) await this.audit(u, 'content', 'reset', key, prev.data, null);
     return { key, data: DEFAULT_CONTENT[key as ContentKey] };
   }
 
@@ -153,7 +163,9 @@ export class ContentService {
     await this.ensureServices(u.organizationId);
     if (await repo.exists({ where: { organizationId: u.organizationId, slug: dto.slug } })) throw new ConflictException('المعرف مستخدم لخدمة أخرى');
     const [{ n }] = await this.db.query('SELECT COALESCE(MAX(sort_order), 0)::int + 1 AS n FROM rw_services WHERE organization_id = $1', [u.organizationId]);
-    return repo.save(repo.create({ ...dto, organizationId: u.organizationId, sortOrder: n }));
+    const s = await repo.save(repo.create({ ...dto, organizationId: u.organizationId, sortOrder: n }));
+    await this.audit(u, 'service', 'create', s.slug, null, snap(s));
+    return s;
   }
 
   async updateService(u: OrgUser, id: string, dto: ServiceDto) {
@@ -162,13 +174,17 @@ export class ContentService {
     if (dto.slug !== s.slug && (await repo.exists({ where: { organizationId: u.organizationId, slug: dto.slug } }))) {
       throw new ConflictException('المعرف مستخدم لخدمة أخرى');
     }
+    const before = snap(s);
     Object.assign(s, dto);
-    return repo.save(s);
+    const saved = await repo.save(s);
+    await this.audit(u, 'service', 'update', saved.slug, before, snap(saved));
+    return saved;
   }
 
   async removeService(u: OrgUser, id: string) {
     const s = await this.service(u.organizationId, id);
     await this.db.getRepository(ServiceRow).delete({ id: s.id, organizationId: u.organizationId });
+    await this.audit(u, 'service', 'delete', s.slug, snap(s), null);
     return { ok: true };
   }
 
@@ -178,7 +194,24 @@ export class ContentService {
         await em.update(ServiceRow, { id, organizationId: u.organizationId }, { sortOrder: i + 1 });
       }
     });
-    return this.services(u.organizationId);
+    const list = await this.services(u.organizationId);
+    await this.audit(u, 'service', 'order', null, null, { order: list.map((x) => x.slug) });
+    return list;
+  }
+
+  // ---------------- سجل التعديلات ----------------
+
+  /** يسجل من عدّل ماذا ومتى، مع ما قبل التعديل وما بعده */
+  async audit(u: OrgUser, area: 'content' | 'service' | 'guide', action: string, target: string | null, before: unknown, after: unknown) {
+    await this.db.getRepository(ContentEvent).insert({
+      organizationId: u.organizationId, area, action, target, before: (before ?? null) as never, after: (after ?? null) as never,
+      userId: u.id, userName: u.fullName,
+    });
+  }
+
+  /** آخر التعديلات (الأحدث أولًا) */
+  history(org: string, limit = 200) {
+    return this.db.getRepository(ContentEvent).find({ where: { organizationId: org }, order: { createdAt: 'DESC' }, take: limit });
   }
 
   // ---------------- الموقع العام ----------------
@@ -209,4 +242,10 @@ export class ContentService {
       guides,
     };
   }
+}
+
+/** نسخة من الصف للسجل، بلا الحقول التقنية */
+export function snap<T extends object>(row: T): Record<string, unknown> {
+  const { organizationId: _o, createdAt: _c, updatedAt: _u, ...rest } = row as Record<string, unknown>;
+  return rest;
 }

@@ -18,6 +18,6 @@ reayawatan.com {
 		-Server
 		-X-Powered-By
 	}
-	# rw-frontend موصولة بالشبكة caddy-edge من deploy/compose.prod.yml في مستودع رعاية وطن
-	reverse_proxy rw-frontend:80
+	# rw-frontend (باسمها الفريد reayawatan-frontend) موصولة بالشبكة caddy-edge من deploy/compose.prod.yml في مستودع رعاية وطن
+	reverse_proxy reayawatan-frontend:80
 }

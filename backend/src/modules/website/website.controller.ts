@@ -121,6 +121,12 @@ export class WebsiteController {
     return this.content.resetSection(u, key);
   }
 
+  @Get('content-history')
+  @RequirePermissions(P.settings)
+  contentHistory(@CurrentOrgUser() u: OrgUser) {
+    return this.content.history(u.organizationId);
+  }
+
   @Get('services')
   @RequireAnyPermission(P.content, P.guides, P.leadsRead)
   services(@CurrentOrgUser() u: OrgUser) {
@@ -289,6 +295,7 @@ export class PublicSiteController {
   async cover(@Param('slug') slug: string, @Res({ passthrough: true }) res: Response) {
     const f = await this.guides.cover(await this.org(), slug);
     res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     return new StreamableFile(f.stream as never, { type: f.mime });
   }
 }

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
+import { PASSWORD_CHARS } from './validation';
 import { DataSource } from 'typeorm';
 import { Organization, User } from './entities';
 import { companySlug } from './company';
@@ -70,6 +71,12 @@ export class BootstrapService implements OnApplicationBootstrap {
       const email = (this.config.get<string>('DIRECTOR_EMAIL') || `director@${slug}.local`).trim().toLowerCase();
       const username = (this.config.get<string>('DIRECTOR_USERNAME') || 'director').trim().toLowerCase();
       const temporary = this.config.get<string>('DIRECTOR_PASSWORD_TEMPORARY') === '1';
+      // نفس سياسة كلمات المرور: 8 أحرف إنجليزية على الأقل، فيها حرف ورقم، ولا تحتوي اسم الدخول
+      if (password.length < 8 || !PASSWORD_CHARS.test(password) || !/[A-Za-z]/.test(password) || !/\d/.test(password)
+        || password.toLowerCase().includes(username) || password.toLowerCase().includes(email.split('@')[0])) {
+        this.logger.error('DIRECTOR_PASSWORD does not meet the password policy (8+ English characters with a letter and a digit, not containing the login name); director not created');
+        return;
+      }
       await em.save(em.create(User, {
         organizationId: org.id,
         fullName: this.config.get<string>('DIRECTOR_NAME') || 'مدير المنظمة',

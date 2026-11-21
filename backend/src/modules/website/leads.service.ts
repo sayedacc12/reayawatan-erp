@@ -8,6 +8,11 @@ import { Lead, LeadEvent, LeadSource, LeadStatus } from './entities/website.enti
 import { ContentService } from './content.service';
 import { AssessmentInputDto, CalculatorInputDto, LeadQueryDto, LeadUpdateDto } from './website.dto';
 
+/** حصص بريد الموقع اليومية (من حد الإرسال اليومي العام 450 رسالة) */
+const TEAM_MAILS_PER_DAY = 120;
+const VISITOR_MAILS_PER_DAY = 100;
+const VISITOR_MAILS_PER_EMAIL = 3;
+
 export const SOURCE_LABEL: Record<LeadSource, string> = {
   consultation: 'طلب استشارة',
   calculator: 'حاسبة مضاعف الأثر',
@@ -72,9 +77,24 @@ export class LeadsService {
     return lead;
   }
 
+  /**
+   * حصة يومية لرسائل الموقع حتى لا تستهلك نماذجه العامة حد البريد اليومي المشترك (ومنه رسائل استعادة كلمات المرور)،
+   * وحد لكل بريد زائر حتى لا يُستخدم الموقع لإغراق بريد شخص آخر.
+   */
+  private async mailBudget(org: string, kind: string, perDay: number, to?: string) {
+    const params: unknown[] = [org, kind];
+    let extra = '';
+    if (to) { params.push(to.trim().toLowerCase()); extra = ` AND to_email = $${params.length}`; }
+    const [{ n }] = await this.db.query(
+      `SELECT count(*)::int AS n FROM mail_outbox WHERE organization_id = $1 AND kind = $2 AND created_at > now() - interval '1 day'${extra}`, params);
+    return (n as number) < perDay;
+  }
+
   /** إشعار الفريق بطلب جديد (بعد حفظ الطلب؛ فشل البريد لا يُفشل الطلب) */
   async notifyTeam(org: string, lead: Lead, facts: { label: string; value: string; ltr?: boolean }[] = []) {
     try {
+      // الطلب محفوظ في النظام دائمًا؛ الإشعار وحده يتوقف عند تجاوز الحصة اليومية
+      if (!(await this.mailBudget(org, 'website.lead', TEAM_MAILS_PER_DAY))) return;
       const n = await this.content.notify(org);
       let to = n.emails;
       if (!to.length) {
@@ -107,7 +127,10 @@ export class LeadsService {
     try {
       const n = await this.content.notify(org);
       if (!n.confirmVisitor) return;
-      const m = mailLayout({ title, greeting: `مرحبًا ${lead.name}،`, paragraphs, facts, button, note: 'وصلتكم هذه الرسالة لأنكم أرسلتم نموذجًا في موقع رعاية وطن. إن لم تكونوا أنتم، تجاهلوها.' });
+      if (!(await this.mailBudget(org, 'website.visitor', VISITOR_MAILS_PER_DAY))) return;
+      if (!(await this.mailBudget(org, 'website.visitor', VISITOR_MAILS_PER_EMAIL, lead.email))) return;
+      // التحية بلا اسم الزائر: الاسم نص حر من نموذج عام، فلا يُرسل باسم الشركة إلى بريد لم يُتحقق منه
+      const m = mailLayout({ title, greeting: 'مرحبًا،', paragraphs, facts, button, note: 'وصلتكم هذه الرسالة لأنكم أرسلتم نموذجًا في موقع رعاية وطن. إن لم تكونوا أنتم، تجاهلوها.' });
       await this.mail.queue({ ...m, to: lead.email, kind: 'website.visitor', organizationId: org, dedupeKey: `visitor:${lead.id}:${title}`.slice(0, 150) });
     } catch (e) {
       this.logger.error(`Visitor mail failed: ${(e as Error).message}`);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { calculatorResult, LeadsService } from './leads.service';
+import { ContentService } from './content.service';
 import { LeadSubmitDto } from './website.dto';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -8,7 +9,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 /** نماذج الموقع العامة (طلب الاستشارة، إرسال نتيجة الحاسبة أو التقييم): كلها تصل كعملاء محتملين */
 @Injectable()
 export class FormsService {
-  constructor(private readonly db: DataSource, private readonly leads: LeadsService) {}
+  constructor(private readonly db: DataSource, private readonly leads: LeadsService, private readonly content: ContentService) {}
 
   async submit(org: string, dto: LeadSubmitDto) {
     const result: Record<string, unknown> = {};
@@ -26,12 +27,16 @@ export class FormsService {
       facts.push({ label: 'درجة الجاهزية', value: `${a.score} من 100` });
       if (a.gaps.length) facts.push({ label: 'المجالات الأضعف', value: a.gaps.map((g) => g.title).join('، ') });
     }
+    // الخدمة المختارة تُقبل فقط إن كانت خدمة منشورة؛ غير ذلك تُهمل
+    const svc = dto.serviceSlug ? (await this.content.services(org, true)).find((x) => x.slug === dto.serviceSlug) : undefined;
+    const serviceSlug = svc?.slug ?? null;
+    const serviceTitle = svc?.title ?? null;
     if (dto.source === 'calculator' && !dto.calculator) return { ok: false };
     if (dto.source === 'assessment' && !dto.assessment) return { ok: false };
     const lead = await this.db.transaction((em) => this.leads.create(em, org, dto.source, dto, {
-      serviceSlug: dto.serviceSlug ?? null, message: dto.message ?? null, result: Object.keys(result).length ? result : null, score,
+      serviceSlug, message: dto.message ?? null, result: Object.keys(result).length ? result : null, score,
     }));
-    await this.leads.notifyTeam(org, lead, [...(dto.serviceSlug ? [{ label: 'الخدمة', value: dto.serviceSlug }] : []), ...facts]);
+    await this.leads.notifyTeam(org, lead, [...(serviceSlug ? [{ label: 'الخدمة', value: serviceTitle ?? serviceSlug }] : []), ...facts]);
     if (dto.source === 'consultation') {
       await this.leads.confirmVisitor(org, lead, 'استلمنا طلبكم', ['شكرًا لتواصلكم مع رعاية وطن. سيتواصل معكم أحد مستشارينا خلال يومي عمل.'], facts);
     } else {

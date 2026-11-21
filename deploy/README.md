@@ -7,7 +7,7 @@
 |---|---|
 | مجلد الكود | `~/reayawatan-erp` |
 | مشروع Docker | `rw` (الخدمات: `rw-db`، `rw-backend`، `rw-frontend`) |
-| الوصول من الإنترنت | Caddy سنابل ← الشبكة `caddy-edge` ← `rw-frontend:80` |
+| الوصول من الإنترنت | Caddy سنابل ← الشبكة `caddy-edge` ← `reayawatan-frontend:80` |
 | قاعدة البيانات | `rw-db` على الشبكة الداخلية للمشروع فقط (ليست على `caddy-edge`) |
 | الدومين | `reayawatan.com` (و`www` و`erp` يحوّلان إليه) |
 
@@ -35,6 +35,7 @@ cd ~/reayawatan-erp && DIRECTOR_EMAIL=name@example.com bash deploy/setup.sh
 ```
 يتحقق من وجود شبكة `caddy-edge`، ويكتب `.env` بأسرار عشوائية، ويبني النظام ويشغّله،
 ويطبع مرة واحدة اسم دخول المدير وكلمة مرور مؤقتة (صالحة 24 ساعة، ويُطلب تغييرها عند أول دخول).
+كلمة المرور المؤقتة تمر عبر متغيرات بيئة الخادم الخلفي في التشغيل الأول فقط، ثم يُعاد إنشاء الحاوية بدونها فورًا ولا تُحفظ في `.env`.
 
 ## 3. ربط الدومين في Caddy سنابل
 ```bash
@@ -51,5 +52,5 @@ cd ~/reayawatan-erp && git pull origin main && bash deploy/setup.sh
 ```
 
 ## 5. البريد والنسخ الاحتياطي
-- البريد الصادر: `bash deploy/mail-setup.sh`
+- البريد الصادر: `bash deploy/mail-setup.sh` (Zoho Mail: الخادم `smtp.zoho.com` المنفذ 465، بصندوق مثل `no-reply@reayawatan.com` وكلمة مرور تطبيق من إعدادات أمان Zoho)
 - النسخ الاحتياطي: `deploy/BACKUP.md` (المؤقت `rw-backup.timer` يُجهَّز تلقائيًا، ويبقى ربط الوجهات مرة واحدة)
