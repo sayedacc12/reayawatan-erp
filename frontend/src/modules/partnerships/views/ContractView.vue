@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import ContractDocument from '../../../registration/ContractDocument.vue';
 import { useToast } from '../../../stores/toast';
 import { CONTRACT_COLOR, KIND_ICON, ORD, fmtDate, fmtDateTime, lookups, sar, today, uid } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const props = defineProps<{ id: string }>();

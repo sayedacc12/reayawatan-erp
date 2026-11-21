@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
 

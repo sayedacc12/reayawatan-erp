@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import FinancePicker from '../components/FinancePicker.vue';
 import { sar, today } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 /** إعداد عقد مع مورد معتمد أو تعديله وهو مسودة أو معاد */

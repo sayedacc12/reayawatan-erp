@@ -3,13 +3,13 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useSession } from '../../../stores/session';
 import { api, openProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import SearchSelect from '../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../shared/SearchSelect.vue';
 import AnalyticPicker, { type Share } from '../../accounting/components/AnalyticPicker.vue';
 import { loadAnalytic, useAccounts, type Analytic, type CashAccount } from '../../accounting/lib';
 import ConfBadge from '../components/ConfBadge.vue';
 import PersonPicker from '../components/PersonPicker.vue';
 import { MOVE_AR, PRIORITY_COLOR, PURPOSES, STATUS_COLOR, addDays, fmtDate, fmtDateTime, loadLookups, money, todayStr, unitOptions, type Lookups, type TxnRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 interface Movement { at: string; kind: string; byId: string; byName: string; toName?: string | null; toUnitName?: string | null; purpose?: string | null; note?: string | null; dueDate?: string | null }

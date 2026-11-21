@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { loadLookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 interface Category { code: string; name: string; kind: 'admin' | 'financial'; dueDays: number; isActive: boolean }

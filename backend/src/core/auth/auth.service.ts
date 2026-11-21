@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { Organization, User } from '../entities';
 import { ModuleCatalogService } from '../modules/module-catalog.service';
 import { accessProblem } from '../organizations/org-access';
+import { companySlug } from '../company';
 import { deletionNotice, loginDeletionText } from '../lifecycle/lifecycle-rules';
 import { AuthUser } from './decorators';
 import { PasswordResetService } from './password-reset.service';
@@ -32,8 +33,10 @@ export class AuthService {
    */
   async login(login: string, password: string, orgSlug?: string) {
     const fail = () => new UnauthorizedException('بيانات الدخول أو كلمة المرور غير صحيحة');
-    const org = orgSlug ? await this.findOrg(orgSlug) : null;
-    if (orgSlug && !org) throw new UnauthorizedException('رابط الجمعية غير صحيح');
+    // وضع الشركة الواحدة: الدخول بلا رابط منشأة يعني منشأة الشركة
+    const slug = orgSlug || companySlug() || undefined;
+    const org = slug ? await this.findOrg(slug) : null;
+    if (slug && !org) throw new UnauthorizedException('رابط الجمعية غير صحيح');
     const id = login.trim().toLowerCase();
     const user = await this.users.findOne({
       where: id.includes('@') ? { email: id } : { username: id },
@@ -41,7 +44,7 @@ export class AuthService {
     });
     const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok) throw fail();
-    if (org) {
+    if (org && !(user.isPlatformAdmin && !orgSlug)) {
       if (user.organizationId !== org.id) throw fail();
     } else if (!user.isPlatformAdmin) {
       // كلمة المرور صحيحة، فنوجّهه لصفحة جمعيته

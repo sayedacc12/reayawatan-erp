@@ -3,10 +3,10 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../../api';
 import { useSession } from '../../../../stores/session';
 import { useToast } from '../../../../stores/toast';
-import SearchSelect from '../../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../../shared/SearchSelect.vue';
 import { AF, type AssetRow } from '../../assets';
 import { P, sar } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

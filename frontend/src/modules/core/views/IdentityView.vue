@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
-import { fontStack, loadFont, themeVars } from '../../../site/fonts';
-import { applyIdentity } from '../../../site/identity';
+import { fontStack, loadFont, themeVars } from '../../../shared/fonts';
+import { applyIdentity } from '../../../shared/identity';
 import { useToast } from '../../../stores/toast';
-import '../../website/website.css';
+import '../../../shared/ws.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABS = [

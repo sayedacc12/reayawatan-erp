@@ -49,6 +49,7 @@ import { OnboardingService } from './onboarding/onboarding.service';
 import { MailController } from './mail/mail.controller';
 import { MailMessage } from './mail/mail-outbox.entity';
 import { MailService } from './mail/mail.service';
+import { isSingleCompany } from './company';
 
 /**
  * وحدة الأساس: الدخول الموحد، المستخدمون، الأدوار، الصلاحيات، وسجل الوحدات.
@@ -67,8 +68,9 @@ import { MailService } from './mail/mail.service';
   ],
   controllers: [
     AuthController, OrganizationsController, UsersController, RolesController, ModulesController,
-    SubscriptionsController, SubscriptionReportsController, RegistrationController, OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
-    PublicSiteController, PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController, MailController,
+    SubscriptionsController, SubscriptionReportsController, ...(isSingleCompany() ? [] : [RegistrationController]), OrgSupportController, SupportDeskController, LookupsController, IdentityController, PublicIdentityController,
+    // وضع الشركة الواحدة: لا تسجيل جمعيات ولا نموذج طلبات للصفحة التعريفية للمنصة
+    ...(isSingleCompany() ? [] : [PublicSiteController]), PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController, MailController,
   ],
   providers: [
     AuthService, PasswordResetService, CoreTasks, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,

@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
 import { errMsg, loadSettings, type Dept, type QSettings } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 const toast = useToast();

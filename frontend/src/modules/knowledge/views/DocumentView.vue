@@ -5,7 +5,7 @@ import { api, openProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import DocForm from '../components/DocForm.vue';
 import { STATUS_COLOR, TYPE_ICON, fmtDate, fmtDateTime, todayStr } from '../lib';
-import '../../website/website.css';
+import '../../../shared/ws.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const props = defineProps<{ id: string }>();

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import StatusPill from '../components/StatusPill.vue';
 import { EVENT_STATUS, P, STATUS_COLOR, fmtDate, num, type EventRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /** الفعاليات، وشاشة «اعتماد الفعاليات» نفسها بتصفية ما ينتظر قرار المستخدم */

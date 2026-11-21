@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { LEVEL_COLOR, LEVELS, fmtDate, thisYear } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 interface Reports {

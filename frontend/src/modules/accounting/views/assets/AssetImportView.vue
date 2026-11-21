@@ -4,7 +4,7 @@ import { api } from '../../../../api';
 import { useToast } from '../../../../stores/toast';
 import { AF, downloadFile, useLookups } from '../../assets';
 import { dt } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

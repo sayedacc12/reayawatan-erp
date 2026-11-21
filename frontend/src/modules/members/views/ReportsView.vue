@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { exportCsv, fmtDate, num, sar, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

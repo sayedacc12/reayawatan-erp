@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { randomUUID } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { FundraisingService } from '../fundraising/fundraising.service';
+import { FundingSources } from './funding-sources.service';
 import { BudgetAvailability } from '../planning/budget/budget-availability.service';
 import { PrItem, PrSupplier, PrWarehouse } from './entities/procurement.entity';
 import { PrOrder } from './entities/sourcing.entity';
@@ -24,7 +24,7 @@ import { IssueDto, ReturnDto, TransferDto, WriteoffDto } from './stock.dto';
 export class StockDocsService {
   constructor(
     private readonly db: DataSource, private readonly core: ProcurementCore, private readonly stock: StockCore, private readonly sc: SourcingCore,
-    private readonly avail: BudgetAvailability, private readonly fundraising: FundraisingService,
+    private readonly avail: BudgetAvailability, private readonly fundraising: FundingSources,
   ) {}
 
   async find(org: string, id: string) {

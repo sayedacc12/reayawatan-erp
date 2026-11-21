@@ -7,7 +7,7 @@ import { useToast } from '../../../stores/toast';
 import AccountCell from '../components/AccountCell.vue';
 import AnalyticPicker, { type Share } from '../components/AnalyticPicker.vue';
 import { ENTRY_STATUS, SOURCE_TYPES, P, VOUCHER_TYPES, allTypes, docTypes, dt, loadDocTypes, loadAnalytic, money, todayStr, useAccounts, type Analytic, type Partner } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Line { accountId: string | null; debit: number | null; credit: number | null; label: string; partnerId: string | null; analytic: Share[] }

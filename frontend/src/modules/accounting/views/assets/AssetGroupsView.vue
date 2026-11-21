@@ -4,10 +4,10 @@ import { useRoute } from 'vue-router';
 import { api } from '../../../../api';
 import { useSession } from '../../../../stores/session';
 import { useToast } from '../../../../stores/toast';
-import SearchSelect from '../../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../../shared/SearchSelect.vue';
 import { AF, FIELD_TYPES, useLookups, type FieldDef, type Group, type Recon } from '../../assets';
 import { P, loadAnalytic, sar, useAccounts, type Analytic } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

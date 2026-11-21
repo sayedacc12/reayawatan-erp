@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import ReqList from './ReqList.vue';
 import { TODAY_COLOR, initials, loadTeam, team } from './team';
 

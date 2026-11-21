@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import WarehouseForm from '../components/WarehouseForm.vue';
 import { PR, accLabel, fmtDateTime, lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id: string }>();

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BrandMark from '../components/BrandMark.vue';
 import { canBanks, loadMe, me, setSupplierToken, supplierApi, useSupplierPortal } from './supplier';
-import '../modules/projects/projects.css';
+import '../shared/module.css';
 import '../modules/procurement/procurement.css';
 
 const route = useRoute();

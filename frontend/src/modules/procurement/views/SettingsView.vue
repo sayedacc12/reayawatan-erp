@@ -6,7 +6,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { lookups, setLookups, stockLookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const toast = useToast();

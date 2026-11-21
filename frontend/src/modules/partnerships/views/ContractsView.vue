@@ -7,7 +7,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import NewContractForm from '../components/NewContractForm.vue';
 import { CONTRACT_COLOR, PT, fmtDate, lookups, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const route = useRoute();

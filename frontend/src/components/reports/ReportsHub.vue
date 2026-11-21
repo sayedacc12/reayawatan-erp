@@ -9,7 +9,7 @@ import { computed, onMounted, reactive, ref, watch, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, ApiError } from '../../api';
 import { useToast } from '../../stores/toast';
-import SearchSelect from '../../modules/fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../shared/SearchSelect.vue';
 import {
   downloadReport, fillTemplate, formatCell, isNumeric, printReport, queryString,
   type CatalogItem, type ReportColumn, type ReportDef, type ReportOutput, type Row,

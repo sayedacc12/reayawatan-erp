@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
-import '../../website/website.css';
+import '../../../shared/ws.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const toast = useToast();

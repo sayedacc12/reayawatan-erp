@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import StatementTable from '../components/StatementTable.vue';
 import { sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 /** كشف حساب المورد: الفواتير المسجلة في المالي والإشعارات الدائنة والسداد، والرصيد المستحق له */

@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { fromLocalInput, lookups, sar, toLocalInput } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id?: string }>();

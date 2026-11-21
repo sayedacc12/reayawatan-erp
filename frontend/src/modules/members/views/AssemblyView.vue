@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
 import StatusPill from '../components/StatusPill.vue';
 import { exportCsv, fmtDate, hijri, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface Row {

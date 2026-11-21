@@ -2,10 +2,10 @@
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import MeetingCard from '../components/MeetingCard.vue';
 import { KINDS, fmtDate, type DecisionRow, type MeetingRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
 

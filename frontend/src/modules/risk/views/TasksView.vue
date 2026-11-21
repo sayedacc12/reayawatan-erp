@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import TaskTable from '../components/TaskTable.vue';
 import { loadLookups, P, TASK_STATUS, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

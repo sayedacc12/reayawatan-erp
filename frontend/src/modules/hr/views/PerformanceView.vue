@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, STATUS_COLOR, thisYear } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 interface Card { id: string; employeeId: string; employeeName: string; employeeNo: number | null; unitName: string; jobTitle: string; status: string; statusLabel: string; objectives: number; competencies: number; finalScore: number | null; rating: string | null }

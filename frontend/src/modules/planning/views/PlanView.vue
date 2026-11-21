@@ -17,7 +17,7 @@ import {
   BAND, DIRECTION, errMsg, EXEC, fmtDate, fmtDateTime, FUNDING, KIND, loadConfig, loadLookups, money, num, P, pct, PERIODICITY, WF_STATUS,
   type ConfigPayload, type Item, type Lookups,
 } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

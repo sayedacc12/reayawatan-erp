@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { P, STATUS_COLOR, type JobRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const session = useSession();

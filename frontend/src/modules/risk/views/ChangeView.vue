@@ -9,7 +9,7 @@ import RiskPicker from '../components/RiskPicker.vue';
 import TaskTable from '../components/TaskTable.vue';
 import WorkflowBar from '../components/WorkflowBar.vue';
 import { CHANGE_CLASSES, fmtDate, IMPACT_AREAS, loadConfig, loadLookups, P, PHASES, PRIORITIES, type Lookups, type RiskConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

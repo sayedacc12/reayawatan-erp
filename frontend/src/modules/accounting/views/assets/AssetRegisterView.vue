@@ -6,7 +6,7 @@ import { useSession } from '../../../../stores/session';
 import AssetForm from '../../components/AssetForm.vue';
 import { AF, STATUSES, STATUS_COLOR, useLookups, type AssetDetail, type AssetRow } from '../../assets';
 import { P, sar } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

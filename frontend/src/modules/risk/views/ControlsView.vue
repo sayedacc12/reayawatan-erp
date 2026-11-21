@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import RiskPicker from '../components/RiskPicker.vue';
 import { CONTROL_TYPES, EFFECTIVENESS, fmtDate, FREQUENCIES, loadLookups, P, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

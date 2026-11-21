@@ -3,11 +3,11 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import ScoreRing from '../components/ScoreRing.vue';
 import Trend from '../components/Trend.vue';
 import { EFFORT, fmtDate, gradeOf, LEVELS, num, OBL_STATE, P, scoreColor, STATUS, type Axis, type Opportunity } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../gov.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

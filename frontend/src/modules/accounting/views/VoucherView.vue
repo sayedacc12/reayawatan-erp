@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import VoucherForm from '../components/VoucherForm.vue';
 import { ENTRY_STATUS, VOUCHER_STATUS, dt, money } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface V {

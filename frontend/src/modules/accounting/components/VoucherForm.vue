@@ -3,7 +3,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import SearchSelect from '../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../shared/SearchSelect.vue';
 import { METHODS, loadAnalytic, todayStr, useAccounts, type Analytic, type CashAccount, type Partner } from '../lib';
 import { tafqeet } from '../tafqeet';
 import AnalyticPicker, { type Share } from './AnalyticPicker.vue';

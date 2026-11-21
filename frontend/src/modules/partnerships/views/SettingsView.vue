@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
 import { lookups, setLookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const toast = useToast();

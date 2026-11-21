@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, sar, type AllowanceType, type Grade, type GradeAllowance } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const session = useSession();

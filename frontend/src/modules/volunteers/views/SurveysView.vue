@@ -3,9 +3,9 @@ import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { P, copy, fmtDate, num, publicUrl } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 interface Row {

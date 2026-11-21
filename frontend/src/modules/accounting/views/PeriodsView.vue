@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, dt, monthName, shortMonth } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 import CloseFlow from '../components/CloseFlow.vue';
 

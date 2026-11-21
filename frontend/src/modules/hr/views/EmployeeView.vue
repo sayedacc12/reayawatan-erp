@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import EmployeeForm from '../components/EmployeeForm.vue';
 import { P, STATUS_COLOR, fmtDate, hijri, num, sar, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const props = defineProps<{ id: string }>();

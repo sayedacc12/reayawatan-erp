@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger } from '@nes
 import { DataSource, EntityManager } from 'typeorm';
 import { MailService } from '../../core/mail/mail.service';
 import { mailLayout, publicOrigin } from '../../core/mail/mail-templates';
-import { FundraisingService } from '../fundraising/fundraising.service';
+import { FundingSources } from './funding-sources.service';
 import { AvailabilityCheck, BudgetAvailability } from '../planning/budget/budget-availability.service';
 import { PrSettings } from './entities/procurement.entity';
 import { ApprovalLevel, BudgetCheckSnapshot, EvalCriterion, OrderKind, PurchaseMethod } from './entities/sourcing.entity';
@@ -67,7 +67,7 @@ export interface FundingContext {
 export class SourcingCore {
   private readonly logger = new Logger(SourcingCore.name);
   constructor(
-    private readonly db: DataSource, private readonly avail: BudgetAvailability, private readonly fundraising: FundraisingService, private readonly mail: MailService,
+    private readonly db: DataSource, private readonly avail: BudgetAvailability, private readonly fundraising: FundingSources, private readonly mail: MailService,
   ) {}
 
   /** إشعار موردين بالبريد (بريد المنشأة ومستخدمي البوابة النشطين) برابط الصفحة في البوابة */

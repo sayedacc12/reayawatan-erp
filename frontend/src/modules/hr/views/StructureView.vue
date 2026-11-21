@@ -5,7 +5,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import OrgNode from '../components/OrgNode.vue';
 import { P, type EmpRow, type Unit } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const session = useSession();

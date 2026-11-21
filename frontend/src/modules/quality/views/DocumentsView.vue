@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { DOC_TYPES, ISO_CLAUSES, P, STATUS_COLOR, errMsg, fmtDate, loadSettings, type DocRow, type QSettings } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 const props = defineProps<{ procedures?: boolean }>();

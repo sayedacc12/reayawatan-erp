@@ -6,7 +6,7 @@ import HeatMap from '../components/HeatMap.vue';
 import {
   CONTROL_TYPES, EFFECTIVENESS, fmtDate, fmtDateTime, hours, loadConfig, PHASES, RISK_STATES, SEVERITY, SOURCES, TREATMENTS, WF_STATUS, type RiskConfig,
 } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

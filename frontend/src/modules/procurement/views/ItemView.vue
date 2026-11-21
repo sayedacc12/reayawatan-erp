@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import ItemForm from '../components/ItemForm.vue';
 import { KIND_COLOR, PR, accLabel, fmtDateTime, fmtSize, sar, upload } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id: string }>();

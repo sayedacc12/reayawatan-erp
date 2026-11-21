@@ -5,7 +5,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import StatusPill from '../components/StatusPill.vue';
 import { CONTRACT_STATUS, P, copy, fmtDate, fmtDateTime, publicUrl } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

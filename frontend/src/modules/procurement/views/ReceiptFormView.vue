@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { fmtQty, lookups, sar, stockLookups, today } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const route = useRoute();

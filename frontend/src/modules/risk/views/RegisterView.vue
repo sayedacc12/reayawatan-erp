@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { fmtDate, loadConfig, P, RISK_STATES, SOURCES, TREATMENTS, WF_STATUS, type RiskConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

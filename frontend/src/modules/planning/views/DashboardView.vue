@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import MiniBar from '../components/MiniBar.vue';
 import ProgressRing from '../components/ProgressRing.vue';
 import { BAND, errMsg, EXEC, fmtDate, money, P, pct, WF_STATUS } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

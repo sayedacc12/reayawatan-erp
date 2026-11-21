@@ -12,7 +12,7 @@ import { resetOnboarding } from '../onboarding/onboarding';
 import { ess, loadSummary, resetEss } from '../modules/hr/self/ess';
 import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
 import { loginPath, useSession } from '../stores/session';
-import { clearIdentity, loadIdentity, orgLogo } from '../site/identity';
+import { clearIdentity, loadIdentity, orgLogo } from '../shared/identity';
 
 const session = useSession();
 const route = useRoute();

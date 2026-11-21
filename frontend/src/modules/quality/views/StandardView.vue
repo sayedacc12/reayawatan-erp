@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { STATUS_COLOR } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Clause { code: string; title: string; how: string; path: string; status: 'met' | 'partial' | 'gap'; evidenceText: string; documents: { id: string; code: string; title: string }[] }

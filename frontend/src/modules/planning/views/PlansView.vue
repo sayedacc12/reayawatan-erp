@@ -7,7 +7,7 @@ import PlanForm from '../components/PlanForm.vue';
 import ProgressRing from '../components/ProgressRing.vue';
 import MiniBar from '../components/MiniBar.vue';
 import { errMsg, EXEC, loadConfig, loadLookups, money, P, pct, PERIODICITY, WF_STATUS, type ConfigPayload, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

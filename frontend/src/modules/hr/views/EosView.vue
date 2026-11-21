@@ -3,7 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { num, sar, todayStr, type EmpRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const toast = useToast();

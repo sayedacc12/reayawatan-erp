@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import SupplierFields from '../components/SupplierFields.vue';
 import { BANK_COLOR, CT_READ, DOC_COLOR, EV_READ, GRADE_COLOR, INV_READ, PR, SUPPLIER_COLOR, fmtDate, fmtDateTime, ibanView, lookups, supplierForm, supplierPayload, upload } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id: string }>();

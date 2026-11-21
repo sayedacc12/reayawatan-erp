@@ -4,10 +4,10 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import HeatMap from '../components/HeatMap.vue';
 import { fmtDate, loadConfig, P, SOURCES, type Level, type RiskConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

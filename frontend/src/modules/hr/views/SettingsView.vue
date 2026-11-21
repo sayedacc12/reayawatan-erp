@@ -11,7 +11,7 @@ import PayrollConfigPane from '../components/PayrollConfigPane.vue';
 import RequestTypesPane from '../components/RequestTypesPane.vue';
 import SeparationConfigPane from '../components/SeparationConfigPane.vue';
 import { useToast } from '../../../stores/toast';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const toast = useToast();

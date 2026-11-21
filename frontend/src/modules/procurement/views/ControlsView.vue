@@ -4,7 +4,7 @@ import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { LEVEL_COLOR, fmtDate, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 /** الرقابة على المشتريات: إشارات المخاطر وسجل المخاطر، والفحوص الرقابية المستمرة، وتوصيات المراجعة الداخلية */

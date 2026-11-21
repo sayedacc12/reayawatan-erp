@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { CHANNELS, P, PARTIES, STATUS_COLOR, errMsg, fmtDate, loadSettings, todayStr, type QSettings } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Complaint {

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import DynFields from '../components/DynFields.vue';
 import { addDays, loadLookups, lookups, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

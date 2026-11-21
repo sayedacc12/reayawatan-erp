@@ -5,7 +5,7 @@ import { useToast } from '../../../stores/toast';
 import PersonForm from '../components/PersonForm.vue';
 import StatusPill from '../components/StatusPill.vue';
 import { DECISION_LABEL, copy, fmtDate, fmtDateTime, loadLookups, lookups, publicUrl, sar, toFormData, type MembershipType } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

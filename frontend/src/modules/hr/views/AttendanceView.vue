@@ -3,9 +3,9 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { P, fmtDate, monthLabel, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 /** الحضور والانصراف: ملخص الشهر لكل موظف، رفع ملفات البصمة، وتقويم الموظف مع الإدخال اليدوي */

@@ -4,7 +4,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { fmtDateTime, loadConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 interface Item { process: string; id: string; code: string; title: string; stageName: string | null; link: string; submittedAt: string | null; byName: string | null }

@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import InvoiceEditor from '../components/InvoiceEditor.vue';
 import { invoiceForm, invoicePayload, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 /** تسجيل فاتورة ورقية وصلت من المورد (أو تعديلها وهي مسودة أو معادة) */

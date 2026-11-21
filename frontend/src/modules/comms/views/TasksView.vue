@@ -6,7 +6,7 @@ import { useToast } from '../../../stores/toast';
 import { useSession } from '../../../stores/session';
 import PersonPicker from '../components/PersonPicker.vue';
 import { PRIORITIES, PRIORITY_COLOR, STATUS_COLOR, addDays, dueText, fmtDate, loadLookups, todayStr, type Lookups, type TaskRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 /** مهامي: المسؤول عنها، وما أسانده، وما أسندته، والمسندة إلي من الأنظمة الأخرى. ومع all: كل المهام للمتابعة */

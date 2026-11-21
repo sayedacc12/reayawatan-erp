@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import FlowChart from '../components/FlowChart.vue';
 import { P, STATUS_COLOR, errMsg, fmtDate, uid, type DocRow, type MapStep } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface MapData {

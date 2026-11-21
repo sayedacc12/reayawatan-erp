@@ -2,10 +2,10 @@
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import ConfBadge from '../components/ConfBadge.vue';
 import { PRIORITY_COLOR, dueText, fmtDate, money, type TaskRow, type TxnRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 interface Dash {

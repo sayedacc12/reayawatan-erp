@@ -3,9 +3,9 @@ import { onMounted, reactive, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { FUNDING, MONTHS, P, STATUS_COLOR, sar, thisYear, type JobRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 interface Item {

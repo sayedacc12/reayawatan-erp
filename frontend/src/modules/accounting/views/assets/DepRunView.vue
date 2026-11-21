@@ -6,7 +6,7 @@ import { useToast } from '../../../../stores/toast';
 import DepReport from '../../components/DepReport.vue';
 import { AF, type DepReport as Report, type Run } from '../../assets';
 import { P, dt, monthName, sar } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

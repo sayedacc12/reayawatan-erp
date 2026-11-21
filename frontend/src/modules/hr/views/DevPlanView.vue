@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { STATUS_COLOR, fmtDate, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 /** خطة تطوير واحدة: الفجوة، المستهدفات، الأنشطة، الاعتماد، ومتابعة التنفيذ */

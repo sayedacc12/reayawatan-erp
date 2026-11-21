@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import PlanForm from '../components/PlanForm.vue';
 import { P, STATUS_COLOR, fmtDate, thisYear, type Plan } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 type Master = Plan & { subs: Plan[]; overall: { total: number; done: number; progress: number; hours: number } };

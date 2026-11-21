@@ -3,10 +3,10 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../../api';
 import { useSession } from '../../../../stores/session';
-import CountUp from '../../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../../shared/CountUp.vue';
 import { AF, type Alert, type Group, type Move, type Recon, type Run } from '../../assets';
 import { P, sar, shortMonth } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

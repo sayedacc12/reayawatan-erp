@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { api } from '../../../api';
 import KpiReadings from '../components/KpiReadings.vue';
 import { BAND, DIRECTION, errMsg, KIND, loadConfig, num, PERIODICITY, periodLabel, type PlanningConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

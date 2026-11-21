@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, STATUS_COLOR, fmtDate } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 interface Obj { title: string; weight: number; target: string; achievement: number | null; note: string | null }

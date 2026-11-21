@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { highlight, lookups, setLookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const toast = useToast();

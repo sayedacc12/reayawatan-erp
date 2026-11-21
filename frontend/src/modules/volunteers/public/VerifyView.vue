@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { api } from '../../../api';
 import { fmtDate } from '../lib';
 import VolShell from './VolShell.vue';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 interface R { certificateNo: string; kind: string; title: string; hours: number; issuedOn: string; isRevoked: boolean; volunteerName: string; organizationName: string }

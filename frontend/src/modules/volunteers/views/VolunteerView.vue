@@ -3,11 +3,11 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import StatusPill from '../components/StatusPill.vue';
 import VolunteerForm from '../components/VolunteerForm.vue';
 import { CONTRACT_STATUS, KIND_LABEL, P, PART_STATUS, addDays, fmtDate, loadLookups, lookups, num, todayStr, type FormField } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

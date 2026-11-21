@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import MinutesDoc from '../components/MinutesDoc.vue';
 import { fmtDateTime, type Snapshot } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../meetings.css';
 
 interface Print {

@@ -6,7 +6,7 @@ import MemberCard from '../components/MemberCard.vue';
 import PersonForm from '../components/PersonForm.vue';
 import { durationLabel, fmtDate, fmtDateTime, sar, toFormData, type CardData, type Condition, type DocReq, type FormField } from '../lib';
 import MemShell from './MemShell.vue';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface PubType { code: string; name: string; description: string | null; fee: number; joiningFee: number; durationMonths: number; votingRights: boolean; minAge: number | null; saudiOnly: boolean; benefits: string | null; color: string }

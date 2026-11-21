@@ -4,9 +4,9 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { P, STATUS_COLOR, fmtDate, num, sar, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 /** كشف رواتب شهر: الأسطر وتعديلاتها، مراحل الاعتماد، القيد المحاسبي، سندات الصرف وكشوف البنوك */

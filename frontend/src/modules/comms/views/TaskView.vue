@@ -5,7 +5,7 @@ import { useToast } from '../../../stores/toast';
 import { useSession } from '../../../stores/session';
 import PersonPicker from '../components/PersonPicker.vue';
 import { P, PRIORITY_COLOR, STATUS_COLOR, TASK_LOG_AR, dueText, fmtDate, fmtDateTime, loadLookups, todayStr, type Lookups, type TaskRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 interface Task extends TaskRow { log: { at: string; by: string; kind: string; text?: string | null; progress?: number | null; dueDate?: string | null }[] }

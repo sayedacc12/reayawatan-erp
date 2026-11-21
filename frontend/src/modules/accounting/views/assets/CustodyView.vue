@@ -4,7 +4,7 @@ import { api } from '../../../../api';
 import { useToast } from '../../../../stores/toast';
 import { AF, type AssetRow, type CustodyForm } from '../../assets';
 import { sar } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

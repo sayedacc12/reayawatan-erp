@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import PersonPicker from '../../comms/components/PersonPicker.vue';
 import { KINDS, ROLES, fmtDate, kindOf, loadLookups, type Body, type BodyMember, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
 

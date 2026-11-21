@@ -3,9 +3,9 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { ENTRY_STATUS, P, sar, shortMonth } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Mismatch { fromYear: number; toYear: number; rows: { accountCode: string; accountName: string; partnerName: string | null; expected: number; actual: number }[] }

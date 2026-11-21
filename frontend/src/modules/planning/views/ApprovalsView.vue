@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { errMsg, fmtDateTime, KIND, money, pct } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

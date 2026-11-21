@@ -7,7 +7,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import WorkflowBar from '../components/WorkflowBar.vue';
 import { loadConfig, P, todayStr, type ConfigPayload } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

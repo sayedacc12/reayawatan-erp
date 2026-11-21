@@ -3,7 +3,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import SearchSelect from '../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../shared/SearchSelect.vue';
 import { AF, useLookups, type AssetRow, type MaintRecord } from '../assets';
 import { todayStr } from '../lib';
 

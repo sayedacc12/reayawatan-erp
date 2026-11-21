@@ -8,7 +8,7 @@ import { useToast } from '../../../stores/toast';
 import RiskPicker from '../components/RiskPicker.vue';
 import WorkflowBar from '../components/WorkflowBar.vue';
 import { DOMAINS, EFFECTIVENESS, loadLookups, P, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

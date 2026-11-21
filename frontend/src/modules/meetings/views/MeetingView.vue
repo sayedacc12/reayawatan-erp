@@ -5,7 +5,7 @@ import { api, openProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import PersonPicker from '../../comms/components/PersonPicker.vue';
 import { HIST_AR, STATUS_COLOR, STEPS, fmtDate, fmtDateTime, kindOf, loadLookups, timeText, todayStr, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
 

@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api, openProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { ORDER_COLOR, PRIORITY_COLOR, REQ_COLOR, RFQ_COLOR, fmtDate, fmtDateTime, fmtSize, sar, upload } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id: string }>();

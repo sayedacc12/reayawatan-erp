@@ -9,7 +9,7 @@ import NewContractForm from '../components/NewContractForm.vue';
 import PartnerForm from '../components/PartnerForm.vue';
 import ScoreRing from '../components/ScoreRing.vue';
 import { CONTRACT_COLOR, EVAL_COLOR, KIND_ICON, PARTNER_COLOR, fmtDate, fmtDateTime, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const props = defineProps<{ id: string }>();

@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { EVAL_COLOR, GRADE_COLOR, fmtDate, fmtDateTime, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id: string }>();

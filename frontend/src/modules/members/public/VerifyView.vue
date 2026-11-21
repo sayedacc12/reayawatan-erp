@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { api } from '../../../api';
 import { fmtDate } from '../lib';
 import MemShell from './MemShell.vue';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 /** التحقق العام من بطاقة العضوية برمز التحقق المطبوع عليها */

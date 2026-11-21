@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api } from '../../../api';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import LaunchCard from '../../../onboarding/LaunchCard.vue';
 import { fmtDate, hijri, num, sar } from '../lib';
 import { DAY_AR, DAY_COLOR, KIND_ICON, REQ_COLOR, rel, type ReqRow, type ReqType } from './ess';

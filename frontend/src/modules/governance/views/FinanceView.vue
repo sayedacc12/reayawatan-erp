@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import PerformanceTable from '../components/PerformanceTable.vue';
 import ScoreRing from '../components/ScoreRing.vue';
 import Trend from '../components/Trend.vue';
 import { fmtDate, loadCatalog, money, num, todayStr, type FigureDef, type PerformanceResult } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../gov.css';
 
 interface Snapshot {

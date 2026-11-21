@@ -7,7 +7,7 @@ import { useToast } from '../../../stores/toast';
 import DynFields from '../components/DynFields.vue';
 import StatusPill from '../components/StatusPill.vue';
 import { DECISION_LABEL, P, PART_STATUS, copy, fmtDate, fmtDateTime, num, publicUrl, sar, todayStr, type FormField, type VolunteerRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

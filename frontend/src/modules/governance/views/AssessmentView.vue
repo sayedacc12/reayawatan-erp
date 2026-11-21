@@ -9,7 +9,7 @@ import {
   EFFORT, fmtDate, itemPercent, loadCatalog, METHOD, num, OPINIONS, pctColor, reachableSteps, scoreColor, SIGNAL, STATUS,
   type AssessmentDetail, type Catalog, type CatalogItem, type ItemEval,
 } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../gov.css';
 
 const props = defineProps<{ id: string }>();

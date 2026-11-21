@@ -2,9 +2,9 @@
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { P, fmtDate, hijri, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 interface Alert { kind: string; level: 'danger' | 'warning' | 'info'; text: string; employeeId?: string; date?: string | null }

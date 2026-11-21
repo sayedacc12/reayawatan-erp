@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { EVAL_COLOR, GRADE_COLOR, PR, fmtDate, today } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const route = useRoute();

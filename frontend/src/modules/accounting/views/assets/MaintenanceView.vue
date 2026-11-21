@@ -7,7 +7,7 @@ import { useToast } from '../../../../stores/toast';
 import MaintenanceForm from '../../components/MaintenanceForm.vue';
 import { AF, useLookups, type MaintRecord } from '../../assets';
 import { P, sar } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

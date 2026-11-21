@@ -3,7 +3,7 @@ import { onMounted, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { api } from '../../../api';
 import { KINDS, fmtDate, kindOf, type DecisionRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
 

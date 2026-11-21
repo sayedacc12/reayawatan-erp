@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
 import { LEVEL_COLOR, LEVELS, levelOf } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 interface Settings { riskBands: { medium: number; high: number; critical: number }; frequency: Record<string, number>; dueDays: Record<string, number>; reminderDays: number }

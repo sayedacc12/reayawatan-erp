@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import MiniBar from '../components/MiniBar.vue';
 import { errMsg, EXEC, fmtDate, KIND, loadLookups, money, pct, todayStr, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

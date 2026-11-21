@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AssetOpsService } from '../accounting/asset-ops.service';
-import { FundraisingService } from '../fundraising/fundraising.service';
+import { FundingSources } from './funding-sources.service';
 import { BudgetAvailability } from '../planning/budget/budget-availability.service';
 import { ITEM_KINDS, PrItem, PrSupplier } from './entities/procurement.entity';
 import { ORDER_STATUS, PrOrder } from './entities/sourcing.entity';
@@ -29,7 +29,7 @@ export const RECEIVABLE = ['issued', 'acknowledged', 'accepted', 'clarification'
 export class ReceiptsService {
   constructor(
     private readonly db: DataSource, private readonly core: ProcurementCore, private readonly sc: SourcingCore, private readonly stock: StockCore,
-    private readonly avail: BudgetAvailability, private readonly fundraising: FundraisingService, private readonly assetOps: AssetOpsService,
+    private readonly avail: BudgetAvailability, private readonly fundraising: FundingSources, private readonly assetOps: AssetOpsService,
   ) {}
 
   async find(org: string, id: string, em: EntityManager = this.db.manager) {

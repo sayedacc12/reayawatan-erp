@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { PR, RECEIPT_COLOR, RECEIPT_KIND_COLOR, fmtDate, lookups, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const router = useRouter();

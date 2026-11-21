@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { ess, loadSummary, setMode } from './ess';
 import OrgHome from './OrgHome.vue';
 import { launchView } from '../../../onboarding/onboarding';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 import './ess.css';
 

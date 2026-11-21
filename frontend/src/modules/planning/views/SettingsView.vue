@@ -5,7 +5,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { errMsg, loadConfig, loadLookups, money, type ConfigPayload, type Lookups, type PlanningConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

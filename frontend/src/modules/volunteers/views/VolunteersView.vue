@@ -7,7 +7,7 @@ import { useToast } from '../../../stores/toast';
 import StatusPill from '../components/StatusPill.vue';
 import VolunteerForm from '../components/VolunteerForm.vue';
 import { CONTRACT_STATUS, P, VOL_STATUS, copy, exportCsv, fmtDate, loadLookups, lookups, num, publicUrl, type VolunteerRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 const session = useSession();

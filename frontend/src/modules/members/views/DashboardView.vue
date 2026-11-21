@@ -3,10 +3,10 @@ import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import StatusPill from '../components/StatusPill.vue';
 import { MONTHS, P, copy, fmtDate, num, publicUrl, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface Dash {

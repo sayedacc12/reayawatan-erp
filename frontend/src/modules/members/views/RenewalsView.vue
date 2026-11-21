@@ -5,7 +5,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import StatusPill from '../components/StatusPill.vue';
 import { CHANNELS, P, copy, fmtDate, fmtDateTime, sar, whatsappLink } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface Row {

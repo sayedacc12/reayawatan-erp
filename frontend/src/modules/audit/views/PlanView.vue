@@ -8,7 +8,7 @@ import EngagementForm from '../components/EngagementForm.vue';
 import PlanForm from '../components/PlanForm.vue';
 import RiskChips from '../components/RiskChips.vue';
 import { LEVEL_COLOR, P, STATUS_COLOR, fmtDate, fmtDateTime, type Area, type Plan } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 interface Detail extends Plan {

@@ -2,9 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { LEVEL_COLOR, LEVELS, P, STATUS_COLOR, fmtDate, levelOf, thisYear } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 interface Dash {
