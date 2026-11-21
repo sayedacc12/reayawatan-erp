@@ -38,7 +38,7 @@ const shown = computed(() => (rows.value ?? []).filter((r) => (status.value === 
     <section class="card ess-card">
       <div class="hr-toolbar">
         <div class="ess-filters">
-          <button v-for="f in FILTERS" :key="f.v" :class="{ on: status === f.v }" :style="{ '--c': REQ_COLOR[f.v] ?? '#0d9488' }" @click="status = f.v">
+          <button v-for="f in FILTERS" :key="f.v" :class="{ on: status === f.v }" :style="{ '--c': REQ_COLOR[f.v] ?? '#1f6446' }" @click="status = f.v">
             {{ f.label }} <b>{{ count(f.v) }}</b>
           </button>
         </div>

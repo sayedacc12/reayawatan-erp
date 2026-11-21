@@ -57,8 +57,8 @@ const printNow = () => window.print();
 <style scoped>
 .wrap { max-width: 900px; margin: 0 auto; }
 .bar { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 12px; }
-.paper { background: #fff; color: #0f172a; border: 2px solid #0f766e; border-radius: 16px; padding: 28px 32px; }
-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 3px double #0f766e; padding-bottom: 12px; margin-bottom: 16px; }
+.paper { background: #fff; color: #0f172a; border: 2px solid #164e38; border-radius: 16px; padding: 28px 32px; }
+header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 3px double #164e38; padding-bottom: 12px; margin-bottom: 16px; }
 header > div { display: flex; flex-direction: column; }
 header small { color: #64748b; }
 header h1 { font-size: 1.25rem; text-align: center; margin: 0; }

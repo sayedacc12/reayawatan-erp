@@ -1,0 +1,29 @@
+/* لوحة الموقع داخل النظام */
+.rw-hero { background: linear-gradient(120deg, #0f3527, #164e38 60%, #2c3e33); }
+.rw-hero .pm-kicker { color: #e2c9a6; }
+.rw-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.rw-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 14px; }
+@media (max-width: 860px) { .rw-grid2, .rw-grid3 { grid-template-columns: 1fr; } }
+.rw-list { list-style: none; margin: 0; padding: 0; }
+.rw-list li { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.rw-list li:last-child { border-bottom: 0; }
+.rw-list small { color: var(--muted); }
+.rw-bars { display: grid; gap: 8px; }
+.rw-bar { display: grid; grid-template-columns: 140px 1fr 40px; gap: 10px; align-items: center; font-size: .9rem; }
+.rw-bar i { display: block; height: 10px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.rw-bar i em { display: block; height: 100%; background: var(--c, var(--primary)); border-radius: 99px; }
+.rw-kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 14px; margin: 0; }
+.rw-kv dt { color: var(--muted); font-size: .9rem; }
+.rw-kv dd { margin: 0; word-break: break-word; }
+.rw-timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.rw-timeline li { border-inline-start: 3px solid var(--border); padding-inline-start: 12px; }
+.rw-timeline li.note { border-color: #c7a27a; }
+.rw-timeline small { color: var(--muted); display: block; }
+.rw-editor { display: grid; gap: 14px; }
+.rw-editor .ed-item { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: var(--surface-2); }
+.rw-editor .ed-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600; font-size: .9rem; }
+.rw-hint { font-size: .82rem; color: var(--muted); margin: -8px 0 12px; }
+.rw-ph { background: #fff3d6; color: #8a5a00; padding: 0 4px; border-radius: 4px; }
+.rw-slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.rw-slots span { font-size: .8rem; padding: 2px 8px; border-radius: 6px; background: var(--primary-soft); color: var(--primary); }
+.rw-score { font-size: 2rem; font-weight: 700; color: var(--primary); }

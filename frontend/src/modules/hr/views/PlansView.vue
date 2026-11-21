@@ -82,7 +82,7 @@ async function act(i: Item, action: 'submit' | 'approve' | 'reject' | 'delete') 
     <template v-if="data">
       <div class="pm-kpis">
         <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>تعيينات معتمدة</span><strong><CountUp :value="data.totals.positions" /></strong><small>منها {{ data.totals.saudi }} سعودي</small></div>
-        <div class="pm-kpi" style="--a: #14b8a6; --i: 1"><span>تم شغلها</span><strong><CountUp :value="data.totals.filled" /></strong><small>من التعيينات المعتمدة</small></div>
+        <div class="pm-kpi" style="--a: #2f7a57; --i: 1"><span>تم شغلها</span><strong><CountUp :value="data.totals.filled" /></strong><small>من التعيينات المعتمدة</small></div>
         <div class="pm-kpi" style="--a: #f472b6; --i: 2"><span>تكلفة السنة الحالية</span><strong><CountUp :value="data.totals.yearCost" /></strong><small>من شهر التعيين حتى نهاية السنة</small></div>
         <div class="pm-kpi" style="--a: #f59e0b; --i: 3"><span>التكلفة السنوية الكاملة</span><strong><CountUp :value="data.totals.annualCost" /></strong><small>{{ data.totals.pending }} بند بانتظار الاعتماد</small></div>
       </div>

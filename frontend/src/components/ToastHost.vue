@@ -18,7 +18,7 @@ const toast = useToast();
 .toasts { position: fixed; top: 74px; inset-inline: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 100; pointer-events: none; padding: 0 16px; }
 .toast { pointer-events: auto; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px; color: #fff; font-weight: 600;
   box-shadow: 0 10px 30px rgba(6, 20, 26, .25); max-width: 100%; }
-.toast.success { background: linear-gradient(135deg, #0f766e, #14b8a6); }
+.toast.success { background: linear-gradient(135deg, #164e38, #2f7a57); }
 .toast.error { background: linear-gradient(135deg, #b91c1c, #ef4444); }
 .icon { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,.22); display: grid; place-items: center; font-size: .85rem; flex-shrink: 0; }
 .toast-enter-active, .toast-leave-active { transition: all .3s cubic-bezier(.2,.8,.2,1); }

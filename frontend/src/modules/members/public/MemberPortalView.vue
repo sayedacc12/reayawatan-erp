@@ -249,7 +249,7 @@ const steps = ['تقديم الطلب وإرفاق الهوية', 'مراجعة 
 .ok .big { font-size: 3rem; animation: pm-rise .6s var(--ease) both; }
 .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
 .flow-step { background: var(--surface-2); border-radius: 14px; padding: 10px; text-align: center; font-size: .82rem; animation: pm-rise .5s calc(var(--i) * 90ms) var(--ease) both; }
-.flow-step b { display: grid; place-items: center; width: 30px; height: 30px; margin: 0 auto 6px; border-radius: 50%; color: #fff; background: linear-gradient(135deg, #0f766e, #1e3a8a); }
+.flow-step b { display: grid; place-items: center; width: 30px; height: 30px; margin: 0 auto 6px; border-radius: 50%; color: #fff; background: linear-gradient(135deg, #164e38, #1e3a8a); }
 .conds { padding-inline-start: 20px; line-height: 1.9; }
 .conds small { display: block; color: var(--muted); font-size: .74rem; line-height: 1.4; }
 .reg { background: var(--surface-2); border-radius: 12px; padding: 10px 14px; font-size: .9rem; }

@@ -8,7 +8,7 @@ import { configureApp } from '../src/main';
 
 /** بنية التقارير الموحدة: كل تقارير الأنظمة تعمل على بيانات الجمعية التجريبية وتُصدَّر، والصلاحيات تُحترم */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
-const ORG_MODULES = ['beneficiaries', 'fundraising', 'projects', 'accounting', 'hr', 'volunteers', 'quality', 'risk', 'audit', 'members'];
+const ORG_MODULES = ['accounting', 'hr', 'volunteers', 'quality', 'risk', 'audit', 'members'];
 const PLATFORM_MODULES = ['platform', 'support'];
 
 describe('Unified reports', () => {
@@ -64,7 +64,7 @@ describe('Unified reports', () => {
         expect(res.body.title).toBe(r.title);
         expect(Array.isArray(res.body.rows)).toBe(true);
         expect(res.body.columns.length).toBeGreaterThan(0);
-        expect(res.body.organizationName).toContain('سنابل');
+        expect(res.body.organizationName).toContain('تجريبية');
       }
     }
   }, 120_000);
@@ -86,26 +86,26 @@ describe('Unified reports', () => {
   }, 60_000);
 
   it('respects report permissions', async () => {
-    // الباحث الاجتماعي ليس له صلاحية تقارير المستفيدين ولا الموارد البشرية
-    expect((await http.get('/api/reports/catalog/beneficiaries').set(as(researcher)).expect(200)).body.reports).toHaveLength(0);
-    await http.get('/api/reports/run/beneficiaries.register').set(as(researcher)).expect(403);
+    // محلل الأعمال (صلاحيات الموقع فقط) ليس له صلاحية تقارير المالية ولا الموارد البشرية
+    expect((await http.get('/api/reports/catalog/accounting').set(as(researcher)).expect(200)).body.reports).toHaveLength(0);
+    await http.get('/api/reports/run/accounting.vouchers').set(as(researcher)).expect(403);
     await http.get('/api/reports/export/hr.employees?format=xlsx').set(as(researcher)).expect(403);
     await http.get('/api/reports/run/nope.report').set(as(admin)).expect(404);
   });
 
   it('validates filters', async () => {
-    await http.get('/api/reports/run/fundraising.donors').query({ from: '2026-12-01', to: '2026-01-01' }).set(as(admin)).expect(400);
-    await http.get('/api/reports/run/fundraising.donors').query({ from: 'yesterday' }).set(as(admin)).expect(400);
-    await http.get('/api/reports/run/fundraising.opportunities').query({ kind: 'bitcoin' }).set(as(admin)).expect(400);
+    await http.get('/api/reports/run/accounting.vouchers').query({ from: '2026-12-01', to: '2026-01-01' }).set(as(admin)).expect(400);
+    await http.get('/api/reports/run/accounting.vouchers').query({ from: 'yesterday' }).set(as(admin)).expect(400);
+    await http.get('/api/reports/run/accounting.vouchers').query({ kind: 'bitcoin' }).set(as(admin)).expect(400);
     await http.get('/api/reports/run/accounting.ledger').query({ accountId: '' }).set(as(admin)).expect(400);
-    await http.get('/api/reports/export/fundraising.donors').query({ format: 'docx' }).set(as(admin)).expect(400);
+    await http.get('/api/reports/export/accounting.vouchers').query({ format: 'docx' }).set(as(admin)).expect(400);
   });
 
   it('computes totals and applies the period', async () => {
-    const res = (await http.get('/api/reports/run/fundraising.opportunities').query({ from: '2026-01-01', to: '2026-12-31', status: 'approved' })
+    const res = (await http.get('/api/reports/run/accounting.vouchers').query({ from: '2026-01-01', to: '2026-12-31', status: 'approved' })
       .set(as(admin)).expect(200)).body;
-    const sum = res.rows.reduce((s: number, r: { amount: number }) => s + r.amount, 0);
-    expect(res.totals.amount).toBeCloseTo(sum, 2);
+    const sum = res.rows.reduce((s: number, r: { receipts: number }) => s + r.receipts, 0);
+    expect(res.totals.receipts).toBeCloseTo(sum, 2);
     expect(res.appliedFilters.map((f: { label: string }) => f.label)).toEqual(['الفترة', 'الحالة']);
     const tb = (await http.get('/api/reports/run/accounting.trial-balance').query({ from: '2026-01-01', to: '2026-12-31', level: '9' }).set(as(admin)).expect(200)).body;
     expect(tb.totals.closingDebit).toBeCloseTo(tb.totals.closingCredit, 2);
@@ -118,9 +118,9 @@ describe('Unified reports', () => {
     expect((xlsx.body as Buffer).subarray(0, 2).toString()).toBe('PK');
     expect(decodeURIComponent(xlsx.headers['content-disposition'])).toContain('سجل الموظفين');
 
-    const csv = await http.get('/api/reports/export/beneficiaries.register').query({ format: 'csv' }).set(as(admin)).expect(200);
+    const csv = await http.get('/api/reports/export/accounting.vouchers').query({ format: 'csv' }).set(as(admin)).expect(200);
     expect(csv.text.charCodeAt(0)).toBe(0xfeff);
-    expect(csv.text).toContain('رقم الملف');
+    expect(csv.text).toContain('رقم السند');
 
     const html = await http.get('/api/reports/export/volunteers.hours').query({ format: 'html' }).set(as(admin)).expect(200);
     expect(html.text).toContain('dir="rtl"');

@@ -176,7 +176,7 @@ const chart = computed(() => {
         </div>
 
         <div class="kpis">
-          <div class="kpi" style="--a: #14b8a6; --i: 0">
+          <div class="kpi" style="--a: #2f7a57; --i: 0">
             <span>إجمالي السجلات</span><strong>{{ num(current.totals.rows) }}</strong>
             <small v-if="delta(current.totals.rows, base?.totals.rows)" :class="`d-${delta(current.totals.rows, base?.totals.rows)!.tone}`">{{ delta(current.totals.rows, base?.totals.rows)!.text }} عن خط الأساس</small>
           </div>
@@ -184,7 +184,7 @@ const chart = computed(() => {
             <span>حجم قاعدة البيانات</span><strong>{{ bytes(current.totals.dbBytes) }}</strong>
             <small v-if="delta(current.totals.dbBytes, base?.totals.dbBytes)" :class="`d-${delta(current.totals.dbBytes, base?.totals.dbBytes)!.tone}`">{{ delta(current.totals.dbBytes, base?.totals.dbBytes)!.text }} عن خط الأساس</small>
           </div>
-          <div class="kpi" style="--a: #e8b04b; --i: 2">
+          <div class="kpi" style="--a: #c7a27a; --i: 2">
             <span>الجمعيات / المستخدمون</span><strong>{{ num(current.totals.organizations) }} / {{ num(current.totals.users) }}</strong>
             <small v-if="delta(current.totals.organizations, base?.totals.organizations)">{{ delta(current.totals.organizations, base?.totals.organizations)!.text }} في عدد الجمعيات</small>
           </div>
@@ -338,18 +338,18 @@ const chart = computed(() => {
 .d-muted { color: var(--muted); }
 .growth { width: 100%; height: 170px; display: block; }
 .g-rows, .g-speed { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
-.g-rows { stroke: #14b8a6; }
-.g-speed { stroke: #e8b04b; stroke-dasharray: 6 4; }
+.g-rows { stroke: #2f7a57; }
+.g-speed { stroke: #c7a27a; stroke-dasharray: 6 4; }
 .g-base { stroke: #6366f1; stroke-width: 1.5; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
 .legend-row { list-style: none; display: flex; gap: 16px; flex-wrap: wrap; padding: 0; margin: 8px 0 0; font-size: .85rem; }
 .legend-row i { display: inline-block; width: 14px; height: 3px; margin-inline-end: 6px; vertical-align: middle; }
-.l-rows { background: #14b8a6; } .l-speed { background: #e8b04b; } .l-base { background: #6366f1; }
+.l-rows { background: #2f7a57; } .l-speed { background: #c7a27a; } .l-base { background: #6366f1; }
 .head-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mini-tabs { margin-bottom: 0; border: 0; }
 .hint { font-size: .84rem; margin: 4px 0 10px; }
 .hbar { display: grid; grid-template-columns: 190px 1fr 90px 70px 64px; align-items: center; gap: 8px; margin-bottom: 8px; font-size: .9rem; }
 .hbar-track { height: 9px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
-.hbar-fill { height: 100%; background: linear-gradient(90deg, #14b8a6, #6366f1); border-radius: 99px; }
+.hbar-fill { height: 100%; background: linear-gradient(90deg, #2f7a57, #6366f1); border-radius: 99px; }
 .size { color: var(--muted); min-width: 60px; text-align: left; }
 .chg { min-width: 56px; }
 .center { text-align: center; padding: 24px; }

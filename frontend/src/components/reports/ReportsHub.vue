@@ -282,7 +282,7 @@ const selectOptions = (f: ReportDef['filters'][number]) => (f.options ?? []).map
   animation: rh-drift 14s ease-in-out infinite alternate; }
 .rh-hero-text { position: relative; animation: rh-rise .5s var(--ease) both; }
 .rh-hero h1 { font-size: 1.55rem; margin: 0; }
-.rh-kicker { margin: 0 0 4px; color: #5eead4; font-weight: 600; font-size: .86rem; }
+.rh-kicker { margin: 0 0 4px; color: #a9c9b5; font-weight: 600; font-size: .86rem; }
 .rh-sub { margin: 6px 0 0; opacity: .8; font-size: .9rem; max-width: 620px; }
 .rh-count { position: relative; text-align: center; padding: 10px 18px; border-radius: 16px; background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14);
   backdrop-filter: blur(6px); animation: rh-rise .6s .1s var(--ease) both; }
@@ -314,7 +314,7 @@ const selectOptions = (f: ReportDef['filters'][number]) => (f.options ?? []).map
 .rh-head p { margin: 4px 0 0; font-size: .88rem; }
 .rh-exports { display: flex; gap: 6px; flex-wrap: wrap; }
 .rh-exports .btn { min-width: 64px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.rh-pdf { background: linear-gradient(135deg, #e8b04b, #d4932a); color: #fff; border-color: #d4932a; font-weight: 600; box-shadow: 0 6px 16px rgba(232, 176, 75, .35); }
+.rh-pdf { background: linear-gradient(135deg, #c7a27a, #d4932a); color: #fff; border-color: #d4932a; font-weight: 600; box-shadow: 0 6px 16px rgba(232, 176, 75, .35); }
 .rh-pdf:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
 .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: rh-spin .7s linear infinite; }
 
@@ -338,7 +338,7 @@ const selectOptions = (f: ReportDef['filters'][number]) => (f.options ?? []).map
 
 .rh-table-wrap { overflow: auto; max-height: 68vh; border: 1px solid var(--border); border-radius: 12px; animation: rh-rise .35s var(--ease) both; }
 .rh-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .88rem; }
-.rh-table th { position: sticky; top: 0; z-index: 1; background: #0f766e; color: #fff; font-weight: 600; padding: 9px 10px; text-align: right; white-space: nowrap; }
+.rh-table th { position: sticky; top: 0; z-index: 1; background: #164e38; color: #fff; font-weight: 600; padding: 9px 10px; text-align: right; white-space: nowrap; }
 .rh-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .rh-table td.wrap { white-space: normal; min-width: 220px; max-width: 420px; }
 .rh-table tbody tr:nth-child(even) td { background: #fafcfc; }

@@ -160,11 +160,11 @@ const maxLoad = () => Math.max(1, ...(d.value?.workload ?? []).map((w) => w.open
 .track { display: flex; height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
 .seg { height: 100%; animation: grow 1s var(--ease) both; transform-origin: right; }
 @keyframes grow { from { transform: scaleX(0); } }
-.seg.t, .legend .t { background: #14b8a6; }
+.seg.t, .legend .t { background: #2f7a57; }
 .seg.k, .legend .k { background: #6366f1; }
 .late { color: #b91c1c; }
 .score { font-size: 1.15rem; text-align: center; }
-.s-ok { color: #10b981; } .s-info { color: #14b8a6; } .s-warn { color: #d69e2e; } .s-bad { color: #ef4444; } .s-muted { color: var(--muted); }
+.s-ok { color: #10b981; } .s-info { color: #2f7a57; } .s-warn { color: #d69e2e; } .s-bad { color: #ef4444; } .s-muted { color: var(--muted); }
 .legend { color: var(--muted); font-size: .82rem; margin: 10px 0 0; display: flex; align-items: center; gap: 6px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 </style>

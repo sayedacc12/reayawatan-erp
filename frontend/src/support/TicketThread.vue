@@ -89,7 +89,7 @@ const pick = (e: Event) => { file.value = (e.target as HTMLInputElement).files?.
 .msg { max-width: 82%; border-radius: 14px; padding: 10px 14px; border: 1px solid var(--border); background: var(--surface-2); animation: p-rise .35s var(--ease) both; }
 .msg.me { align-self: flex-start; background: var(--primary-soft); border-color: transparent; }
 .msg.them { align-self: flex-end; }
-.msg.internal { background: #fff8e6; border: 1px dashed #e8b04b; }
+.msg.internal { background: #fff8e6; border: 1px dashed #c7a27a; }
 .msg header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
 .msg header small { color: var(--muted); }
 .msg p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }

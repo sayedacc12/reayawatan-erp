@@ -31,7 +31,7 @@ const active = computed(() => (route.path === '/accounting/periods' && route.has
 .cstep .txt { display: flex; flex-direction: column; min-width: 0; }
 .cstep small { color: var(--muted); font-size: .75rem; }
 .cstep.past .num { background: #d1fae5; color: #047857; }
-.cstep.on { border-color: transparent; background: linear-gradient(135deg, #0f766e, #134e4a); color: #fff; box-shadow: 0 10px 26px rgba(15, 118, 110, .3); }
+.cstep.on { border-color: transparent; background: linear-gradient(135deg, #164e38, #134e4a); color: #fff; box-shadow: 0 10px 26px rgba(15, 118, 110, .3); }
 .cstep.on small { color: rgba(255, 255, 255, .75); }
 .cstep.on .num { background: #fbbf24; color: #3b2a00; animation: glow 2s ease-in-out infinite; }
 @keyframes glow { 50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, .25); } }

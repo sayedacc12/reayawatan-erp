@@ -17,7 +17,7 @@
   display: flex; flex-direction: column; gap: 2px; box-shadow: var(--shadow); animation: pm-rise .5s calc(var(--i, 0) * 70ms + 80ms) var(--ease) both; }
 .pm-kpi::before { content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 4px; background: var(--a, var(--primary)); box-shadow: 0 0 18px var(--a, var(--primary)); }
 .pm-kpi::after { content: ''; position: absolute; width: 130px; height: 130px; inset-inline-end: -50px; top: -60px; border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--a, #14b8a6) 22%, transparent), transparent 70%); }
+  background: radial-gradient(circle, color-mix(in srgb, var(--a, #2f7a57) 22%, transparent), transparent 70%); }
 .pm-kpi > span { color: var(--muted); font-size: .84rem; font-weight: 500; }
 .pm-kpi strong { font-size: 1.45rem; font-weight: 700; letter-spacing: -.3px; }
 .pm-kpi small { font-size: .78rem; color: var(--muted); }

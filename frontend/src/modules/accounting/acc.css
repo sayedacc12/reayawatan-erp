@@ -4,8 +4,8 @@
 .ac-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .12;
   background-image: linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px);
   background-size: 26px 26px; mask-image: linear-gradient(90deg, transparent, #000 60%); }
-.ac-hero .pm-kicker { color: #f5c66b; }
-.ac-glow { background: linear-gradient(135deg, #f5c66b, #e8b04b); color: #3b2a06; border: 0; font-weight: 700; box-shadow: 0 6px 22px rgba(232,176,75,.35); }
+.ac-hero .pm-kicker { color: #d9bc98; }
+.ac-glow { background: linear-gradient(135deg, #d9bc98, #c7a27a); color: #3b2a06; border: 0; font-weight: 700; box-shadow: 0 6px 22px rgba(232,176,75,.35); }
 .ac-glow:hover { filter: brightness(1.05); }
 .ac-ghost { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.2); }
 .ac-ghost:hover { background: rgba(255,255,255,.16); }

@@ -75,7 +75,7 @@ export const SUPPLIER_COLOR: Record<string, string> = {
 };
 export const DOC_COLOR: Record<string, string> = { pending: '#d97706', accepted: '#059669', rejected: '#dc2626' };
 export const BANK_COLOR: Record<string, string> = { pending: '#d97706', approved: '#059669', rejected: '#dc2626', inactive: '#94a3b8' };
-export const KIND_COLOR: Record<string, string> = { stock: '#0f766e', consumable: '#0369a1', asset: '#7c3aed', service: '#b45309' };
+export const KIND_COLOR: Record<string, string> = { stock: '#164e38', consumable: '#0369a1', asset: '#7c3aed', service: '#b45309' };
 
 export const fmtDate = (d: string | null | undefined) =>
   d ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('ar-SA-u-ca-gregory-nu-latn', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';

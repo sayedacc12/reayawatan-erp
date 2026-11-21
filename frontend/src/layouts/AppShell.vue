@@ -65,13 +65,13 @@ function logout() {
   <div class="shell">
     <header class="topbar">
       <div class="topbar-start">
-        <RouterLink :to="isOrgUser ? '/me' : '/'" class="home-link" :title="isOrgUser ? 'لوحتي' : 'كل التطبيقات'" data-tour="home">
+        <RouterLink :to="isOrgUser ? '/me' : '/home'" class="home-link" :title="isOrgUser ? 'لوحتي' : 'كل التطبيقات'" data-tour="home">
           <img v-if="orgLogo" :src="orgLogo" class="org-logo" alt="" />
           <BrandMark v-else :size="32" />
-          <span class="product">سنابل</span>
+          <span class="product">رعاية وطن</span>
           <span class="org-name">{{ session.user?.organizationName ?? 'إدارة المنصة' }}</span>
         </RouterLink>
-        <RouterLink v-if="!isOrgUser" to="/" class="apps-btn" title="كل التطبيقات">
+        <RouterLink v-if="!isOrgUser" to="/home" class="apps-btn" title="كل التطبيقات">
           <span class="grid-icon" aria-hidden="true"><i /><i /><i /><i /></span>
           <span class="label">التطبيقات</span>
         </RouterLink>
@@ -140,13 +140,13 @@ function logout() {
 .topbar-start { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .home-link { color: #fff; display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
 .org-logo { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; background: rgba(255,255,255,.08); padding: 2px; }
-.product { font-size: 1.15rem; background: linear-gradient(90deg, #fff, #a7f3e9 60%, #f5c66b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.product { font-size: 1.15rem; background: linear-gradient(90deg, #fff, #a7f3e9 60%, #d9bc98); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .org-name { font-weight: 500; color: rgba(255,255,255,.75); border-inline-start: 1px solid rgba(255,255,255,.25); padding-inline-start: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 .apps-btn { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.85); padding: 6px 12px; border-radius: 10px;
   border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); transition: background .2s, border-color .2s; }
 .apps-btn:hover { background: rgba(255,255,255,.1); border-color: rgba(94,234,212,.5); }
 .grid-icon { display: grid; grid-template-columns: repeat(2, 6px); gap: 3px; }
-.grid-icon i { width: 6px; height: 6px; background: #5eead4; border-radius: 2px; }
+.grid-icon i { width: 6px; height: 6px; background: #a9c9b5; border-radius: 2px; }
 .app-name { color: #a7f3e9; font-weight: 600; white-space: nowrap; }
 .app-name::before { content: '‹'; margin-inline-end: 10px; color: rgba(255,255,255,.4); }
 .crumb-enter-active, .crumb-leave-active { transition: all .25s var(--ease); }

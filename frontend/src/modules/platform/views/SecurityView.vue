@@ -380,7 +380,7 @@ const pages = (p: Page<unknown> | null) => (p ? Math.max(1, Math.ceil(p.total / 
 .s-empty { padding: 24px; }
 .s-inc { border: 1px solid var(--border); border-inline-start: 5px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
 .s-bad-edge { border-inline-start-color: var(--danger); }
-.s-warn-edge { border-inline-start-color: #e8b04b; }
+.s-warn-edge { border-inline-start-color: #c7a27a; }
 .s-muted-edge { border-inline-start-color: var(--border); }
 .s-inc header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .s-inc h3 { margin: 0; font-size: 1.05rem; flex: 1; }

@@ -23,7 +23,7 @@ onMounted(async () => {
   }
 });
 
-const COLORS: Record<string, string> = { ok: '#10b981', info: '#6366f1', warn: '#e8b04b', bad: '#ef4444', muted: '#94a3b8' };
+const COLORS: Record<string, string> = { ok: '#10b981', info: '#6366f1', warn: '#c7a27a', bad: '#ef4444', muted: '#94a3b8' };
 const ring = computed(() => {
   if (!r.value) return [];
   const entries = Object.entries(r.value.states).filter(([, n]) => n > 0);
@@ -58,8 +58,8 @@ const daysLeft = (d: string | null) => (d ? Math.ceil((new Date(`${d}T23:59:59`)
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="r">
       <div class="kpis">
-        <div class="kpi" style="--a: #14b8a6; --i: 0"><span>إجمالي الجمعيات</span><strong>{{ r.totals.organizations }}</strong><small>{{ r.totals.activeSubscriptions }} باشتراك ساري</small></div>
-        <div class="kpi" style="--a: #e8b04b; --i: 1"><span>الإيراد السنوي المتوقع</span><strong>{{ money(r.totals.annualRevenue) }}</strong><small>قبل الضريبة، للاشتراكات السارية</small></div>
+        <div class="kpi" style="--a: #2f7a57; --i: 0"><span>إجمالي الجمعيات</span><strong>{{ r.totals.organizations }}</strong><small>{{ r.totals.activeSubscriptions }} باشتراك ساري</small></div>
+        <div class="kpi" style="--a: #c7a27a; --i: 1"><span>الإيراد السنوي المتوقع</span><strong>{{ money(r.totals.annualRevenue) }}</strong><small>قبل الضريبة، للاشتراكات السارية</small></div>
         <div class="kpi" style="--a: #6366f1; --i: 2"><span>طلبات بانتظار المراجعة</span><strong>{{ pending }}</strong><small><RouterLink to="/platform/applications">فتح الطلبات ←</RouterLink></small></div>
         <div class="kpi" style="--a: #ef4444; --i: 3"><span>عقود بانتظار التوقيع</span><strong>{{ r.contracts.sent ?? 0 }}</strong><small>{{ r.contracts.changes_requested ?? 0 }} طلب تعديل</small></div>
       </div>

@@ -47,7 +47,7 @@ const ICON: Record<string, string> = { contract: 'العقد', probation: 'ال�
     <template v-if="data">
       <div class="pm-kpis">
         <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>الموظفون</span><strong><CountUp :value="data.headcount" /></strong><small>{{ data.newHires }} تعيين خلال 90 يومًا</small></div>
-        <div class="pm-kpi" style="--a: #14b8a6; --i: 1"><span>نسبة التوطين (تقريبية)</span><strong><CountUp :value="data.saudization" :decimals="1" />%</strong><small>{{ data.saudi }} سعودي · {{ data.nonSaudi }} غير سعودي</small></div>
+        <div class="pm-kpi" style="--a: #2f7a57; --i: 1"><span>نسبة التوطين (تقريبية)</span><strong><CountUp :value="data.saudization" :decimals="1" />%</strong><small>{{ data.saudi }} سعودي · {{ data.nonSaudi }} غير سعودي</small></div>
         <div class="pm-kpi" style="--a: #f472b6; --i: 2"><span>الشواغر المعتمدة</span><strong><CountUp :value="data.vacancies" /></strong><small>حسب الأوصاف الوظيفية</small></div>
         <div class="pm-kpi" style="--a: #f59e0b; --i: 3"><span>إجازات بانتظار الاعتماد</span><strong><CountUp :value="data.pendingLeaves" /></strong><small>{{ data.onLeave }} في إجازة اليوم</small></div>
         <div v-if="data.payroll" class="pm-kpi" style="--a: #0ea5e9; --i: 4"><span>إجمالي الرواتب الشهرية</span><strong><CountUp :value="data.payroll.gross" /></strong><small>ريال · قبل الاستقطاعات</small></div>
@@ -69,7 +69,7 @@ const ICON: Record<string, string> = { contract: 'العقد', probation: 'ال�
         <section class="card pm-panel">
           <h2>التوطين والتنوع</h2>
           <div class="hr-donut" :style="{ '--v': data.saudization }"><b>{{ Math.round(data.saudization) }}%</b></div>
-          <div class="pm-legend" style="justify-content: center"><span style="--c: #14b8a6">سعوديون {{ data.saudi }}</span><span style="--c: #f472b6">غير سعوديين {{ data.nonSaudi }}</span></div>
+          <div class="pm-legend" style="justify-content: center"><span style="--c: #2f7a57">سعوديون {{ data.saudi }}</span><span style="--c: #f472b6">غير سعوديين {{ data.nonSaudi }}</span></div>
           <p class="pm-muted" style="text-align: center; margin-top: 10px">رجال {{ data.male }} · نساء {{ data.female }}</p>
           <p class="pm-muted" style="text-align: center">نطاقات تحسب بعض الفئات بنسب مختلفة، فهذه النسبة للاسترشاد فقط.</p>
         </section>

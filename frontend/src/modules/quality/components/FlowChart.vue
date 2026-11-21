@@ -103,7 +103,7 @@ const layout = computed(() => {
 });
 
 const FILL: Record<string, string> = { start: 'url(#q-start)', end: 'url(#q-end)', task: '#ffffff', decision: '#fff7ed', document: '#eff6ff' };
-const STROKE: Record<string, string> = { start: '#059669', end: '#b91c1c', task: '#0f766e', decision: '#f59e0b', document: '#3b82f6' };
+const STROKE: Record<string, string> = { start: '#059669', end: '#b91c1c', task: '#164e38', decision: '#f59e0b', document: '#3b82f6' };
 function docPath(x: number, y: number, h: number) {
   const l = x - nodeW / 2;
   const r = x + nodeW / 2;
@@ -117,7 +117,7 @@ function docPath(x: number, y: number, h: number) {
   <div class="q-map-wrap">
     <svg class="q-map" :width="layout.W" :height="layout.H" :viewBox="`0 0 ${layout.W} ${layout.H}`" role="img" aria-label="خريطة الإجراء">
       <defs>
-        <linearGradient id="q-lane-grad" x1="0" x2="1"><stop offset="0" stop-color="#0f766e" /><stop offset="1" stop-color="#0b3b46" /></linearGradient>
+        <linearGradient id="q-lane-grad" x1="0" x2="1"><stop offset="0" stop-color="#164e38" /><stop offset="1" stop-color="#0b3b46" /></linearGradient>
         <linearGradient id="q-start" x1="0" x2="1"><stop offset="0" stop-color="#10b981" /><stop offset="1" stop-color="#059669" /></linearGradient>
         <linearGradient id="q-end" x1="0" x2="1"><stop offset="0" stop-color="#f87171" /><stop offset="1" stop-color="#b91c1c" /></linearGradient>
         <marker id="q-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#64748b" /></marker>
@@ -147,7 +147,7 @@ function docPath(x: number, y: number, h: number) {
   </div>
   <div class="q-legend">
     <span><i style="border-color: #059669; background: #10b981; border-radius: 8px" />بداية</span>
-    <span><i style="border-color: #0f766e; border-radius: 3px" />خطوة</span>
+    <span><i style="border-color: #164e38; border-radius: 3px" />خطوة</span>
     <span><i style="border-color: #f59e0b; background: #fff7ed; transform: rotate(45deg) scale(.7)" />قرار</span>
     <span><i style="border-color: #3b82f6; background: #eff6ff" />نموذج أو وثيقة</span>
     <span><i style="border-color: #b91c1c; background: #f87171; border-radius: 8px" />نهاية</span>

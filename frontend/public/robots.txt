@@ -1,14 +1,12 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /login
 Disallow: /home
 Disallow: /me
-Disallow: /platform/
-Disallow: /settings/
-Disallow: /register/
-Disallow: /contract/
+Disallow: /book/manage/
 Disallow: /pc/
 Disallow: /minutes/
 Disallow: /survey/
 
-Sitemap: https://sanabelerp.com/sitemap.xml
+Sitemap: https://reayawatan.com/sitemap.xml

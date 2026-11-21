@@ -50,7 +50,7 @@ async function save() {
         <button class="btn btn-sm btn-danger" @click="cats.splice(i, 1)">حذف</button>
       </div>
       <div class="modal-actions" style="justify-content: space-between">
-        <button class="btn" @click="cats.push({ name: '', description: '', color: '#0f766e', isActive: true })">+ تصنيف</button>
+        <button class="btn" @click="cats.push({ name: '', description: '', color: '#164e38', isActive: true })">+ تصنيف</button>
         <button class="btn btn-primary" :disabled="busy" @click="save">حفظ التصنيفات</button>
       </div>
     </section>

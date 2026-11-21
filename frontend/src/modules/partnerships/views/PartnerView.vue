@@ -199,7 +199,7 @@ const LOG_COLOR = (a: string) => (a.includes('اعتماد') ? '#10b981' : a.inc
 .srow { display: grid; grid-template-columns: minmax(180px, 1.3fr) 120px 1fr; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: .88rem; }
 .dots { display: flex; gap: 4px; }
 .dots i { width: 16px; height: 16px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--border); }
-.dots i.on { background: linear-gradient(135deg, #f59e0b, #0f766e); border-color: transparent; }
+.dots i.on { background: linear-gradient(135deg, #f59e0b, #164e38); border-color: transparent; }
 .dots i.on.ko { background: #dc2626; }
 @media (max-width: 700px) { .who { flex-direction: column; align-items: flex-start; } .srow { grid-template-columns: 1fr; } }
 </style>

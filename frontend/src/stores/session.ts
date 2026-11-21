@@ -3,9 +3,9 @@ import { api, token } from '../api';
 
 const ORG_KEY = 'erp.org';
 /** صفحة الدخول المناسبة: صفحة آخر جمعية دخل منها المستخدم، أو صفحة إدارة المنصة */
+/** نظام شركة واحدة: شاشة دخول واحدة لبوابة الموظفين */
 export function loginPath() {
-  const slug = localStorage.getItem(ORG_KEY);
-  return slug ? `/o/${slug}` : '/login';
+  return '/login';
 }
 
 export interface SessionUser {

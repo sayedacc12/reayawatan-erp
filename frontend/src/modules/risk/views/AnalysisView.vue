@@ -23,7 +23,7 @@ const toRisk = reactive({ show: false, itemId: '', text: '', category: '', owner
 const isNew = computed(() => !props.id);
 const canEdit = computed(() => session.can(P.analysis) && (isNew.value || !['in_review', 'rejected'].includes(data.value?.status)));
 const COLORS: Record<string, string> = {
-  political: '#be123c', economic: '#d97706', social: '#0d9488', technological: '#4f46e5', environmental: '#16a34a', legal: '#7c3aed',
+  political: '#be123c', economic: '#d97706', social: '#1f6446', technological: '#4f46e5', environmental: '#16a34a', legal: '#7c3aed',
   strength: '#059669', weakness: '#dc2626', opportunity: '#0284c7', threat: '#ea580c',
 };
 const LETTER: Record<string, string> = { political: 'P', economic: 'E', social: 'S', technological: 'T', environmental: 'E', legal: 'L', strength: 'S', weakness: 'W', opportunity: 'O', threat: 'T' };

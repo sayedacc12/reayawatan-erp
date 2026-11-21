@@ -203,7 +203,7 @@ function saved() {
 .step.now i { border-color: #6366f1; color: #4f46e5; animation: ring 1.8s infinite; }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,.5); } 100% { box-shadow: 0 0 0 12px rgba(99,102,241,0); } }
 .layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-.paper { --c: #0f766e; position: relative; overflow: hidden; background: #fff; border-radius: 16px; padding: 26px 30px; border: 2px solid var(--c); box-shadow: 0 20px 40px rgba(15,23,42,.08);
+.paper { --c: #164e38; position: relative; overflow: hidden; background: #fff; border-radius: 16px; padding: 26px 30px; border: 2px solid var(--c); box-shadow: 0 20px 40px rgba(15,23,42,.08);
   background-image: radial-gradient(circle at 0 0, color-mix(in srgb, var(--c) 8%, transparent), transparent 35%); animation: pm-rise .5s var(--ease) both; }
 .paper.payment { --c: #b45309; }
 .paper header { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; border-bottom: 3px double var(--c); padding-bottom: 14px; margin-bottom: 16px; }

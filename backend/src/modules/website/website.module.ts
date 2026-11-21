@@ -15,6 +15,6 @@ import { WebsiteTasks } from './website.tasks';
   imports: [TypeOrmModule.forFeature(WEBSITE_ENTITIES), CoreModule],
   controllers: [WebsiteController, PublicSiteController],
   providers: [ContentService, LeadsService, FormsService, BookingService, GuidesService, WebsiteTasks],
-  exports: [LeadsService],
+  exports: [ContentService, LeadsService, FormsService, BookingService, GuidesService],
 })
 export class WebsiteModule {}

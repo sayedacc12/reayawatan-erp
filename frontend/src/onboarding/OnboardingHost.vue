@@ -54,7 +54,7 @@ function tourDone(finished: boolean) {
   const next = launchView.value?.next;
   celebrate({
     key: 'tour', kind: 'tour', icon: '🎉', title: 'أنهيت الجولة التعريفية!',
-    text: isAdmin.value && next ? 'صرت تعرف طريقك في سنابل. الخطوة الأولى لإطلاق جمعيتك تنتظرك.' : 'صرت تعرف طريقك في سنابل. بالتوفيق في عملك.',
+    text: isAdmin.value && next ? 'صرت تعرف طريقك في النظام. الخطوة الأولى للإطلاق تنتظرك.' : 'صرت تعرف طريقك في النظام. بالتوفيق في عملك.',
     cta: isAdmin.value && next ? { label: `ابدأ: ${next.title}`, to: next.link } : undefined,
   });
 }

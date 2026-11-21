@@ -9,8 +9,8 @@ export const P = {
 } as const;
 
 export const KINDS = [
-  { value: 'general_assembly', label: 'الجمعية العمومية', short: 'العمومية', color: '#e8b04b', perm: P.ga, hint: 'الاجتماعات العادية وغير العادية لأعضاء الجمعية العمومية من سجل العضوية.' },
-  { value: 'board', label: 'مجلس الإدارة', short: 'المجلس', color: '#14b8a6', perm: P.board, hint: 'اجتماعات مجلس الإدارة وقراراته.' },
+  { value: 'general_assembly', label: 'الجمعية العمومية', short: 'العمومية', color: '#c7a27a', perm: P.ga, hint: 'الاجتماعات العادية وغير العادية لأعضاء الجمعية العمومية من سجل العضوية.' },
+  { value: 'board', label: 'مجلس الإدارة', short: 'المجلس', color: '#2f7a57', perm: P.board, hint: 'اجتماعات مجلس الإدارة وقراراته.' },
   { value: 'committee', label: 'اللجان المتخصصة', short: 'اللجان', color: '#6366f1', perm: P.committees, hint: 'اللجنة التنفيذية ولجنة المراجعة وغيرها من اللجان.' },
   { value: 'team', label: 'فرق العمل', short: 'الفرق', color: '#0ea5e9', perm: P.teams, hint: 'اجتماعات الفرق الداخلية والإدارات.' },
 ] as const;

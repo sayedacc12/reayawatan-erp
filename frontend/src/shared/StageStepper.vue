@@ -38,7 +38,7 @@ li.done:not(:last-child)::after { background: linear-gradient(90deg, #10b981, #2
 .done .bubble { background: linear-gradient(135deg, #34d399, #059669); color: #fff; border-color: transparent; }
 .now .bubble { background: var(--grad); color: #fff; border-color: transparent; box-shadow: 0 0 0 5px rgba(20,184,166,.2), 0 0 22px rgba(20,184,166,.7); animation: glow 1.8s ease-in-out infinite; }
 .bad .bubble { background: linear-gradient(135deg, #f87171, #b91c1c); color: #fff; border-color: transparent; }
-.final.done .bubble { background: linear-gradient(135deg, #f5c66b, #d99a2b); box-shadow: 0 0 20px rgba(232,176,75,.7); }
+.final.done .bubble { background: linear-gradient(135deg, #d9bc98, #d99a2b); box-shadow: 0 0 20px rgba(232,176,75,.7); }
 .off .bubble { opacity: .5; }
 .name { font-size: .8rem; color: var(--muted); max-width: 120px; line-height: 1.4; }
 .now .name { color: var(--primary); font-weight: 700; }

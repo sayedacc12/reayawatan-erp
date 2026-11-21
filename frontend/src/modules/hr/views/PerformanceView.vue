@@ -44,7 +44,7 @@ const stages = computed(() => {
 });
 const filter = ref('all');
 const shown = computed(() => (data.value?.cards ?? []).filter((c) => filter.value === 'all' || c.status === filter.value));
-const scoreColor = (s: number | null) => (s === null ? '#94a3b8' : s >= 90 ? '#10b981' : s >= 80 ? '#14b8a6' : s >= 70 ? '#6366f1' : s >= 60 ? '#f59e0b' : '#ef4444');
+const scoreColor = (s: number | null) => (s === null ? '#94a3b8' : s >= 90 ? '#10b981' : s >= 80 ? '#2f7a57' : s >= 70 ? '#6366f1' : s >= 60 ? '#f59e0b' : '#ef4444');
 </script>
 
 <template>

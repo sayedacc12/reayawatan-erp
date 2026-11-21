@@ -66,8 +66,8 @@ describe('Security gate: tenant isolation on every read endpoint', () => {
     await mk('attacker', 'owner@attacker.sa');
     victim = await login('owner@victim.sa', 'Admin12345', 'victim');
     attacker = await login('owner@attacker.sa', 'Admin12345', 'attacker');
-    // رعاية وطن: حُذفت الجمعية التجريبية (sample-data) مع وحدات المستفيدين والتمويل والمشاريع.
-    // بيانات الضحية هنا: إعدادات المنشأة الافتراضية (دليل الحسابات وغيرها) + دور ومستخدم + بيانات الموقع من نماذجه العامة.
+    await http.post('/api/sample-data').set(as(victim)).expect(201);
+    // رعاية وطن: إضافة إلى البيانات التجريبية، بيانات الموقع كما تصل من نماذجه العامة (الضحية هي منشأة الموقع مؤقتًا).
     const role = await http.post('/api/roles').set(as(victim)).send({ name: 'دور الضحية', permissions: ['website.leads.read'] }).expect(201);
     await http.post('/api/users').set(as(victim)).send({ fullName: 'موظف الضحية', email: 'staff@victim.sa', password: 'Staff12345', roleIds: [role.body.id] }).expect(201);
     process.env.COMPANY_SLUG = 'victim';

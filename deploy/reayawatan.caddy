@@ -1,0 +1,23 @@
+# موقع رعاية وطن ونظامها، خلف Caddy الخاص بسنابل على نفس السيرفر.
+# يُنسخ إلى ~/charity-erp/deploy/sites/reayawatan.caddy ثم: caddy validate ثم caddy reload (انظر deploy/README.md).
+
+www.reayawatan.com, erp.reayawatan.com {
+	redir https://reayawatan.com{uri} permanent
+}
+
+reayawatan.com {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+		-X-Powered-By
+	}
+	# rw-frontend موصولة بالشبكة caddy-edge من deploy/compose.prod.yml في مستودع رعاية وطن
+	reverse_proxy rw-frontend:80
+}

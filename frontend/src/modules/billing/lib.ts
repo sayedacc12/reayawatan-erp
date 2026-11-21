@@ -12,7 +12,7 @@ export const BL_READ = [BL.read, BL.invoices, BL.issue, BL.reports, BL.customers
 
 export const DOC_COLOR: Record<string, string> = { draft: '#64748b', pending: '#d97706', issued: '#0369a1', partial: '#ca8a04', paid: '#059669', cancelled: '#94a3b8' };
 export const TYPE_COLOR: Record<string, string> = { standard: '#7c3aed', simplified: '#0891b2', nontax: '#64748b' };
-export const CAT_COLOR: Record<string, string> = { S: '#0369a1', Z: '#0d9488', E: '#b45309', O: '#64748b' };
+export const CAT_COLOR: Record<string, string> = { S: '#0369a1', Z: '#1f6446', E: '#b45309', O: '#64748b' };
 
 export { fmtDate, fmtDateTime, sar, accLabel } from '../procurement/lib';
 export const today = () => new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);

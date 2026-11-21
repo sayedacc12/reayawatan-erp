@@ -45,7 +45,7 @@ const maxOpen = () => Math.max(1, ...(d.value?.registry?.byHolder ?? []).map((x)
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="d">
       <div class="pm-kpis">
-        <RouterLink to="/comms/inbox" class="pm-kpi" style="--a: #14b8a6; --i: 0"><span>معاملات عندي</span><strong><CountUp :value="d.counts.inbox" /></strong><small>بانتظار إجرائي</small></RouterLink>
+        <RouterLink to="/comms/inbox" class="pm-kpi" style="--a: #2f7a57; --i: 0"><span>معاملات عندي</span><strong><CountUp :value="d.counts.inbox" /></strong><small>بانتظار إجرائي</small></RouterLink>
         <RouterLink to="/comms/inbox?status=overdue" class="pm-kpi" style="--a: #e11d48; --i: 1"><span>متأخرة عندي</span><strong><CountUp :value="d.counts.overdue" /></strong><small>تجاوزت موعدها</small></RouterLink>
         <RouterLink to="/comms/decisions" class="pm-kpi" style="--a: #8b5cf6; --i: 2"><span>قرارات لم أطلع عليها</span><strong><CountUp :value="d.counts.unread" /></strong><small>قرارات وتعاميم</small></RouterLink>
         <RouterLink to="/comms/tasks" class="pm-kpi" style="--a: #6366f1; --i: 3"><span>مهامي المفتوحة</span><strong><CountUp :value="d.counts.tasks.mine" /></strong><small>{{ d.counts.tasks.overdue }} متأخرة</small></RouterLink>

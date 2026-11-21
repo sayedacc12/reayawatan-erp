@@ -27,7 +27,7 @@ async function load() {
 onMounted(load);
 watch(year, (y, o) => { if (o !== null && y !== data.value?.year) load(); });
 const years = computed(() => { const y = new Date().getFullYear(); return Array.from({ length: 7 }, (_, i) => y - 2 + i); });
-const PILLAR_COLORS = ['#0ea5e9', '#10b981', '#a78bfa', '#f59e0b', '#f43f5e', '#14b8a6'];
+const PILLAR_COLORS = ['#0ea5e9', '#10b981', '#a78bfa', '#f59e0b', '#f43f5e', '#2f7a57'];
 const LEVEL = { danger: '#ef4444', warning: '#f59e0b', info: '#6366f1' } as const;
 const KINDS: Record<string, string> = { delay: 'تأخر', milestone: 'معلم', reading: 'قراءة', returned: 'إعادة', owner: 'مسؤول' };
 const execTotal = computed(() => Math.max(1, data.value?.execution.total ?? 1));

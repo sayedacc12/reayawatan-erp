@@ -53,7 +53,7 @@
 .au-track { height: 8px; border-radius: 8px; background: var(--surface-2); overflow: hidden; }
 .au-track i { display: block; height: 100%; border-radius: 8px; background: linear-gradient(90deg, #6366f1, #0ea5e9); animation: pm-fill .9s var(--ease) both; transform-origin: right; }
 .au-track.warn i { background: linear-gradient(90deg, #f97316, #e11d48); }
-.au-track.ok i { background: linear-gradient(90deg, #10b981, #14b8a6); }
+.au-track.ok i { background: linear-gradient(90deg, #10b981, #2f7a57); }
 
 /* حلقة النسبة */
 .au-ring { --v: 0; --c: #10b981; width: 120px; height: 120px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto;

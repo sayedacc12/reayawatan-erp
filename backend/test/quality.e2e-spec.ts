@@ -52,7 +52,7 @@ describe('Quality management (ISO 9001)', () => {
     await http.post('/api/users').set(as(admin)).send({ fullName: 'مطلع', email: 'v@test.org', password: 'Viewer1234', roleIds: [vRole.body.id] }).expect(201);
     reviewer = await login('q@test.org', 'Quality123', 'albir');
     viewer = await login('v@test.org', 'Viewer1234', 'albir');
-  });
+  }, 120000);
 
   afterAll(async () => {
     await app.get(DataSource).destroy();

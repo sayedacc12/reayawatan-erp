@@ -5,7 +5,7 @@ import type { Unit } from '../lib';
 defineOptions({ name: 'OrgNode' });
 const props = defineProps<{ unit: Unit; all: Unit[]; depth?: number }>();
 const emit = defineEmits<{ pick: [u: Unit] }>();
-const COLORS = ['#a78bfa', '#14b8a6', '#f472b6', '#f59e0b', '#0ea5e9', '#22c55e', '#ef4444', '#6366f1'];
+const COLORS = ['#a78bfa', '#2f7a57', '#f472b6', '#f59e0b', '#0ea5e9', '#22c55e', '#ef4444', '#6366f1'];
 const kids = () => props.all.filter((u) => u.parentId === props.unit.id);
 </script>
 

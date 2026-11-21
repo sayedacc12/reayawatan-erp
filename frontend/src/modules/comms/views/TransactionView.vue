@@ -136,7 +136,7 @@ async function upload(file: File | undefined) {
 }
 const openFile = (fid: string) => openProtectedFile(`/comms/transactions/${props.id}/attachments/${fid}`).catch((e) => toast.error((e as Error).message));
 const kb = (n: number) => (n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} م.ب` : `${Math.max(1, Math.round(n / 1024))} ك.ب`);
-const moveColor = (k: string) => ({ refer: '#0ea5e9', return: '#f59e0b', note: '#6366f1', done: '#10b981', voucher: '#10b981', archive: '#64748b', cancel: '#dc2626', reopen: '#f97316', task: '#14b8a6', ack: '#10b981', issue: '#8b5cf6' })[k] ?? '#94a3b8';
+const moveColor = (k: string) => ({ refer: '#0ea5e9', return: '#f59e0b', note: '#6366f1', done: '#10b981', voucher: '#10b981', archive: '#64748b', cancel: '#dc2626', reopen: '#f97316', task: '#2f7a57', ack: '#10b981', issue: '#8b5cf6' })[k] ?? '#94a3b8';
 const purposeLabel = (p: string | null | undefined) => PURPOSES.find((x) => x.value === p)?.label ?? '';
 const readCount = computed(() => t.value?.recipients.filter((r) => r.readAt).length ?? 0);
 </script>
@@ -178,7 +178,7 @@ const readCount = computed(() => t.value?.recipients.filter((r) => r.readAt).len
             <span v-if="t.overdue" class="pm-pill" style="--c: #fecdd3">متأخرة</span>
           </div>
 
-          <section v-if="t.can.act" class="card pm-panel" style="border: 1.5px solid #14b8a6">
+          <section v-if="t.can.act" class="card pm-panel" style="border: 1.5px solid #2f7a57">
             <h2 style="margin-bottom: 4px">إجراءك على المعاملة</h2>
             <p class="pm-muted" style="margin-top: 0">المعاملة عندك: أحلها أو أعدها بإفادتك، أو أنهها.</p>
             <div class="pm-actions" style="flex-wrap: wrap">

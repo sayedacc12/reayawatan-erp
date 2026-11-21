@@ -48,7 +48,8 @@ export class BootstrapService implements OnApplicationBootstrap {
 
   /**
    * وضع الشركة الواحدة: ينشئ المنشأة ومديرها (المسؤول الأعلى بكل الصلاحيات) عند أول تشغيل.
-   * DIRECTOR_PASSWORD إن لم تُضبط تُولَّد كلمة مؤقتة تظهر مرة واحدة في سجل الخادم ويُطلب تغييرها عند أول دخول.
+   * كلمة مرور المدير من DIRECTOR_PASSWORD (يولّدها deploy/setup.sh ويعرضها مرة واحدة على الشاشة، ولا تُكتب في السجل).
+   * DIRECTOR_PASSWORD_TEMPORARY=1 تجعلها مؤقتة: صالحة 24 ساعة ويُطلب تغييرها عند أول دخول.
    */
   private async ensureCompany() {
     const slug = companySlug();
@@ -61,11 +62,14 @@ export class BootstrapService implements OnApplicationBootstrap {
         this.logger.log(`Created company organization "${slug}"`);
       }
       if (await em.exists(User, { where: { organizationId: org.id, isSuperadmin: true } })) return;
+      const password = this.config.get<string>('DIRECTOR_PASSWORD');
+      if (!password) {
+        this.logger.warn('No organization director yet: set DIRECTOR_PASSWORD (deploy/setup.sh does this) and restart to create one');
+        return;
+      }
       const email = (this.config.get<string>('DIRECTOR_EMAIL') || `director@${slug}.local`).trim().toLowerCase();
       const username = (this.config.get<string>('DIRECTOR_USERNAME') || 'director').trim().toLowerCase();
-      let password = this.config.get<string>('DIRECTOR_PASSWORD');
-      const generated = !password;
-      if (!password) password = `Rw${randomBytes(9).toString('base64url')}7`;
+      const temporary = this.config.get<string>('DIRECTOR_PASSWORD_TEMPORARY') === '1';
       await em.save(em.create(User, {
         organizationId: org.id,
         fullName: this.config.get<string>('DIRECTOR_NAME') || 'مدير المنظمة',
@@ -73,12 +77,10 @@ export class BootstrapService implements OnApplicationBootstrap {
         username,
         passwordHash: await bcrypt.hash(password, 12),
         isSuperadmin: true,
-        mustChangePassword: generated,
-        tempPasswordExpiresAt: generated ? new Date(Date.now() + 86400000) : null,
+        mustChangePassword: temporary,
+        tempPasswordExpiresAt: temporary ? new Date(Date.now() + 86400000) : null,
       }));
-      this.logger.warn(generated
-        ? `Created organization director "${username}" with temporary password: ${password}  (must be changed at first login, valid 24 hours)`
-        : `Created organization director "${username}" (password from DIRECTOR_PASSWORD)`);
+      this.logger.warn(`Created organization director "${username}"${temporary ? ' with a temporary password (must be changed at first login, valid 24 hours)' : ''}`);
     });
   }
 }

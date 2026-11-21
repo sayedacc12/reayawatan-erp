@@ -92,7 +92,7 @@ function logout() {
 </template>
 
 <style scoped>
-.fc { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(1000px 600px at 90% -10%, rgba(45,212,191,.16), transparent 60%), var(--bg); }
+.fc { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(1000px 600px at 90% -10%, rgba(127,179,148,.16), transparent 60%), var(--bg); }
 .fc-card { width: 100%; max-width: 460px; padding: 24px; }
 .fc-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
 .fc-head h1 { font-size: 1.3rem; margin: 0 0 4px; }

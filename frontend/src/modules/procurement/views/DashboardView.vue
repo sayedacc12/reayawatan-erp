@@ -51,7 +51,7 @@ async function copyPortal() {
     </section>
     <template v-if="d">
       <div class="pm-kpis">
-        <div class="pm-kpi" style="--a: #0f766e; --i: 0"><span>الأصناف النشطة</span><strong><CountUp :value="d.items.active" /></strong><small>من {{ d.items.total }} · {{ d.items.services }} خدمة · {{ d.items.assets }} أصل</small></div>
+        <div class="pm-kpi" style="--a: #164e38; --i: 0"><span>الأصناف النشطة</span><strong><CountUp :value="d.items.active" /></strong><small>من {{ d.items.total }} · {{ d.items.services }} خدمة · {{ d.items.assets }} أصل</small></div>
         <div class="pm-kpi" style="--a: #0369a1; --i: 1"><span>المستودعات</span><strong><CountUp :value="d.warehouses.active" /></strong><small>{{ d.warehouses.locations }} موقع تخزين</small></div>
         <div class="pm-kpi" style="--a: #059669; --i: 2"><span>الموردون المعتمدون</span><strong><CountUp :value="sup('approved')" /></strong><small>{{ sup('pending') }} بانتظار المراجعة · {{ sup('draft') }} مسودة في البوابة</small></div>
         <div class="pm-kpi" style="--a: #db2777; --i: 3"><span>مستندات تنتهي قريبًا</span><strong><CountUp :value="d.expiring.length" /></strong><small>{{ d.expiring.filter((x: any) => x.expired).length }} منتهية</small></div>
@@ -126,7 +126,7 @@ async function copyPortal() {
         <section class="card pm-panel wide">
           <h2>الأصناف حسب المجموعة <RouterLink to="/procurement/item-groups" class="pm-link">المجموعات</RouterLink></h2>
           <div class="pc-bars">
-            <div v-for="g in d.groups" :key="g.name" class="r"><span>{{ g.name }}</span><div class="pc-bar"><i :style="{ width: (g.n / maxGroup) * 100 + '%', '--c': '#0f766e' }" /></div><b>{{ g.n }}</b></div>
+            <div v-for="g in d.groups" :key="g.name" class="r"><span>{{ g.name }}</span><div class="pc-bar"><i :style="{ width: (g.n / maxGroup) * 100 + '%', '--c': '#164e38' }" /></div><b>{{ g.n }}</b></div>
           </div>
         </section>
       </div>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# تفعيل البريد الصادر لسنابل (Gmail الآن، ويمكن تغييره لاحقًا لأي مزود SMTP).
+# تفعيل البريد الصادر لرعاية وطن (Gmail الآن، ويمكن تغييره لاحقًا لأي مزود SMTP).
 #   bash deploy/mail-setup.sh
 # يطلب البريد وكلمة مرور التطبيق (لا تظهر على الشاشة)، ويحفظهما في ملف .env على السيرفر فقط،
 # ثم يعيد تشغيل الخادم الخلفي. لا ترسل كلمة مرور التطبيق لأي أحد ولا تضعها في GitHub.
@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [ ! -f .env ]; then
-  echo "لم أجد ملف .env. شغّل أولًا: DOMAIN=sanabelerp.com bash deploy/setup.sh"
+  echo "لم أجد ملف .env. شغّل أولًا: bash deploy/setup.sh"
   exit 1
 fi
 
@@ -15,7 +15,7 @@ current_user="$(grep -E '^SMTP_USER=' .env | cut -d= -f2- || true)"
 default_user="${current_user:-sayed.acc12@gmail.com}"
 
 echo
-echo "== تفعيل البريد الصادر لسنابل =="
+echo "== تفعيل البريد الصادر لرعاية وطن =="
 read -r -p "بريد Gmail المرسل [${default_user}]: " MAIL_USER
 MAIL_USER="${MAIL_USER:-$default_user}"
 MAIL_USER="$(echo "$MAIL_USER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
@@ -52,10 +52,10 @@ unset APP_PASS
 
 DOCKER="docker"; docker info >/dev/null 2>&1 || DOCKER="sudo docker"
 echo "جارٍ إعادة تشغيل الخادم..."
-$DOCKER compose -f docker-compose.yml -f deploy/compose.prod.yml up -d backend >/dev/null
+$DOCKER compose -p rw -f docker-compose.yml -f deploy/compose.prod.yml up -d rw-backend >/dev/null
 
 echo
 echo "=============================================="
 echo " ✅ تم حفظ إعدادات البريد: ${MAIL_USER}"
-echo " الآن: ادخل لوحة مدير المنصة ← البريد الإلكتروني ← «إرسال رسالة تجريبية»"
+echo " الآن: أرسلوا طلبًا تجريبيًا من نموذج «تواصل معنا» في الموقع وتأكدوا من وصول الإشعار"
 echo "=============================================="

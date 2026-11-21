@@ -64,7 +64,7 @@ const ready = computed(() => portal.token && me.value && !me.value.user.mustChan
         <Transition name="page" mode="out-in"><component :is="Component" :key="r.path" /></Transition>
       </RouterView>
     </main>
-    <footer class="sfoot">تعمل بواسطة منصة سنابل</footer>
+    <footer class="sfoot">رعاية وطن · National Care</footer>
   </div>
 </template>
 

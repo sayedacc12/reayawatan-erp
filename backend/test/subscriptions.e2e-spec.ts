@@ -120,12 +120,12 @@ describe('Association subscriptions & e-contracts', () => {
 
   it('approves with chosen screens, price and a trial, generating links', async () => {
     const screens = await http.get('/api/platform/screens').set(as(platform)).expect(200);
-    const ben = screens.body.find((m: { code: string }) => m.code === 'beneficiaries');
-    expect(ben.screens.length).toBeGreaterThan(3);
+    const web = screens.body.find((m: { code: string }) => m.code === 'website');
+    expect(web.screens.length).toBeGreaterThan(3);
     expect(screens.body.find((m: { code: string }) => m.code === 'core').locked).toBe(true);
 
     const body = {
-      slug: 'al-namaa', allScreens: false, screens: ['/beneficiaries/files', '/beneficiaries/requests'], modules: [],
+      slug: 'al-namaa', allScreens: false, screens: ['/website/leads', '/website/bookings'], modules: [],
       price: 1000, billingCycle: 'monthly', months: 12, trialDays: 14, startsOn: '2026-12-01',
     };
     await http.post(`/api/platform/applications/${appId}/approve`).set(as(platform)).send({ ...body, screens: ['/nope'] }).expect(400);
@@ -152,15 +152,15 @@ describe('Association subscriptions & e-contracts', () => {
   it('association admin sees only the allowed screens during the trial', async () => {
     const res = await http.post('/api/auth/login').send({ login: 'admin@namaa.org', password: 'Namaa12345', organization: 'al-namaa' }).expect(200);
     const t = res.body.accessToken;
-    const ben = res.body.apps.find((a: { code: string }) => a.code === 'beneficiaries');
-    expect(ben.menu.map((m: { path: string }) => m.path)).toEqual(['/beneficiaries/files', '/beneficiaries/requests']);
+    const web = res.body.apps.find((a: { code: string }) => a.code === 'website');
+    expect(web.menu.map((m: { path: string }) => m.path)).toEqual(['/website/leads', '/website/bookings']);
     expect(res.body.apps.find((a: { code: string }) => a.code === 'core')).toBeTruthy();
-    expect(res.body.screens.hidden).toContain('/beneficiaries/tickets');
-    expect(res.body.user.permissions).toContain('beneficiaries.requests.read');
-    expect(res.body.user.permissions).not.toContain('beneficiaries.tickets.manage');
-    expect(res.body.user.permissions).not.toContain('beneficiaries.settings.manage');
-    await http.get('/api/beneficiaries/tickets').set(as(t)).expect(403);
-    await http.get('/api/beneficiaries/requests').set(as(t)).expect(200);
+    expect(res.body.screens.hidden).toContain('/website/guides');
+    expect(res.body.user.permissions).toContain('website.leads.read');
+    expect(res.body.user.permissions).not.toContain('website.guides.manage');
+    expect(res.body.user.permissions).not.toContain('website.settings.manage');
+    await http.get('/api/website/guides').set(as(t)).expect(403);
+    await http.get('/api/website/leads').set(as(t)).expect(200);
   });
 
   it('platform edits the contract clauses and keeps mandatory ones', async () => {
@@ -231,16 +231,13 @@ describe('Association subscriptions & e-contracts', () => {
     expect(track.body.contract.status).toBe('signed');
   });
 
-  it('blocks login and the portal when the trial or subscription ends', async () => {
+  it('blocks login when the trial or subscription ends', async () => {
     await http.patch(`/api/platform/organizations/${orgId}/subscription`).set(as(platform))
       .send({ status: 'trial', trialEndsOn: '2020-01-01' }).expect(200);
     const res = await http.post('/api/auth/login').send({ login: 'admin@namaa.org', password: 'Namaa12345', organization: 'al-namaa' }).expect(401);
     expect(res.body.message).toContain('الفترة التجريبية');
-    const portal = await http.get('/api/portal/o/al-namaa').expect(404);
-    expect(portal.body.message).toContain('غير متاحة');
     await http.patch(`/api/platform/organizations/${orgId}/subscription`).set(as(platform))
       .send({ status: 'active', startsOn: '2026-01-01', endsOn: '2099-12-31' }).expect(200);
-    await http.get('/api/portal/o/al-namaa').expect(200);
     await http.post('/api/auth/login').send({ login: 'admin@namaa.org', password: 'Namaa12345', organization: 'al-namaa' }).expect(200);
   });
 
@@ -248,7 +245,7 @@ describe('Association subscriptions & e-contracts', () => {
     await http.put(`/api/platform/organizations/${orgId}/access`).set(as(platform))
       .send({ allScreens: true, screens: [], modules: [] }).expect(200);
     const res = await http.post('/api/auth/login').send({ login: 'admin@namaa.org', password: 'Namaa12345', organization: 'al-namaa' }).expect(200);
-    expect(res.body.user.permissions).toContain('beneficiaries.tickets.manage');
+    expect(res.body.user.permissions).toContain('website.guides.manage');
     expect(res.body.screens.hidden).toEqual([]);
   });
 

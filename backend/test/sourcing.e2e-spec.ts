@@ -323,6 +323,20 @@ describe('Sourcing: requests, tenders, award and approval', () => {
     expect(no.body.message).toContain('لا يوجد مصدر تمويل');
   });
 
+  it('rejects every purchase request tied to a restricted funding source (no fundraising module in رعاية وطن)', async () => {
+    const r = (await http.post(`${PR}/requests`).set(as(tok.requester)).send(req({
+      title: `شراء ممول ${Math.random()}`, method: 'direct', fundingBatchId: ids.opsBatch,
+      lines: [{ description: `قرطاسية ${Math.random()}`, qty: 10, estPrice: 500 }],
+    })).expect(201)).body;
+    const res = await http.post(`${PR}/requests/${r.id}/submit`).set(as(tok.requester)).send({ confirmDuplicate: true }).expect(400);
+    expect(res.body.message).toContain('غير متاحة');
+    // لم يُحجز شيء من مصدر التمويل، وبقي الطلب مسودة
+    const [b] = await db.query('SELECT reserved_amount::float AS r, spent_amount::float AS s FROM fundraising_batches WHERE id = $1', [ids.opsBatch]);
+    expect(b).toEqual({ r: 0, s: 0 });
+    const rq = (await http.get(`${PR}/requests/${r.id}`).set(as(tok.requester)).expect(200)).body;
+    expect(rq.status).toBe('draft');
+  });
+
   it('checks the funding source first, with its purpose, period and balance, and releases it on cancel', async () => {
     const mk = async (extra: object) => {
       const r = (await http.post(`${PR}/requests`).set(as(tok.requester)).send(req({

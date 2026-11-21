@@ -63,7 +63,7 @@ const METHOD_AR: Record<string, string> = { password: 'إلكتروني بكلم
 .box h1 { font-size: 1.3rem; margin: 10px 0 4px; }
 .muted { color: var(--muted); }
 .seal { width: 84px; height: 84px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; font-size: 2.2rem; color: #fff; background: linear-gradient(135deg, #f59e0b, #6366f1); }
-.seal.ok { background: linear-gradient(135deg, #10b981, #0f766e); box-shadow: 0 0 0 10px rgba(16,185,129,.15); }
+.seal.ok { background: linear-gradient(135deg, #10b981, #164e38); box-shadow: 0 0 0 10px rgba(16,185,129,.15); }
 dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: start; margin: 18px 0; }
 dt { color: var(--muted); font-size: .85rem; }
 dd { margin: 0; font-weight: 600; }

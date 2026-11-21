@@ -67,7 +67,7 @@ async function copyLink() {
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="data">
       <div class="pm-kpis">
-        <div class="pm-kpi" style="--a: #0f766e; --i: 0"><span>الأعضاء الساريون</span><strong><CountUp :value="data.members.current" /></strong><small>{{ data.members.female }} عضوة · {{ data.members.current - data.members.female }} عضو</small></div>
+        <div class="pm-kpi" style="--a: #164e38; --i: 0"><span>الأعضاء الساريون</span><strong><CountUp :value="data.members.current" /></strong><small>{{ data.members.female }} عضوة · {{ data.members.current - data.members.female }} عضو</small></div>
         <div class="pm-kpi" style="--a: #1e3a8a; --i: 1"><span>أصحاب حق التصويت</span><strong><CountUp :value="data.members.voting" /></strong><small>النصاب {{ data.quorum }} عضوًا (النصف + 1)</small></div>
         <div class="pm-kpi" style="--a: #f59e0b; --i: 2"><span>تنتهي قريبًا</span><strong><CountUp :value="data.members.expiring + data.members.grace" /></strong><small>{{ data.members.grace }} في مهلة السماح · {{ data.members.expired }} منتهية</small></div>
         <div class="pm-kpi" style="--a: #fbbf24; --i: 3"><span>تحصيل الاشتراكات {{ data.year }}</span><strong><CountUp :value="data.collected" /></strong><small>ريال · {{ data.invoices.unpaid }} مطالبة بانتظار السداد ({{ sar(data.invoices.unpaidAmount) }})</small></div>

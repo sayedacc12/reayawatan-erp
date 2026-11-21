@@ -104,7 +104,7 @@ async function confirmForm(id: string) {
 .emp:hover { background: var(--surface-2); }
 .emp.on { border-color: var(--primary); background: var(--primary-soft); }
 .emp.out { border-color: #fecaca; }
-.emp .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #fff; background: linear-gradient(135deg, #0ea5e9, #0f766e); flex: 0 0 38px; }
+.emp .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #fff; background: linear-gradient(135deg, #0ea5e9, #164e38); flex: 0 0 38px; }
 .emp .grow, .form-row .grow { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .emp .ac-num { display: flex; flex-direction: column; align-items: flex-end; }
 .unc { color: #b45309 !important; font-weight: 700; }

@@ -1,17 +1,17 @@
 :root {
   --bg: #f3f6f8;
-  --grad: linear-gradient(135deg, #14b8a6, #0d9488 55%, #0f766e);
-  --grad-dark: linear-gradient(120deg, #06141a, #0b2a2e 55%, #102a43);
-  --gold: #e8b04b;
+  --grad: linear-gradient(135deg, #2f7a57, #1f6446 55%, #164e38);
+  --grad-dark: linear-gradient(120deg, #06141a, #10291e 55%, #102a43);
+  --gold: #c7a27a;
   --ease: cubic-bezier(.2,.8,.2,1);
   --surface: #ffffff;
   --surface-2: #f8fafb;
   --border: #e3e8ec;
   --text: #1b2733;
   --muted: #64748b;
-  --primary: #0f766e;
-  --primary-hover: #0b5f58;
-  --primary-soft: #e6f4f2;
+  --primary: #164e38;
+  --primary-hover: #0f3a29;
+  --primary-soft: #e9f1ec;
   --danger: #b42318;
   --danger-soft: #fdecea;
   --success: #067647;

@@ -21,8 +21,8 @@ defineProps<{ wide?: boolean }>();
 .pub { min-height: 100vh; position: relative; overflow-x: hidden; background: var(--grad-dark); padding-bottom: 60px; }
 .aurora { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .aurora span { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(90px); opacity: .35; animation: drift 18s ease-in-out infinite alternate; }
-.aurora span:nth-child(1) { background: #14b8a6; top: -25vmax; right: -15vmax; }
-.aurora span:nth-child(2) { background: #e8b04b; bottom: -30vmax; left: -20vmax; animation-delay: -6s; opacity: .22; }
+.aurora span:nth-child(1) { background: #2f7a57; top: -25vmax; right: -15vmax; }
+.aurora span:nth-child(2) { background: #c7a27a; bottom: -30vmax; left: -20vmax; animation-delay: -6s; opacity: .22; }
 .aurora span:nth-child(3) { background: #6366f1; top: 30%; left: 30%; width: 40vmax; height: 40vmax; animation-delay: -12s; opacity: .14; }
 @keyframes drift { to { transform: translate(6vmax, 4vmax) scale(1.1); } }
 .bar { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; max-width: 1100px; margin: 0 auto; }

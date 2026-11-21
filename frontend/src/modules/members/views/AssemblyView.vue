@@ -48,7 +48,7 @@ function exportRows() {
     <template v-if="data">
       <div class="pm-kpis">
         <div class="pm-kpi" style="--a: #1e3a8a; --i: 0"><span>أصحاب حق التصويت</span><strong>{{ data.eligible }}</strong><small>في {{ fmtDate(data.date) }} · {{ hijri(data.date) }}</small></div>
-        <div class="pm-kpi" style="--a: #0f766e; --i: 1"><span>النصاب القانوني</span><strong>{{ data.quorum }}</strong><small>النصف + 1 من أصحاب الحق</small></div>
+        <div class="pm-kpi" style="--a: #164e38; --i: 1"><span>النصاب القانوني</span><strong>{{ data.quorum }}</strong><small>النصف + 1 من أصحاب الحق</small></div>
         <div class="pm-kpi" style="--a: #f59e0b; --i: 2"><span>لم يكتسبوا الحق بعد</span><strong>{{ data.pending.length }}</strong><small>من أنواع لها حق التصويت</small></div>
         <div class="pm-kpi" style="--a: #64748b; --i: 3"><span>الأعضاء الساريون</span><strong>{{ data.attendees.length }}</strong><small>يحق لهم الحضور</small></div>
       </div>

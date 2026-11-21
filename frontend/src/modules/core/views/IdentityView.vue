@@ -11,7 +11,7 @@ const TABS = [
   { k: 'brand', l: 'الاسم والشعار' }, { k: 'colors', l: 'الألوان والخطوط' }, { k: 'vision', l: 'الرؤية والرسالة والأهداف' }, { k: 'contact', l: 'التواصل والترخيص' },
 ] as const;
 const PALETTES = [
-  { n: 'أخضر سنابل', c: { primary: '#0f766e', secondary: '#14b8a6', accent: '#e8b04b', dark: '#0b2a2e' } },
+  { n: 'أخضر رعاية وطن', c: { primary: '#164e38', secondary: '#2f7a57', accent: '#c7a27a', dark: '#10291e' } },
   { n: 'أزرق ملكي', c: { primary: '#1d4ed8', secondary: '#38bdf8', accent: '#f59e0b', dark: '#0f172a' } },
   { n: 'بنفسجي', c: { primary: '#6d28d9', secondary: '#a78bfa', accent: '#f472b6', dark: '#1e1b4b' } },
   { n: 'عنابي', c: { primary: '#9f1239', secondary: '#fb7185', accent: '#fbbf24', dark: '#2a0a12' } },
@@ -225,7 +225,7 @@ async function removeLogo(kind: 'logo' | 'logoLight') {
 .logo-prev { width: 96px; height: 96px; border-radius: 14px; display: grid; place-items: center; flex-shrink: 0; overflow: hidden; }
 .logo-prev img { max-width: 84px; max-height: 84px; }
 .logo-prev.light { background: var(--surface-2); border: 1px solid var(--border); }
-.logo-prev.dark { background: #0b2a2e; color: #94a3b8; }
+.logo-prev.dark { background: #10291e; color: #94a3b8; }
 .palettes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 14px; }
 .palette { display: flex; align-items: center; gap: 3px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 10px; cursor: pointer; font: inherit; font-size: .82rem; }
 .palette i { width: 14px; height: 14px; border-radius: 50%; }

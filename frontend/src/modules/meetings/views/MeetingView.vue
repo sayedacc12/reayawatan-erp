@@ -207,7 +207,7 @@ const show = (x: typeof modal.value) => { f.note = ''; modal.value = x; };
             <div style="display: flex; gap: 8px; flex-wrap: wrap">
               <span class="pm-pill" :style="{ '--c': STATUS_COLOR[m.status] }">{{ m.statusLabel }}</span>
               <span v-if="m.isConfidential" class="pm-pill" style="--c: #fbbf24">سري</span>
-              <a v-if="m.onlineLink && ['scheduled', 'in_progress'].includes(m.status)" :href="m.onlineLink" target="_blank" rel="noopener" class="pm-pill" style="--c: #5eead4">رابط الاجتماع</a>
+              <a v-if="m.onlineLink && ['scheduled', 'in_progress'].includes(m.status)" :href="m.onlineLink" target="_blank" rel="noopener" class="pm-pill" style="--c: #a9c9b5">رابط الاجتماع</a>
             </div>
           </div>
           <div class="pm-actions" style="flex-wrap: wrap">
@@ -343,7 +343,7 @@ const show = (x: typeof modal.value) => { f.note = ''; modal.value = x; };
           </template>
           <div v-else-if="i.discussion" class="mt-disc">{{ i.discussion }}</div>
           <p v-if="i.recommendations.length || m.can.conduct" class="cm-sec">التوصيات والقرارات</p>
-          <div v-for="r in i.recommendations" :key="r.id" class="mt-rec" :style="{ '--c': r.kind === 'decision' ? '#e8b04b' : '#6366f1' }">
+          <div v-for="r in i.recommendations" :key="r.id" class="mt-rec" :style="{ '--c': r.kind === 'decision' ? '#c7a27a' : '#6366f1' }">
             <span class="tag">{{ r.kind === 'decision' ? 'قرار' : 'توصية' }} {{ i.seq }}.{{ r.seq }}</span>
             <div>
               <p>{{ r.text }}</p>
@@ -352,7 +352,7 @@ const show = (x: typeof modal.value) => { f.note = ''; modal.value = x; };
                 <template v-if="r.votesFor !== null"> · موافق {{ r.votesFor }}، معارض {{ r.votesAgainst ?? 0 }}، ممتنع {{ r.votesAbstain ?? 0 }}</template></small>
             </div>
             <div style="display: grid; gap: 4px; justify-items: end">
-              <RouterLink v-if="r.taskId" :to="`/comms/tasks/${r.taskId}`" class="pm-pill" style="--c: #14b8a6">{{ r.taskRef }} · {{ TASK_AR[r.task?.status ?? 'open'] }} {{ r.task?.progress ?? 0 }}%</RouterLink>
+              <RouterLink v-if="r.taskId" :to="`/comms/tasks/${r.taskId}`" class="pm-pill" style="--c: #2f7a57">{{ r.taskRef }} · {{ TASK_AR[r.task?.status ?? 'open'] }} {{ r.task?.progress ?? 0 }}%</RouterLink>
               <span v-if="m.can.conduct && !r.taskId" class="pm-actions"><button class="btn btn-sm" @click="openRec(i, r)">تعديل</button><button class="btn btn-sm" @click="call(`/recommendations/${r.id}`, undefined, 'حُذفت', 'DELETE')">×</button></span>
             </div>
           </div>

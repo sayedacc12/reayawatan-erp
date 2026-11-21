@@ -254,7 +254,7 @@ const openInvoice = computed(() => m.value?.statement.find((s: any) => s.status 
         <section class="card pm-panel">
           <h2>سجل العضوية</h2>
           <ul class="mb-log">
-            <li v-for="(h, i) in m.history" :key="i" :style="{ '--c': h.action === 'suspended' || h.action === 'terminated' ? '#ef4444' : '#0f766e' }">
+            <li v-for="(h, i) in m.history" :key="i" :style="{ '--c': h.action === 'suspended' || h.action === 'terminated' ? '#ef4444' : '#164e38' }">
               <b>{{ HISTORY_LABEL[h.action] ?? h.action }}</b> · {{ h.byName }} · <span class="pm-muted">{{ fmtDateTime(h.at) }}</span>
               <div v-if="h.note">{{ h.note }}</div>
             </li>

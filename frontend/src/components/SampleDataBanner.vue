@@ -71,7 +71,7 @@ const done = () => location.reload();
       </div>
     </section>
     <div v-else-if="reminder" class="sample-reminder">
-      <span>🌾 تعمل جمعيتك الآن ببيانات تجريبية. عند بدء العمل الفعلي يحذفها فريق سنابل كلها بطلب منكم، وتبقى حساباتكم وإعداداتكم.</span>
+      <span>يعمل النظام الآن ببيانات تجريبية. عند بدء العمل الفعلي تُحذف كلها بطلب منكم، وتبقى حساباتكم وإعداداتكم.</span>
       <button class="link" @click="hideReminder">إخفاء</button>
     </div>
   </Transition>
@@ -95,14 +95,14 @@ const done = () => location.reload();
 @keyframes drift { to { transform: translate(-60px, 40px); } }
 .icon { font-size: 2.2rem; filter: drop-shadow(0 0 12px rgba(232, 176, 75, .6)); }
 .text { flex: 1 1 320px; position: relative; }
-.text h2 { margin: 0 0 4px; font-size: 1.15rem; background: linear-gradient(90deg, #fff, #a7f3e9 60%, #f5c66b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text h2 { margin: 0 0 4px; font-size: 1.15rem; background: linear-gradient(90deg, #fff, #a7f3e9 60%, #d9bc98); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .text p { margin: 0; color: rgba(255, 255, 255, .82); line-height: 1.8; font-size: .93rem; }
 .err { color: #fecaca !important; margin-top: 6px !important; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; position: relative; }
 .btn-quiet { background: rgba(255, 255, 255, .08); color: #fff; border-color: rgba(255, 255, 255, .25); }
 .btn-quiet:hover { background: rgba(255, 255, 255, .16); }
 .loading { display: flex; align-items: center; gap: 10px; }
-.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .25); border-top-color: #5eead4; animation: spin .8s linear infinite; flex: none; }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .25); border-top-color: #a9c9b5; animation: spin .8s linear infinite; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .sample-reminder { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 8px 14px;
   border-radius: 10px; background: #fff7e6; color: #7a4800; border: 1px solid #f5d79e; font-size: .9rem; }

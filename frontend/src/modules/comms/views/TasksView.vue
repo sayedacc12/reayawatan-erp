@@ -71,7 +71,7 @@ async function create() {
     busy.value = false;
   }
 }
-const ROLE = { owner: { l: 'مسؤول', c: '#14b8a6' }, supporter: { l: 'مساند', c: '#8b5cf6' }, assigner: { l: 'أسندتها', c: '#0ea5e9' }, viewer: { l: 'متابعة', c: '#64748b' } } as const;
+const ROLE = { owner: { l: 'مسؤول', c: '#2f7a57' }, supporter: { l: 'مساند', c: '#8b5cf6' }, assigner: { l: 'أسندتها', c: '#0ea5e9' }, viewer: { l: 'متابعة', c: '#64748b' } } as const;
 const trackClass = (t: TaskRow) => (t.status === 'done' ? 'ok' : t.overdue ? 'warn' : '');
 const dueClass = (t: TaskRow) => (t.overdue ? 'late' : t.daysLeft !== null && t.daysLeft <= 2 ? 'soon' : '');
 </script>
@@ -90,7 +90,7 @@ const dueClass = (t: TaskRow) => (t.overdue ? 'late' : t.daysLeft !== null && t.
     </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="data && !all" class="pm-kpis">
-      <div class="pm-kpi" style="--a: #14b8a6"><span>مفتوحة علي</span><strong>{{ data.counts.mine }}</strong><small>أنا المسؤول عنها</small></div>
+      <div class="pm-kpi" style="--a: #2f7a57"><span>مفتوحة علي</span><strong>{{ data.counts.mine }}</strong><small>أنا المسؤول عنها</small></div>
       <div class="pm-kpi" style="--a: #e11d48"><span>متأخرة</span><strong>{{ data.counts.overdue }}</strong><small>تجاوزت موعد الإغلاق</small></div>
       <div class="pm-kpi" style="--a: #8b5cf6"><span>أساند فيها</span><strong>{{ data.counts.supporting }}</strong><small>للمتابعة فقط</small></div>
       <div class="pm-kpi" style="--a: #10b981"><span>أنجزتها</span><strong>{{ data.counts.done }}</strong><small>منذ البداية</small></div>

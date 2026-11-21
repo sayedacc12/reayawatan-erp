@@ -132,7 +132,7 @@ const newKey = () => `tier_${Date.now().toString(36).slice(-5)}`;
           <input v-model="t.description" class="input guide" placeholder="وصف مختصر" />
         </div>
         <div class="modal-actions" style="justify-content: space-between">
-          <button class="btn" @click="types.push({ name: '', description: '', color: '#0f766e', minScore: 60, defaultMonths: 12, isActive: true })">+ نوع</button>
+          <button class="btn" @click="types.push({ name: '', description: '', color: '#164e38', minScore: 60, defaultMonths: 12, isActive: true })">+ نوع</button>
           <button class="btn btn-primary" :disabled="busy" @click="saveTypes">حفظ الأنواع</button>
         </div>
       </section>

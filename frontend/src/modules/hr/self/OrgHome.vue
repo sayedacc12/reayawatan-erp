@@ -29,7 +29,7 @@ const greeting = computed(() => {
 });
 const today = new Date().toLocaleDateString('ar-SA-u-ca-gregory', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const first = computed(() => session.user?.fullName.split(' ')[0] ?? '');
-const PALETTE = ['#14b8a6', '#6366f1', '#f59e0b', '#ec4899', '#0ea5e9', '#22c55e', '#a855f7', '#ef4444'];
+const PALETTE = ['#2f7a57', '#6366f1', '#f59e0b', '#ec4899', '#0ea5e9', '#22c55e', '#a855f7', '#ef4444'];
 const tint = (i: number) => ({ '--c': PALETTE[i % PALETTE.length], '--i': i });
 const canHr = computed(() => session.apps.some((a) => a.code === 'hr' && a.menu.some((m) => m.path === '/hr/employees')));
 </script>
@@ -50,8 +50,8 @@ const canHr = computed(() => session.apps.some((a) => a.code === 'hr' && a.menu.
 
     <div class="ess-kpis">
       <div class="ess-kpi" style="--a: #f59e0b; --i: 0"><span class="ic">🔔</span><span>مهام بانتظارك</span><strong>{{ tasks.total }}</strong><small>{{ tasks.total ? 'في جرس المهام أعلى الشاشة' : 'لا شيء ينتظرك الآن' }}</small></div>
-      <div class="ess-kpi" style="--a: #14b8a6; --i: 1"><span class="ic">🧩</span><span>الأنظمة المتاحة لك</span><strong>{{ session.apps.length }}</strong><small>حسب صلاحياتك</small></div>
-      <RouterLink v-if="launchView" to="/launch" class="ess-kpi" style="--a: #e8b04b; --i: 2"><span class="ic">🚀</span><span>خطوات الإطلاق</span><strong>{{ launchView.done }} <small>/ {{ launchView.total }}</small></strong><small>{{ launchView.complete ? 'اكتملت، مبارك!' : `أنجزت ${launchView.pct}%` }}</small></RouterLink>
+      <div class="ess-kpi" style="--a: #2f7a57; --i: 1"><span class="ic">🧩</span><span>الأنظمة المتاحة لك</span><strong>{{ session.apps.length }}</strong><small>حسب صلاحياتك</small></div>
+      <RouterLink v-if="launchView" to="/launch" class="ess-kpi" style="--a: #c7a27a; --i: 2"><span class="ic">🚀</span><span>خطوات الإطلاق</span><strong>{{ launchView.done }} <small>/ {{ launchView.total }}</small></strong><small>{{ launchView.complete ? 'اكتملت، مبارك!' : `أنجزت ${launchView.pct}%` }}</small></RouterLink>
     </div>
 
     <div class="oh-grid">

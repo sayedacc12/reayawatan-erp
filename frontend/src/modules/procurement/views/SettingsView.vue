@@ -246,7 +246,7 @@ function addActivity() {
             <button class="btn btn-sm" @click="cats.splice(i, 1)">✕</button>
           </div>
           <div class="pc-inline" style="margin-top: 10px">
-            <button class="btn btn-sm" @click="cats.push({ name: '', description: '', color: '#0f766e', isActive: true })">+ تصنيف</button>
+            <button class="btn btn-sm" @click="cats.push({ name: '', description: '', color: '#164e38', isActive: true })">+ تصنيف</button>
             <button class="btn btn-primary" :disabled="busy" @click="saveCats">حفظ</button>
           </div>
         </section>

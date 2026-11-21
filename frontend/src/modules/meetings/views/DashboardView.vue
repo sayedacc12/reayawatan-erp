@@ -69,7 +69,7 @@ const TASK_AR: Record<string, string> = { open: 'لم تبدأ', in_progress: '�
           <h2>أحدث التوصيات والقرارات <RouterLink to="/meetings/decisions" class="pm-link">الكل</RouterLink></h2>
           <p v-if="!d.recent.length" class="pm-empty">لا توجد توصيات بعد</p>
           <RouterLink v-for="r in d.recent" :key="r.id" :to="r.taskId ? `/comms/tasks/${r.taskId}` : `/meetings/m/${r.meetingId}`" class="mt-rec"
-            :style="{ '--c': r.kind === 'decision' ? '#e8b04b' : '#6366f1', 'grid-template-columns': '1fr auto' }">
+            :style="{ '--c': r.kind === 'decision' ? '#c7a27a' : '#6366f1', 'grid-template-columns': '1fr auto' }">
             <div><span class="tag">{{ r.kind === 'decision' ? 'قرار' : 'توصية' }} · {{ r.bodyName }}</span><p>{{ r.text }}</p>
               <small>{{ r.ownerName ?? 'بلا مسؤول' }}<template v-if="r.dueDate"> · {{ fmtDate(r.dueDate) }}</template></small></div>
             <span v-if="r.taskStatus" :class="['cm-due', { late: r.overdue }]">{{ r.overdue ? 'متأخرة' : TASK_AR[r.taskStatus] }}<template v-if="r.progress !== null"> {{ r.progress }}%</template></span>
