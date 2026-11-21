@@ -8,6 +8,11 @@ services:
 
   frontend:
     ports: !reset []
+    networks:
+      default:
+        # اسم فريد يصل به Caddy إلى واجهة سنابل، حتى لا يختلط بخدمة اسمها frontend في نظام آخر على الشبكة caddy-edge
+        aliases:
+          - sanabel-frontend
 
   caddy:
     image: caddy:2.11.9-alpine
@@ -20,9 +25,19 @@ services:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+      # مواقع إضافية على نفس السيرفر: إعداداتها (*.caddy) وملفاتها الثابتة. انظر deploy/sites/README.md
+      - ./deploy/sites:/etc/caddy/sites:ro
+    networks:
+      - default
+      - edge
     depends_on:
       - frontend
     restart: unless-stopped
+
+networks:
+  # شبكة يشترك فيها Caddy مع أنظمة أخرى على نفس السيرفر (تنضم إليها كشبكة external باسم caddy-edge)
+  edge:
+    name: caddy-edge
 
 volumes:
   caddy-data:

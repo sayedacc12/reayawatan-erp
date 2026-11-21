@@ -4,3 +4,7 @@ dist/
 *.tsbuildinfo
 .vite/
 uploads/
+# مواقع إضافية خاصة بكل سيرفر (deploy/sites/README.md)
+deploy/sites/*
+!deploy/sites/README.md
+!deploy/sites/example.caddy.sample
