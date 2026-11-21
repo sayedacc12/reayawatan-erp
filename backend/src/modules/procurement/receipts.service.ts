@@ -8,7 +8,7 @@ import { FundingSources } from './funding-sources.service';
 import { BudgetAvailability } from '../planning/budget/budget-availability.service';
 import { ITEM_KINDS, PrItem, PrSupplier } from './entities/procurement.entity';
 import { ORDER_STATUS, PrOrder } from './entities/sourcing.entity';
-import { INSPECTION_RESULTS, LINE_TREATMENT, LineTreatment, PrReceipt, PrStockDoc, RECEIPT_KINDS, RECEIPT_STATUS, ReceiptLine } from './entities/stock.entity';
+import { INSPECTION_RESULTS, LINE_TREATMENT, LineTreatment, PrReceipt, PrStockDoc, RECEIPT_KINDS, RECEIPT_KIND_LABELS, RECEIPT_STATUS, ReceiptLine } from './entities/stock.entity';
 import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { logEntry, ProcurementCore, prToday, supplierCode } from './procurement-core.service';
 import { can } from './requests.service';
@@ -354,10 +354,10 @@ export class ReceiptsService {
          FROM pr_receipts r LEFT JOIN pr_orders o ON o.id = r.order_id LEFT JOIN pr_suppliers s ON s.id = r.supplier_id LEFT JOIN pr_warehouses w ON w.id = r.warehouse_id
         WHERE r.organization_id = $1 AND ($2::text IS NULL OR r.kind = $2) AND ($3::uuid IS NULL OR r.warehouse_id = $3::uuid) AND ($4::text IS NULL OR r.status = $4)
           AND ($5::uuid IS NULL OR r.order_id = $5::uuid)
-          AND ($6::text IS NULL OR s.name ILIKE '%' || $6 || '%' OR r.donor_name ILIKE '%' || $6 || '%' OR ('GRN-' || LPAD(r.receipt_no::text, 4, '0')) ILIKE '%' || $6 || '%')
+          AND ($6::text IS NULL OR s.name ILIKE '%' || $6 || '%' OR ('GRN-' || LPAD(r.receipt_no::text, 4, '0')) ILIKE '%' || $6 || '%')
         ORDER BY r.receipt_no DESC LIMIT 500`, [a.organizationId, q.kind || null, q.warehouse || null, q.status || null, q.order || null, q.q?.trim() || null]);
     return rows.map((r) => ({
-      ...r, code: receiptCode(r.receiptNo as number), kindLabel: RECEIPT_KINDS[r.kind as keyof typeof RECEIPT_KINDS], statusLabel: RECEIPT_STATUS[r.status as keyof typeof RECEIPT_STATUS],
+      ...r, code: receiptCode(r.receiptNo as number), kindLabel: RECEIPT_KIND_LABELS[r.kind as string], statusLabel: RECEIPT_STATUS[r.status as keyof typeof RECEIPT_STATUS],
       orderCode: r.orderNo ? orderCode(r.orderNo as number) : null, inspectionLabel: r.inspection ? INSPECTION_RESULTS[r.inspection as keyof typeof INSPECTION_RESULTS] : null,
     }));
   }
@@ -383,7 +383,7 @@ export class ReceiptsService {
     const returned = new Map<string, number>();
     for (const d of returns.filter((x) => x.status === 'posted')) for (const l of d.lines) returned.set(l.refLineId ?? '', q3((returned.get(l.refLineId ?? '') ?? 0) + l.qty));
     return {
-      ...r, code: receiptCode(r.receiptNo), kindLabel: RECEIPT_KINDS[r.kind], statusLabel: RECEIPT_STATUS[r.status],
+      ...r, code: receiptCode(r.receiptNo), kindLabel: RECEIPT_KIND_LABELS[r.kind], statusLabel: RECEIPT_STATUS[r.status],
       order: o ? { id: o.id, code: orderCode(o.orderNo), title: o.title, status: o.status, statusLabel: ORDER_STATUS[o.status] } : null,
       supplier: sup ? { id: sup.id, code: supplierCode(sup.supplierNo), name: sup.name } : null,
       warehouse: wh ? { id: wh.id, code: wh.code, name: wh.name } : null,

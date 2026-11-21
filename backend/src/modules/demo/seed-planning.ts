@@ -72,34 +72,34 @@ export class PlanningSeed {
       ownerName: admin.fullName, description: 'الخطة الاستراتيجية الخمسية للشركة، معدة بمشاركة مجلس الإدارة والإدارات وأصحاب المصلحة، ومبنية على تحليل البيئة الداخلية والخارجية.',
     });
     const goalSetup: [string, string | null, string][] = [
-      ['رفع جودة الخدمات المقدمة للمستفيدين وقياس أثرها', U.programs, caseManager.fullName],
-      ['التحول من الرعاية إلى التمكين', U.programs, projectsManager.fullName],
+      ['رفع جودة الخدمات الاستشارية وقياس أثرها لدى العملاء', U.programs, caseManager.fullName],
+      ['تنمية قاعدة العملاء وتكرار التعاقد', U.programs, projectsManager.fullName],
       ['تنويع مصادر الإيرادات وزيادتها', U.resources, fundraiser.fullName],
       ['رفع كفاءة الإنفاق', U.finance, finance.fullName],
       ['الالتزام بمعايير الحوكمة والشفافية', U.exec, admin.fullName],
       ['تطوير رأس المال البشري', U.finance, finance.fullName],
       ['التحول الرقمي وتميز العمليات', U.exec, quality.fullName],
       ['بناء شراكات استراتيجية فاعلة', U.resources, fundraiser.fullName],
-      ['تعظيم أثر التطوع', U.programs, caseManager.fullName],
+      ['دعم الجمعيات الناشئة بخدمات مجانية', U.programs, caseManager.fullName],
     ];
     for (const [title, unitId, ownerName] of goalSetup) {
       await this.plans.updateItem(admin, this.find(sp, title).id, { unitId, ownerName });
     }
-    const pillarWeights: [string, number][] = [['الأثر الاجتماعي وجودة الخدمات', 35], ['الاستدامة المالية', 30], ['الحوكمة والتميز المؤسسي', 20], ['الشراكات والتطوع والمسؤولية المجتمعية', 15]];
+    const pillarWeights: [string, number][] = [['أثر العملاء وجودة الخدمات', 35], ['الاستدامة المالية', 30], ['الحوكمة والتميز المؤسسي', 20], ['الشراكات والمسؤولية المجتمعية', 15]];
     for (const [title, weight] of pillarWeights) await this.plans.updateItem(admin, this.find(sp, title).id, { weight, ownerName: admin.fullName });
     const cost = (a: number, b: number, c: number, d = 0, e = 0) => ({ [Y - 1]: a, [Y]: b, [Y + 1]: c, [Y + 2]: d, [Y + 3]: e });
     const initSetup: [string, Record<string, number>, string, 'restricted' | 'unrestricted' | 'mixed', string | null][] = [
-      ['تطبيق منهجية لقياس الأثر الاجتماعي للبرامج', cost(0, 60000, 40000, 20000), caseManager.fullName, 'unrestricted', U.programs],
+      ['تطبيق منهجية لقياس أثر المشاريع لدى العملاء', cost(0, 60000, 40000, 20000), caseManager.fullName, 'unrestricted', U.programs],
       ['تطوير معايير الخدمة وأدلة الإجراءات', cost(30000, 20000, 0), quality.fullName, 'unrestricted', U.quality],
-      ['برنامج التمكين الاقتصادي للأسر', cost(150000, 280000, 320000, 320000, 300000), projectsManager.fullName, 'restricted', U.programs],
-      ['إنشاء وقف استثماري للشركة', cost(0, 500000, 1500000, 1000000), admin.fullName, 'mixed', U.resources],
-      ['برنامج الاستقطاع الشهري', cost(40000, 90000, 60000, 40000, 40000), fundraiser.fullName, 'unrestricted', U.resources],
+      ['برنامج متابعة العملاء بعد التسليم', cost(150000, 280000, 320000, 320000, 300000), projectsManager.fullName, 'restricted', U.programs],
+      ['باقات خدمات سنوية للعملاء', cost(0, 500000, 1500000, 1000000), admin.fullName, 'mixed', U.resources],
+      ['برنامج العقود الإطارية', cost(40000, 90000, 60000, 40000, 40000), fundraiser.fullName, 'unrestricted', U.resources],
       ['استكمال السياسات واللوائح ونشرها', cost(15000, 10000, 5000), admin.fullName, 'unrestricted', U.exec],
       ['برنامج تطوير القيادات والصف الثاني', cost(40000, 60000, 60000, 50000), finance.fullName, 'unrestricted', U.finance],
       ['أتمتة الإجراءات الرئيسية', cost(80000, 120000, 60000), quality.fullName, 'unrestricted', U.exec],
       ['تطبيق نظام إدارة الجودة ISO 9001', cost(45000, 35000, 15000, 15000, 15000), quality.fullName, 'unrestricted', U.quality],
       ['برنامج الشراكة مع القطاع الخاص', cost(10000, 25000, 25000, 25000, 25000), fundraiser.fullName, 'unrestricted', U.resources],
-      ['برنامج استقطاب المتطوعين وتأهيلهم', cost(20000, 30000, 30000, 30000, 30000), caseManager.fullName, 'restricted', U.programs],
+      ['برنامج الاستشارات المجانية للجمعيات الناشئة', cost(20000, 30000, 30000, 30000, 30000), caseManager.fullName, 'restricted', U.programs],
     ];
     for (const [title, costByYear, ownerName, fundingType, unitId] of initSetup) {
       await this.plans.updateItem(admin, this.find(sp, title).id, {
@@ -115,7 +115,7 @@ export class PlanningSeed {
     // ربط مبادرات بمشروع من نظام المشاريع وببند من الموازنة الرأسمالية (قراءة فقط من النظامين)
     const lk = await this.core.lookups(admin);
     const project = (lk.projects as { id: string; name: string }[]).find((x) => /تمكين|أسر|كفالة/.test(x.name)) ?? (lk.projects as { id: string }[])[0];
-    if (project) await this.plans.addRef(admin, this.find(sp, 'برنامج التمكين الاقتصادي للأسر').id, { system: 'projects', refId: project.id, contribution: 40, note: 'المشروع ينفذ جزءًا من المبادرة' });
+    if (project) await this.plans.addRef(admin, this.find(sp, 'برنامج متابعة العملاء بعد التسليم').id, { system: 'projects', refId: project.id, contribution: 40, note: 'المشروع ينفذ جزءًا من المبادرة' });
     const capital = (lk.capitalLines as { id: string; name: string }[]).find((x) => /حاسب|أجهزة|خادم|نظام/.test(x.name)) ?? (lk.capitalLines as { id: string }[])[0];
     if (capital) await this.plans.addRef(admin, this.find(sp, 'أتمتة الإجراءات الرئيسية').id, { system: 'capital_budget', refId: capital.id, contribution: null, note: 'الأجهزة اللازمة للأتمتة' });
 
@@ -126,7 +126,7 @@ export class PlanningSeed {
       startDate: `${Y}-01-01`, endDate: `${Y + 2}-12-31`, costByYear: { [Y]: 70000, [Y + 1]: 30000, [Y + 2]: 20000 },
       targets: [{ kind: 'quantitative', text: 'تحصيل 15% من التبرعات إلكترونيًا', value: 15, unit: '%', dueDate: `${Y + 1}-12-31` }],
     });
-    await this.plans.updateItem(admin, this.find(sp, 'إنشاء وقف استثماري للشركة').id, { costByYear: cost(0, 650000, 1500000, 1000000) });
+    await this.plans.updateItem(admin, this.find(sp, 'باقات خدمات سنوية للعملاء').id, { costByYear: cost(0, 650000, 1500000, 1000000) });
     const sustain = sp.kpis.find((k) => k.name.startsWith('نسبة الإيرادات من مصادر مستدامة'));
     if (sustain) await this.plans.updateKpi(admin, sustain.id, { targets: { ...sustain.targets, [Y + 3]: 35 } });
     await this.plans.submit(admin, sp.id, 'مراجعة منتصف المدة: إضافة منصة التبرع الإلكتروني، ورفع مخصص الوقف، ورفع مستهدف الإيرادات المستدامة');
@@ -199,11 +199,11 @@ export class PlanningSeed {
 
     // ---- العام السابق (تنمية الموارد): نشاط لم يكتمل يُرحّل للعام الحالي
     let prev = await this.plans.create(fundraiser, { kind: 'operational', title: `الخطة التشغيلية لإدارة تنمية الموارد ${Y - 1}`, startYear: Y - 1, endYear: Y - 1, periodicity: 'quarterly', unitId: U.resources, parentPlanId: sp.id });
-    prev = await this.plans.addItem(fundraiser, prev.id, { title: 'برنامج الاستقطاع الشهري', ownerName: fundraiser.fullName });
-    const prevProg = this.find(prev, 'برنامج الاستقطاع الشهري');
+    prev = await this.plans.addItem(fundraiser, prev.id, { title: 'برنامج العقود الإطارية', ownerName: fundraiser.fullName });
+    const prevProg = this.find(prev, 'برنامج العقود الإطارية');
     prev = await this.plans.addItem(fundraiser, prev.id, { parentId: prevProg.id, title: 'تصميم باقات الاستقطاع', startDate: `${Y - 1}-02-01`, endDate: `${Y - 1}-05-31`, costByYear: { [Y - 1]: 15000 }, ownerName: fundraiser.fullName });
     prev = await this.plans.addItem(fundraiser, prev.id, { parentId: prevProg.id, title: 'ربط الاستقطاع مع البنوك', startDate: `${Y - 1}-06-01`, endDate: `${Y - 1}-12-31`, costByYear: { [Y - 1]: 25000 }, ownerName: fundraiser.fullName });
-    await this.plans.addLink(fundraiser, { fromItemId: this.find(prev, 'تصميم باقات الاستقطاع').id, toItemId: this.find(sp, 'برنامج الاستقطاع الشهري').id, relation: 'contributes', contribution: 20 });
+    await this.plans.addLink(fundraiser, { fromItemId: this.find(prev, 'تصميم باقات الاستقطاع').id, toItemId: this.find(sp, 'برنامج العقود الإطارية').id, relation: 'contributes', contribution: 20 });
     await this.plans.submit(fundraiser, prev.id, null);
     prev = await this.approveAll(admin, prev.id);
     await this.plans.progress(fundraiser, this.find(prev, 'تصميم باقات الاستقطاع').id, { progress: 100, updateDate: `${Y - 1}-05-28`, note: 'اعتُمدت ثلاث باقات' });
@@ -212,8 +212,8 @@ export class PlanningSeed {
     // ---- تنمية الموارد (معتمدة)
     const res = await buildOp(fundraiser, `الخطة التشغيلية لإدارة تنمية الموارد ${Y}`, U.resources, [
       {
-        title: 'برنامج الاستقطاع الشهري', acts: [
-          { title: 'حملة تسويق الاستقطاع عبر القنوات الرقمية', startDate: d(1, 15), endDate: end(9), costByYear: { [Y]: 45000 }, pace: 1, contributes: [['برنامج الاستقطاع الشهري', 50]],
+        title: 'برنامج العقود الإطارية', acts: [
+          { title: 'حملة تسويق الاستقطاع عبر القنوات الرقمية', startDate: d(1, 15), endDate: end(9), costByYear: { [Y]: 45000 }, pace: 1, contributes: [['برنامج العقود الإطارية', 50]],
             milestones: [{ title: 'إطلاق الحملة', dueDate: d(2, 1), done: false }, { title: 'تقرير منتصف الحملة', dueDate: d(5, 31), done: false }],
             resources: [{ kind: 'human', name: 'أخصائي تسويق رقمي', quantity: 1, unit: 'موظف', cost: null }, { kind: 'financial', name: 'إعلانات ممولة', quantity: null, unit: null, cost: 30000 }] },
           { title: 'تطبيق الاستقطاع عبر بوابة الدفع', startDate: d(1, 1), endDate: end(4), costByYear: { [Y]: 20000 }, done: true, contributes: [['منصة التبرع الإلكتروني والمتجر الخيري', 40]] },
@@ -227,7 +227,7 @@ export class PlanningSeed {
         ],
       },
     ], [
-      { name: 'عدد المستقطعين الجدد', unit: 'عدد', aggregation: 'sum', quarterly: [150, 200, 200, 250], readings: [160, 140, 175], programTitle: 'برنامج الاستقطاع الشهري' },
+      { name: 'عدد المستقطعين الجدد', unit: 'عدد', aggregation: 'sum', quarterly: [150, 200, 200, 250], readings: [160, 140, 175], programTitle: 'برنامج العقود الإطارية' },
       { name: 'عدد الشركات الشريكة الجديدة', unit: 'عدد', aggregation: 'sum', quarterly: [1, 2, 2, 3], readings: [1, 1, 0], programTitle: 'برنامج الشراكات المؤسسية' },
     ]);
     await this.plans.submit(fundraiser, res.op.id, null);
@@ -237,7 +237,7 @@ export class PlanningSeed {
     // ترحيل النشاط غير المنتهي من العام السابق إلى برنامج الاستقطاع في خطة العام الحالي
     const resNow = await this.plans.get(fundraiser, res.op.id);
     await this.plans.carry(fundraiser, this.find(prev, 'ربط الاستقطاع مع البنوك').id, {
-      targetPlanId: res.op.id, targetParentId: this.find(resNow, 'برنامج الاستقطاع الشهري').id, note: 'استكمال الربط مع البنك الثالث',
+      targetPlanId: res.op.id, targetParentId: this.find(resNow, 'برنامج العقود الإطارية').id, note: 'استكمال الربط مع البنك الثالث',
     });
     await this.plans.submit(fundraiser, res.op.id, 'إضافة النشاط المُرحّل من خطة العام السابق');
     await this.approveAll(admin, res.op.id);
@@ -246,18 +246,18 @@ export class PlanningSeed {
     const prog = await buildOp(projectsManager, `الخطة التشغيلية لإدارة البرامج والخدمات ${Y}`, U.programs, [
       {
         title: 'برنامج التمكين الاقتصادي', acts: [
-          { title: 'دورات تدريبية في المهن والحرف', startDate: d(1, 10), endDate: end(6), costByYear: { [Y]: 85000 }, done: true, contributes: [['برنامج التمكين الاقتصادي للأسر', 40]],
+          { title: 'دورات تدريبية في المهن والحرف', startDate: d(1, 10), endDate: end(6), costByYear: { [Y]: 85000 }, done: true, contributes: [['برنامج متابعة العملاء بعد التسليم', 40]],
             targets: [{ kind: 'quantitative', text: 'تدريب 60 مستفيدًا', value: 60, unit: 'مستفيد', dueDate: end(6) }] },
-          { title: 'تمويل المشاريع الصغيرة للأسر المنتجة', startDate: d(3, 1), endDate: end(12), costByYear: { [Y]: 150000 }, pace: 0.6, contributes: [['برنامج التمكين الاقتصادي للأسر', 60]],
+          { title: 'تمويل المشاريع الصغيرة للأسر المنتجة', startDate: d(3, 1), endDate: end(12), costByYear: { [Y]: 150000 }, pace: 0.6, contributes: [['برنامج متابعة العملاء بعد التسليم', 60]],
             corrective: 'تسريع دراسة طلبات التمويل بلجنة أسبوعية، والتنسيق مع بنك التنمية الاجتماعية', fundingType: 'restricted',
             milestones: [{ title: 'اعتماد معايير التمويل', dueDate: d(3, 31), done: false }, { title: 'صرف الدفعة الأولى', dueDate: d(6, 30), done: false }] },
         ],
       },
       {
         title: 'قياس الأثر الاجتماعي', acts: [
-          { title: 'إعداد أدوات قياس الأثر واستبانات المستفيدين', startDate: d(1, 1), endDate: end(3), costByYear: { [Y]: 15000 }, done: true, contributes: [['تطبيق منهجية لقياس الأثر الاجتماعي للبرامج', 30]] },
-          { title: 'دراسة أثر برنامج الكفالة', startDate: d(4, 1), endDate: end(10), costByYear: { [Y]: 45000 }, pace: 0.95, contributes: [['تطبيق منهجية لقياس الأثر الاجتماعي للبرامج', 70]] },
-          { title: 'برنامج تأهيل المتطوعين الميدانيين', startDate: d(2, 1), endDate: end(8), costByYear: { [Y]: 20000 }, pace: 0.8, contributes: [['برنامج استقطاب المتطوعين وتأهيلهم', 100]] },
+          { title: 'إعداد أدوات قياس الأثر واستبانات المستفيدين', startDate: d(1, 1), endDate: end(3), costByYear: { [Y]: 15000 }, done: true, contributes: [['تطبيق منهجية لقياس أثر المشاريع لدى العملاء', 30]] },
+          { title: 'دراسة أثر برنامج الكفالة', startDate: d(4, 1), endDate: end(10), costByYear: { [Y]: 45000 }, pace: 0.95, contributes: [['تطبيق منهجية لقياس أثر المشاريع لدى العملاء', 70]] },
+          { title: 'برنامج تأهيل المتطوعين الميدانيين', startDate: d(2, 1), endDate: end(8), costByYear: { [Y]: 20000 }, pace: 0.8, contributes: [['برنامج الاستشارات المجانية للجمعيات الناشئة', 100]] },
         ],
       },
     ], [
@@ -309,14 +309,14 @@ export class PlanningSeed {
       [pick('opportunity', 1)?.id, 'تنويع مصادر الإيرادات وزيادتها', 'استثمار الفرصة في التحليل'],
       [pick('threat')?.id, 'تنويع مصادر الإيرادات وزيادتها', 'الاستجابة للتهديد بتنويع الإيرادات'],
       [pick('weakness')?.id, 'أتمتة الإجراءات الرئيسية', 'معالجة نقطة الضعف'],
-      [pick('strength')?.id, 'برنامج التمكين الاقتصادي للأسر', 'البناء على نقطة القوة'],
-      [pick('economic')?.id, 'إنشاء وقف استثماري للشركة', 'العامل الاقتصادي أساس قرار الوقف'],
+      [pick('strength')?.id, 'برنامج متابعة العملاء بعد التسليم', 'البناء على نقطة القوة'],
+      [pick('economic')?.id, 'باقات خدمات سنوية للعملاء', 'العامل الاقتصادي أساس قرار الباقات السنوية'],
     ];
     for (const [refId, title, note] of anLinks) if (refId && has(sp, title)) await this.plans.addRef(admin, this.find(sp, title).id, { system: 'risk_analysis', refId, note }).catch(() => null);
 
     const risks = (await this.links.options(admin, 'risk')).filter((r) => r.meta.state !== 'closed');
     const material = risks.filter((r) => ['high', 'critical'].includes(String(r.meta.level)));
-    const inits = ['برنامج الاستقطاع الشهري', 'منصة التبرع الإلكتروني والمتجر الخيري', 'أتمتة الإجراءات الرئيسية', 'برنامج تطوير القيادات والصف الثاني'].filter((t) => has(sp, t));
+    const inits = ['برنامج العقود الإطارية', 'منصة التبرع الإلكتروني والمتجر الخيري', 'أتمتة الإجراءات الرئيسية', 'برنامج تطوير القيادات والصف الثاني'].filter((t) => has(sp, t));
     for (const [n, r] of material.slice(0, inits.length).entries()) await this.plans.addRef(admin, this.find(sp, inits[n]).id, { system: 'risk', refId: r.id, note: 'المبادرة تخفف هذا الخطر' }).catch(() => null);
     // خطر رُبط حين كانت درجته أقل: يظهر تنبيه ارتفاع الدرجة
     const raised = material[0];

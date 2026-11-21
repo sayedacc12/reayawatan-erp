@@ -132,7 +132,8 @@ async function cancelOp(m: Move) {
   }
 }
 const ST: Record<string, string> = { done: '#10b981', pending: '#6366f1', cancelled: '#b91c1c' };
-const CANCELLABLE = ['scrap', 'revaluation', 'impairment', 'capitalize'];
+// donation: عمليات تبرع عيني سابقة فقط، لتصحيحها إن لزم
+const CANCELLABLE = ['donation', 'scrap', 'revaluation', 'impairment', 'capitalize'];
 </script>
 
 <template>

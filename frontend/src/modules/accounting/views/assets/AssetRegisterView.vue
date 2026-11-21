@@ -41,7 +41,7 @@ const allPicked = computed({
   set: (v: boolean) => { picked.value = v ? rows.value.map((r) => r.id) : []; },
 });
 const printLabels = () => router.push({ path: '/accounting/assets/labels', query: { ids: picked.value.join(',') } });
-const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purchase: 'شراء', capitalize: 'رسملة أصل تحت التنفيذ' };
+const ACQ: Record<string, string> = { opening: 'رصيد افتتاحي', purchase: 'شراء', capitalize: 'رسملة أصل تحت التنفيذ', donation: 'تبرع عيني (سجل سابق)' };
 </script>
 
 <template>

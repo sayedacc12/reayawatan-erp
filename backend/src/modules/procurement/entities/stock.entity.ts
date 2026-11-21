@@ -11,6 +11,8 @@ const qty = (name: string) => ({ name, type: 'numeric' as const, precision: 14, 
 // ---------------- القوائم الثابتة ----------------
 
 export const RECEIPT_KINDS = { order: 'استلام بتعميد', opening: 'رصيد افتتاحي' } as const;
+/** تسميات العرض، وتشمل نوعًا ملغى يبقى في السجلات القديمة فقط */
+export const RECEIPT_KIND_LABELS: Record<string, string> = { ...RECEIPT_KINDS, donation: 'تبرع عيني (سجل سابق)' };
 export type ReceiptKind = keyof typeof RECEIPT_KINDS;
 export const RECEIPT_STATUS = { posted: 'معتمد', cancelled: 'ملغى' } as const;
 export type ReceiptStatus = keyof typeof RECEIPT_STATUS;
