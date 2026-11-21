@@ -297,6 +297,10 @@ export class BlItem {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
+  /** سجل التعديلات بالقيم قبل وبعد (السعر والفئة الضريبية والحساب تؤثر على الضريبة والقيود) */
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  log!: LogEntry[];
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
@@ -309,6 +313,8 @@ export class BlItem {
 @Index('UQ_bl_documents_no', ['organizationId', 'docNo'], { unique: true })
 @Index('IDX_bl_documents_customer', ['organizationId', 'customerId', 'status'])
 @Index('IDX_bl_documents_ref', ['organizationId', 'refId'])
+@Index('UQ_bl_documents_icv', ['organizationId', 'icv'], { unique: true, where: 'icv IS NOT NULL' })
+@Index('UQ_bl_documents_uuid', ['uuid'], { unique: true, where: 'uuid IS NOT NULL' })
 export class BlDocument {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

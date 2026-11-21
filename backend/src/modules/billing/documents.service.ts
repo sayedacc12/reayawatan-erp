@@ -11,7 +11,7 @@ import { VouchersService } from '../accounting/vouchers.service';
 import { BILLING_PERMISSIONS as P } from './billing.manifest';
 import { CollectDto, DocDto, DocListQueryDto, IssueDto, StatementQueryDto } from './billing.dto';
 import {
-  BillingCore, LineInput, addDays, addressProblems, blToday, buyerOf, computeDoc, customerCode, docCode, fromH, logEntry, qrTlv, r2, toH,
+  BillingCore, LineInput, addDays, addressProblems, blToday, buyerOf, computeDoc, customerCode, diffNote, docCode, fromH, logEntry, qrTlv, r2, toH,
 } from './billing-core.service';
 import { CatalogService } from './catalog.service';
 import {
@@ -21,6 +21,10 @@ import {
 const can = (a: OrgUser, code: string) => a.isSuperadmin || a.permissions.includes(code);
 const READ = [P.read, P.invoices, P.issue, P.reports, P.customers];
 export const canReadBilling = (a: OrgUser) => READ.some((x) => can(a, x)) || can(a, ACC.receipts);
+/** موظف الفوترة (لا موظف القبض في المالي وحده): يرى رقم هوية المشتري كاملًا */
+export const isBillingStaff = (a: OrgUser) => READ.some((x) => can(a, x));
+/** إخفاء رقم الهوية أو السجل عن غير موظفي الفوترة: تظهر آخر 4 خانات فقط */
+export const maskId = (v: string | null | undefined) => (v ? `${'•'.repeat(Math.max(0, v.length - 4))}${v.slice(-4)}` : v ?? null);
 const PENDING_VOUCHER = ['draft', 'pending', 'returned'];
 
 /** المتبقي للتحصيل على الفاتورة: الإجمالي + الإشعارات المدينة − الإشعارات الدائنة − المحصّل */
@@ -105,7 +109,7 @@ export class DocumentsService implements OnModuleInit {
         if (!rl) throw new BadRequestException(`السطر ${n}: اختر سطرًا من الفاتورة الأصلية`);
         out.push({
           itemId: rl.itemId, description: l.description || rl.description, unit: rl.unit, qty: l.qty, unitPrice: l.unitPrice, discount: l.discount ?? 0,
-          category: rl.category, reasonCode: rl.reasonCode, revenueAccountId: rl.revenueAccountId, refLineId: rl.id,
+          category: rl.category, reasonCode: rl.reasonCode, revenueAccountId: rl.revenueAccountId, refLineId: rl.id, rate: rl.rate,
         });
         continue;
       }
@@ -143,6 +147,20 @@ export class DocumentsService implements OnModuleInit {
     }
   }
 
+  /**
+   * الإشعار الدائن لا يتجاوز المتبقي على الفاتورة بعد التحصيل وسندات القبض قيد الاعتماد،
+   * فلا يصير المحصّل أكبر من صافي الفاتورة (لا توجد بعد دورة رد مبالغ للعملاء).
+   */
+  private async assertCreditRoom(em: EntityManager, ref: BlDocument, totalH: number) {
+    const [{ pending }] = await em.query(
+      `SELECT COALESCE(SUM(amount), 0)::numeric AS pending FROM acc_vouchers WHERE organization_id = $1 AND source_type = 'billing' AND source_ref = $2 AND status = ANY($3)`,
+      [ref.organizationId, ref.id, PENDING_VOUCHER]);
+    const roomH = toH(outstandingOf(ref)) - toH(pending);
+    if (totalH > roomH) {
+      throw new BadRequestException(`الإشعار الدائن (${fromH(totalH)}) أكبر من المتبقي على الفاتورة بعد التحصيل والسندات قيد الاعتماد (${fromH(Math.max(0, roomH))})`);
+    }
+  }
+
   // ---------------- الإنشاء والتعديل ----------------
 
   private async save(a: OrgUser, dto: DocDto, id: string | null) {
@@ -170,7 +188,10 @@ export class DocumentsService implements OnModuleInit {
       const inputs = await this.buildLines(em, org, s, dto, ref);
       const calc = computeDoc(inputs, Number(s.vatRate), docType !== 'nontax');
       if (calc.total <= 0) throw new BadRequestException('إجمالي المستند صفر');
-      if (ref && dto.kind === 'credit_note') await this.assertCreditLimits(em, ref, calc, id);
+      if (ref && dto.kind === 'credit_note') {
+        await this.assertCreditLimits(em, ref, calc, id);
+        await this.assertCreditRoom(em, ref, toH(calc.total));
+      }
       const body = {
         kind: dto.kind, docType, customerId: customer?.id ?? null, buyer, refId: ref?.id ?? null, reason: dto.kind === 'invoice' ? null : dto.reason ?? null,
         supplyDate: dto.supplyDate ?? null, dueDate: dto.kind === 'credit_note' ? null : dto.dueDate ?? addDays(blToday(), s.paymentDays),
@@ -181,9 +202,13 @@ export class DocumentsService implements OnModuleInit {
         d = await this.lock(em, org, id);
         if (d.status !== 'draft') throw new ConflictException('لا يُعدّل المستند إلا وهو مسودة');
         if (d.kind !== dto.kind) throw new BadRequestException('لا يتغير نوع المستند بعد إنشائه');
+        const snap = (x: BlDocument) => ({ buyer: x.buyer?.name ?? null, docType: x.docType, lines: x.lines.length, taxable: x.taxable, vat: x.vat, total: x.total, dueDate: x.dueDate, reason: x.reason });
+        const before = snap(d);
         Object.assign(d, body);
         if (!d.editorIds.includes(a.id)) d.editorIds = [...d.editorIds, a.id];
-        d.log = [...d.log, logEntry('تعديل المسودة', a.fullName)];
+        d.log = [...d.log, logEntry('تعديل المسودة', a.fullName, diffNote(before, snap(d), {
+          buyer: 'المشتري', docType: 'النوع', lines: 'عدد السطور', taxable: 'الصافي', vat: 'الضريبة', total: 'الإجمالي', dueDate: 'الاستحقاق', reason: 'السبب',
+        }))];
       } else {
         d = em.create(BlDocument, {
           organizationId: org, docNo: await this.nextNo(em, org), issueDate: blToday(), ...body, status: 'draft', createdById: a.id, createdByName: a.fullName,
@@ -261,17 +286,13 @@ export class DocumentsService implements OnModuleInit {
   async issue(a: OrgUser, id: string, dto: IssueDto) {
     const org = a.organizationId;
     if (!can(a, P.issue)) throw new ForbiddenException('لا تملك صلاحية إصدار الفواتير');
-    const pre = await this.find(org, id);
+    await this.find(org, id);
     const s = await this.core.settings(org);
     this.core.assertReady(s);
     const today = blToday();
     if (dto.date && s.mode === 'integrated' && dto.date !== today) throw new BadRequestException('بعد الربط مع منصة «فاتورة» يكون تاريخ الإصدار هو اليوم');
     const date = dto.date ?? today;
     if (date > today) throw new BadRequestException('تاريخ الإصدار في المستقبل');
-    if (pre.customerId && s.customerCategoryId) {
-      const c = await this.catalog.customer(org, pre.customerId);
-      await this.catalog.ensurePartner(this.db.manager, a, c, s.customerCategoryId, s.receivablesAccountId!);
-    }
     await this.db.transaction(async (em) => {
       const d = await this.lock(em, org, id);
       if (d.status !== 'pending') throw new ConflictException(d.status === 'draft' ? 'أرسل المستند للإصدار أولًا' : 'المستند لا ينتظر الإصدار');
@@ -283,20 +304,32 @@ export class DocumentsService implements OnModuleInit {
         ref = await this.lock(em, org, d.refId);
         if (!ISSUED.includes(ref.status)) throw new ConflictException('الفاتورة الأصلية ليست صادرة');
         if (date < ref.issueDate) throw new BadRequestException('تاريخ الإشعار قبل تاريخ الفاتورة الأصلية');
-        if (d.kind === 'credit_note') await this.assertCreditLimits(em, ref, d, d.id);
+        if (d.kind === 'credit_note') {
+          await this.assertCreditLimits(em, ref, d, d.id);
+          await this.assertCreditRoom(em, ref, toH(d.total));
+        }
       }
       // بيانات المشتري تُحدّث من ملف العميل لحظة الإصدار (للفاتورة)، وتُؤخذ من الأصلية للإشعار
       let customer: BlCustomer | null = null;
-      if (d.customerId) customer = await this.catalog.customer(org, d.customerId, em);
+      if (d.customerId) {
+        // قفل العميل يمنع إنشاء شريكين له من إصدارين متزامنين، والشريك يُنشأ بعد اجتياز فحوص الإصدار فقط
+        customer = await em.getRepository(BlCustomer).createQueryBuilder('c').setLock('pessimistic_write')
+          .where('c.id = :id AND c.organization_id = :org', { id: d.customerId, org }).getOne();
+        if (!customer) throw new NotFoundException('العميل غير موجود');
+      }
       if (d.kind === 'invoice' && customer) d.buyer = buyerOf(customer);
       const problems = this.buyerProblems(d.docType, d.buyer);
       if (problems.length) throw new BadRequestException(`أكمل بيانات المشتري للفاتورة الضريبية: ${problems.join('، ')}`);
       const seller = { name: s.sellerName!, nameEn: s.sellerNameEn, vatNumber: d.docType === 'nontax' ? null : s.vatNumber, idType: s.idType, idNumber: s.idNumber, address: s.address };
+      if (customer && s.customerCategoryId) await this.catalog.ensurePartner(em, a, customer, s.customerCategoryId, s.receivablesAccountId!);
       const issuedAt = new Date();
       d.issueDate = date;
       d.issuedAt = issuedAt;
       d.uuid = randomUUID();
       d.icv = await this.nextIcv(em, org);
+      // تاريخ الإصدار لا يسبق آخر مستند صادر، فيبقى ترتيب العداد موافقًا لترتيب التواريخ
+      const [{ last }] = await em.query(`SELECT to_char(MAX(issue_date), 'YYYY-MM-DD') AS last FROM bl_documents WHERE organization_id = $1 AND icv IS NOT NULL`, [org]);
+      if (last && date < last) throw new BadRequestException(`تاريخ الإصدار قبل تاريخ آخر مستند صادر (${last})، فاختر ${last} أو بعده`);
       d.seller = seller;
       d.issuedMode = s.mode;
       d.qr = d.docType !== 'nontax' && s.vatNumber
@@ -397,6 +430,7 @@ export class DocumentsService implements OnModuleInit {
       `SELECT COALESCE(SUM(amount), 0)::numeric AS paid FROM acc_vouchers WHERE organization_id = $1 AND source_type = 'billing' AND source_ref = $2 AND status = 'approved'`, [org, d.id]);
     const paidH = toH(paid);
     const leftH = toH(d.total) + toH(d.debitedAmount) - toH(d.creditedAmount) - paidH;
+    if (leftH < 0) throw new ConflictException(`لا يُعتمد السند: التحصيل على ${docCode(d.kind, d.docNo)} يتجاوز صافي الفاتورة بعد الإشعارات بمبلغ ${fromH(-leftH)}`);
     const status: DocStatus = leftH <= 0 ? 'paid' : paidH > 0 ? 'partial' : 'issued';
     if (status === d.status && paidH === toH(d.paidAmount)) return;
     await em.getRepository(BlDocument).update({ id: d.id }, {
@@ -458,6 +492,16 @@ export class DocumentsService implements OnModuleInit {
     const accMap = new Map(accounts.map((x) => [x.id, x]));
     const notMine = a.isSuperadmin || (d.createdById !== a.id && !d.editorIds.includes(a.id));
     const s = await this.core.settings(org);
+    // سطور غيّر فيها المُعدّ الفئة الضريبية عن فئة الصنف: تُعرض للمصدِر قبل قراره
+    const itemIds = [...new Set(d.lines.map((l) => l.itemId).filter(Boolean))] as string[];
+    const itemCats: { id: string; name: string; vat_category: string }[] = itemIds.length
+      ? await this.db.query('SELECT id, name, vat_category FROM bl_items WHERE organization_id = $1 AND id = ANY($2)', [org, itemIds]) : [];
+    const categoryOverrides = d.kind === 'credit_note' || d.docType === 'nontax' ? [] : d.lines.flatMap((l) => {
+      const it = itemCats.find((x) => x.id === l.itemId);
+      return it && it.vat_category !== l.category
+        ? [`«${l.description}»: الصنف ${VAT_CATEGORIES[it.vat_category as keyof typeof VAT_CATEGORIES]} وفي الفاتورة ${VAT_CATEGORIES[l.category]}${l.reasonText ? ` (${l.reasonText})` : ''}`] : [];
+    });
+    const buyer = d.buyer && !isBillingStaff(a) ? { ...d.buyer, idNumber: maskId(d.buyer.idNumber) } : d.buyer;
     const creditable = d.kind === 'invoice' && ISSUED.includes(d.status)
       ? d.lines.map((l) => {
         const used = notes.filter((n) => n.kind === 'credit_note' && n.status !== 'cancelled').flatMap((n) => n.lines).filter((x) => x.refLineId === l.id).reduce((t, x) => t + toH(x.net), 0);
@@ -465,7 +509,7 @@ export class DocumentsService implements OnModuleInit {
       })
       : [];
     return {
-      ...d, code: docCode(d.kind, d.docNo), kindLabel: DOC_KINDS[d.kind], typeLabel: DOC_TYPES[d.docType], statusLabel: DOC_STATUS[d.status],
+      ...d, buyer, categoryOverrides, code: docCode(d.kind, d.docNo), kindLabel: DOC_KINDS[d.kind], typeLabel: DOC_TYPES[d.docType], statusLabel: DOC_STATUS[d.status],
       lines: d.lines.map((l) => ({ ...l, categoryLabel: VAT_CATEGORIES[l.category], revenueAccount: accMap.get(l.revenueAccountId) ?? null })),
       qrImage: d.qr ? await QRCode.toDataURL(d.qr, { errorCorrectionLevel: 'M', margin: 1, width: 220 }) : null,
       ref: ref ? { id: ref.id, code: docCode(ref.kind, ref.docNo), issueDate: ref.issueDate, total: ref.total, uuid: ref.uuid } : null,

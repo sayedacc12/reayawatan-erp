@@ -102,6 +102,9 @@ const docTitle = computed(() => {
     </div>
     <div v-if="d.returnReason && ['draft', 'cancelled'].includes(d.status)" class="alert alert-error pc-noprint">{{ d.status === 'cancelled' ? 'سبب الإلغاء' : 'أُعيد للتعديل' }}: {{ d.returnReason }}</div>
     <div v-if="d.can.issueBlocked" class="alert pc-noprint" style="background: #fffbeb">لا يمكنك إصدار هذا المستند لأنك أعددته أو عدّلته أو أرسلته (فصل المهام). يصدره موظف آخر لديه صلاحية الإصدار.</div>
+    <div v-if="d.categoryOverrides?.length && ['draft', 'pending'].includes(d.status)" class="alert pc-noprint" style="background: #fffbeb">
+      <b>تنبيه للمصدِر: فئة ضريبية مختلفة عن فئة الصنف.</b> {{ d.categoryOverrides.join('؛ ') }}
+    </div>
     <div v-if="d.buyerProblems?.length" class="alert alert-error pc-noprint">بيانات المشتري ناقصة للفاتورة الضريبية: {{ d.buyerProblems.join('، ') }}</div>
 
     <div class="pc-grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr)">

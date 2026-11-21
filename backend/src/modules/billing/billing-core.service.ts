@@ -11,6 +11,12 @@ import {
 export const blToday = () => new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
 export const addDays = (d: string, n: number) => new Date(new Date(`${d}T00:00:00Z`).getTime() + n * 86400_000).toISOString().slice(0, 10);
 export const logEntry = (action: string, byName: string, note: string | null = null): LogEntry => ({ action, note, byName, at: new Date().toISOString() });
+/** وصف التغييرات بالقيم قبل وبعد لسجل التدقيق: «الحقل: القديم ← الجديد» */
+export function diffNote(before: Record<string, unknown>, after: Record<string, unknown>, labels: Record<string, string>) {
+  const show = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const out = Object.keys(labels).filter((k) => show(before[k]) !== show(after[k])).map((k) => `${labels[k]}: ${show(before[k])} ← ${show(after[k])}`);
+  return out.length ? out.join('، ').slice(0, 1900) : null;
+}
 
 const pad = (n: number, w: number) => String(n).padStart(w, '0');
 export const DOC_PREFIX: Record<DocKind, string> = { invoice: 'INV', credit_note: 'CRN', debit_note: 'DBN' };
@@ -42,6 +48,8 @@ export function addressProblems(a: NationalAddress | null | undefined, who: stri
 export interface LineInput {
   itemId: string | null; description: string; unit: string | null; qty: number; unitPrice: number; discount: number;
   category: VatCategory; reasonCode: string | null; revenueAccountId: string; refLineId: string | null; id?: string;
+  /** نسبة الضريبة الثابتة (للإشعار الدائن: نسبة السطر الأصلي ولو تغيرت النسبة بعده) */
+  rate?: number;
 }
 
 /**
@@ -52,7 +60,7 @@ export interface LineInput {
 export function computeDoc(inputs: LineInput[], baseRate: number, taxable: boolean) {
   const lines: DocLine[] = inputs.map((l) => {
     const category: VatCategory = taxable ? l.category : 'O';
-    const rate = category === 'S' ? baseRate : 0;
+    const rate = category === 'S' ? l.rate ?? baseRate : 0;
     const grossH = Math.round(Number(l.qty) * Number(l.unitPrice) * 100);
     const discH = toH(l.discount);
     if (discH > grossH) throw new BadRequestException(`خصم «${l.description}» أكبر من قيمة السطر`);

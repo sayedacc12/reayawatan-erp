@@ -3,8 +3,17 @@ import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { MastersService } from '../accounting/masters.service';
 import { AddressDto, CustomerDto, CustomerListQueryDto, ItemDto } from './billing.dto';
-import { BillingCore, customerCode, logEntry } from './billing-core.service';
+import { BillingCore, customerCode, diffNote, logEntry } from './billing-core.service';
 import { BlCustomer, BlItem, CUSTOMER_KINDS, ID_TYPES, ITEM_KINDS, NationalAddress, VAT_CATEGORIES, VAT_REASONS } from './entities/billing.entity';
+
+const CUSTOMER_LABELS: Record<string, string> = {
+  kind: 'النوع', name: 'الاسم', nameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف', address: 'العنوان الوطني',
+  phone: 'الجوال', email: 'البريد', notes: 'الملاحظات', isActive: 'نشط',
+};
+const ITEM_LABELS: Record<string, string> = {
+  code: 'الرمز', name: 'الاسم', nameEn: 'الاسم بالإنجليزية', kind: 'النوع', unit: 'الوحدة', price: 'السعر', vatCategory: 'الفئة الضريبية', reasonCode: 'سبب الإعفاء',
+  revenueAccountId: 'حساب الإيراد', isActive: 'نشط',
+};
 
 export const cleanAddress = (a: AddressDto | null | undefined): NationalAddress | null => {
   if (!a) return null;
@@ -88,11 +97,14 @@ export class CatalogService {
     const org = a.organizationId;
     const c = await this.customer(org, id);
     await this.checkCustomer(org, dto, id);
+    const before = { ...c };
     Object.assign(c, this.fields(dto), { isActive: dto.isActive ?? c.isActive });
-    c.log = [...c.log, logEntry('تعديل بيانات العميل', a.fullName)];
-    await this.db.getRepository(BlCustomer).save(c);
-    // اسم الشريك المقابل في النظام المالي يتبع اسم العميل
-    if (c.partnerId) await this.db.query('UPDATE acc_partners SET name = $3, tax_number = $4 WHERE id = $1 AND organization_id = $2', [c.partnerId, org, c.name, c.vatNumber]);
+    c.log = [...c.log, logEntry('تعديل بيانات العميل', a.fullName, diffNote(before, c as never, CUSTOMER_LABELS))];
+    await this.db.transaction(async (em) => {
+      await em.getRepository(BlCustomer).save(c);
+      // اسم الشريك المقابل في النظام المالي يتبع اسم العميل (عبر خدمة النظام المالي)
+      if (c.partnerId) await this.masters.syncPartnerIdentity(org, c.partnerId, c.name, c.vatNumber, em);
+    });
     return this.getCustomer(org, id);
   }
 
@@ -160,7 +172,10 @@ export class CatalogService {
       } else if (await em.getRepository(BlItem).exists({ where: { organizationId: org, code } })) {
         throw new ConflictException(`الرمز ${code} مستخدم لصنف آخر`);
       }
-      const i = await em.getRepository(BlItem).save(em.create(BlItem, { organizationId: org, ...this.itemFields(dto), code, isActive: dto.isActive ?? true }));
+      const fields = { ...this.itemFields(dto), code, isActive: dto.isActive ?? true };
+      const i = await em.getRepository(BlItem).save(em.create(BlItem, {
+        organizationId: org, ...fields, log: [logEntry('إضافة الصنف', a.fullName, diffNote({}, fields, ITEM_LABELS))],
+      }));
       return i.id;
     });
     return (await this.items(org)).find((x) => x.id === id);
@@ -179,7 +194,10 @@ export class CatalogService {
     await this.checkItem(org, dto);
     const code = dto.code?.toUpperCase() || i.code;
     if (code !== i.code && await this.db.getRepository(BlItem).exists({ where: { organizationId: org, code } })) throw new ConflictException(`الرمز ${code} مستخدم لصنف آخر`);
+    const before = { ...i };
     Object.assign(i, this.itemFields(dto), { code, isActive: dto.isActive ?? i.isActive });
+    const note = diffNote(before, i as never, ITEM_LABELS);
+    if (note) i.log = [...i.log, logEntry('تعديل الصنف', a.fullName, note)].slice(-200);
     await this.db.getRepository(BlItem).save(i);
     return (await this.items(org)).find((x) => x.id === id);
   }

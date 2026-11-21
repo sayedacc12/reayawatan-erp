@@ -56,7 +56,7 @@ export class ItemDto {
   @IsOptional() @IsString() @MaxLength(250) @trim() nameEn?: string | null;
   @IsIn(Object.keys(ITEM_KINDS)) kind!: keyof typeof ITEM_KINDS;
   @IsOptional() @IsString() @MaxLength(40) @trim() unit?: string | null;
-  @IsNumber({}, { message: 'السعر رقم' }) @Min(0) @Max(100_000_000) price!: number;
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'السعر رقم بخانتين عشريتين على الأكثر' }) @Min(0) @Max(100_000_000) price!: number;
   @IsIn(Object.keys(VAT_CATEGORIES)) vatCategory!: keyof typeof VAT_CATEGORIES;
   @IsOptional() @IsString() @MaxLength(20) reasonCode?: string | null;
   @IsOptional() @IsUUID() revenueAccountId?: string | null;
@@ -69,9 +69,9 @@ export class DocLineDto {
   @IsOptional() @IsUUID() refLineId?: string | null;
   @IsOptional() @IsString() @MaxLength(500) @trim() description?: string | null;
   @IsOptional() @IsString() @MaxLength(40) @trim() unit?: string | null;
-  @IsNumber({}, { message: 'الكمية رقم' }) @Min(0.001, { message: 'الكمية أكبر من صفر' }) @Max(10_000_000) qty!: number;
-  @IsNumber({}, { message: 'السعر رقم' }) @Min(0) @Max(100_000_000) unitPrice!: number;
-  @IsOptional() @IsNumber({}, { message: 'الخصم رقم' }) @Min(0) @Max(100_000_000) discount?: number;
+  @IsNumber({ maxDecimalPlaces: 3 }, { message: 'الكمية رقم بثلاث خانات عشرية على الأكثر' }) @Min(0.001, { message: 'الكمية أكبر من صفر' }) @Max(10_000_000) qty!: number;
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'السعر رقم بخانتين عشريتين على الأكثر' }) @Min(0) @Max(100_000_000) unitPrice!: number;
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }, { message: 'الخصم رقم بخانتين عشريتين على الأكثر' }) @Min(0) @Max(100_000_000) discount?: number;
   /** الفئة الضريبية للسطر (تُؤخذ من الصنف إن لم تُحدد) */
   @IsOptional() @IsIn(Object.keys(VAT_CATEGORIES)) category?: keyof typeof VAT_CATEGORIES;
   @IsOptional() @IsString() @MaxLength(20) reasonCode?: string | null;
@@ -103,7 +103,7 @@ export class CollectDto {
   @Matches(DATE, { message: 'تاريخ السند غير صحيح' }) date!: string;
   @IsIn(['cash', 'transfer', 'card']) method!: 'cash' | 'transfer' | 'card';
   @IsUUID() cashAccountId!: string;
-  @IsNumber({}, { message: 'المبلغ رقم' }) @Min(0.01) @Max(1_000_000_000) amount!: number;
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'المبلغ رقم بخانتين عشريتين على الأكثر' }) @Min(0.01) @Max(1_000_000_000) amount!: number;
   @IsOptional() @IsString() @MaxLength(500) @trim() note?: string | null;
 }
 

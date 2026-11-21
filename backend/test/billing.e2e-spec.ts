@@ -155,6 +155,7 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     ]));
     ids.inv = d.id;
     await http.post(`${B}/documents`).set(as(tok.clerk)).send({ kind: 'invoice', customerId: ids.business, lines: [{ itemId: ids.training, qty: 1, unitPrice: 100, discount: 150 }] }).expect(400);
+    await http.post(`${B}/documents`).set(as(tok.clerk)).send({ kind: 'invoice', customerId: ids.business, lines: [{ itemId: ids.training, qty: 1, unitPrice: 10.555 }] }).expect(400);
     await http.post(`${B}/documents/${d.id}/submit`).set(as(tok.clerk)).expect(200);
   });
 
@@ -184,6 +185,9 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     await http.put(`${B}/documents/${ids.inv}`).set(as(tok.clerk)).send({ kind: 'invoice', customerId: ids.business, lines: [{ itemId: ids.training, qty: 1, unitPrice: 100 }] }).expect(409);
     await http.post(`${B}/documents/${ids.inv}/cancel`).set(as(tok.clerk)).send({ reason: 'تجربة' }).expect(409);
 
+    // لا يسبق تاريخ الإصدار آخر مستند صادر، فيبقى العداد مرتبًا بالتاريخ
+    const yesterday = new Date(Date.now() + 3 * 3600_000 - 86400_000).toISOString().slice(0, 10);
+    await http.post(`${B}/documents/${ids.simplified}/issue`).set(as(tok.issuer)).send({ date: yesterday }).expect(400);
     const s = (await http.post(`${B}/documents/${ids.simplified}/issue`).set(as(tok.issuer)).send({}).expect(200)).body;
     expect(s).toMatchObject({ icv: 2, total: 57.5, vat: 7.5 });
   });
@@ -220,6 +224,12 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     await http.post(`${A}/voucher/${v.id}/submit`).set(as(tok.cashier)).expect(201);
     const after = (await http.get(`${B}/documents/${ids.inv}`).set(as(tok.clerk)).expect(200)).body;
     expect(after).toMatchObject({ status: 'partial', paidAmount: 1000, outstanding: 874 });
+    // إشعار دائن أكبر من المتبقي بعد التحصيل يُرفض، فلا يزيد المحصّل عن صافي الفاتورة
+    const housingLine = after.creditable[1];
+    const over = await http.post(`${B}/documents`).set(as(tok.clerk)).send({
+      kind: 'credit_note', refId: ids.inv, reason: 'إلغاء السكن', lines: [{ refLineId: housingLine.lineId, qty: 1, unitPrice: 1000 }],
+    }).expect(400);
+    expect(over.body.message).toContain('المتبقي على الفاتورة');
   });
 
   it('reconciles receivables and output VAT with the chart, and flags foreign entries', async () => {

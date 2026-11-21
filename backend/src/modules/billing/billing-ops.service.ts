@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AsOfQueryDto, BillingSettingsDto } from './billing.dto';
-import { BillingCore, addressProblems, blToday, cleanDigits, docCode, logEntry, r2 } from './billing-core.service';
+import { BillingCore, addressProblems, blToday, cleanDigits, diffNote, docCode, logEntry, r2 } from './billing-core.service';
 import { cleanAddress } from './catalog.service';
 import { canReadBilling } from './documents.service';
 import { BILLING_MODES, BlSettings, DOC_KINDS, DOC_TYPES, DocKind, DocType, ISSUED } from './entities/billing.entity';
@@ -44,17 +44,19 @@ export class BillingOpsService {
       const [{ n }] = await this.db.query(`SELECT COUNT(*)::int AS n FROM bl_documents WHERE organization_id = $1 AND status IN ('draft', 'pending')`, [org]);
       if (n) throw new BadRequestException(`يوجد ${n} مستند لم يصدر بعد. أصدرها أو ألغها قبل تغيير وضع الجمعية الضريبي`);
     }
-    const before = { mode: s.mode, vatNumber: s.vatNumber, vatRate: s.vatRate, receivablesAccountId: s.receivablesAccountId, vatOutputAccountId: s.vatOutputAccountId, revenueAccountId: s.revenueAccountId };
     const next: Partial<BlSettings> = {
       mode: dto.mode, sellerName: dto.sellerName ?? null, sellerNameEn: dto.sellerNameEn ?? null, vatNumber, idType: dto.idType ?? null, idNumber: cleanDigits(dto.idNumber),
       address, vatRate: r2(dto.vatRate), receivablesAccountId: dto.receivablesAccountId ?? null, vatOutputAccountId: dto.vatOutputAccountId ?? null,
       revenueAccountId: dto.revenueAccountId ?? null, customerCategoryId: dto.customerCategoryId ?? null, analyticId: dto.analyticId ?? null,
       paymentDays: dto.paymentDays, terms: dto.terms ?? null,
     };
-    const changes = (Object.keys(before) as (keyof typeof before)[]).filter((k) => String(before[k] ?? '') !== String(next[k] ?? ''))
-      .map((k) => `${k}: ${before[k] ?? '—'} ← ${next[k] ?? '—'}`);
+    const note = diffNote(s as never, next as never, {
+      mode: 'الوضع', sellerName: 'اسم الجمعية', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
+      address: 'العنوان الوطني', vatRate: 'نسبة الضريبة', receivablesAccountId: 'حساب العملاء', vatOutputAccountId: 'حساب ضريبة المخرجات', revenueAccountId: 'حساب الإيراد',
+      customerCategoryId: 'تصنيف العملاء', analyticId: 'مركز التكلفة', paymentDays: 'مدة السداد', terms: 'الشروط',
+    });
     await this.db.getRepository(BlSettings).update({ organizationId: org }, {
-      ...next, log: [...s.log, logEntry('تعديل إعدادات الفوترة', a.fullName, changes.join('، ') || null)].slice(-200), updatedAt: new Date(),
+      ...next, log: [...s.log, logEntry('تعديل إعدادات الفوترة', a.fullName, note)].slice(-200), updatedAt: new Date(),
     });
     return this.core.lookups(org);
   }

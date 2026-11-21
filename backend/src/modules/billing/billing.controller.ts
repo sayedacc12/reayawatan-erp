@@ -8,7 +8,7 @@ import {
 } from './billing.dto';
 import { BILLING_PERMISSIONS as P } from './billing.manifest';
 import { CatalogService } from './catalog.service';
-import { DocumentsService } from './documents.service';
+import { DocumentsService, isBillingStaff, maskId } from './documents.service';
 
 const uuid = new ParseUUIDPipe();
 /** من يرى الفوترة: موظفو الفوترة والإصدار والتقارير والعملاء، والمالي لتحصيل الفواتير بسندات القبض */
@@ -54,8 +54,9 @@ export class BillingController {
   }
 
   @Get('customers/:id') @RequireAnyPermission(...READ)
-  customer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
-    return this.catalog.getCustomer(a.organizationId, id);
+  async customer(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) {
+    const c = await this.catalog.getCustomer(a.organizationId, id);
+    return isBillingStaff(a) ? c : { ...c, idNumber: maskId(c.idNumber), log: [] };
   }
 
   @Put('customers/:id') @RequirePermissions(P.customers)
