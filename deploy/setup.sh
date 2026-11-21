@@ -33,6 +33,7 @@ DB_PASSWORD=$(rand 24)
 PLATFORM_ADMIN_EMAIL=${PLATFORM_ADMIN_EMAIL:-platform@sanabelerp.com}
 PLATFORM_ADMIN_PASSWORD=${ADMIN_PASS}
 DOMAIN=${DOMAIN:-}
+ZATCA_KEY_SECRET=$(rand 48)
 ENV
   chmod 600 .env
   NEW_ADMIN=1
@@ -41,6 +42,8 @@ else
   if [ -n "${DOMAIN:-}" ]; then
     grep -q '^DOMAIN=' .env && sed -i "s|^DOMAIN=.*|DOMAIN=${DOMAIN}|" .env || echo "DOMAIN=${DOMAIN}" >> .env
   fi
+  # مفتاح تشفير مفاتيح الفوترة الإلكترونية (يُنشأ مرة واحدة ولا يُغيَّر بعد ربط أي جمعية)
+  grep -q '^ZATCA_KEY_SECRET=' .env || echo "ZATCA_KEY_SECRET=$(rand 48)" >> .env
 fi
 
 say "4/5 بناء وتشغيل سنابل (أول مرة تاخد 5-10 دقايق)"
