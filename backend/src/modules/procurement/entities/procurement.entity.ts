@@ -130,6 +130,14 @@ export class PrSettings {
   @Column({ name: 'vat_in_cost', default: true }) vatInCost!: boolean;
   /** فحص لجنة الاستلام إلزامي قبل اعتماد الاستلام */
   @Column({ name: 'require_inspection', default: false }) requireInspection!: boolean;
+
+  // ---- الفواتير والمستحقات (المرحلة الرابعة) ----
+  /** نسبة التجاوز المقبولة في سعر الفاتورة عن سعر التعميد قبل اعتبارها استثناء */
+  @Column({ name: 'match_tolerance_pct', type: 'numeric', precision: 5, scale: 2, default: 0, transformer: { to: (v?: number | null) => v, from: (v?: string | null) => Number(v ?? 0) } }) matchTolerancePct!: number;
+  /** حساب ضريبة المدخلات القابلة للاسترداد (إذا لم تكن الضريبة جزءًا من التكلفة) */
+  @Column({ name: 'vat_input_account_id', type: 'uuid', nullable: true }) vatInputAccountId!: string | null;
+  /** مدة السداد الافتراضية بالأيام من تاريخ الفاتورة */
+  @Column({ name: 'payment_days', type: 'int', default: 30 }) paymentDays!: number;
 }
 
 // ---------------- الأصناف ----------------

@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
-import { ASSET_VOUCHER_TYPES, STOCK_VOUCHER_TYPES, AccountingSettings, BuiltinVoucherType, CUSTOM_TYPE_RE, DocumentType, FiscalYear, PeriodLock, VOUCHER_TYPES, VoucherType } from './entities/accounting.entity';
+import { ASSET_VOUCHER_TYPES, PAYABLE_VOUCHER_TYPES, STOCK_VOUCHER_TYPES, AccountingSettings, BuiltinVoucherType, CUSTOM_TYPE_RE, DocumentType, FiscalYear, PeriodLock, VOUCHER_TYPES, VoucherType } from './entities/accounting.entity';
 
 /** المبالغ تُحسب بالهللات لتجنب أخطاء الكسور */
 export const cents = (n: number | string | null | undefined) => Math.round(Number(n ?? 0) * 100);
@@ -38,7 +38,7 @@ export function monthsBetween(start: string, end: string) {
 
 export const VOUCHER_LABEL: Record<BuiltinVoucherType, string> = {
   journal: 'قيد يومية', receipt: 'سند قبض', payment: 'سند صرف', opening: 'قيد افتتاحي', adjustment: 'قيد تسوية',
-  depreciation: 'سند إهلاك', asset: 'سند أصول ثابتة', stock: 'سند مخازن',
+  depreciation: 'سند إهلاك', asset: 'سند أصول ثابتة', stock: 'سند مخازن', bill: 'قيد فاتورة مورد',
 };
 /** سندات القبض والصرف تسلسلها مستمر بين السنوات، وباقي السندات تبدأ من 1 كل سنة متبوعة بالسنة */
 export const CONTINUOUS: VoucherType[] = ['receipt', 'payment'];
@@ -50,6 +50,7 @@ export const ALL_VOUCHER_TYPES = VOUCHER_TYPES;
 export const MANUAL_BUILTIN: BuiltinVoucherType[] = ['journal', 'adjustment', 'opening'];
 export const isAssetType = (t: string) => (ASSET_VOUCHER_TYPES as readonly string[]).includes(t);
 export const isStockType = (t: string) => (STOCK_VOUCHER_TYPES as readonly string[]).includes(t);
+export const isPayableType = (t: string) => (PAYABLE_VOUCHER_TYPES as readonly string[]).includes(t);
 export const isBuiltin = (t: string): t is BuiltinVoucherType => (VOUCHER_TYPES as readonly string[]).includes(t);
 /** رمز نوع مستند صالح الصيغة (أساسي أو خاص بالجمعية) */
 export const isTypeCode = (t: string): t is VoucherType => isBuiltin(t) || CUSTOM_TYPE_RE.test(t);
@@ -107,6 +108,7 @@ export class AccCore {
   async assertManualType(org: string, type: string, em: EntityManager = this.db.manager) {
     if (isAssetType(type)) throw new BadRequestException('سندات الإهلاك وسندات الأصول الثابتة تصدر من الأصول الثابتة فقط، ولا تُنشأ من النظام المالي');
     if (isStockType(type)) throw new BadRequestException('سندات المخازن تصدر من المستودعات فقط (الاستلام والصرف والتحويل والمرتجعات والإتلاف والجرد)، ولا تُنشأ من النظام المالي');
+    if (isPayableType(type)) throw new BadRequestException('قيود فواتير الموردين تُسجل من شاشة مستحقات الموردين بعد مطابقة الفاتورة في المشتريات، ولا تُنشأ من شاشة القيود');
     if (isBuiltin(type)) return type;
     const d = CUSTOM_TYPE_RE.test(type) ? await em.getRepository(DocumentType).findOne({ where: { organizationId: org, code: type as `d_${string}` } }) : null;
     if (!d) throw new BadRequestException('نوع المستند غير موجود');

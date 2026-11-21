@@ -24,7 +24,7 @@ const uuid = new ParseUUIDPipe();
 const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
 const REQ_READ = [P.requests, P.approveRequests, P.sourcing, P.approveOrders, P.approveOrdersHigh];
 const RFQ_READ = [P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh];
-const ORD_READ = [P.sourcing, P.approveOrders, P.approveOrdersHigh, P.read, P.stockOperate, P.stockApprove];
+const ORD_READ = [P.sourcing, P.approveOrders, P.approveOrdersHigh, P.read, P.stockOperate, P.stockApprove, P.invoices, P.invoicesOverride];
 const ORD_APPROVE = [P.approveOrders, P.approveOrdersHigh];
 
 /** المشتريات: طلبات الشراء، والمنافسات والعروض والتقييم والترسية، والتعميدات واعتمادها */

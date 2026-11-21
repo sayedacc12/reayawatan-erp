@@ -1,3 +1,4 @@
+import { assertInvoiceCover } from './invoice-cover';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
@@ -194,6 +195,7 @@ export class StockDocsService {
         const left = q3(rl.acceptedQty - (returned.get(rl.id) ?? 0));
         const it = items.get(x.itemId)!;
         if (x.qty > left + 0.0005) throw new ConflictException(`كمية «${it.name}» تتجاوز المستلم غير المرتجع (${left})`);
+        if (rl.orderLineId && o.id) await assertInvoiceCover(em, org, o.id, new Map([[rl.orderLineId, x.qty]]), new Map([[rl.orderLineId, it.name]]));
         const eff = await this.stock.effective(org, it, s, em);
         const out = await this.stock.outbound(em, ctx, {
           kind: 'return_supplier', item: it, warehouseId: w.id, warehouseName: w.name, qty: x.qty, valuation: eff.valuation, accountId: rl.accountId!, sourceId: rc.id, lot: rl.lot,

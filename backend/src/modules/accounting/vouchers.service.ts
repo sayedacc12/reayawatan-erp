@@ -206,12 +206,12 @@ export class VouchersService {
       request: v.requestKind && { kind: v.requestKind, byName: v.requestByName, reason: v.requestReason, at: v.requestAt },
       entries: entries.map((e) => ({ id: e.id, entryNo: e.entryNo, status: e.status, cancelReason: e.cancelReason, postedAt: e.postedAt, cancelledAt: e.cancelledAt })),
       entryId: v.entryId, approvedAt: v.approvedAt, createdByName: v.createdByName, createdAt: v.createdAt,
-      lockedSource: v.sourceType === 'assets',
+      lockedSource: v.sourceType === 'assets' || v.sourceType === 'procurement',
       lines: v.customLines ? await this.linesView(v.customLines) : null,
       organization: { name: orgRow.name, taxNumber: (orgRow as Organization & { taxNumber?: string | null }).taxNumber ?? null },
       actions: actions.map((a) => ({ id: a.id, action: a.action, label: ACTION_AR[a.action] ?? a.action, stageName: a.stageName, note: a.note, actorName: a.actorName, at: a.createdAt })),
       can: {
-        edit: editable && manage && v.sourceType !== 'assets',
+        edit: editable && manage && v.sourceType !== 'assets' && v.sourceType !== 'procurement',
         submit: editable && manage,
         decide: v.status === 'pending' && this.canDecideStage(actor, stage, roles),
         approveDirect: editable && !stages.length && actor.permissions.includes(P.approveVouchers),
@@ -339,6 +339,7 @@ export class VouchersService {
       this.assertManage(actor, v.kind);
       if (v.status !== 'draft' && v.status !== 'returned') throw new ConflictException('لا يُعدَّل السند إلا وهو مسودة أو معاد للتعديل');
       if (v.sourceType === 'assets') throw new ConflictException('هذا السند صادر من الأصول الثابتة ولا يُعدَّل من النظام المالي. يمكن إرساله للاعتماد أو إلغاؤه');
+      if (v.sourceType === 'procurement') throw new ConflictException('هذا السند سداد لفاتورة مورد صادر من مستحقات الموردين، ولا يُعدَّل. يمكن إرساله للاعتماد أو إلغاؤه وإنشاء غيره');
       const year = await this.core.assertWritable(org, dto.voucherDate, em);
       if (year.id !== v.fiscalYearId) throw new BadRequestException('لا يمكن نقل السند إلى سنة مالية أخرى، لأن رقمه محجوز في سنته');
       const f = await this.fields(em, org, dto);

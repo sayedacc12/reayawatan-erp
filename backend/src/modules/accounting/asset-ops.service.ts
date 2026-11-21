@@ -288,6 +288,37 @@ export class AssetOpsService implements OnModuleInit {
     return { id: a.id, code: a.code };
   }
 
+  /**
+   * فرق سعر فاتورة المورد عن سعر التعميد لأصل ثابت مستلم من المشتريات: يُضاف للتكلفة (أو يُخصم منها) بحركة إضافة منفذة
+   * على قيد فاتورة المورد نفسه، فيبقى سجل الأصول مطابقًا لحساب الأصل في الدليل ويُحتسب الإهلاك على التكلفة الفعلية.
+   */
+  async adjustFromProcurement(em: EntityManager, actor: { fullName: string; organizationId: string }, d: { assetId: string; date: string; amount: number; entryId: string; note: string }) {
+    const org = actor.organizationId;
+    await this.assets.lock(em, org);
+    const a = await this.assets.load(em, org, d.assetId);
+    if (a.status !== 'active') return null;
+    const moveNo = await this.assets.nextNo(em, 'acc_asset_moves', 'move_no', org);
+    const m = await em.getRepository(AssetMove).save(em.create(AssetMove, {
+      organizationId: org, moveNo, assetId: a.id, kind: 'addition', date: d.date, amount: r2(d.amount), status: 'done', entryId: d.entryId,
+      notes: d.note.slice(0, 1000), createdByName: actor.fullName,
+    }));
+    await this.assets.refresh(em, org, a.id);
+    return m.id;
+  }
+
+  /** إلغاء فروق أسعار الفواتير على الأصول (عند إلغاء تسجيل الفاتورة في المستحقات) */
+  async cancelProcurementAdjustments(em: EntityManager, actor: { fullName: string; organizationId: string }, moveIds: string[], reason: string) {
+    const org = actor.organizationId;
+    if (!moveIds.length) return;
+    const moves = await em.getRepository(AssetMove).find({ where: { id: In(moveIds), organizationId: org } });
+    for (const m of moves) {
+      const [dep] = await em.query('SELECT COUNT(*)::int AS n FROM acc_asset_dep_lines WHERE asset_id = $1 AND active AND to_date >= $2', [m.assetId, m.date]);
+      if (dep.n) bad('احتُسب إهلاك لأصل بعد تسجيل فرق سعر فاتورته، فلا يُلغى تسجيل الفاتورة إلا بعد إلغاء حركات الإهلاك');
+      await em.getRepository(AssetMove).update({ id: m.id }, { status: 'cancelled', cancelledByName: actor.fullName, cancelReason: reason.slice(0, 1000) });
+      await this.assets.refresh(em, org, m.assetId);
+    }
+  }
+
   /** يتحقق قبل إلغاء الاستلام أن أصوله لم تُستخدم بعد (لا إهلاك ولا عمليات لاحقة ولا عهدة) */
   async receiptAssetsBlocker(em: EntityManager, org: string, receiptId: string): Promise<string | null> {
     const [x] = await em.query(
@@ -966,7 +997,7 @@ export class AssetOpsService implements OnModuleInit {
        SELECT l.account_id, e.id AS entry_id, e.entry_no, to_char(e.document_date, 'YYYY-MM-DD') AS date, e.description, (l.debit - l.credit) AS amount, e.source, e.voucher_type
          FROM l JOIN acc_entries e ON e.id = l.entry_id LEFT JOIN acc_vouchers v ON v.id = e.voucher_id
         WHERE e.organization_id = $1 AND e.status = 'posted' AND e.document_date <= $2 AND e.voucher_type <> 'opening'
-          AND e.source <> 'assets' AND NOT (e.source = 'stock' AND EXISTS (SELECT 1 FROM acc_asset_moves am WHERE am.entry_id = e.id)) AND NOT (e.source = 'voucher' AND COALESCE(v.source_type, '') = 'assets')
+          AND e.source <> 'assets' AND NOT (e.source IN ('stock', 'payables') AND EXISTS (SELECT 1 FROM acc_asset_moves am WHERE am.entry_id = e.id AND am.status = 'done')) AND NOT (e.source = 'voucher' AND COALESCE(v.source_type, '') = 'assets')
         ORDER BY e.document_date, e.entry_no LIMIT 200`, [org, asOf, accIds]);
     // المشروعات تحت التنفيذ: الدفعات المعتمدة ناقص ما رُسمل
     const [wipSub] = wipId ? await this.db.query(

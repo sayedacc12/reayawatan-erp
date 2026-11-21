@@ -1,5 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { ISR_READ, ORD_READ, PR, REQ_READ, RFQ_READ, STOCK_READ } from './lib';
+import { INV_READ, ISR_READ, ORD_READ, PR, REQ_READ, RFQ_READ, STOCK_READ } from './lib';
 
 const meta = (title: string, permission: string = PR.read) => ({ permission, title, app: 'procurement' });
 /** شاشات يكفي لها أي صلاحية من القائمة */
@@ -15,6 +15,7 @@ export const procurementRoutes: RouteRecordRaw[] = [
   { path: '/procurement/warehouses/:id', component: () => import('./views/WarehouseView.vue'), props: true, meta: meta('بطاقة المستودع') },
   { path: '/procurement/suppliers', component: () => import('./views/SuppliersView.vue'), meta: any('سجل الموردين', SUP_READ) },
   { path: '/procurement/suppliers/:id', component: () => import('./views/SupplierView.vue'), props: true, meta: any('ملف المورد', SUP_READ) },
+  { path: '/procurement/suppliers/:id/statement', component: () => import('./views/SupplierStatementView.vue'), props: true, meta: any('كشف حساب المورد', INV_READ) },
   { path: '/procurement/supplier-approvals', component: () => import('./views/ApprovalsView.vue'), meta: any('طلبات اعتماد الموردين', [PR.approveSuppliers, PR.approveBanks]) },
   { path: '/procurement/requests', component: () => import('./views/RequestsView.vue'), meta: any('طلبات الشراء', REQ_READ) },
   { path: '/procurement/requests/new', component: () => import('./views/RequestFormView.vue'), meta: meta('طلب شراء جديد', PR.requests) },
@@ -28,6 +29,10 @@ export const procurementRoutes: RouteRecordRaw[] = [
   { path: '/procurement/orders/new', component: () => import('./views/OrderFormView.vue'), meta: meta('إعداد تعميد', PR.sourcing) },
   { path: '/procurement/orders/:id', component: () => import('./views/OrderView.vue'), props: true, meta: any('التعميد', ORD_READ) },
   { path: '/procurement/orders/:id/edit', component: () => import('./views/OrderFormView.vue'), props: true, meta: meta('تعديل التعميد', PR.sourcing) },
+  { path: '/procurement/invoices', component: () => import('./views/InvoicesView.vue'), meta: any('فواتير الموردين', INV_READ) },
+  { path: '/procurement/invoices/new', component: () => import('./views/InvoiceFormView.vue'), meta: meta('تسجيل فاتورة ورقية', PR.invoices) },
+  { path: '/procurement/invoices/:id', component: () => import('./views/InvoiceView.vue'), props: true, meta: any('الفاتورة', INV_READ) },
+  { path: '/procurement/invoices/:id/edit', component: () => import('./views/InvoiceFormView.vue'), props: true, meta: meta('تعديل الفاتورة', PR.invoices) },
   { path: '/procurement/receipts', component: () => import('./views/ReceiptsView.vue'), meta: any('الاستلام والفحص', STOCK_READ) },
   { path: '/procurement/receipts/new', component: () => import('./views/ReceiptFormView.vue'), meta: meta('استلام جديد', PR.stockOperate) },
   { path: '/procurement/receipts/:id', component: () => import('./views/ReceiptView.vue'), props: true, meta: any('محضر الاستلام', STOCK_READ) },

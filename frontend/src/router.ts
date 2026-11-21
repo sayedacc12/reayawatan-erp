@@ -82,6 +82,10 @@ export const router = createRouter({
         { path: 'rfqs/:id', component: () => import('./supplier/SupplierRfqView.vue'), meta: { supplier: true, supplierAuth: true, title: 'المنافسة' } },
         { path: 'orders', component: () => import('./supplier/SupplierOrdersView.vue'), meta: { supplier: true, supplierAuth: true, title: 'التعميدات' } },
         { path: 'orders/:id', component: () => import('./supplier/SupplierOrderView.vue'), meta: { supplier: true, supplierAuth: true, title: 'التعميد' } },
+        { path: 'invoices', component: () => import('./supplier/SupplierInvoicesView.vue'), meta: { supplier: true, supplierAuth: true, title: 'الفواتير' } },
+        { path: 'invoices/new', component: () => import('./supplier/SupplierInvoiceView.vue'), meta: { supplier: true, supplierAuth: true, title: 'رفع فاتورة' } },
+        { path: 'invoices/:id', component: () => import('./supplier/SupplierInvoiceView.vue'), meta: { supplier: true, supplierAuth: true, title: 'الفاتورة' } },
+        { path: 'statement', component: () => import('./supplier/SupplierStatementView.vue'), meta: { supplier: true, supplierAuth: true, title: 'كشف الحساب' } },
       ],
     },
     {

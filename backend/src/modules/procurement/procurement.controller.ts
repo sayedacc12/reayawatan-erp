@@ -27,7 +27,7 @@ const SUP_READ = [P.suppliersRead, P.suppliers, P.approveSuppliers, P.approveBan
 export function sendFile(res: Response, f: { stream: ReadStream; mime: string; name: string }) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'private, no-store');
-  return new StreamableFile(f.stream, { type: f.mime, disposition: `inline; filename*=UTF-8''${encodeURIComponent(f.name)}` });
+  return new StreamableFile(f.stream, { type: f.mime, disposition: `attachment; filename*=UTF-8''${encodeURIComponent(f.name)}` });
 }
 
 /** المشتريات والمستودعات: الإعدادات، والأصناف، والمستودعات، والموردون */
@@ -40,7 +40,7 @@ export class ProcurementController {
 
   // ---------------- اللوحة والإعدادات ----------------
 
-  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh, P.stockOperate, P.stockApprove, P.issueRequest, P.issueApprove)
+  @Get('lookups') @RequireAnyPermission(P.read, ...SUP_READ, P.requests, P.approveRequests, P.sourcing, P.evaluate, P.approveOrders, P.approveOrdersHigh, P.stockOperate, P.stockApprove, P.issueRequest, P.issueApprove, P.invoices, P.invoicesOverride)
   lookups(@CurrentOrgUser() a: OrgUser) { return this.core.lookups(a.organizationId); }
 
   @Get('dashboard') @RequirePermissions(P.read)

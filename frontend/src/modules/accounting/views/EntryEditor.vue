@@ -167,6 +167,12 @@ loadDocTypes();
         <RouterLink to="/procurement/stock-docs" class="pm-link">حركات المستودع</RouterLink> أو <RouterLink to="/procurement/receipts" class="pm-link">الاستلام</RouterLink>.</span>
     </div>
 
+    <div v-if="entry?.source === 'payables'" class="ro-note no-print">
+      <b>🔒 للاطلاع فقط</b>
+      <span>هذا قيد فاتورة مورد سُجل من مستحقات الموردين بعد مطابقة الفاتورة مع التعميد والاستلام، ولا يُعدَّل ولا يُلغى من شاشة القيود. إلغاؤه يكون من
+        <RouterLink to="/accounting/payables" class="pm-link">مستحقات الموردين</RouterLink>.</span>
+    </div>
+
     <section :class="['card', 'pm-panel', 'sheet', { 'is-void': entry?.status === 'cancelled' }]">
       <div v-if="entry?.status === 'cancelled'" class="stamp">ملغي</div>
       <div class="head">
@@ -178,6 +184,7 @@ loadDocTypes();
           <span v-if="entry.source === 'system'" class="pm-tag">قيد آلي</span>
           <span v-if="entry.source === 'assets'" class="pm-tag">من الأصول الثابتة</span>
           <span v-if="entry.source === 'stock'" class="pm-tag">من المستودعات</span>
+          <span v-if="entry.source === 'payables'" class="pm-tag">من مستحقات الموردين</span>
           <span v-if="entry.periodLocked" class="pm-tag">الفترة مغلقة</span>
         </div>
         <div class="field-row">
