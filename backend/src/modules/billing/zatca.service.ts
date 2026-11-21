@@ -8,7 +8,7 @@ import {
   BlDocument, BlSettings, BlZatca, DOC_KINDS, DOC_TYPES, DocKind, LogEntry, ZATCA_ENVS, ZATCA_STAGES, ZatcaCheck, ZatcaEnv,
 } from './entities/billing.entity';
 import { CheckResponse, ZatcaApi, ZatcaApiError } from './einvoice/zatca-api';
-import { buildCsr, certBody, certInfo, generateKeys, seal, unseal } from './einvoice/zatca-crypto';
+import { buildCsr, certBody, certInfo, certMatchesKey, generateKeys, seal, unseal } from './einvoice/zatca-crypto';
 import { FIRST_PIH, UblInput, signInvoice } from './einvoice/ubl';
 
 const can = (a: OrgUser, code: string) => a.isSuperadmin || a.permissions.includes(code);
@@ -86,10 +86,12 @@ export class ZatcaService {
     return [...new Set(out)];
   }
 
+  /** حفظ خطوة: الشرط على المرحلة في جملة التحديث نفسها، فلا تتجاوز خطوةٌ إلغاءً أو خطوةً متزامنة */
   private async save(org: string, patch: Partial<BlZatca>, entry: LogEntry, expectStage?: BlZatca['stage']) {
     const z = await this.row(org);
-    if (expectStage && z.stage !== expectStage) throw new ConflictException('تغيرت حالة الربط من شاشة أخرى. حدّث الصفحة');
-    await this.db.getRepository(BlZatca).update({ organizationId: org }, { ...patch, log: [...z.log, entry].slice(-200), updatedAt: new Date() });
+    const where = expectStage ? { organizationId: org, stage: expectStage } : { organizationId: org, stage: z.stage };
+    const r = await this.db.getRepository(BlZatca).update(where, { ...patch, log: [...z.log, entry].slice(-200), updatedAt: new Date() });
+    if (!r.affected) throw new ConflictException('تغيرت حالة الربط من شاشة أخرى. حدّث الصفحة');
   }
 
   /** اختيار البيئة قبل بدء الربط */
@@ -104,6 +106,7 @@ export class ZatcaService {
   /** إلغاء الربط الحالي والبدء من جديد (مثل تجديد الشهادة أو تغيير البيئة). سلسلة البصمات تستمر */
   async reset(a: OrgUser, reason: string) {
     this.assertSettings(a);
+    if (this.running.has(a.organizationId)) throw new ConflictException('خطوات الربط جارية الآن. انتظر حتى تنتهي');
     const z = await this.row(a.organizationId);
     if (z.stage === 'none' && !z.privateKeyEnc) throw new ConflictException('لا يوجد ربط لإلغائه');
     await this.save(a.organizationId, {
@@ -159,9 +162,9 @@ export class ZatcaService {
     const r = await this.api.complianceCsid(z.env, csr, otp);
     if (!r?.binarySecurityToken || !r.secret || !r.requestID) throw new ZatcaApiError(0, r?.dispositionMessage || 'لم تصدر شهادة الامتثال');
     const cert = certBody(Buffer.from(r.binarySecurityToken, 'base64').toString('utf8'));
-    certInfo(cert);
+    if (!certMatchesKey(cert, key)) throw new ZatcaApiError(0, 'الشهادة المستلمة لا تطابق مفتاح الجمعية');
     await this.save(z.organizationId, {
-      stage: 'compliance', egsSerial: serial, commonName, privateKeyEnc: seal(key), csr, complianceCert: cert, complianceSecretEnc: seal(r.secret),
+      stage: 'compliance', egsSerial: serial, commonName, privateKeyEnc: seal(key, z.organizationId), csr, complianceCert: cert, complianceSecretEnc: seal(r.secret, z.organizationId),
       complianceRequestId: String(r.requestID), lastError: null, checks: [],
     }, logEntry('صدرت شهادة الامتثال', a.fullName, `البيئة: ${ZATCA_ENVS[z.env]}`), 'none');
   }
@@ -182,8 +185,8 @@ export class ZatcaService {
   }
 
   private async runChecks(a: OrgUser, s: BlSettings, z: BlZatca) {
-    const key = unseal(z.privateKeyEnc!);
-    const secret = unseal(z.complianceSecretEnc!);
+    const key = unseal(z.privateKeyEnc!, z.organizationId);
+    const secret = unseal(z.complianceSecretEnc!, z.organizationId);
     const token = Buffer.from(z.complianceCert!).toString('base64');
     const checks: ZatcaCheck[] = [];
     let pih = FIRST_PIH;
@@ -206,11 +209,12 @@ export class ZatcaService {
 
   private async production(a: OrgUser, z: BlZatca) {
     const token = Buffer.from(z.complianceCert!).toString('base64');
-    const r = await this.api.productionCsid(z.env, token, unseal(z.complianceSecretEnc!), z.complianceRequestId!);
+    const r = await this.api.productionCsid(z.env, token, unseal(z.complianceSecretEnc!, z.organizationId), z.complianceRequestId!);
     if (!r?.binarySecurityToken || !r.secret) throw new ZatcaApiError(0, r?.dispositionMessage || 'لم تصدر شهادة الإنتاج');
     const cert = certBody(Buffer.from(r.binarySecurityToken, 'base64').toString('utf8'));
     const ci = certInfo(cert);
-    await this.save(z.organizationId, { stage: 'production', productionCert: cert, productionSecretEnc: seal(r.secret), certExpiresAt: ci.validTo, lastError: null },
+    if (!certMatchesKey(cert, unseal(z.privateKeyEnc!, z.organizationId))) throw new ZatcaApiError(0, 'شهادة الإنتاج لا تطابق مفتاح الجمعية');
+    await this.save(z.organizationId, { stage: 'production', productionCert: cert, productionSecretEnc: seal(r.secret, z.organizationId), certExpiresAt: ci.validTo, lastError: null },
       logEntry('صدرت شهادة الإنتاج', a.fullName, `البيئة: ${ZATCA_ENVS[z.env]}، تنتهي ${ci.validTo.toISOString().slice(0, 10)}`), 'checked');
   }
 
@@ -229,7 +233,7 @@ export class ZatcaService {
       issueDate: d.issueDate, issueTime: riyadhTime(d.issuedAt), supplyDate: d.supplyDate,
       seller: { name: s.sellerName!, vatNumber: s.vatNumber, idType: s.idType, idNumber: s.idNumber, address: s.address },
       buyer: d.buyer, refCode, reason: d.reason, lines: d.lines, breakdown: d.breakdown, taxable: d.taxable, vat: d.vat, total: d.total,
-    }, { privateKey: unseal(z.privateKeyEnc), cert: z.productionCert });
+    }, { privateKey: unseal(z.privateKeyEnc, z.organizationId), cert: z.productionCert });
     d.pih = pih;
     d.invoiceHash = signed.hash;
     d.xml = signed.xml;

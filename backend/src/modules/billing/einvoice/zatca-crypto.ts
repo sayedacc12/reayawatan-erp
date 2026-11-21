@@ -103,17 +103,25 @@ function vaultKey() {
   return createHmac('sha256', base).update('sanabel:zatca:vault').digest();
 }
 
-export function seal(plain: string) {
+/** التشفير مربوط بالجمعية (بيانات إضافية موثّقة)، فلا يصلح سر جمعية إن نُقل إلى صف جمعية أخرى */
+export function seal(plain: string, org: string) {
   const iv = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', vaultKey(), iv);
+  c.setAAD(Buffer.from(`sanabel:zatca:${org}`));
   const ct = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
   return `v1:${iv.toString('base64')}:${c.getAuthTag().toString('base64')}:${ct.toString('base64')}`;
 }
 
-export function unseal(sealed: string) {
+export function unseal(sealed: string, org: string) {
   const [v, iv, tag, ct] = sealed.split(':');
   if (v !== 'v1' || !iv || !tag || !ct) throw new Error('unknown vault format');
   const d = createDecipheriv('aes-256-gcm', vaultKey(), Buffer.from(iv, 'base64'));
+  d.setAAD(Buffer.from(`sanabel:zatca:${org}`));
   d.setAuthTag(Buffer.from(tag, 'base64'));
   return Buffer.concat([d.update(Buffer.from(ct, 'base64')), d.final()]).toString('utf8');
+}
+
+/** هل الشهادة صادرة على المفتاح العام لمفتاح الجمعية؟ */
+export function certMatchesKey(body: string, privatePem: string) {
+  return certInfo(body).publicKey.equals(createPublicKey(createPrivateKey(privatePem)).export({ type: 'spki', format: 'der' }));
 }

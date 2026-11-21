@@ -177,7 +177,9 @@ export async function deleteOrganization(em: EntityManager, orgId: string): Prom
 
 /** تصدير كل بيانات الجمعية (عدا كلمات المرور والرموز السرية) لتسليمها قبل الحذف */
 export async function exportOrganization(em: EntityManager, orgId: string): Promise<Record<string, unknown[]>> {
-  const SECRET = /password|token|secret|hash/i;
+  // المفاتيح المشفرة (مثل مفتاح توقيع الفواتير) لا تخرج من النظام، وبصمات الفواتير الإلكترونية تُسلّم لأنها جزء من سجل الجمعية
+  const SECRET = /password|token|secret|hash|_enc$|private_key/i;
+  const KEEP = new Set(['invoice_hash', 'last_hash']);
   const tables: { table_name: string }[] = await em.query(
     `SELECT c.table_name FROM information_schema.columns c
        JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
@@ -189,7 +191,7 @@ export async function exportOrganization(em: EntityManager, orgId: string): Prom
   for (const { table_name: t } of tables) {
     const rows: Record<string, unknown>[] = await em.query(`SELECT * FROM ${q(t)} WHERE organization_id = $1`, [orgId]);
     if (!rows.length) continue;
-    out[t] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !SECRET.test(k))));
+    out[t] = rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => KEEP.has(k) || !SECRET.test(k))));
   }
   return out;
 }

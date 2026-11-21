@@ -11,6 +11,7 @@ import { configureApp } from '../src/main';
 import { bits, children, ctx, int, name, oid, read, seq, utcTime, utf8 } from '../src/modules/billing/einvoice/asn1';
 import { CheckResponse, CsidResponse, ZatcaApi, ZatcaApiError } from '../src/modules/billing/einvoice/zatca-api';
 import { FIRST_PIH, hashOfSigned } from '../src/modules/billing/einvoice/ubl';
+import { exportOrganization } from '../src/core/lifecycle/org-data';
 
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 jest.setTimeout(120_000);
@@ -258,5 +259,14 @@ describe('Billing stage 2: ZATCA onboarding, signed XML and the hash chain', () 
     const [{ last }] = await db.query(`SELECT invoice_hash AS last FROM bl_documents WHERE invoice_hash IS NOT NULL ORDER BY icv DESC LIMIT 1`);
     const next = await issueNew({ kind: 'invoice', customerId: ids.business, lines: [{ itemId: ids.item, qty: 1, unitPrice: 100 }] });
     expect(next.pih).toBe(last);
+
+    // ملف تصدير بيانات الجمعية: بلا مفتاح ولا أسرار، ومعه بصمات الفواتير
+    const [{ id: orgId }] = await db.query(`SELECT id FROM organizations WHERE slug = 'sales'`);
+    const out = await exportOrganization(db.manager, orgId);
+    const z = out.bl_zatca[0] as Record<string, unknown>;
+    expect(Object.keys(z)).not.toEqual(expect.arrayContaining(['private_key_enc']));
+    expect(Object.keys(z).filter((k) => /_enc$/.test(k))).toEqual([]);
+    expect(z.last_hash).toBe(next.invoiceHash);
+    expect((out.bl_documents as Record<string, unknown>[]).some((d) => d.invoice_hash === next.invoiceHash)).toBe(true);
   });
 });
