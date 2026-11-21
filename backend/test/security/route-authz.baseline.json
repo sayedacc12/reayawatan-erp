@@ -103,6 +103,16 @@
     "PUT /roles/:id/module/:code"
   ],
   "public": [
+      
+"GET /supplier-portal/contracts",
+    
+"GET /supplier-portal/contracts/:id",
+    
+"GET /supplier-portal/contracts/:id/files/:key",
+    
+"GET /supplier-portal/evaluations",
+    
+"POST /supplier-portal/evaluations/:id/respond",
         "GET /supplier-portal/invoices",
     "GET /supplier-portal/billable",
     "GET /supplier-portal/billable/:orderId",

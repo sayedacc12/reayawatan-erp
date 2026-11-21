@@ -364,6 +364,22 @@ describe('Demo association across all modules', () => {
     expect(st.underReview.count).toBe(1);
   });
 
+  it('procurement contracts: an active framework agreement with a pending penalty, and an approved evaluation that grades the supplier', async () => {
+    const admin = await staff('admin');
+    const finance = await staff('finance');
+    const list = (await http.get('/api/procurement/contracts').set(as(admin)).expect(200)).body as { id: string; status: string; code: string }[];
+    expect(list.map((c) => [c.code, c.status])).toEqual([['CT-0001', 'active']]);
+    const c = (await http.get(`/api/procurement/contracts/${list[0].id}`).set(as(finance)).expect(200)).body;
+    expect(c.kpiReadings).toHaveLength(2);
+    expect(c.penalties.map((p: { status: string; amount: number }) => [p.status, p.amount])).toEqual([['pending', 500]]);
+    const ev = (await http.get('/api/procurement/evaluations').set(as(admin)).expect(200)).body as { status: string; supplierId: string; grade: string }[];
+    expect(ev.map((e) => e.status)).toEqual(['approved']);
+    const [s] = await app.get(DataSource).query('SELECT grade FROM pr_suppliers WHERE id = $1', [ev[0].supplierId]);
+    expect(s.grade).toBe(ev[0].grade);
+    const kpis = (await http.get('/api/procurement/insights/kpis').set(as(admin)).expect(200)).body;
+    expect(kpis.kpis.find((k: { key: string }) => k.key === 'rating').value).toBeGreaterThan(0);
+  });
+
   it('billing: registered tax settings, customers and items, issued invoices with QR and entries, a credit note, collection and a clean reconciliation', async () => {
     const admin = await staff('admin');
     const finance = await staff('finance');

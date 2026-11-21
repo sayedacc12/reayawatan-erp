@@ -25,6 +25,7 @@ import { PartnershipsSeed } from './seed-partnerships';
 import { ProcurementSeed } from './seed-procurement';
 import { SourcingSeed } from './seed-sourcing';
 import { InvoicesSeed } from './seed-invoices';
+import { ContractsSeed } from './seed-contracts';
 import { BillingSeed } from './seed-billing';
 import { StockSeed } from './seed-stock';
 import { CommsSeed } from './seed-comms';
@@ -67,6 +68,7 @@ export class DemoService {
     private readonly sourcing: SourcingSeed,
     private readonly stockSeed: StockSeed,
     private readonly invoicesSeed: InvoicesSeed,
+    private readonly contractsSeed: ContractsSeed,
     private readonly billingSeed: BillingSeed,
   ) {}
 
@@ -136,6 +138,8 @@ export class DemoService {
     await this.stockSeed.run(team);
     // فواتير الموردين بعد الاستلام: المطابقة الثلاثية والمستحق في المالي والسداد
     await this.invoicesSeed.run(team);
+    // العقود وتقييم الموردين بعد الفواتير: التقييم يقرأ التوريد والفحص والمطابقة
+    await this.contractsSeed.run(team);
     // الفوترة والمبيعات بعد المالي: فواتير العملاء وقيودها وتحصيلها بسندات القبض
     await this.billingSeed.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة

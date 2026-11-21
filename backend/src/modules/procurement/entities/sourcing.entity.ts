@@ -227,6 +227,7 @@ export interface SupplierResponse { action: 'acknowledge' | 'accept' | 'clarify'
 @Index('IDX_pr_orders_status', ['organizationId', 'status'])
 @Index('IDX_pr_orders_supplier', ['organizationId', 'supplierId'])
 @Index('IDX_pr_orders_request', ['organizationId', 'requestId'])
+@Index('IDX_pr_orders_contract', ['organizationId', 'contractId'])
 export class PrOrder {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
@@ -247,6 +248,8 @@ export class PrOrder {
   @Column({ name: 'beneficiary_ref', type: 'varchar', length: 120, nullable: true }) beneficiaryRef!: string | null;
   @Column({ name: 'budget_line_id', type: 'uuid', nullable: true }) budgetLineId!: string | null;
   @Column({ name: 'funding_batch_id', type: 'uuid', nullable: true }) fundingBatchId!: string | null;
+  /** العقد أو الاتفاقية الإطارية التي يصدر عليها التعميد */
+  @Column({ name: 'contract_id', type: 'uuid', nullable: true }) contractId!: string | null;
   /** مستودع التسليم (للمواد) */
   @Column({ name: 'warehouse_id', type: 'uuid', nullable: true }) warehouseId!: string | null;
   @Column({ name: 'delivery_date', type: 'date', nullable: true }) deliveryDate!: string | null;

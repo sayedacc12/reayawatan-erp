@@ -1,3 +1,4 @@
+import { ContractsService, contractCode } from './contracts.service';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
@@ -27,7 +28,16 @@ const totals = (lines: OrderLine[], vatRate: number) => {
 export class OrdersService {
   constructor(
     private readonly db: DataSource, private readonly core: ProcurementCore, private readonly sc: SourcingCore, private readonly requests: RequestsService,
+    private readonly contracts: ContractsService,
   ) {}
+
+  private async contractInfo(org: string, o: PrOrder) {
+    const c = await this.contracts.find(org, o.contractId!);
+    return {
+      id: c.id, code: contractCode(c.contractNo), title: c.title, value: c.value, used: await this.contracts.used(org, c.id),
+      warnings: await this.contracts.priceWarnings(org, c.id, o.lines.map((l) => ({ itemId: l.itemId, description: l.description, unitPrice: l.unitPrice }))),
+    };
+  }
 
   async find(org: string, id: string) {
     const o = await this.db.getRepository(PrOrder).findOne({ where: { id, organizationId: org } });
@@ -72,9 +82,10 @@ export class OrdersService {
     const lines = await this.buildLines(r, dto.lines, null);
     const s = await this.core.settings(org);
     const o = await this.db.transaction(async (em) => {
+      if (dto.contractId) await this.contracts.assertOrderFits(em, org, dto.contractId, { supplierId: sup.id, total: totals(lines, dto.vatRate).total });
       const no = await this.sc.nextNo(em, 'pr_orders', 'order_no', org);
       return em.save(em.create(PrOrder, {
-        organizationId: org, orderNo: no, kind: orderKindFor(r.kind), requestId: r.id, supplierId: sup.id, title: dto.title?.trim() || r.title, lines, vatRate: dto.vatRate,
+        organizationId: org, orderNo: no, kind: orderKindFor(r.kind), requestId: r.id, supplierId: sup.id, contractId: dto.contractId ?? null, title: dto.title?.trim() || r.title, lines, vatRate: dto.vatRate,
         ...totals(lines, dto.vatRate), unitId: r.unitId, projectId: r.projectId, beneficiaryRef: r.beneficiaryRef, budgetLineId: r.budgetLineId, fundingBatchId: r.fundingBatchId,
         warehouseId: dto.warehouseId ?? null, deliveryDate: dto.deliveryDate ?? r.neededBy, deliveryPlace: dto.deliveryPlace ?? null,
         terms: dto.terms ?? sourcingSettings(s).orderTerms, status: 'draft', createdById: a.id, createdByName: a.fullName,
@@ -123,8 +134,12 @@ export class OrdersService {
     Object.assign(o, totals(o.lines, o.vatRate), {
       title: dto.title?.trim() || o.title, warehouseId: dto.warehouseId ?? null, deliveryDate: dto.deliveryDate ?? null, deliveryPlace: dto.deliveryPlace ?? null, terms: dto.terms ?? null,
     });
+    o.contractId = dto.contractId ?? null;
     o.log = [...o.log, logEntry('تعديل التعميد', a.fullName)];
-    await this.db.getRepository(PrOrder).save(o);
+    await this.db.transaction(async (em) => {
+      if (o.contractId) await this.contracts.assertOrderFits(em, a.organizationId, o.contractId, o);
+      await em.save(o);
+    });
     return this.get(a, id);
   }
 
@@ -177,6 +192,7 @@ export class OrdersService {
     });
     try {
       await this.db.transaction(async (em) => {
+        if (o.contractId) await this.contracts.assertOrderFits(em, org, o.contractId, o);
         o.approvals = [...o.approvals, approval];
         o.commitmentId = res.commitmentId;
         o.fundingReserved = res.fundingReserved;
@@ -389,6 +405,7 @@ export class OrdersService {
       budgetLine: line ? { id: line.id, name: line.name, budgetCode: line.budgetCode, year: line.year } : null,
       funding: batch ? { id: batch.id, label: `الدفعة ${batch.batchNo} · ${batch.targetName}` } : null,
       warehouse: wh[0] ?? null,
+      contract: o.contractId ? await this.contractInfo(org, o) : null,
       lines: o.lines.map((l) => ({ ...l, uomName: l.uomId ? uomName.get(l.uomId) ?? null : null, receivedQty: Math.round((recQty.get(l.lineId ?? '') ?? 0) * 1000) / 1000 })),
       receipts: receipts.map((x) => ({
         id: x.id, code: `GRN-${String(x.receipt_no).padStart(4, '0')}`, date: x.date, status: x.status, total: x.total, inspection: x.inspection,

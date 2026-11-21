@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
@@ -17,7 +17,8 @@ const req = ref<any>(null);
 const order = ref<any>(null);
 const busy = ref(false);
 const supQ = ref('');
-const form = ref<any>({ supplierId: '', title: '', vatRate: 15, warehouseId: '', deliveryDate: '', deliveryPlace: '', terms: '', lines: [] as any[] });
+const contracts = ref<any[]>([]);
+const form = ref<any>({ contractId: '', supplierId: '', title: '', vatRate: 15, warehouseId: '', deliveryDate: '', deliveryPlace: '', terms: '', lines: [] as any[] });
 
 onMounted(async () => {
   try {
@@ -31,7 +32,7 @@ onMounted(async () => {
     const o = order.value;
     const mine = new Map<string, any>((o?.lines ?? []).map((l: any) => [l.lineId, l]));
     form.value = {
-      supplierId: o?.supplierId ?? '', title: o?.title ?? req.value.title, vatRate: o?.vatRate ?? 15, warehouseId: o?.warehouseId ?? '',
+      contractId: o?.contractId ?? String(route.query.contract ?? ''), supplierId: o?.supplierId ?? '', title: o?.title ?? req.value.title, vatRate: o?.vatRate ?? 15, warehouseId: o?.warehouseId ?? '',
       deliveryDate: o?.deliveryDate ?? req.value.neededBy ?? '', deliveryPlace: o?.deliveryPlace ?? '', terms: o?.terms ?? lk.value.sourcing.orderTerms ?? '',
       lines: req.value.lines.map((l: any) => {
         const cur = mine.get(l.id);
@@ -46,6 +47,12 @@ onMounted(async () => {
 });
 
 const fromQuote = computed(() => !!order.value?.quoteId);
+// العقود السارية للمورد المختار: التعميد يصدر عليها في حدود المتبقي من سقفها
+watch(() => form.value.supplierId, async (sid) => {
+  contracts.value = sid ? await api<any[]>(`/procurement/suppliers/${sid}/contracts`).catch(() => []) : [];
+  if (form.value.contractId && !contracts.value.some((c) => c.id === form.value.contractId)) form.value.contractId = '';
+});
+const contract = computed(() => contracts.value.find((c) => c.id === form.value.contractId));
 const suppliers = computed(() => {
   const q = supQ.value.trim();
   return (lk.value?.approvedSuppliers ?? []).filter((s: any) => s.id === form.value.supplierId || !q || s.name.includes(q) || s.code.includes(q));
@@ -61,7 +68,7 @@ async function save() {
   busy.value = true;
   const body = {
     requestId: props.id ? undefined : req.value.id, supplierId: f.supplierId, title: f.title, vatRate: Number(f.vatRate),
-    warehouseId: f.warehouseId || null, deliveryDate: f.deliveryDate || null, deliveryPlace: f.deliveryPlace || null, terms: f.terms || null,
+    contractId: f.contractId || null, warehouseId: f.warehouseId || null, deliveryDate: f.deliveryDate || null, deliveryPlace: f.deliveryPlace || null, terms: f.terms || null,
     lines: picked.value.map((l: any) => ({ lineId: l.lineId, qty: Number(l.qty), unitPrice: Number(l.unitPrice) })),
   };
   try {
@@ -140,6 +147,12 @@ async function save() {
             </div>
             <label class="field" style="margin-top: 10px"><span>ضريبة القيمة المضافة</span><select v-model.number="form.vatRate" class="input"><option :value="15">15%</option><option :value="0">0% (غير مسجل أو معفى)</option></select></label>
           </template>
+        </section>
+        <section v-if="form.supplierId" class="card pm-panel">
+          <h2>العقد</h2>
+          <select v-model="form.contractId" class="input"><option value="">بلا عقد</option><option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.code }} · {{ c.title }}</option></select>
+          <p v-if="contract" class="pm-muted" style="font-size: .8rem; margin-top: 6px">المتبقي من سقف العقد {{ sar(contract.remaining) }}. لا يتجاوزه التعميد، ويُنبَّه إذا زادت الأسعار عن الأسعار التعاقدية.</p>
+          <p v-else-if="!contracts.length" class="pm-muted" style="font-size: .8rem; margin-top: 6px">لا توجد عقود سارية مع هذا المورد.</p>
         </section>
         <section class="card pm-panel">
           <h2>مصدر الصرف</h2>
