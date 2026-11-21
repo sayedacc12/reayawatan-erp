@@ -20,9 +20,19 @@ services:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+      # مواقع إضافية على نفس السيرفر: إعداداتها (*.caddy) وملفاتها الثابتة. انظر deploy/sites/README.md
+      - ./deploy/sites:/etc/caddy/sites:ro
+    networks:
+      - default
+      - edge
     depends_on:
       - frontend
     restart: unless-stopped
+
+networks:
+  # شبكة يشترك فيها Caddy مع أنظمة أخرى على نفس السيرفر (تنضم إليها كشبكة external باسم caddy-edge)
+  edge:
+    name: caddy-edge
 
 volumes:
   caddy-data:

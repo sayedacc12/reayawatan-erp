@@ -1,3 +1,7 @@
+# مواقع إضافية على نفس السيرفر (مثل موقع شركة أخرى): كل ملف deploy/sites/*.caddy يُحمَّل هنا.
+# المجلد خارج git، وإذا كان فارغًا يكتفي Caddy بتحذير ويكمل. التفاصيل: deploy/sites/README.md
+import /etc/caddy/sites/*.caddy
+
 # بدون DOMAIN: يعمل على http://<IP> مباشرة.
 # مع DOMAIN (مثل sanabelerp.com): يصدر شهادة HTTPS تلقائيًا من Let's Encrypt.
 {$DOMAIN} {
