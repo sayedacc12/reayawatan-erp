@@ -11,7 +11,7 @@ Status legend: ✅ in place · 🟡 partial · ❌ missing · 📅 planned phase
 | 1.4.1 | Trusted, centralized access-control enforcement | 🟡 | Global `AuthGuard`; default-deny 📅2 |
 | 1.14.6 | No unsupported/insecure client tech | ✅ | Vue 3 SPA |
 | 2.1.1/2.1.7 | Password length; breached-password check | 🟡 | Length + letter/digit; breached list ❌ |
-| 2.2.1 | Anti-automation on auth | 🟡 | `@Throttle` on login/reset; real client IP 📅1 |
+| 2.2.1 | Anti-automation on auth | 🟡 | `@Throttle` on login/reset per real client IP; monitor blocks brute-force/spraying sources temporarily |
 | 2.2.3/2.5.x | Notify on credential change; secure recovery | 🟡 | Temp password flow (PR #54); email notice 📅4 |
 | 2.7/2.8 (L3 for admins) | MFA (TOTP) | ❌ | 📅4 platform owner, superadmin, financial approvers |
 | 2.4.1 | Passwords stored with adaptive hash | ✅ | bcrypt cost 12 |
@@ -26,7 +26,7 @@ Status legend: ✅ in place · 🟡 partial · ❌ missing · 📅 planned phase
 | 5.2.x | Sanitize HTML | ✅ | Escaped `v-html`, `esc()` in reports |
 | 5.3.4 | Parameterized queries | ✅ | Semgrep rule blocks new interpolation |
 | 7.1.1/7.1.2 | No credentials/PII in logs | 🟡 | Rule in CLAUDE.md; review |
-| 7.2.1/7.2.2 | Log auth and access-control events | ❌ | Unified `audit_events` 📅3 |
+| 7.2.1/7.2.2 | Log auth and access-control events | 🟡 | Security monitor `sec_events` (logins, 401/403/404/429/5xx, exports, admin changes) with alerts; unified `audit_events` 📅3 |
 | 7.3.x (L3) | Log integrity | ❌ | Hash-chained audit log 📅3 |
 | 8.2.2 | No sensitive data in browser storage | ❌ | JWT in localStorage 📅4 |
 | 8.3.x | Sensitive data minimized/encrypted | 🟡 | Backups encrypted; field-level encryption for IBAN/ID to evaluate |
