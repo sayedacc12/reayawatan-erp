@@ -2,7 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested,
 } from 'class-validator';
-import { BILLING_MODES, CUSTOMER_KINDS, DOC_KINDS, DOC_STATUS, DOC_TYPES, ID_TYPES, ITEM_KINDS, VAT_CATEGORIES } from './entities/billing.entity';
+import { BILLING_MODES, CUSTOMER_KINDS, DOC_KINDS, DOC_STATUS, DOC_TYPES, ID_TYPES, ITEM_KINDS, VAT_CATEGORIES, ZATCA_ENVS } from './entities/billing.entity';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
@@ -137,4 +137,12 @@ export class AsOfQueryDto {
 
 export class ReasonDto {
   @IsString() @MinLength(3, { message: 'اكتب السبب' }) @MaxLength(500) @trim() reason!: string;
+}
+
+export class ZatcaEnvDto {
+  @IsIn(Object.keys(ZATCA_ENVS)) env!: keyof typeof ZATCA_ENVS;
+}
+
+export class ZatcaOnboardDto {
+  @IsOptional() @IsString() @Matches(/^\d{6}$/, { message: 'رمز التحقق (OTP) 6 أرقام' }) otp?: string;
 }

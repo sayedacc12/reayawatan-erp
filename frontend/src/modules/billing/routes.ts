@@ -15,5 +15,6 @@ export const billingRoutes: RouteRecordRaw[] = [
   { path: '/billing/items', component: () => import('./views/ItemsView.vue'), meta: any('الأصناف والخدمات', [...BL_READ, BL.items]) },
   { path: '/billing/reconciliation', component: () => import('./views/ReconciliationView.vue'), meta: any('المطابقة مع الدليل', [BL.read, BL.reports, BL.settings]) },
   { path: '/billing/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'billing', system: 'الفوترة والمبيعات' }, meta: meta('تقارير الفوترة والمبيعات', BL.reports) },
+  { path: '/billing/zatca', component: () => import('./views/ZatcaView.vue'), meta: meta('الربط مع منصة «فاتورة»', BL.settings) },
   { path: '/billing/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الفوترة', BL.settings) },
 ];
