@@ -184,6 +184,7 @@ const summaryColor = computed(() => (plan.value?.summary.delayed ? EXEC.delayed.
         </div>
       </div>
       <div class="pm-actions">
+        <RouterLink v-if="session.can(P.reports)" class="btn rk-ghost" :to="`/planning/board-reports?type=${plan.version ? 'plan-performance' : 'plan-approval'}&planId=${plan.id}`">تقارير المجلس</RouterLink>
         <button v-if="editable" class="btn rk-ghost" @click="editHeader = true">بيانات الخطة</button>
         <button v-if="canManage" class="btn rk-ghost" @click="openCopy">نسخ لفترة جديدة</button>
         <button v-if="canManage && !plan.version && plan.status !== 'in_review'" class="btn rk-ghost" @click="removePlan">حذف</button>

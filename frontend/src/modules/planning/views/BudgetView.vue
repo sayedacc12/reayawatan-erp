@@ -156,6 +156,7 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
         </p>
       </div>
       <div class="pm-actions">
+        <RouterLink v-if="!isSc && (session.can(P.reports) || session.can(P.budgets))" class="btn rk-ghost" :to="`/planning/board-reports?type=${b.version ? 'budget-performance' : 'budget-approval'}&budgetId=${b.id}`">تقارير المجلس</RouterLink>
         <button v-if="editable && !isSc" class="btn rk-ghost" @click="importingLines = true">استيراد بنود من Excel</button>
         <button v-if="editable" class="btn rk-ghost" :disabled="!!busy" @click="recalc">{{ busy === 'recalc' ? 'جارٍ الاحتساب…' : 'إعادة الاحتساب' }}</button>
         <button v-if="isSc && canManage" class="btn pl-glow" @click="promo.open = true">تحويل إلى مشروع موازنة</button>
