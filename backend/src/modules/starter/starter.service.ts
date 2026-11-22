@@ -70,9 +70,9 @@ export class StarterService {
     await this.db.query(
       `DELETE FROM organization_starters WHERE organization_id = $1 AND module_code = $2 AND status = 'applying' AND applied_at < now() - ($3 || ' milliseconds')::interval`,
       [org, code, String(STALE_MS)]);
-    const reserved: unknown[] = await this.db.query(
+    const reserved: { applied_at: string }[] = await this.db.query(
       `INSERT INTO organization_starters (organization_id, module_code, status, applied_by, applied_by_id, results)
-       VALUES ($1, $2, 'applying', $3, $4, '[]'::jsonb) ON CONFLICT DO NOTHING RETURNING module_code`,
+       VALUES ($1, $2, 'applying', $3, $4, '[]'::jsonb) ON CONFLICT DO NOTHING RETURNING applied_at::text AS applied_at`,
       [org, code, actor.fullName, actor.id]);
     if (!reserved.length) {
       const [row] = await this.db.query('SELECT status FROM organization_starters WHERE organization_id = $1 AND module_code = $2', [org, code]);
@@ -80,6 +80,7 @@ export class StarterService {
         ? 'جارٍ إضافة الإعدادات الافتراضية الآن، انتظر قليلًا'
         : `سبق إضافة الإعدادات الافتراضية لنظام «${manifest.name}»، ويمكنك تعديلها من شاشة الإعدادات`);
     }
+    const mine = reserved[0].applied_at;
 
     // تُنفَّذ الخطوات بصلاحيات هذا النظام فقط (لمن يملك إدارة إعداداته)، وتُسجَّل العمليات باسم المستخدم نفسه
     const runner: OrgUser = { ...actor, permissions: [...new Set([...actor.permissions, ...manifest.permissions.map((p) => p.code)])] };
@@ -93,14 +94,16 @@ export class StarterService {
       }
     } catch (e) {
       this.logger.error(`Starter ${code} failed for org ${org} at "${current}": ${(e as Error).message}`, (e as Error).stack);
-      await this.db.query(`DELETE FROM organization_starters WHERE organization_id = $1 AND module_code = $2 AND status = 'applying'`, [org, code]).catch(() => undefined);
+      // الحذف والإكمال يخصان حجز هذا الطلب فقط (نفس المستخدم ووقت الحجز)، فلا يمسان حجزًا أحدث أخذ مكانه بعد انتهاء المهلة
+      await this.db.query(`DELETE FROM organization_starters WHERE organization_id = $1 AND module_code = $2 AND status = 'applying' AND applied_by_id = $3 AND applied_at = $4::timestamptz`, [org, code, actor.id, mine]).catch(() => undefined);
       // رسائل التحقق من خدمات الأنظمة عربية وآمنة للعرض، وغيرها (أخطاء قاعدة البيانات مثلًا) لا تُعرض
       const reason = e instanceof HttpException ? `: ${(e as Error).message}` : '';
       throw new BadRequestException(`تعذرت إضافة «${current}»${reason}. ما أُضيف قبلها باقٍ، ويمكنك المحاولة مرة أخرى لإكمال الباقي.`);
     }
     await this.db.query(
-      `UPDATE organization_starters SET status = 'applied', applied_at = now(), results = $3::jsonb WHERE organization_id = $1 AND module_code = $2`,
-      [org, code, JSON.stringify(results)]);
+      `UPDATE organization_starters SET status = 'applied', applied_at = now(), results = $3::jsonb
+        WHERE organization_id = $1 AND module_code = $2 AND status = 'applying' AND applied_by_id = $4 AND applied_at = $5::timestamptz`,
+      [org, code, JSON.stringify(results), actor.id, mine]);
     this.logger.log(`Starter ${code} applied for org ${org} by ${actor.id}: ${results.map((r) => `${r.key}=${r.added}`).join(', ')}`);
     return this.status(actor, code);
   }
