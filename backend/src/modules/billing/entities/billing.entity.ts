@@ -96,6 +96,9 @@ export interface NationalAddress {
   street: string | null; buildingNo: string | null; additionalNo: string | null; district: string | null; city: string | null; postalCode: string | null; country: string;
 }
 
+/** بيانات السداد البنكي المطبوعة في الفاتورة كما كانت لحظة الإصدار */
+export interface PaymentBank { bankName: string | null; accountName: string; iban: string | null }
+
 /** بيانات المشتري كما كانت لحظة الإصدار (لا تتغير بتعديل ملف العميل لاحقًا) */
 export interface BuyerSnapshot {
   name: string; kind: CustomerKind; vatNumber: string | null; idType: IdType | null; idNumber: string | null; address: NationalAddress | null; phone: string | null; email: string | null;
@@ -162,6 +165,17 @@ export class BlSettings {
   /** نسبة الضريبة الأساسية */
   @Column({ name: 'vat_rate', type: 'numeric', precision: 5, scale: 2, transformer: num, default: 15 })
   vatRate!: number;
+
+  /**
+   * تاريخ نفاذ التسجيل في ضريبة القيمة المضافة كما في شهادة التسجيل. قبله تصدر الشركة المسجلة فواتير عادية بلا ضريبة
+   * (لا تُحصّل ضريبة قبل نفاذ التسجيل)، ومنه تصدر فواتير ضريبية. فارغ: التسجيل نافذ دائمًا.
+   */
+  @Column({ name: 'vat_effective_from', type: 'date', nullable: true })
+  vatEffectiveFrom!: string | null;
+
+  /** الحساب البنكي الذي تظهر بياناته (البنك واسم الحساب والآيبان) في الفاتورة للسداد. من الحسابات البنكية في النظام المالي */
+  @Column({ name: 'payment_cash_account_id', type: 'uuid', nullable: true })
+  paymentCashAccountId!: string | null;
 
   @Column({ name: 'receivables_account_id', type: 'uuid', nullable: true })
   receivablesAccountId!: string | null;
@@ -409,7 +423,7 @@ export class BlDocument {
 
   /** بيانات البائع لحظة الإصدار */
   @Column({ type: 'jsonb', nullable: true })
-  seller!: { name: string; nameEn: string | null; vatNumber: string | null; idType: IdType | null; idNumber: string | null; address: NationalAddress | null } | null;
+  seller!: { name: string; nameEn: string | null; vatNumber: string | null; idType: IdType | null; idNumber: string | null; address: NationalAddress | null; bank?: PaymentBank | null } | null;
 
   @Column({ name: 'entry_id', type: 'uuid', nullable: true })
   entryId!: string | null;
