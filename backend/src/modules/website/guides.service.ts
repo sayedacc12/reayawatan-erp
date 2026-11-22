@@ -128,6 +128,7 @@ export class GuidesService {
       await em.save(LeadEvent, { organizationId: org, leadId: lead.id, kind: 'guide', text: `طلب دليل: ${g.title}`, userName: 'الموقع الإلكتروني' });
       return lead;
     });
+    await this.leads.toCrm(org, lead);
     await this.leads.notifyTeam(org, lead, [{ label: 'الدليل', value: g.title }]);
     const origin = publicOrigin();
     const url = `/api/public/web/guides/download/${token}`;

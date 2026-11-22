@@ -44,13 +44,15 @@ import { SourcingSeed } from './seed-sourcing';
 import { InvoicesSeed } from './seed-invoices';
 import { ContractsSeed } from './seed-contracts';
 import { BillingSeed } from './seed-billing';
+import { CrmSeed } from './seed-crm';
 import { BillingModule } from '../billing/billing.module';
+import { CrmModule } from '../crm/crm.module';
 import { StockSeed } from './seed-stock';
 
 /** المنشأة التجريبية (لاختبارات العزل والعرض): تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, BillingModule, TypeOrmModule.forFeature([OrganizationSampleData])],
+  imports: [CoreModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, BillingModule, CrmModule, TypeOrmModule.forFeature([OrganizationSampleData])],
   controllers: [DemoController, SampleDataController, PlatformSampleDataController],
-  providers: [DemoService, SampleDataService, AssetsSeed, TeamSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed, StockSeed, InvoicesSeed, ContractsSeed, BillingSeed],
+  providers: [DemoService, SampleDataService, AssetsSeed, TeamSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed, StockSeed, InvoicesSeed, ContractsSeed, BillingSeed, CrmSeed],
 })
 export class DemoModule {}

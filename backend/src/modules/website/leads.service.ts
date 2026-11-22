@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { User } from '../../core/entities';
@@ -38,11 +39,35 @@ export function calculatorResult(c: CalculatorInputDto) {
   return { budget: c.budget, cost: c.cost, efficiency: c.efficiency, beneficiariesNow: Math.round(now), annualSaving: Math.round(saving), additionalBeneficiaries: Math.round(additional) };
 }
 
+/** استقبال طلبات الموقع عملاءَ محتملين في نظام علاقات العملاء (العقد: CRM_LEAD_INTAKE)، دون اعتماد مباشر على وحدته */
+interface CrmLeadIntake {
+  fromWebsite(org: string, m: { id: string; name: string; company: string | null; phone: string | null; email: string | null; topic: string; topicLabel: string; body: string }): Promise<unknown>;
+}
+
 @Injectable()
 export class LeadsService {
   private readonly logger = new Logger('WebsiteLeads');
 
-  constructor(private readonly db: DataSource, private readonly content: ContentService, private readonly mail: MailService) {}
+  constructor(private readonly db: DataSource, private readonly content: ContentService, private readonly mail: MailService, private readonly moduleRef: ModuleRef) {}
+
+  private crm(): CrmLeadIntake | null {
+    try {
+      return this.moduleRef.get<CrmLeadIntake>('CRM_LEAD_INTAKE', { strict: false });
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * بعد حفظ الطلب: يُرسل إلى علاقات العملاء ليدخل عميلًا محتملًا إن اختارت الشركة نوع النموذج في إعداداتها.
+   * تعذره لا يُفشل الطلب ولا يغيّر شيئًا فيه.
+   */
+  async toCrm(org: string, lead: Lead) {
+    const body = [lead.orgName ? `الجهة: ${lead.orgName}` : null, lead.message].filter(Boolean).join('\n');
+    await this.crm()?.fromWebsite(org, {
+      id: lead.id, name: lead.name, company: lead.orgName, phone: lead.phone, email: lead.email, topic: lead.source, topicLabel: SOURCE_LABEL[lead.source], body,
+    }).catch((e: Error) => this.logger.warn(`CRM intake failed for website lead ${lead.id}: ${e.message}`));
+  }
 
   /** نتيجة تقييم الجاهزية: الدرجة من 100 والمجالات الأضعف بترتيب الأولوية */
   async assessmentResult(org: string, a: AssessmentInputDto) {

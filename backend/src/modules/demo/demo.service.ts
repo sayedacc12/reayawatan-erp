@@ -25,6 +25,7 @@ import { SourcingSeed } from './seed-sourcing';
 import { InvoicesSeed } from './seed-invoices';
 import { ContractsSeed } from './seed-contracts';
 import { BillingSeed } from './seed-billing';
+import { CrmSeed } from './seed-crm';
 import { StockSeed } from './seed-stock';
 import { CommsSeed } from './seed-comms';
 import { MeetingsSeed } from './seed-meetings';
@@ -66,6 +67,7 @@ export class DemoService {
     private readonly invoicesSeed: InvoicesSeed,
     private readonly contractsSeed: ContractsSeed,
     private readonly billingSeed: BillingSeed,
+    private readonly crmSeed: CrmSeed,
   ) {}
 
   async create(platformUser: AuthUser, origin: string) {
@@ -135,6 +137,8 @@ export class DemoService {
     await this.contractsSeed.run(team);
     // الفوترة والمبيعات بعد المالي: فواتير العملاء وقيودها وتحصيلها بسندات القبض
     await this.billingSeed.run(team);
+    // علاقات العملاء بعد كل الأنظمة التي تربط سجلاتها (العملاء والأعضاء والمتطوعون والشركاء وطلبات الموقع)
+    await this.crmSeed.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
     return { team, staff: [...accounts, auditor], portalUsers: [] as { fullName: string; nationalId: string }[], supplierPortal };

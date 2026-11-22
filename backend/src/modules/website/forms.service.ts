@@ -36,6 +36,7 @@ export class FormsService {
     const lead = await this.db.transaction((em) => this.leads.create(em, org, dto.source, dto, {
       serviceSlug, message: dto.message ?? null, result: Object.keys(result).length ? result : null, score,
     }));
+    await this.leads.toCrm(org, lead);
     await this.leads.notifyTeam(org, lead, [...(serviceSlug ? [{ label: 'الخدمة', value: serviceTitle ?? serviceSlug }] : []), ...facts]);
     if (dto.source === 'consultation') {
       await this.leads.confirmVisitor(org, lead, 'استلمنا طلبكم', ['شكرًا لتواصلكم مع رعاية وطن. سيتواصل معكم أحد مستشارينا خلال يومي عمل.'], facts);
