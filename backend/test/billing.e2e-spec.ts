@@ -103,7 +103,7 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     await http.post(`${B}/documents`).set(as(tok.clerk)).send({ kind: 'invoice', buyerName: 'محمد', lines: [{ description: 'خدمة', qty: 1, unitPrice: 100 }] }).expect(400);
 
     const base = {
-      mode: 'registered', sellerName: 'جمعية المبيعات', vatNumber: '310123456700003', idType: 'CRN', idNumber: '1010123456', address: ADDRESS, vatRate: 15,
+      mode: 'registered', sellerName: 'جمعية المبيعات', vatNumber: '310123456700003', idType: 'CRN', idNumber: '1010123456', address: ADDRESS, vatRate: 15, vatEffectiveFrom: '2020-01-01',
       receivablesAccountId: acc.ar, vatOutputAccountId: acc.vat, revenueAccountId: acc.revenue, customerCategoryId: ids.customerCat, paymentDays: 30,
     };
     await http.put(`${B}/settings`).set(as(tok.clerk)).send(base).expect(403);
@@ -116,7 +116,7 @@ describe('Billing stage 1: invoices, notes, entries, collection and reconciliati
     settingsBase = base;
     const ok = (await http.put(`${B}/settings`).set(as(tok.admin)).send(base).expect(200)).body;
     expect(ok.settings.separateIssuer).toBe(true);
-    expect(ok.readiness).toEqual({ ready: true, missing: [] });
+    expect(ok.readiness).toMatchObject({ ready: true, missing: [] });
     expect(ok.settings).toMatchObject({ mode: 'registered', vatNumber: '310123456700003', vatRate: 15 });
   });
 

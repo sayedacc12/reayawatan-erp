@@ -11,7 +11,7 @@ import { VouchersService } from '../accounting/vouchers.service';
 import { BILLING_PERMISSIONS as P } from './billing.manifest';
 import { CollectDto, DocDto, DocListQueryDto, IssueDto, StatementQueryDto } from './billing.dto';
 import {
-  BillingCore, LineInput, addDays, addressProblems, blToday, buyerOf, computeDoc, customerCode, diffNote, docCode, fromH, logEntry, qrTlv, r2, toH,
+  BillingCore, LineInput, addDays, modeOn, taxPoint, addressProblems, blToday, buyerOf, computeDoc, customerCode, diffNote, docCode, fromH, logEntry, qrTlv, r2, toH,
 } from './billing-core.service';
 import { CatalogService } from './catalog.service';
 import { ZatcaService } from './zatca.service';
@@ -78,7 +78,12 @@ export class DocumentsService implements OnModuleInit {
 
   /** نوع الفاتورة حسب وضع الشركة ونوع العميل */
   private resolveType(s: BlSettings, dto: DocDto, customer: BlCustomer | null): DocType {
-    if (s.mode === 'unregistered') {
+    const mode = modeOn(s, taxPoint(blToday(), dto.supplyDate));
+    if (mode === 'unregistered' && s.mode !== 'unregistered') {
+      if (dto.docType && dto.docType !== 'nontax') throw new BadRequestException(`التسجيل في الضريبة ينفذ في ${s.vatEffectiveFrom}، فالفاتورة قبله فاتورة عادية بلا ضريبة`);
+      return 'nontax';
+    }
+    if (mode === 'unregistered') {
       if (dto.docType && dto.docType !== 'nontax') throw new BadRequestException('الشركة غير مسجلة في الضريبة، فتصدر فواتير عادية بلا ضريبة');
       return 'nontax';
     }
@@ -298,8 +303,18 @@ export class DocumentsService implements OnModuleInit {
       const d = await this.lock(em, org, id);
       if (d.status !== 'pending') throw new ConflictException(d.status === 'draft' ? 'أرسل المستند للإصدار أولًا' : 'المستند لا ينتظر الإصدار');
       if (s.separateIssuer && !a.isSuperadmin && (d.createdById === a.id || d.editorIds.includes(a.id))) throw new ForbiddenException('لا يصدر الموظف مستندًا أنشأه أو عدّله أو أرسله بنفسه (فصل المهام)');
-      if (s.mode === 'unregistered' && d.docType !== 'nontax') throw new ConflictException('الشركة غير مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة عادية');
-      if (s.mode !== 'unregistered' && d.docType === 'nontax') throw new ConflictException('الشركة مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة ضريبية');
+      // الوضع الفعلي في تاريخ استحقاق الضريبة: قبل نفاذ التسجيل لا تصدر فاتورة ضريبية ولا تُحصّل ضريبة.
+      // الإشعار على فاتورة عادية صدرت قبل نفاذ التسجيل يتبعها بلا ضريبة.
+      const mode = modeOn(s, d.kind === 'invoice' ? taxPoint(date, d.supplyDate) : date);
+      const pre = s.mode !== 'unregistered' && mode === 'unregistered';
+      if (!(d.kind !== 'invoice' && d.docType === 'nontax' && s.mode !== 'unregistered')) {
+        if (mode === 'unregistered' && d.docType !== 'nontax') {
+          throw new ConflictException(pre
+            ? `التسجيل في الضريبة ينفذ في ${s.vatEffectiveFrom}، ولا تُحصّل ضريبة قبله. أعد المستند للمسودة وأعد حفظه كفاتورة عادية، أو أصدره بتاريخ ${s.vatEffectiveFrom} أو بعده`
+            : 'الشركة غير مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة عادية');
+        }
+        if (mode !== 'unregistered' && d.docType === 'nontax') throw new ConflictException('الشركة مسجلة في الضريبة في تاريخ الإصدار، فأعد المستند للمسودة وأعد حفظه كفاتورة ضريبية');
+      }
       let ref: BlDocument | null = null;
       if (d.refId) {
         ref = await this.lock(em, org, d.refId);
@@ -321,7 +336,10 @@ export class DocumentsService implements OnModuleInit {
       if (d.kind === 'invoice' && customer) d.buyer = buyerOf(customer);
       const problems = this.buyerProblems(d.docType, d.buyer);
       if (problems.length) throw new BadRequestException(`أكمل بيانات المشتري للفاتورة الضريبية: ${problems.join('، ')}`);
-      const seller = { name: s.sellerName!, nameEn: s.sellerNameEn, vatNumber: d.docType === 'nontax' ? null : s.vatNumber, idType: s.idType, idNumber: s.idNumber, address: s.address };
+      const seller = {
+        name: s.sellerName!, nameEn: s.sellerNameEn, vatNumber: d.docType === 'nontax' ? null : s.vatNumber, idType: s.idType, idNumber: s.idNumber, address: s.address,
+        bank: d.kind === 'credit_note' ? null : await this.core.paymentBank(org, s.paymentCashAccountId, em),
+      };
       if (customer && s.customerCategoryId) await this.catalog.ensurePartner(em, a, customer, s.customerCategoryId, s.receivablesAccountId!);
       const issuedAt = new Date();
       d.issueDate = date;
@@ -332,7 +350,7 @@ export class DocumentsService implements OnModuleInit {
       const [{ last }] = await em.query(`SELECT to_char(MAX(issue_date), 'YYYY-MM-DD') AS last FROM bl_documents WHERE organization_id = $1 AND icv IS NOT NULL`, [org]);
       if (last && date < last) throw new BadRequestException(`تاريخ الإصدار قبل تاريخ آخر مستند صادر (${last})، فاختر ${last} أو بعده`);
       d.seller = seller;
-      d.issuedMode = s.mode;
+      d.issuedMode = mode;
       d.qr = d.docType !== 'nontax' && s.vatNumber
         ? qrTlv({ seller: s.sellerName!, vatNumber: s.vatNumber, timestamp: `${date}T${issuedAt.toISOString().slice(11, 19)}Z`, total: d.total, vat: d.vat })
         : null;
@@ -525,6 +543,7 @@ export class DocumentsService implements OnModuleInit {
       overdue: d.kind === 'invoice' && ['issued', 'partial'].includes(d.status) && !!d.dueDate && d.dueDate < blToday() && outstanding > 0,
       buyerProblems: ['draft', 'pending'].includes(d.status) ? this.buyerProblems(d.docType, d.kind === 'invoice' && customer ? buyerOf(customer) : d.buyer) : [],
       terms: s.terms,
+      bank: d.kind === 'credit_note' ? null : d.icv ? d.seller?.bank ?? null : await this.core.paymentBank(org, s.paymentCashAccountId),
       can: {
         edit: d.status === 'draft' && can(a, P.invoices),
         submit: d.status === 'draft' && can(a, P.invoices),

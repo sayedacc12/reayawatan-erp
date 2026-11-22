@@ -170,6 +170,11 @@ const docTitle = computed(() => {
           <div class="grand"><span>الإجمالي شامل الضريبة</span><span class="pc-num">{{ sar(d.total) }}</span></div>
         </div>
         <p v-if="d.notes" style="white-space: pre-line; margin-top: 12px; font-size: .86rem">{{ d.notes }}</p>
+        <div v-if="d.bank && d.kind !== 'credit_note'" class="bl-bank" style="margin-top: 12px; font-size: .84rem">
+          <b>بيانات السداد</b>
+          <p style="margin: 2px 0">{{ d.bank.bankName ?? '' }} · {{ d.bank.accountName }}</p>
+          <p v-if="d.bank.iban" style="margin: 2px 0">الآيبان: <span class="pc-code" dir="ltr">{{ d.bank.iban }}</span></p>
+        </div>
         <p v-if="d.terms && d.kind === 'invoice'" class="pm-muted" style="white-space: pre-line; font-size: .8rem">{{ d.terms }}</p>
         <p v-if="d.uuid" class="pm-muted" style="font-size: .72rem; margin: 10px 0 0">المعرّف الفريد <span class="pc-code">{{ d.uuid }}</span> · العداد {{ d.icv }}</p>
         <p v-if="d.hasXml" class="pm-muted" style="font-size: .72rem; margin: 4px 0 0">بصمة المستند <span class="pc-code" dir="ltr">{{ d.invoiceHash }}</span></p>

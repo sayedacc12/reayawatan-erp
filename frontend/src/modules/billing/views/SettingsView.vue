@@ -21,7 +21,7 @@ function fill(l: any) {
     mode: s.mode === 'integrated' ? 'registered' : s.mode, sellerName: s.sellerName ?? '', sellerNameEn: s.sellerNameEn ?? '', vatNumber: s.vatNumber ?? '', idType: s.idType ?? '', idNumber: s.idNumber ?? '',
     address: { ...emptyAddress(), ...(s.address ?? {}) }, vatRate: s.vatRate, receivablesAccountId: s.receivablesAccountId ?? '', vatOutputAccountId: s.vatOutputAccountId ?? '',
     revenueAccountId: s.revenueAccountId ?? '', customerCategoryId: s.customerCategoryId ?? '', analyticId: s.analyticId ?? '', paymentDays: s.paymentDays, terms: s.terms ?? '',
-    separateIssuer: s.separateIssuer ?? true,
+    separateIssuer: s.separateIssuer ?? true, vatEffectiveFrom: s.vatEffectiveFrom ?? '', paymentCashAccountId: s.paymentCashAccountId ?? '',
   };
 }
 onMounted(async () => {
@@ -34,6 +34,7 @@ onMounted(async () => {
 });
 const accounts = (nature: string) => (lk.value?.accounts ?? []).filter((a: any) => a.nature === nature);
 const registered = computed(() => f.value?.mode === 'registered');
+const banks = computed(() => (lk.value?.cashAccounts ?? []).filter((c: any) => c.kind === 'bank'));
 const sellerIdTypes = computed(() => Object.fromEntries((lk.value?.sellerIdTypes ?? []).map((k: string) => [k, lk.value.idTypes[k]])));
 async function save() {
   busy.value = true;
@@ -45,7 +46,7 @@ async function save() {
         mode: x.mode, sellerName: x.sellerName || null, sellerNameEn: x.sellerNameEn || null, vatNumber: x.vatNumber || null, idType: x.idType || null, idNumber: x.idNumber || null,
         address: addressPayload(x.address), vatRate: Number(x.vatRate), receivablesAccountId: x.receivablesAccountId || null, vatOutputAccountId: x.vatOutputAccountId || null,
         revenueAccountId: x.revenueAccountId || null, customerCategoryId: x.customerCategoryId || null, analyticId: x.analyticId || null, paymentDays: Number(x.paymentDays), terms: x.terms || null,
-        separateIssuer: !!x.separateIssuer,
+        separateIssuer: !!x.separateIssuer, vatEffectiveFrom: x.vatEffectiveFrom || null, paymentCashAccountId: x.paymentCashAccountId || null,
       },
     });
     lk.value = r;
@@ -72,6 +73,7 @@ async function save() {
     <div :class="['pc-check-box', lk.readiness.ready ? 'ok' : 'bad']" style="margin-bottom: 12px">
       {{ lk.readiness.ready ? '✓ النظام جاهز لإصدار الفواتير' : `ينقص لإصدار الفواتير: ${lk.readiness.missing.join('، ')}` }}
     </div>
+    <div v-if="lk.readiness.vat?.note" class="alert alert-info">{{ lk.readiness.vat.note }}.</div>
     <div v-if="lk.settings.mode === 'integrated'" class="alert alert-info">الشركة مربوطة مع منصة «فاتورة»، فتُعدّل بياناتها الضريبية من شاشة الربط.</div>
     <div class="pc-tabs">
       <button :class="{ on: tab === 'general' }" @click="tab = 'general'">الشركة والضريبة</button>
@@ -94,6 +96,7 @@ async function save() {
           <label class="field"><span>الاسم بالإنجليزية (اختياري)</span><input v-model="f.sellerNameEn" class="input" maxlength="250" dir="ltr" /></label>
           <label class="field"><span>الرقم الضريبي</span><input v-model="f.vatNumber" class="input" maxlength="20" dir="ltr" placeholder="3xxxxxxxxxxxxx3" :required="registered" /></label>
           <label class="field"><span>نسبة الضريبة الأساسية %</span><input v-model.number="f.vatRate" type="number" min="0" max="100" step="any" class="input" required /></label>
+          <label class="field"><span>تاريخ نفاذ التسجيل في الضريبة</span><input v-model="f.vatEffectiveFrom" type="date" class="input" :required="registered" /><small class="pm-muted">كما في شهادة التسجيل. قبله تصدر فواتير عادية بلا ضريبة.</small></label>
           <label class="field"><span>المعرّف الآخر</span><select v-model="f.idType" class="input"><option value="">—</option><option v-for="(l, k) in sellerIdTypes" :key="k" :value="k">{{ l }}</option></select></label>
           <label class="field"><span>رقم المعرّف</span><input v-model="f.idNumber" class="input" maxlength="40" dir="ltr" /></label>
         </div>
@@ -108,6 +111,7 @@ async function save() {
         </div>
         <p class="pc-sec">الفوترة</p>
         <div class="pc-fields">
+          <label class="field"><span>الحساب البنكي في الفاتورة للسداد</span><select v-model="f.paymentCashAccountId" class="input"><option value="">تلقائي: الحساب البنكي الوحيد في البنوك والصناديق</option><option v-for="c in banks" :key="c.id" :value="c.id">{{ c.name }}{{ c.iban ? ` · ${c.iban}` : '' }}</option></select><small class="pm-muted">من «البنوك والصناديق» في النظام المالي. إن كان فيها أكثر من حساب بنكي فاختر أحدها. يظهر البنك واسم الحساب والآيبان في الفاتورة والإشعار المدين.</small></label>
           <label class="field"><span>مدة السداد الافتراضية (يوم)</span><input v-model.number="f.paymentDays" type="number" min="0" max="365" class="input" required /></label>
           <label class="field wide"><span>شروط تظهر أسفل الفاتورة</span><textarea v-model="f.terms" class="input" rows="2" maxlength="2000" /></label>
         </div>

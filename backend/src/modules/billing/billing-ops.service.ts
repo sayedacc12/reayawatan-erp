@@ -4,8 +4,10 @@ import { OrgUser } from '../../core/auth/decorators';
 import { AsOfQueryDto, BillingSettingsDto } from './billing.dto';
 import { BillingCore, addressProblems, blToday, cleanDigits, diffNote, docCode, logEntry, r2 } from './billing-core.service';
 import { cleanAddress } from './catalog.service';
+import { COMPANY_TAX_PROFILE } from './company-tax';
+import { findCompany } from '../../core/company';
 import { canReadBilling } from './documents.service';
-import { BILLING_MODES, BlSettings, DOC_KINDS, DOC_TYPES, DocKind, DocType, ISSUED } from './entities/billing.entity';
+import { BILLING_MODES, BlSettings, NationalAddress, DOC_KINDS, DOC_TYPES, DocKind, DocType, ISSUED } from './entities/billing.entity';
 
 const money = (n: unknown) => Math.abs(Number(n)).toLocaleString('en', { maximumFractionDigits: 2 });
 
@@ -52,6 +54,60 @@ export class BillingOpsService {
     });
   }
 
+  /**
+   * تعبئة البيانات الضريبية للشركة من شهادة التسجيل (للإعدادات الافتراضية): الحقول الفارغة فقط داخل معاملة مع قفل الصف،
+   * ويُختار وضع «مسجلة» إن اكتملت البيانات وكان النظام غير مفعّل ولا مستندات قيد الإعداد. لا يعمل بعد بدء الربط مع «فاتورة».
+   * يعيد عدد الحقول التي عُبئت وما ينقص، أو null إن كانت الشركة مربوطة أو في مرحلة الربط.
+   */
+  async applyTaxProfile(a: OrgUser) {
+    const org = a.organizationId;
+    const p = COMPANY_TAX_PROFILE;
+    await this.core.settings(org);
+    return this.db.transaction(async (em) => {
+      const s = await em.getRepository(BlSettings).createQueryBuilder('s').setLock('pessimistic_write').where('s.organization_id = :org', { org }).getOneOrFail();
+      const [z] = await em.query('SELECT stage FROM bl_zatca WHERE organization_id = $1', [org]);
+      if (s.mode === 'integrated' || (z && z.stage !== 'none')) return null;
+      // بيانات شهادة رعاية وطن لا تُكتب إلا في منشأة الشركة (COMPANY_SLUG)
+      const company = await findCompany(em);
+      if (!company || company.id !== org) return 'not-company' as const;
+      const next: Partial<BlSettings> = {};
+      if (!s.sellerName) next.sellerName = p.sellerName;
+      if (!s.sellerNameEn) next.sellerNameEn = p.sellerNameEn;
+      if (!s.vatNumber) next.vatNumber = p.vatNumber;
+      if (!s.idType && !s.idNumber) { next.idType = p.idType; next.idNumber = p.idNumber; }
+      if (!s.vatEffectiveFrom) {
+        const [{ taxed }] = await em.query(
+          `SELECT COUNT(*)::int AS taxed FROM bl_documents WHERE organization_id = $1 AND kind = 'invoice' AND status = ANY($2) AND doc_type <> 'nontax'
+              AND LEAST(issue_date, COALESCE(supply_date, issue_date)) < $3`, [org, ISSUED, p.vatEffectiveFrom]);
+        if (!taxed) next.vatEffectiveFrom = p.vatEffectiveFrom;
+      }
+      if (!s.address) {
+        next.address = { ...p.address };
+      } else {
+        const fill = Object.fromEntries(Object.entries(p.address).filter(([k, v]) => v && !s.address![k as keyof NationalAddress]));
+        if (Object.keys(fill).length) next.address = { ...s.address, ...fill };
+      }
+      const merged = { ...s, ...next } as BlSettings;
+      if (merged.vatRate <= 0) next.vatRate = 15;
+      const missing = this.core.readiness({ ...merged, mode: 'registered' } as BlSettings).missing;
+      if (s.mode === 'off' && !missing.length && merged.vatEffectiveFrom) {
+        const [{ n }] = await em.query(`SELECT COUNT(*)::int AS n FROM bl_documents WHERE organization_id = $1 AND status IN ('draft', 'pending')`, [org]);
+        if (!n) next.mode = 'registered';
+      }
+      const filled = Object.keys(next).length;
+      if (filled) {
+        const note = diffNote(s as never, { ...s, ...next } as never, {
+          mode: 'الوضع', sellerName: 'اسم الشركة', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
+          address: 'العنوان الوطني', vatRate: 'نسبة الضريبة', vatEffectiveFrom: 'تاريخ نفاذ التسجيل',
+        });
+        await em.getRepository(BlSettings).update({ organizationId: org }, {
+          ...next, log: [...s.log, logEntry('تعبئة البيانات الضريبية من شهادة التسجيل ضمن الإعدادات الافتراضية', a.fullName, note)].slice(-200), updatedAt: new Date(),
+        });
+      }
+      return { filled, missing, registered: (next.mode ?? s.mode) === 'registered' };
+    });
+  }
+
   async saveSettings(a: OrgUser, dto: BillingSettingsDto) {
     const org = a.organizationId;
     const s = await this.core.settings(org);
@@ -73,6 +129,7 @@ export class BillingOpsService {
       if (!dto.idType || !dto.idNumber) missing.push('المعرّف الآخر (السجل أو ترخيص الشركة)');
       if (!dto.vatOutputAccountId) missing.push('حساب ضريبة المخرجات');
       missing.push(...addressProblems(address, 'الشركة'));
+      if (!dto.vatEffectiveFrom) missing.push('تاريخ نفاذ التسجيل كما في شهادة التسجيل');
       if (missing.length) throw new BadRequestException(`الشركة المسجلة في الضريبة تحتاج: ${missing.join('، ')}`);
       if (dto.vatRate <= 0) throw new BadRequestException('نسبة الضريبة الأساسية للشركة المسجلة أكبر من صفر');
     }
@@ -80,7 +137,11 @@ export class BillingOpsService {
       const [{ n }] = await this.db.query(`SELECT COUNT(*)::int AS n FROM bl_documents WHERE organization_id = $1 AND status IN ('draft', 'pending')`, [org]);
       if (n) throw new BadRequestException(`يوجد ${n} مستند لم يصدر بعد. أصدرها أو ألغها قبل تغيير وضع الشركة الضريبي`);
     }
+    const vatEffectiveFrom = dto.vatEffectiveFrom ?? null;
+    if (dto.mode === 'registered' && (vatEffectiveFrom ?? null) !== (s.vatEffectiveFrom ?? null)) await this.assertEffectiveDate(org, vatEffectiveFrom);
+    if (dto.paymentCashAccountId && !(await this.core.paymentBank(org, dto.paymentCashAccountId))) throw new BadRequestException('الحساب البنكي للسداد غير موجود أو موقوف أو ليس حسابًا بنكيًا');
     const next: Partial<BlSettings> = {
+      vatEffectiveFrom, paymentCashAccountId: dto.paymentCashAccountId ?? null,
       mode: dto.mode, sellerName: dto.sellerName ?? null, sellerNameEn: dto.sellerNameEn ?? null, vatNumber, idType: dto.idType ?? null, idNumber: cleanDigits(dto.idNumber),
       address, vatRate: r2(dto.vatRate), receivablesAccountId: dto.receivablesAccountId ?? null, vatOutputAccountId: dto.vatOutputAccountId ?? null,
       revenueAccountId: dto.revenueAccountId ?? null, customerCategoryId: dto.customerCategoryId ?? null, analyticId: dto.analyticId ?? null,
@@ -90,11 +151,25 @@ export class BillingOpsService {
       mode: 'الوضع', sellerName: 'اسم الشركة', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
       address: 'العنوان الوطني', vatRate: 'نسبة الضريبة', receivablesAccountId: 'حساب العملاء', vatOutputAccountId: 'حساب ضريبة المخرجات', revenueAccountId: 'حساب الإيراد',
       customerCategoryId: 'تصنيف العملاء', analyticId: 'مركز التكلفة', paymentDays: 'مدة السداد', terms: 'الشروط', separateIssuer: 'فصل المُعدّ عن المُصدِر',
+      vatEffectiveFrom: 'تاريخ نفاذ التسجيل', paymentCashAccountId: 'الحساب البنكي في الفاتورة',
     });
     await this.db.getRepository(BlSettings).update({ organizationId: org }, {
       ...next, log: [...s.log, logEntry('تعديل إعدادات الفوترة', a.fullName, note)].slice(-200), updatedAt: new Date(),
     });
     return this.core.lookups(org);
+  }
+
+  /**
+   * تغيير تاريخ نفاذ التسجيل لا يجعل مستندًا صادرًا مخالفًا له: لا فاتورة ضريبية صادرة قبل التاريخ الجديد،
+   * ولا فاتورة عادية صادرة بعده (والإشعارات تتبع فاتورتها الأصلية فلا تدخل في الفحص).
+   */
+  private async assertEffectiveDate(org: string, from: string | null) {
+    const [r] = await this.db.query(
+      `SELECT COUNT(*) FILTER (WHERE doc_type <> 'nontax' AND $2::date IS NOT NULL AND LEAST(issue_date, COALESCE(supply_date, issue_date)) < $2::date)::int AS taxed,
+              COUNT(*) FILTER (WHERE doc_type = 'nontax' AND ($2::date IS NULL OR LEAST(issue_date, COALESCE(supply_date, issue_date)) >= $2::date))::int AS plain
+         FROM bl_documents WHERE organization_id = $1 AND kind = 'invoice' AND status = ANY($3)`, [org, from, ISSUED]);
+    if (r.taxed) throw new BadRequestException(`صدرت ${r.taxed} فاتورة ضريبية قبل ${from}، فلا يكون تاريخ نفاذ التسجيل بعدها`);
+    if (r.plain) throw new BadRequestException(`صدرت ${r.plain} فاتورة عادية بلا ضريبة بعد هذا التاريخ، فلا يكون تاريخ نفاذ التسجيل قبلها`);
   }
 
   // ---------------- اللوحة ----------------

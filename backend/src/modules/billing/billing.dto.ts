@@ -27,6 +27,10 @@ export class BillingSettingsDto {
   @IsOptional() @IsString() @MaxLength(40) @digits() idNumber?: string | null;
   @IsOptional() @ValidateNested() @Type(() => AddressDto) address?: AddressDto | null;
   @IsNumber() @Min(0) @Max(100) vatRate!: number;
+  /** تاريخ نفاذ التسجيل في الضريبة كما في الشهادة (يلزم للشركة المسجلة) */
+  @IsOptional() @Matches(DATE, { message: 'تاريخ نفاذ التسجيل بصيغة YYYY-MM-DD' }) vatEffectiveFrom?: string | null;
+  /** الحساب البنكي المطبوع في الفاتورة للسداد */
+  @IsOptional() @IsUUID() paymentCashAccountId?: string | null;
   @IsOptional() @IsUUID() receivablesAccountId?: string | null;
   @IsOptional() @IsUUID() vatOutputAccountId?: string | null;
   @IsOptional() @IsUUID() revenueAccountId?: string | null;

@@ -32,7 +32,20 @@ export class BillingStarter implements StarterPack {
       key: 'accounts', label: 'ربط الفوترة بحسابات الدليل',
       detail: 'حساب العملاء (مدينون تجاريون)، وحساب ضريبة القيمة المضافة (مخرجات)، وحساب إيرادات الاستشارات، وتصنيف «عملاء». يُربط الناقص فقط، ولا يتغير وضع الشركة الضريبي ولا بياناتها الضريبية.',
       run: async (a) => this.linkAccounts(a),
+    }, {
+      key: 'tax-profile', label: 'البيانات الضريبية من شهادة التسجيل',
+      detail: 'اسم الشركة والرقم الضريبي 314466205600003 والسجل التجاري والعنوان، وتاريخ نفاذ التسجيل 1 ديسمبر 2026 (قبله تصدر فواتير عادية بلا ضريبة). يُعبأ الفارغ فقط، ويُختار وضع «مسجلة» إذا اكتملت البيانات وكان النظام غير مفعّل بعد.',
+      run: async (a) => this.taxProfile(a),
     }];
+  }
+
+  private async taxProfile(a: OrgUser) {
+    const r = await this.ops.applyTaxProfile(a);
+    if (r === null) return existing('الشركة بدأت الربط مع «فاتورة»، فتُعدّل بياناتها الضريبية من شاشة الربط');
+    if (r === 'not-company') return { added: 0, note: 'بيانات شهادة التسجيل خاصة بمنشأة رعاية وطن، فأدخل بيانات هذه المنشأة من الإعدادات' };
+    const left = r.missing.length ? `ينقص لوضع «مسجلة»: ${r.missing.join('، ')}` : '';
+    if (!r.filled) return left ? { added: 0, note: left } : existing('البيانات الضريبية مكتملة');
+    return { added: r.filled, note: left || (r.registered ? 'الشركة مسجلة في الضريبة من 1 ديسمبر 2026' : undefined) };
   }
 
   private async linkAccounts(a: OrgUser) {

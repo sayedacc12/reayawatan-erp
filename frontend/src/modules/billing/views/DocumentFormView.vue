@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import { billingLookups, money, sar } from '../lib';
+import { billingLookups, money, sar, today } from '../lib';
 import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
@@ -61,9 +61,17 @@ async function loadRef(id: string, fill: boolean) {
 }
 
 const isNote = computed(() => f.value.kind !== 'invoice');
-const taxable = computed(() => lk.value?.settings?.mode !== 'unregistered');
+/** الوضع الفعلي اليوم: الشركة المسجلة قبل نفاذ تسجيلها تصدر فواتير عادية بلا ضريبة */
+const effMode = computed(() => {
+  const s = lk.value?.settings;
+  if (!s) return 'off';
+  const eff = s.vatEffectiveFrom;
+  const point = f.value.supplyDate && f.value.supplyDate < today() ? f.value.supplyDate : today();
+  return (s.mode === 'registered' || s.mode === 'integrated') && eff && point < eff ? 'unregistered' : s.mode;
+});
+const taxable = computed(() => (isNote.value ? ref0.value?.docType !== 'nontax' : effMode.value !== 'unregistered'));
 const customer = computed(() => customers.value.find((c) => c.id === f.value.customerId) ?? null);
-const autoType = computed(() => (isNote.value ? ref0.value?.docType : f.value.docType || (lk.value?.settings?.mode === 'unregistered' ? 'nontax' : customer.value?.kind === 'business' ? 'standard' : 'simplified')));
+const autoType = computed(() => (isNote.value ? ref0.value?.docType : f.value.docType || (effMode.value === 'unregistered' ? 'nontax' : customer.value?.kind === 'business' ? 'standard' : 'simplified')));
 function pickItem(l: any) {
   const it = items.value.find((x) => x.id === l.itemId);
   if (!it) return;
@@ -133,6 +141,7 @@ const title = computed(() => `${props.id ? 'تعديل' : 'إعداد'} ${lk.val
         </p>
       </div>
     </div>
+    <div v-if="!isNote && effMode === 'unregistered' && lk.settings.mode !== 'unregistered'" class="alert alert-info">التسجيل في ضريبة القيمة المضافة ينفذ في {{ lk.settings.vatEffectiveFrom }}، فهذه فاتورة عادية بلا ضريبة. الفواتير من هذا التاريخ تصدر ضريبية برمز QR.</div>
     <div v-if="lk.settings.mode === 'off'" class="alert alert-error">فعّل نظام الفوترة واختر وضع الشركة الضريبي من الإعدادات أولًا.</div>
 
     <form class="card pm-panel" @submit.prevent="save(false)">
@@ -145,7 +154,7 @@ const title = computed(() => `${props.id ? 'تعديل' : 'إعداد'} ${lk.val
           <label class="field"><span>نوع الفاتورة</span>
             <select v-model="f.docType" class="input">
               <option value="">تلقائي ({{ lk.docTypes[autoType] }})</option>
-              <template v-if="lk.settings.mode !== 'unregistered'"><option value="standard">{{ lk.docTypes.standard }}</option><option value="simplified">{{ lk.docTypes.simplified }}</option></template>
+              <template v-if="effMode !== 'unregistered'"><option value="standard">{{ lk.docTypes.standard }}</option><option value="simplified">{{ lk.docTypes.simplified }}</option></template>
             </select>
           </label>
           <label class="field"><span>تاريخ الاستحقاق</span><input v-model="f.dueDate" type="date" class="input" /><small class="pm-muted">افتراضيًا بعد {{ lk.settings.paymentDays }} يومًا</small></label>

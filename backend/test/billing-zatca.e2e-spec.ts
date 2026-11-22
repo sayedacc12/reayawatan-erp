@@ -150,7 +150,7 @@ describe('Billing stage 2: ZATCA onboarding, signed XML and the hash chain', () 
     await user('issuer', 'مدير المبيعات', await role('إصدار', ['billing.dashboard.read', 'billing.invoices.issue']));
 
     await http.put(`${B}/settings`).set(as(tok.admin)).send({
-      mode: 'registered', sellerName: 'جمعية المبيعات', vatNumber: '310123456700003', idType: 'CRN', idNumber: '1010123456', address: ADDRESS, vatRate: 15,
+      mode: 'registered', sellerName: 'جمعية المبيعات', vatNumber: '310123456700003', idType: 'CRN', idNumber: '1010123456', address: ADDRESS, vatRate: 15, vatEffectiveFrom: '2020-01-01',
       receivablesAccountId: acc.ar, vatOutputAccountId: acc.vat, revenueAccountId: acc.revenue, paymentDays: 30,
     }).expect(200);
     ids.business = (await http.post(`${B}/customers`).set(as(tok.clerk)).send({ kind: 'business', name: 'شركة النخبة', vatNumber: '300075588700003', address: ADDRESS }).expect(200)).body.id;

@@ -4,7 +4,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { toLatinDigits } from '../../core/contact-validation';
 import {
   BILLING_MODES, BlSettings, BuyerSnapshot, CUSTOMER_KINDS, DOC_KINDS, DOC_STATUS, DOC_TYPES, DocKind, DocLine, ID_TYPES, ITEM_KINDS, LogEntry, NOTE_REASONS,
-  NationalAddress, SELLER_ID_TYPES, VAT_CATEGORIES, VAT_REASONS, VatBreakdown, VatCategory,
+  NationalAddress, PaymentBank, SELLER_ID_TYPES, VAT_CATEGORIES, VAT_REASONS, VatBreakdown, VatCategory,
 } from './entities/billing.entity';
 
 /** تاريخ اليوم بتوقيت الرياض */
@@ -27,6 +27,18 @@ export const customerCode = (n: number) => `CUS-${pad(n, 4)}`;
 export const toH = (n: number | string | null | undefined) => Math.round(Number(n ?? 0) * 100);
 export const fromH = (h: number) => h / 100;
 export const r2 = (n: number) => fromH(toH(n));
+
+/**
+ * الوضع الضريبي الفعلي في تاريخ معيّن: الشركة المسجلة قبل تاريخ نفاذ تسجيلها تعامل كغير مسجلة،
+ * فتصدر فواتير عادية بلا ضريبة ولا رقم ضريبي ولا رمز QR. لا تُحصّل ضريبة قبل نفاذ التسجيل.
+ */
+export function modeOn(s: Pick<BlSettings, 'mode' | 'vatEffectiveFrom'>, date: string): BlSettings['mode'] {
+  if ((s.mode === 'registered' || s.mode === 'integrated') && s.vatEffectiveFrom && date < s.vatEffectiveFrom) return 'unregistered';
+  return s.mode;
+}
+
+/** تاريخ استحقاق الضريبة (نقطة الضريبة) للتحقق من نفاذ التسجيل: الأسبق من تاريخ الإصدار وتاريخ التوريد */
+export const taxPoint = (issueDate: string, supplyDate: string | null | undefined) => (supplyDate && supplyDate < issueDate ? supplyDate : issueDate);
 
 /** الرقم الضريبي السعودي: 15 رقمًا يبدأ وينتهي بـ 3 */
 export const vatProblem = (v: string) => (/^3\d{13}3$/.test(v) ? null : 'الرقم الضريبي 15 رقمًا يبدأ بـ 3 وينتهي بـ 3');
@@ -165,6 +177,21 @@ export class BillingCore {
     return a as { id: string; code: string; name: string };
   }
 
+  /**
+   * الحساب البنكي المطبوع في الفاتورة: المختار في الإعدادات، وإلا الحساب البنكي النشط الوحيد في «البنوك والصناديق».
+   * إن وُجد أكثر من حساب بنكي ولم يُختر أحدها فلا يظهر حساب. البيانات تُقرأ من شاشة البنوك، ولا تُكتب من الكود.
+   */
+  async paymentBank(org: string, id: string | null | undefined, em: EntityManager = this.db.manager): Promise<PaymentBank | null> {
+    if (!id) {
+      const banks: { id: string }[] = await em.query(`SELECT id FROM acc_cash_accounts WHERE organization_id = $1 AND kind = 'bank' AND is_active LIMIT 2`, [org]);
+      if (banks.length !== 1) return null;
+      id = banks[0].id;
+    }
+    const [c] = await em.query(`SELECT name, bank_name, iban, kind, is_active FROM acc_cash_accounts WHERE organization_id = $1 AND id = $2`, [org, id]);
+    if (!c || c.kind !== 'bank' || !c.is_active) return null;
+    return { bankName: c.bank_name ?? null, accountName: c.name, iban: c.iban ?? null };
+  }
+
   /** ما ينقص الشركة لإصدار الفواتير في وضعها الحالي */
   readiness(s: BlSettings) {
     const missing: string[] = [];
@@ -178,7 +205,13 @@ export class BillingCore {
       if (!s.idType || !s.idNumber) missing.push('المعرّف الآخر للشركة (السجل أو ترخيص الشركة)');
       missing.push(...addressProblems(s.address, 'الشركة'));
     }
-    return { ready: !missing.length, missing };
+    const today = blToday();
+    const vat = {
+      effectiveFrom: s.vatEffectiveFrom, activeToday: modeOn(s, today) === 'registered' || modeOn(s, today) === 'integrated',
+      note: s.vatEffectiveFrom && modeOn(s, today) === 'unregistered' && s.mode !== 'unregistered'
+        ? `التسجيل في الضريبة ينفذ في ${s.vatEffectiveFrom}، فالفواتير قبله فواتير عادية بلا ضريبة` : null,
+    };
+    return { ready: !missing.length, missing, vat };
   }
 
   assertReady(s: BlSettings) {
@@ -193,10 +226,10 @@ export class BillingCore {
       this.db.query(`SELECT id, code, name, nature FROM acc_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active AND nature IN ('assets', 'liabilities', 'revenue') ORDER BY code`, [org]),
       this.db.query(`SELECT id, code, name FROM acc_analytic_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active ORDER BY code`, [org]).catch(() => []),
       this.db.query(`SELECT id, name FROM acc_partner_categories WHERE organization_id = $1 AND behavior = 'customer' ORDER BY sort_order, name`, [org]).catch(() => []),
-      this.db.query(`SELECT id, name, kind FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]),
+      this.db.query(`SELECT id, name, kind, bank_name AS "bankName", iban FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]),
     ]);
     return {
-      settings: s, readiness: this.readiness(s), accounts, analytics, partnerCategories: categories, cashAccounts: cash,
+      settings: s, readiness: this.readiness(s), effectiveMode: modeOn(s, blToday()), accounts, analytics, partnerCategories: categories, cashAccounts: cash,
       modes: BILLING_MODES, idTypes: ID_TYPES, sellerIdTypes: SELLER_ID_TYPES, vatCategories: VAT_CATEGORIES,
       vatReasons: Object.entries(VAT_REASONS).map(([code, r]) => ({ code, ...r })), itemKinds: ITEM_KINDS, customerKinds: CUSTOMER_KINDS,
       docKinds: DOC_KINDS, docTypes: DOC_TYPES, docStatus: DOC_STATUS, noteReasons: NOTE_REASONS,
