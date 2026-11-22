@@ -2,7 +2,8 @@ import { BadRequestException, ConflictException, Injectable, Logger } from '@nes
 import ExcelJS from 'exceljs';
 import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
-import { MAX_LEVELS } from './accounts.service';
+import { assertSafeXlsx } from '../../core/files/xlsx-guard';
+import { lockChart, MAX_LEVELS } from './accounts.service';
 import { Account, AccountKind, AccountNature } from './entities/accounting.entity';
 
 /** أعمدة نموذج استيراد الدليل بالترتيب */
@@ -106,6 +107,7 @@ export class ChartImportService {
     if (mode !== 'check' && mode !== 'apply') throw new BadRequestException('وضع الاستيراد غير صحيح');
     if (!file?.buffer?.length) throw new BadRequestException('اختر ملف Excel');
     if (!/\.xlsx$/i.test(file.originalname)) throw new BadRequestException('الملف يجب أن يكون Excel بصيغة xlsx (استخدم النموذج المنزَّل من النظام)');
+    assertSafeXlsx(file.buffer);
     const wb = new ExcelJS.Workbook();
     try {
       await wb.xlsx.load(file.buffer as unknown as ArrayBuffer);
@@ -132,7 +134,7 @@ export class ChartImportService {
     if (mode === 'check') return this.evaluate(org, rows, mode, (await this.existing(org)));
     // الحفظ داخل معاملة واحدة مع قفل دليل الشركة، فيُعاد الفحص على الدليل كما هو لحظة الحفظ
     return this.db.transaction(async (em) => {
-      await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`acc_chart:${org}`]);
+      await lockChart(em, org);
       const result = this.evaluate(org, rows, mode, await this.existing(org, em));
       const ids = new Map<string, string>((await em.query('SELECT id, code FROM acc_accounts WHERE organization_id = $1', [org]) as { id: string; code: string }[]).map((x) => [x.code, x.id]));
       const byRow = new Map(rows.map((r) => [r.row, r.v]));

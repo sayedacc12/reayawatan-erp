@@ -17,6 +17,9 @@ export const KIND_AR: Record<AccountKind, string> = { root: 'جذري', main: '�
  * الدليل المحاسبي (جذري ← رئيسي ← فرعي، حتى 9 مستويات، والفرعية كلها في مستوى واحد)
  * والحسابات التحليلية (رئيسي وفرعي، حتى 3 مستويات، والتسجيل على الفرعي فقط).
  */
+/** قفل دليل الشركة: الإضافة والتعديل والحذف والتنصيب والاستيراد لا تتداخل، فيبقى فحص مستوى التسجيل صحيحًا */
+export const lockChart = (em: EntityManager, org: string) => em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`acc_chart:${org}`]);
+
 @Injectable()
 export class AccountsService {
   constructor(
@@ -121,6 +124,7 @@ export class AccountsService {
   async create(actor: OrgUser, dto: AccountDto) {
     const org = actor.organizationId;
     return this.db.transaction(async (em) => {
+      await lockChart(em, org);
       await this.assertCodeFree(org, dto.code, em);
       const { level } = await this.checkStructure(org, em, dto.kind, dto.parentId);
       const a = await em.getRepository(Account).save(em.create(Account, {
@@ -134,6 +138,7 @@ export class AccountsService {
   async update(actor: OrgUser, id: string, dto: AccountUpdateDto) {
     const org = actor.organizationId;
     return this.db.transaction(async (em) => {
+      await lockChart(em, org);
       const a = await this.find(org, id, em);
       const moves = await this.hasMoves(org, id, em);
       const children = await em.getRepository(Account).count({ where: { organizationId: org, parentId: id } });
@@ -168,6 +173,7 @@ export class AccountsService {
   async remove(actor: OrgUser, id: string) {
     const org = actor.organizationId;
     await this.db.transaction(async (em) => {
+      await lockChart(em, org);
       const a = await this.find(org, id, em);
       if (await em.getRepository(Account).exist({ where: { organizationId: org, parentId: id } })) {
         throw new ConflictException('احذف الحسابات التي تحت هذا الحساب أولًا');
@@ -207,6 +213,7 @@ export class AccountsService {
   async installChart(actor: OrgUser) {
     const org = actor.organizationId;
     return this.db.transaction(async (em) => {
+      await lockChart(em, org);
       if (await em.getRepository(Account).exist({ where: { organizationId: org } })) {
         throw new ConflictException('الدليل المحاسبي فيه حسابات بالفعل. تنصيب دليل الشركات الجاهز متاح في بداية الإعداد فقط والدليل فارغ');
       }

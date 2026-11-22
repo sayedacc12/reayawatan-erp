@@ -131,7 +131,7 @@ describe('Procurement stage 3: receipts, stock and warehouse vouchers', () => {
   it('validates warehouse settings by account nature', async () => {
     const base = { expiryAlertDays: 60, overReceiptPct: 0, vatInCost: true, requireInspection: false };
     const bad = await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({ ...base, grniAccountId: acc.grni, openingAccountId: acc.expense }).expect(400);
-    expect(bad.body.message).toContain('صافي الأصول');
+    expect(bad.body.message).toContain('حقوق الملكية');
     // لا حساب للتبرعات العينية في رعاية وطن
     await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({ ...base, grniAccountId: acc.grni, donationAccountId: acc.donation }).expect(400);
     const s = (await http.put(`${PR}/stock-settings`).set(as(tok.admin)).send({

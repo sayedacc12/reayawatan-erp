@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import ExcelJS from 'exceljs';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { crc32, deflateRawSync } from 'zlib';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 
@@ -19,6 +20,21 @@ async function xlsx(rows: string[][], header = HEADER) {
   ws.addRow(header);
   rows.forEach((r) => ws.addRow(r));
   return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+
+/** أرشيف zip بجزء واحد مضغوط (لاختبار الملف الصغير الذي يتمدد عند فكه) */
+function zipOf(name: string, content: Buffer) {
+  const data = deflateRawSync(content);
+  const n = Buffer.from(name);
+  const loc = Buffer.alloc(30); loc.writeUInt32LE(0x04034b50, 0); loc.writeUInt16LE(20, 4); loc.writeUInt16LE(8, 8);
+  loc.writeUInt32LE(crc32(content), 14); loc.writeUInt32LE(data.length, 18); loc.writeUInt32LE(content.length, 22); loc.writeUInt16LE(n.length, 26);
+  const cen = Buffer.alloc(46); cen.writeUInt32LE(0x02014b50, 0); cen.writeUInt16LE(20, 4); cen.writeUInt16LE(20, 6); cen.writeUInt16LE(8, 10);
+  cen.writeUInt32LE(crc32(content), 16); cen.writeUInt32LE(data.length, 20); cen.writeUInt32LE(content.length, 24); cen.writeUInt16LE(n.length, 28); cen.writeUInt32LE(0, 42);
+  const cenAt = 30 + n.length + data.length;
+  const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(46 + n.length, 12); end.writeUInt32LE(cenAt, 16);
+  return Buffer.concat([loc, n, data, cen, n, end]);
 }
 
 describe('Companies chart and chart import from Excel', () => {
@@ -103,6 +119,16 @@ describe('Companies chart and chart import from Excel', () => {
   it('rejects a file that is not the template', async () => {
     const r = await upload(admin, await xlsx([['1', 'الأصول']], ['رقم', 'اسم'])).expect(400);
     expect(r.body.message).toContain('ليس نموذج استيراد الدليل');
+  });
+
+
+  it('rejects a file that is not a real xlsx, or that expands too much when unzipped', async () => {
+    await upload(admin, Buffer.from('not an excel file at all')).expect(400);
+    const bomb = zipOf('xl/sharedStrings.xml', Buffer.alloc(40 * 1024 * 1024, 0x41));
+    expect(bomb.length).toBeLessThan(200 * 1024);
+    const r = await upload(admin, bomb).expect(400);
+    expect(r.body.message).toContain('أكبر من المسموح');
+    expect(await count(orgA)).toBe(0);
   });
 
   const FILE: string[][] = [

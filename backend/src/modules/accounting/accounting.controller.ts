@@ -35,6 +35,8 @@ const kindOf = (k: string): VoucherKind => {
 };
 
 /** النظام المالي: الافتتاحيات، الدليل والتحليلي، البيانات الأساسية، القيود والترحيل، السندات، المحضر، التقارير */
+const CHART_FILE_BYTES = 2 * 1024 * 1024;
+
 @Controller('accounting')
 export class AccountingController {
   constructor(
@@ -227,9 +229,11 @@ export class AccountingController {
   // ---------------- الدليل والتحليلي ----------------
 
   // ---------------- استيراد الدليل من Excel ----------------
+  // 5000 حساب أقل من 1MB، فحد 2MB كافٍ ويقلل أثر الملفات المضغوطة المتضخمة
 
   @Get('accounts/import/template')
   @RequirePermissions(P.accounts)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async chartTemplate(@Res() res: Response) {
     const buf = await this.chartImport.template();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -241,7 +245,7 @@ export class AccountingController {
   @Post('accounts/import')
   @RequirePermissions(P.accounts)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: CHART_FILE_BYTES, files: 1 } }))
   importChart(@CurrentOrgUser() actor: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
     return this.chartImport.import(actor, file, mode ?? 'check');
   }
