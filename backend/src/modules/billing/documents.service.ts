@@ -300,6 +300,9 @@ export class DocumentsService implements OnModuleInit {
     const date = dto.date ?? today;
     if (date > today) throw new BadRequestException('تاريخ الإصدار في المستقبل');
     await this.db.transaction(async (em) => {
+      // الإعدادات تُقرأ ثانية بقفل مشترك: لا يتغير تاريخ النفاذ أو الوضع بين الفحص والإصدار
+      const s = await em.getRepository(BlSettings).createQueryBuilder('s').setLock('pessimistic_read').where('s.organization_id = :org', { org }).getOneOrFail();
+      this.core.assertReady(s);
       const d = await this.lock(em, org, id);
       if (d.status !== 'pending') throw new ConflictException(d.status === 'draft' ? 'أرسل المستند للإصدار أولًا' : 'المستند لا ينتظر الإصدار');
       if (s.separateIssuer && !a.isSuperadmin && (d.createdById === a.id || d.editorIds.includes(a.id))) throw new ForbiddenException('لا يصدر الموظف مستندًا أنشأه أو عدّله أو أرسله بنفسه (فصل المهام)');
@@ -351,6 +354,9 @@ export class DocumentsService implements OnModuleInit {
       if (last && date < last) throw new BadRequestException(`تاريخ الإصدار قبل تاريخ آخر مستند صادر (${last})، فاختر ${last} أو بعده`);
       d.seller = seller;
       d.issuedMode = mode;
+      if (pre && d.kind === 'invoice' && s.vatEffectiveFrom && date >= s.vatEffectiveFrom) {
+        d.log = [...d.log, logEntry('بلا ضريبة لأن تاريخ التوريد قبل نفاذ التسجيل', a.fullName, `التوريد ${d.supplyDate} والنفاذ ${s.vatEffectiveFrom}`)];
+      }
       d.qr = d.docType !== 'nontax' && s.vatNumber
         ? qrTlv({ seller: s.sellerName!, vatNumber: s.vatNumber, timestamp: `${date}T${issuedAt.toISOString().slice(11, 19)}Z`, total: d.total, vat: d.vat })
         : null;

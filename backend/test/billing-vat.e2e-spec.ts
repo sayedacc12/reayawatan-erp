@@ -111,9 +111,10 @@ describe('Billing: VAT start date, bank details on invoices and the quarterly VA
   it('requires the registration effective date for a registered company', async () => {
     const r = await http.put(`${B}/settings`).set(as(pre.admin)).send(pre.settings).expect(400);
     expect(r.body.message).toContain('تاريخ نفاذ التسجيل');
-    const ok = (await http.put(`${B}/settings`).set(as(pre.admin)).send({ ...pre.settings, vatEffectiveFrom: tomorrow }).expect(200)).body;
-    // بلا اختيار حساب: يظهر في الفاتورة الحساب البنكي النشط الوحيد
-    expect(ok.settings).toMatchObject({ mode: 'registered', vatEffectiveFrom: tomorrow, paymentCashAccountId: null });
+    await http.put(`${B}/settings`).set(as(pre.admin)).send({ ...pre.settings, vatEffectiveFrom: '2026-02-31' }).expect(400);
+    const ok = (await http.put(`${B}/settings`).set(as(pre.admin)).send({ ...pre.settings, vatEffectiveFrom: tomorrow, paymentCashAccountId: pre.bank }).expect(200)).body;
+    expect(ok.settings).toMatchObject({ mode: 'registered', vatEffectiveFrom: tomorrow, paymentCashAccountId: pre.bank });
+    expect(ok.settings.log.at(-1).note).toContain('آيبان ينتهي بـ 7519');
     expect(ok.effectiveMode).toBe('unregistered');
     expect(ok.readiness.vat).toMatchObject({ effectiveFrom: tomorrow, activeToday: false });
     expect(ok.readiness.vat.note).toContain(tomorrow);
@@ -160,6 +161,11 @@ describe('Billing: VAT start date, bank details on invoices and the quarterly VA
     // تأخير تاريخ النفاذ بعد فاتورة ضريبية صادرة مرفوض
     const r = await http.put(`${B}/settings`).set(as(live.admin)).send({ ...live.settings, vatEffectiveFrom: tomorrow, paymentCashAccountId: live.bank }).expect(400);
     expect(r.body.message).toContain('فاتورة ضريبية');
+    // ولا بحفظين: «غير مسجلة» بالتاريخ الجديد ثم «مسجلة» بالتاريخ نفسه
+    await http.put(`${B}/settings`).set(as(live.admin)).send({ ...live.settings, mode: 'unregistered', vatEffectiveFrom: tomorrow, paymentCashAccountId: live.bank }).expect(200);
+    const back = await http.put(`${B}/settings`).set(as(live.admin)).send({ ...live.settings, vatEffectiveFrom: tomorrow, paymentCashAccountId: live.bank }).expect(400);
+    expect(back.body.message).toContain('فاتورة ضريبية');
+    await http.put(`${B}/settings`).set(as(live.admin)).send({ ...live.settings, vatEffectiveFrom: yesterday, paymentCashAccountId: live.bank }).expect(200);
   });
 
   it('builds the quarterly VAT return draft, for the reports permission only', async () => {

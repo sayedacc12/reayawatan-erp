@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AsOfQueryDto, BillingSettingsDto } from './billing.dto';
 import { BillingCore, addressProblems, blToday, cleanDigits, diffNote, docCode, logEntry, r2 } from './billing-core.service';
@@ -75,12 +75,7 @@ export class BillingOpsService {
       if (!s.sellerNameEn) next.sellerNameEn = p.sellerNameEn;
       if (!s.vatNumber) next.vatNumber = p.vatNumber;
       if (!s.idType && !s.idNumber) { next.idType = p.idType; next.idNumber = p.idNumber; }
-      if (!s.vatEffectiveFrom) {
-        const [{ taxed }] = await em.query(
-          `SELECT COUNT(*)::int AS taxed FROM bl_documents WHERE organization_id = $1 AND kind = 'invoice' AND status = ANY($2) AND doc_type <> 'nontax'
-              AND LEAST(issue_date, COALESCE(supply_date, issue_date)) < $3`, [org, ISSUED, p.vatEffectiveFrom]);
-        if (!taxed) next.vatEffectiveFrom = p.vatEffectiveFrom;
-      }
+      if (!s.vatEffectiveFrom) next.vatEffectiveFrom = p.vatEffectiveFrom;
       if (!s.address) {
         next.address = { ...p.address };
       } else {
@@ -93,6 +88,15 @@ export class BillingOpsService {
       if (s.mode === 'off' && !missing.length && merged.vatEffectiveFrom) {
         const [{ n }] = await em.query(`SELECT COUNT(*)::int AS n FROM bl_documents WHERE organization_id = $1 AND status IN ('draft', 'pending')`, [org]);
         if (!n) next.mode = 'registered';
+      }
+      // التاريخ لا يخالف أي مستند صادر (فواتير ضريبية قبله أو عادية بعده)، وإلا لا يُكتب ولا يتغير الوضع
+      if (next.vatEffectiveFrom || next.mode === 'registered') {
+        try {
+          await this.assertEffectiveDate(org, merged.vatEffectiveFrom, em);
+        } catch {
+          delete next.vatEffectiveFrom;
+          delete next.mode;
+        }
       }
       const filled = Object.keys(next).length;
       if (filled) {
@@ -138,8 +142,8 @@ export class BillingOpsService {
       if (n) throw new BadRequestException(`يوجد ${n} مستند لم يصدر بعد. أصدرها أو ألغها قبل تغيير وضع الشركة الضريبي`);
     }
     const vatEffectiveFrom = dto.vatEffectiveFrom ?? null;
-    if (dto.mode === 'registered' && (vatEffectiveFrom ?? null) !== (s.vatEffectiveFrom ?? null)) await this.assertEffectiveDate(org, vatEffectiveFrom);
-    if (dto.paymentCashAccountId && !(await this.core.paymentBank(org, dto.paymentCashAccountId))) throw new BadRequestException('الحساب البنكي للسداد غير موجود أو موقوف أو ليس حسابًا بنكيًا');
+    const bank = dto.paymentCashAccountId ? await this.core.paymentBank(org, dto.paymentCashAccountId) : null;
+    if (dto.paymentCashAccountId && !bank) throw new BadRequestException('الحساب البنكي للسداد غير موجود أو موقوف أو ليس حسابًا بنكيًا');
     const next: Partial<BlSettings> = {
       vatEffectiveFrom, paymentCashAccountId: dto.paymentCashAccountId ?? null,
       mode: dto.mode, sellerName: dto.sellerName ?? null, sellerNameEn: dto.sellerNameEn ?? null, vatNumber, idType: dto.idType ?? null, idNumber: cleanDigits(dto.idNumber),
@@ -147,14 +151,23 @@ export class BillingOpsService {
       revenueAccountId: dto.revenueAccountId ?? null, customerCategoryId: dto.customerCategoryId ?? null, analyticId: dto.analyticId ?? null,
       paymentDays: dto.paymentDays, terms: dto.terms ?? null, separateIssuer: dto.separateIssuer ?? s.separateIssuer,
     };
-    const note = diffNote(s as never, next as never, {
+    const bankBefore = s.paymentCashAccountId ? await this.core.paymentBank(org, s.paymentCashAccountId) : null;
+    const bankLabel = (b: { bankName: string | null; accountName: string; iban: string | null } | null) => (b ? `${b.accountName}${b.iban ? ` (آيبان ينتهي بـ ${b.iban.slice(-4)})` : ''}` : null);
+    const note = diffNote({ ...s, paymentCashAccountId: bankLabel(bankBefore) } as never, { ...next, paymentCashAccountId: bankLabel(bank) } as never, {
       mode: 'الوضع', sellerName: 'اسم الشركة', sellerNameEn: 'الاسم بالإنجليزية', vatNumber: 'الرقم الضريبي', idType: 'نوع المعرّف', idNumber: 'رقم المعرّف',
       address: 'العنوان الوطني', vatRate: 'نسبة الضريبة', receivablesAccountId: 'حساب العملاء', vatOutputAccountId: 'حساب ضريبة المخرجات', revenueAccountId: 'حساب الإيراد',
       customerCategoryId: 'تصنيف العملاء', analyticId: 'مركز التكلفة', paymentDays: 'مدة السداد', terms: 'الشروط', separateIssuer: 'فصل المُعدّ عن المُصدِر',
       vatEffectiveFrom: 'تاريخ نفاذ التسجيل', paymentCashAccountId: 'الحساب البنكي في الفاتورة',
     });
-    await this.db.getRepository(BlSettings).update({ organizationId: org }, {
-      ...next, log: [...s.log, logEntry('تعديل إعدادات الفوترة', a.fullName, note)].slice(-200), updatedAt: new Date(),
+    await this.db.transaction(async (em) => {
+      // قفل الإعدادات وسلسلة الإصدار: لا يصدر مستند أثناء فحص تاريخ النفاذ وحفظه
+      const locked = await em.getRepository(BlSettings).createQueryBuilder('s').setLock('pessimistic_write').where('s.organization_id = :org', { org }).getOneOrFail();
+      await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`bl_icv:${org}`]);
+      // كلما كانت النتيجة «مسجلة» يُفحص التاريخ مقابل كل المستندات الصادرة، ولو لم يتغير التاريخ (حفظ بوضع آخر ثم العودة)
+      if (dto.mode === 'registered') await this.assertEffectiveDate(org, vatEffectiveFrom, em);
+      await em.getRepository(BlSettings).update({ organizationId: org }, {
+        ...next, log: [...locked.log, logEntry('تعديل إعدادات الفوترة', a.fullName, note)].slice(-200), updatedAt: new Date(),
+      });
     });
     return this.core.lookups(org);
   }
@@ -163,8 +176,8 @@ export class BillingOpsService {
    * تغيير تاريخ نفاذ التسجيل لا يجعل مستندًا صادرًا مخالفًا له: لا فاتورة ضريبية صادرة قبل التاريخ الجديد،
    * ولا فاتورة عادية صادرة بعده (والإشعارات تتبع فاتورتها الأصلية فلا تدخل في الفحص).
    */
-  private async assertEffectiveDate(org: string, from: string | null) {
-    const [r] = await this.db.query(
+  private async assertEffectiveDate(org: string, from: string | null, em: EntityManager = this.db.manager) {
+    const [r] = await em.query(
       `SELECT COUNT(*) FILTER (WHERE doc_type <> 'nontax' AND $2::date IS NOT NULL AND LEAST(issue_date, COALESCE(supply_date, issue_date)) < $2::date)::int AS taxed,
               COUNT(*) FILTER (WHERE doc_type = 'nontax' AND ($2::date IS NULL OR LEAST(issue_date, COALESCE(supply_date, issue_date)) >= $2::date))::int AS plain
          FROM bl_documents WHERE organization_id = $1 AND kind = 'invoice' AND status = ANY($3)`, [org, from, ISSUED]);

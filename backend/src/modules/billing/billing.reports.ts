@@ -188,14 +188,15 @@ export class BillingReports implements OnModuleInit {
     const today = blToday();
     const start = s.vatEffectiveFrom ?? today;
     const out: { value: string; label: string }[] = [];
-    let y = Number(start.slice(0, 4));
-    let q = Math.floor((Number(start.slice(5, 7)) - 1) / 3) + 1;
-    const endY = Number(today.slice(0, 4));
-    const endQ = Math.floor((Number(today.slice(5, 7)) - 1) / 3) + 1;
-    while ((y < endY || (y === endY && q <= endQ)) && out.length < 40) {
-      const p = quarterPeriod(`${y}-Q${q}`, s.vatEffectiveFrom)!;
-      out.unshift({ value: `${y}-Q${q}`, label: `الربع ${QN[q - 1]} ${y} (${p.from} إلى ${p.to})، الإقرار مستحق ${p.due}` });
-      if (++q > 4) { q = 1; y++; }
+    // من الربع الحالي رجوعًا حتى ربع نفاذ التسجيل (آخر 40 ربعًا على الأكثر)، فيظهر الربع الحالي دائمًا
+    let y = Number(today.slice(0, 4));
+    let q = Math.floor((Number(today.slice(5, 7)) - 1) / 3) + 1;
+    const startY = Number(start.slice(0, 4));
+    const startQ = Math.floor((Number(start.slice(5, 7)) - 1) / 3) + 1;
+    while ((y > startY || (y === startY && q >= startQ)) && out.length < 40) {
+      const p = quarterPeriod(`${y}-Q${q}`, s.vatEffectiveFrom);
+      if (p) out.push({ value: `${y}-Q${q}`, label: `الربع ${QN[q - 1]} ${y} (${p.from} إلى ${p.to})، الإقرار مستحق ${p.due}` });
+      if (--q < 1) { q = 4; y--; }
     }
     return out;
   }
@@ -213,7 +214,7 @@ export class BillingReports implements OnModuleInit {
     const sales: { kind: DocKind; category: string; reason: string | null; taxable: string; vat: string }[] = await this.db.query(
       `SELECT d.kind, b->>'category' AS category, b->>'reasonCode' AS reason, SUM((b->>'taxable')::numeric) AS taxable, SUM((b->>'vat')::numeric) AS vat
          FROM bl_documents d CROSS JOIN LATERAL jsonb_array_elements(d.breakdown) b
-        WHERE d.organization_id = $1 AND d.status = ANY($2) AND d.doc_type <> 'nontax' AND d.issue_date BETWEEN $3 AND $4
+        WHERE d.organization_id = $1 AND d.status = ANY($2) AND d.doc_type <> 'nontax' AND (CASE WHEN d.kind = 'invoice' THEN LEAST(d.issue_date, COALESCE(d.supply_date, d.issue_date)) ELSE d.issue_date END) BETWEEN $3 AND $4
         GROUP BY 1, 2, 3`, [org, ISSUED, p.from, p.to]);
     const box = (category: string, reason: string | null): 1 | 2 | 3 | 4 | 5 | null => {
       if (category === 'S') return 1;
@@ -232,8 +233,10 @@ export class BillingReports implements OnModuleInit {
       if (r.kind === 'credit_note') { x.adj -= t; x.vat -= v; } else { x.amount += t; x.vat += v; }
     }
     const [plain] = await this.db.query(
-      `SELECT COUNT(*)::int AS n, COALESCE(SUM(CASE WHEN kind = 'credit_note' THEN -taxable ELSE taxable END), 0) AS v FROM bl_documents
-        WHERE organization_id = $1 AND status = ANY($2) AND doc_type = 'nontax' AND issue_date BETWEEN $3 AND $4`, [org, ISSUED, p.from, p.to]);
+      `SELECT COUNT(*)::int AS n, COALESCE(SUM(CASE WHEN kind = 'credit_note' THEN -taxable ELSE taxable END), 0) AS v,
+              COUNT(*) FILTER (WHERE kind = 'invoice' AND $5::date IS NOT NULL AND issue_date >= $5::date)::int AS late
+         FROM bl_documents
+        WHERE organization_id = $1 AND status = ANY($2) AND doc_type = 'nontax' AND issue_date BETWEEN $3 AND $4`, [org, ISSUED, p.from, p.to, s.vatEffectiveFrom]);
     // ---- المشتريات: فواتير الموردين المسجلة في النظام المالي (قراءة فقط من نظام المشتريات) ----
     const [pr] = await this.db.query(`SELECT vat_in_cost, vat_input_account_id FROM pr_settings WHERE organization_id = $1`, [org]);
     const purchases: { kind: string; taxed: boolean; no_vat_no: boolean; base: string; vat: string; n: number }[] = await this.db.query(
@@ -288,8 +291,10 @@ export class BillingReports implements OnModuleInit {
     const glIn = recoverable ? await gl(pr?.vat_input_account_id) : null;
     if (glOut !== null && glOut !== totalSales.vat) notes.push(`حركة حساب ضريبة المخرجات في الدليل للفترة ${m(glOut)} ريال، وضريبة المبيعات هنا ${m(totalSales.vat)}: الفرق ${m(glOut - totalSales.vat)} من قيود من خارج الفوترة، فراجعه قبل تقديم الإقرار.`);
     if (glIn !== null && -glIn !== P7.vat) notes.push(`حركة حساب ضريبة المدخلات في الدليل للفترة ${m(-glIn)} ريال، وضريبة المشتريات هنا ${m(P7.vat)}: الفرق ${m(-glIn - P7.vat)} من مصروفات أو قيود من خارج المشتريات (مثل سندات الصرف المباشرة)، فأضف ما يخصها للخانة 7 بعد التحقق من فواتيرها.`);
+    if (plain.late) notes.push(`${plain.late} فاتورة صدرت بعد نفاذ التسجيل بلا ضريبة لأن تاريخ توريدها قبله: راجع تواريخ توريدها من سجل الفواتير قبل تقديم الإقرار.`);
     if (plain.n) notes.push(`${plain.n} فاتورة عادية بلا ضريبة في الفترة (${m(toH(plain.v))} ريال) لا تدخل الإقرار.`);
     if (outOfScope) notes.push(`مبيعات خارج نطاق الضريبة ${m(outOfScope)} ريال لا تدخل الإقرار.`);
+    notes.push('المبيعات تُنسب للفترة بتاريخ استحقاق الضريبة: الأسبق من تاريخ الفاتورة وتاريخ التوريد، والإشعارات بتاريخ إصدارها.');
     notes.push('الخانات 8 و 9 و 14 و 15 تُعبأ يدويًا من مستندات الجمارك والإقرار السابق. والإقرار الرسمي يُقدّم من بوابة هيئة الزكاة والضريبة والجمارك.');
     return {
       rows, notes,

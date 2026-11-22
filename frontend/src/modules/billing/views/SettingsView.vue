@@ -111,7 +111,7 @@ async function save() {
         </div>
         <p class="pc-sec">الفوترة</p>
         <div class="pc-fields">
-          <label class="field"><span>الحساب البنكي في الفاتورة للسداد</span><select v-model="f.paymentCashAccountId" class="input"><option value="">تلقائي: الحساب البنكي الوحيد في البنوك والصناديق</option><option v-for="c in banks" :key="c.id" :value="c.id">{{ c.name }}{{ c.iban ? ` · ${c.iban}` : '' }}</option></select><small class="pm-muted">من «البنوك والصناديق» في النظام المالي. إن كان فيها أكثر من حساب بنكي فاختر أحدها. يظهر البنك واسم الحساب والآيبان في الفاتورة والإشعار المدين.</small></label>
+          <label class="field"><span>الحساب البنكي في الفاتورة للسداد</span><select v-model="f.paymentCashAccountId" class="input"><option value="">لا يظهر حساب بنكي</option><option v-for="c in banks" :key="c.id" :value="c.id">{{ c.name }}{{ c.iban ? ` · ${c.iban}` : '' }}</option></select><small class="pm-muted">اختر الحساب من «البنوك والصناديق» في النظام المالي. يظهر البنك واسم الحساب والآيبان في الفاتورة والإشعار المدين.</small></label>
           <label class="field"><span>مدة السداد الافتراضية (يوم)</span><input v-model.number="f.paymentDays" type="number" min="0" max="365" class="input" required /></label>
           <label class="field wide"><span>شروط تظهر أسفل الفاتورة</span><textarea v-model="f.terms" class="input" rows="2" maxlength="2000" /></label>
         </div>

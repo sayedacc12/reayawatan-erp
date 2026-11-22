@@ -178,15 +178,11 @@ export class BillingCore {
   }
 
   /**
-   * الحساب البنكي المطبوع في الفاتورة: المختار في الإعدادات، وإلا الحساب البنكي النشط الوحيد في «البنوك والصناديق».
-   * إن وُجد أكثر من حساب بنكي ولم يُختر أحدها فلا يظهر حساب. البيانات تُقرأ من شاشة البنوك، ولا تُكتب من الكود.
+   * الحساب البنكي المطبوع في الفاتورة: يختاره صاحب صلاحية إعدادات الفوترة صراحة من «البنوك والصناديق» (لا اختيار تلقائي،
+   * فلا يتغير الحساب المطبوع للعملاء بإضافة حساب أو إيقافه). البيانات تُقرأ من شاشة البنوك، ولا تُكتب من الكود.
    */
   async paymentBank(org: string, id: string | null | undefined, em: EntityManager = this.db.manager): Promise<PaymentBank | null> {
-    if (!id) {
-      const banks: { id: string }[] = await em.query(`SELECT id FROM acc_cash_accounts WHERE organization_id = $1 AND kind = 'bank' AND is_active LIMIT 2`, [org]);
-      if (banks.length !== 1) return null;
-      id = banks[0].id;
-    }
+    if (!id) return null;
     const [c] = await em.query(`SELECT name, bank_name, iban, kind, is_active FROM acc_cash_accounts WHERE organization_id = $1 AND id = $2`, [org, id]);
     if (!c || c.kind !== 'bank' || !c.is_active) return null;
     return { bankName: c.bank_name ?? null, accountName: c.name, iban: c.iban ?? null };
@@ -226,7 +222,7 @@ export class BillingCore {
       this.db.query(`SELECT id, code, name, nature FROM acc_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active AND nature IN ('assets', 'liabilities', 'revenue') ORDER BY code`, [org]),
       this.db.query(`SELECT id, code, name FROM acc_analytic_accounts WHERE organization_id = $1 AND kind = 'sub' AND is_active ORDER BY code`, [org]).catch(() => []),
       this.db.query(`SELECT id, name FROM acc_partner_categories WHERE organization_id = $1 AND behavior = 'customer' ORDER BY sort_order, name`, [org]).catch(() => []),
-      this.db.query(`SELECT id, name, kind, bank_name AS "bankName", iban FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]),
+      this.db.query(`SELECT id, name, kind, bank_name AS "bankName", CASE WHEN kind = 'bank' THEN iban END AS iban FROM acc_cash_accounts WHERE organization_id = $1 AND is_active ORDER BY kind, name`, [org]),
     ]);
     return {
       settings: s, readiness: this.readiness(s), effectiveMode: modeOn(s, blToday()), accounts, analytics, partnerCategories: categories, cashAccounts: cash,

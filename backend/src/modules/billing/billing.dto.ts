@@ -1,6 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
-  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsNumber, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested,
 } from 'class-validator';
 import { BILLING_MODES, CUSTOMER_KINDS, DOC_KINDS, DOC_STATUS, DOC_TYPES, ID_TYPES, ITEM_KINDS, VAT_CATEGORIES, ZATCA_ENVS } from './entities/billing.entity';
 
@@ -28,7 +28,7 @@ export class BillingSettingsDto {
   @IsOptional() @ValidateNested() @Type(() => AddressDto) address?: AddressDto | null;
   @IsNumber() @Min(0) @Max(100) vatRate!: number;
   /** تاريخ نفاذ التسجيل في الضريبة كما في الشهادة (يلزم للشركة المسجلة) */
-  @IsOptional() @Matches(DATE, { message: 'تاريخ نفاذ التسجيل بصيغة YYYY-MM-DD' }) vatEffectiveFrom?: string | null;
+  @IsOptional() @Matches(/^20\d{2}-\d{2}-\d{2}$/, { message: 'تاريخ نفاذ التسجيل بصيغة YYYY-MM-DD' }) @IsISO8601({ strict: true }, { message: 'تاريخ نفاذ التسجيل غير صحيح' }) vatEffectiveFrom?: string | null;
   /** الحساب البنكي المطبوع في الفاتورة للسداد */
   @IsOptional() @IsUUID() paymentCashAccountId?: string | null;
   @IsOptional() @IsUUID() receivablesAccountId?: string | null;
@@ -92,7 +92,7 @@ export class DocDto {
   @IsOptional() @IsString() @MaxLength(250) @trim() buyerName?: string | null;
   @IsOptional() @IsUUID() refId?: string | null;
   @IsOptional() @IsString() @MaxLength(500) @trim() reason?: string | null;
-  @IsOptional() @Matches(DATE, { message: 'تاريخ التوريد غير صحيح' }) supplyDate?: string | null;
+  @IsOptional() @Matches(DATE, { message: 'تاريخ التوريد غير صحيح' }) @IsISO8601({ strict: true }, { message: 'تاريخ التوريد غير صحيح' }) supplyDate?: string | null;
   @IsOptional() @Matches(DATE, { message: 'تاريخ الاستحقاق غير صحيح' }) dueDate?: string | null;
   @IsOptional() @IsUUID() analyticId?: string | null;
   @IsArray() @ArrayMinSize(1, { message: 'أضف سطرًا واحدًا على الأقل' }) @ArrayMaxSize(300) @ValidateNested({ each: true }) @Type(() => DocLineDto) lines!: DocLineDto[];
