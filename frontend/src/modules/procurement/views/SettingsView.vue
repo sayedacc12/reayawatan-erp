@@ -8,6 +8,7 @@ import { useToast } from '../../../stores/toast';
 import { lookups, setLookups, stockLookups } from '../lib';
 import '../../../shared/module.css';
 import '../procurement.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 const toast = useToast();
 const supplierUrl = `${location.origin}/supplier/${useSession().user?.organizationSlug ?? ''}`;
@@ -187,6 +188,7 @@ function addActivity() {
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات المشتريات والمستودعات</h1><p class="muted">طريقة التقييم ومستوى الحسابات، ومستندات الموردين المطلوبة، والأنشطة والتصنيفات، وبوابة الموردين، والربط بالنظام المالي.</p></div></div>
+    <StarterSettings module="procurement" />
     <div class="pc-tabs">
       <button :class="{ on: tab === 'general' }" @click="tab = 'general'">عام</button>
       <button :class="{ on: tab === 'sourcing' }" @click="tab = 'sourcing'">الشراء والاعتماد</button>

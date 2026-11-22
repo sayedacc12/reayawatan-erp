@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
+import DraftBanner from '../../../shared/DraftBanner.vue';
+import { useDraft } from '../../../shared/useDraft';
 import { P, STATUS_COLOR, fmtDate, sar, type Competency, type Grade, type JobRow, type Unit } from '../lib';
 import '../../../shared/module.css';
 import '../hr.css';
@@ -45,7 +47,9 @@ async function load() {
     });
   }
 }
-onMounted(() => load().catch((e) => toast.error((e as Error).message)));
+// مسودة تلقائية للوصف الوظيفي، تبدأ بعد تحميل البيانات المحفوظة
+const draft = useDraft(`hr.job.${props.id ?? 'new'}`, form);
+onMounted(() => load().then(() => draft.arm()).catch((e) => toast.error((e as Error).message)));
 const kpiTotal = computed(() => form.kpis.reduce((s, k) => s + Number(k.weight || 0), 0));
 const grade = computed(() => grades.value.find((g) => g.id === form.gradeId));
 const comp = (id: string) => comps.value.find((c) => c.id === id);
@@ -59,10 +63,12 @@ async function save() {
     };
     if (props.id) {
       await api(`/hr/jobs/${props.id}`, { method: 'PATCH', json: body });
+      draft.discard();
       toast.success(job.value?.status === 'approved' ? 'حُفظ التعديل وعاد الوصف مسودة حتى يُعاد اعتماده' : 'تم الحفظ');
       await load();
     } else {
       const r = await api<{ id: string }>('/hr/jobs', { method: 'POST', json: body });
+      draft.discard();
       toast.success('أُنشئت الوظيفة');
       router.replace(`/hr/jobs/${r.id}`);
     }
@@ -105,6 +111,7 @@ async function remove() {
         <button v-if="job && !job.approvedAt && canEdit" class="btn hr-ghost" @click="remove">حذف</button>
       </div>
     </section>
+    <DraftBanner v-if="canEdit" :found="draft.found.value" :saved-at="draft.savedAt.value" @restore="draft.restore()" @discard="draft.discard()" />
     <form class="hr-grid" style="grid-template-columns: 1fr 1fr" @submit.prevent="save">
       <section class="card pm-panel">
         <h2>بيانات الوظيفة</h2>

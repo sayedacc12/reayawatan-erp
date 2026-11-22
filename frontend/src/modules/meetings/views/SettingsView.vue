@@ -7,6 +7,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 const route = useRoute();
 const toast = useToast();
@@ -42,6 +43,7 @@ async function save() {
       <h1>الإعدادات</h1>
       <p class="pm-sub">مهلة توقيع المحاضر، والموعد الافتراضي لتنفيذ التوصيات، والنصاب الافتراضي، وتذييل المحاضر، وصلاحيات النظام.</p>
     </section>
+    <StarterSettings module="meetings" />
     <div class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'general' }]" @click="tab = 'general'">عام</button>
       <button :class="['pm-tab', { on: tab === 'permissions' }]" @click="tab = 'permissions'">الصلاحيات</button>

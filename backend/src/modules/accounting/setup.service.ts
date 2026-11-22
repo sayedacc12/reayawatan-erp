@@ -326,7 +326,7 @@ export class SetupService {
       lines.set(key, { accountId: r.account_id, partnerId: r.partner_id, net: (lines.get(key)?.net ?? 0) + net });
     }
     if (result) {
-      if (!closingAccountId) throw new BadRequestException('حدد حساب إقفال نتائج النشاط (من حسابات صافي الأصول) في إعدادات النظام المالي');
+      if (!closingAccountId) throw new BadRequestException('حدد حساب إقفال نتائج النشاط (من حسابات حقوق الملكية) في إعدادات النظام المالي');
       const key = `${closingAccountId}|`;
       lines.set(key, { accountId: closingAccountId, partnerId: null, net: (lines.get(key)?.net ?? 0) + result });
     }
@@ -368,7 +368,7 @@ export class SetupService {
     if (!balances.length) return;
     await this.entries.createSystemEntry(em, actor, year, 'opening', {
       documentDate: year.startDate,
-      description: `القيد الافتتاحي للسنة المالية ${year.name}: أرصدة نهاية المدة للسنة ${prev.name} وإقفال نتائج النشاط في صافي الأصول`,
+      description: `القيد الافتتاحي للسنة المالية ${year.name}: أرصدة نهاية المدة للسنة ${prev.name} وإقفال نتائج النشاط في حقوق الملكية`,
     }, balances.map((b) => ({
       accountId: b.accountId, partnerId: b.partnerId, debit: b.net > 0 ? fromCents(b.net) : 0, credit: b.net < 0 ? fromCents(-b.net) : 0,
       label: `رصيد افتتاحي من السنة ${prev.name}`, analytic: [],

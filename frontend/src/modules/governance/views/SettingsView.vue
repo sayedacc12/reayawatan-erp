@@ -7,6 +7,7 @@ import { useToast } from '../../../stores/toast';
 import type { FigureDef } from '../lib';
 import '../../../shared/module.css';
 import '../gov.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 type Rule = { code: string; sign?: 1 | -1 };
 interface Settings {
@@ -63,6 +64,7 @@ const custom = (key: string) => !!s.value?.overrides[key];
         <p class="pm-sub">البيانات النظامية يستخدمها الإنذار المبكر والإشارات الآلية، وربط الحسابات يحدد من أين تُستخرج أرقام مؤشرات الأداء المالي في دليل الحسابات الموحد.</p>
       </div>
     </section>
+    <StarterSettings module="governance" />
     <div class="gv-tabs">
       <button :class="['gv-tab', { on: tab === 'facts' }]" @click="tab = 'facts'">البيانات النظامية</button>
       <button :class="['gv-tab', { on: tab === 'mapping' }]" @click="tab = 'mapping'">ربط الحسابات بالمؤشرات المالية</button>

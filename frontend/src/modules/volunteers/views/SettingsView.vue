@@ -9,6 +9,7 @@ import LookupEditor from '../components/LookupEditor.vue';
 import { copy, loadLookups, publicUrl } from '../lib';
 import '../../../shared/module.css';
 import '../volunteers.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABS = [
@@ -54,6 +55,7 @@ const CERT_VARS = ['اسم الشركة', 'اسم المتطوع', 'رقم ال�
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات التطوع</h1><p class="muted">كل النماذج والقوائم والقوالب هنا مرنة: أضف واحذف وعدّل بما يناسب الشركة. اللائحة والميثاق في <RouterLink to="/volunteers/policy" class="pm-link">لائحة التطوع وميثاقه</RouterLink>.</p></div></div>
+    <StarterSettings module="volunteers" />
     <div class="vt-tabs"><button v-for="t in TABS" :key="t.k" :class="['vt-tab', { on: tab === t.k }]" @click="tab = t.k">{{ t.l }}</button></div>
     <template v-if="s">
       <Transition name="page" mode="out-in">

@@ -6,6 +6,7 @@ import { useToast } from '../../../stores/toast';
 import { errMsg, loadSettings, type Dept, type QSettings } from '../lib';
 import '../../../shared/module.css';
 import '../quality.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 const toast = useToast();
 type Tab = 'coding' | 'departments' | 'periods' | 'permissions';
@@ -32,6 +33,7 @@ const example = computed(() => `${f.prefixes.procedure ?? 'QP'}-${f.departments[
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات الجودة</h1><p class="muted">نظام الترميز الموحد لكل وثائق الشركة، ورموز الإدارات، والمدد المستهدفة، وصلاحيات الأدوار.</p></div></div>
+    <StarterSettings module="quality" />
     <div class="q-tabs">
       <button :class="['q-tab', { on: tab === 'coding' }]" @click="tab = 'coding'">الترميز</button>
       <button :class="['q-tab', { on: tab === 'departments' }]" @click="tab = 'departments'">الإدارات</button>

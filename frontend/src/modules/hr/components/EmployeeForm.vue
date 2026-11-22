@@ -3,6 +3,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { api } from '../../../api';
 import NationalitySelect from '../../../components/NationalitySelect.vue';
 import { useToast } from '../../../stores/toast';
+import DraftBanner from '../../../shared/DraftBanner.vue';
+import { useDraft } from '../../../shared/useDraft';
 import { CONTRACT_TYPES, QIWA, sar, type AllowanceType, type EmpRow, type Grade, type JobRow, type Unit } from '../lib';
 
 /** نموذج الموظف: البيانات الشخصية، الوظيفة والعقد، الراتب وبدلاته، التأمينات والمستندات */
@@ -29,6 +31,13 @@ const form = reactive({
   salaryException: e?.salaryException ?? '', iban: e?.iban ?? '', gosiNumber: e?.gosiNumber ?? '', gosiFirstRegistration: e?.gosiFirstRegistration ?? '',
   idExpiry: e?.idExpiry ?? '', passportExpiry: e?.passportExpiry ?? '', leaveOpeningAnnual: e?.leaveOpening?.annual ?? '', leaveOpeningDate: e?.leaveOpeningDate ?? '',
 });
+// مسودة تلقائية لكل موظف (أو للموظف الجديد) حتى لا تضيع البيانات المدخلة
+// تُحفظ بيانات التوظيف فقط؛ الراتب والبدلات والهوية والآيبان والتواصل وتاريخ الميلاد لا تُحفظ في المسودة
+const draft = useDraft(`hr.employee.${e?.id ?? 'new'}`, form, {
+  keep: ['fullName', 'nationality', 'isSaudi', 'gender', 'jobId', 'unitId', 'managerId', 'step', 'hireDate', 'contractType', 'contractStart',
+    'contractEnd', 'probationEnd', 'qiwaStatus', 'attendanceCode', 'attendanceExempt', 'leaveOpeningDate'],
+});
+draft.arm();
 onMounted(async () => {
   try {
     const [j, s, g, m, t] = await Promise.all([
@@ -83,6 +92,7 @@ async function save() {
       leaveOpening: form.leaveOpeningAnnual === '' ? {} : { annual: Number(form.leaveOpeningAnnual) }, leaveOpeningDate: nn(form.leaveOpeningDate),
     };
     const r = e ? await api<{ id: string }>(`/hr/employees/${e.id}`, { method: 'PATCH', json: body }) : await api<{ id: string }>('/hr/employees', { method: 'POST', json: body });
+    draft.discard();
     toast.success('تم حفظ بيانات الموظف');
     emit('saved', r.id);
   } catch (err) {
@@ -97,6 +107,7 @@ async function save() {
   <div class="modal-backdrop" @click.self="emit('close')">
     <form class="card modal modal-wide" style="max-width: 900px" @submit.prevent="save">
       <h2>{{ e ? `تعديل بيانات ${e.fullName}` : 'موظف جديد' }}</h2>
+      <DraftBanner :found="draft.found.value" :saved-at="draft.savedAt.value" @restore="draft.restore()" @discard="draft.discard()" note="الراتب والبدلات والهوية والآيبان وبيانات التواصل وتاريخ الميلاد لا تُحفظ في المسودة." />
       <div class="hr-sec">البيانات الشخصية</div>
       <div class="hr-fields">
         <label class="field" style="grid-column: span 2"><span>الاسم الكامل</span><input v-model="form.fullName" class="input" required /></label>
@@ -177,7 +188,7 @@ async function save() {
         <label class="field"><span>الرصيد بالأيام</span><input v-model="form.leaveOpeningAnnual" type="number" step="0.5" class="input" /></label>
         <label class="field"><span>كما في تاريخ</span><input v-model="form.leaveOpeningDate" type="date" class="input" /></label>
       </div>
-      <div class="modal-actions"><button class="btn btn-primary" :disabled="saving">حفظ</button><button type="button" class="btn" @click="emit('close')">إلغاء</button></div>
+      <div class="modal-actions"><button class="btn btn-primary" :disabled="saving">حفظ</button><button type="button" class="btn" @click="draft.saveNow(); toast.success('حُفظت المسودة على جهازك، وتجدها عند فتح النموذج مرة أخرى'); emit('close')">حفظ كمسودة وإغلاق</button><button type="button" class="btn" @click="emit('close')">إلغاء</button></div>
     </form>
   </div>
 </template>

@@ -80,7 +80,7 @@ async function remove(a: Analytic) {
     </section>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <section class="card pm-panel">
-      <div v-if="!rows.length" class="ac-empty-state"><div class="ic">🎯</div><h3>لا توجد حسابات تحليلية</h3><p class="pm-muted">تُنشأ مراكز التكلفة حسب التصنيف الوظيفي للمصروفات تلقائيًا عند تنصيب الدليل الموحد.</p></div>
+      <div v-if="!rows.length" class="ac-empty-state"><div class="ic">🎯</div><h3>لا توجد حسابات تحليلية</h3><p class="pm-muted">تُنشأ مراكز التكلفة حسب أنشطة الشركة تلقائيًا عند تنصيب دليل الشركات الجاهز.</p></div>
       <div v-else class="table-wrap">
         <table class="table">
           <thead><tr><th>الرمز والاسم</th><th>النوع</th><th>المستوى</th><th>عدد الحركات</th><th v-if="canManage"></th></tr></thead>

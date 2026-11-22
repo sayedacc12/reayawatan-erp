@@ -9,6 +9,7 @@ import TasksBell from '../components/TasksBell.vue';
 import HelpMenu from '../onboarding/HelpMenu.vue';
 import OnboardingHost from '../onboarding/OnboardingHost.vue';
 import { resetOnboarding } from '../onboarding/onboarding';
+import { clearDrafts } from '../shared/useDraft';
 import { ess, loadSummary, resetEss } from '../modules/hr/self/ess';
 import { P as ACC, docTypes, loadDocTypes } from '../modules/accounting/lib';
 import { loginPath, useSession } from '../stores/session';
@@ -56,6 +57,7 @@ function logout() {
   clearIdentity();
   resetEss();
   resetOnboarding();
+  clearDrafts();
   session.logout();
   router.push(loginPath());
 }

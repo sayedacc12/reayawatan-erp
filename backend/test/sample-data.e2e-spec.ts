@@ -111,6 +111,8 @@ describe('Sample data in a trial organization and conversion to a real one', () 
 
   it('converts to a real organization only after typing its identifier, leaving it empty', async () => {
     await http.post(`/api/platform/organizations/${orgId}/sample-data/clear`).set(as(platform)).send({ confirm: 'wrong' }).expect(400);
+    // إعدادات افتراضية فُعّلت خلال التجربة تُحذف مع ما بعد اللقطة، فيعود زرها متاحًا
+    await db.query(`INSERT INTO organization_starters (organization_id, module_code, status, applied_by, applied_by_id) VALUES ($1, 'comms', 'applied', 'x', $1)`, [orgId]);
     const r = (await http.post(`/api/platform/organizations/${orgId}/sample-data/clear`).set(as(platform)).send({ confirm: 'trial-one' }).expect(201)).body;
     expect(r.sample).toBeGreaterThan(500);
     expect(r.own).toBe(1);
@@ -125,6 +127,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     expect((await db.query('SELECT name FROM roles WHERE organization_id = $1', [orgId])).map((x: { name: string }) => x.name)).toEqual(['منسق البرامج']);
     const org = (await db.query('SELECT subscription_status FROM organizations WHERE id = $1', [orgId]))[0];
     expect(org.subscription_status).toBe('trial');
+    expect(await count('organization_starters', orgId)).toBe(0);
     // الإعدادات التي كانت قبل البيانات التجريبية باقية
     expect(await count('acc_settings', orgId)).toBeLessThanOrEqual(1);
 

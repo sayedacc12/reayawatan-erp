@@ -8,6 +8,7 @@ import { errMsg, loadConfig, loadLookups, money, type ConfigPayload, type Lookup
 import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 type Tab = 'structure' | 'lists' | 'fields' | 'routes' | 'scope' | 'permissions';
 const TABS: Tab[] = ['structure', 'lists', 'fields', 'routes', 'scope', 'permissions'];
@@ -56,6 +57,7 @@ const KIND_OPT = { any: 'كل الخطط', strategic: 'الاستراتيجية'
         <p class="muted">مستويات هيكل الخطط، والقوائم وحدود الألوان، والحقول الإضافية، ومسارات الاعتماد، والصلاحيات. أي تعديل هنا ينطبق على الخطط الجديدة، والخطط القائمة تحتفظ بهيكلها.</p></div>
       <button v-if="tab !== 'permissions' && tab !== 'scope'" class="btn btn-primary" :disabled="!dirty" @click="save">حفظ الإعدادات</button>
     </div>
+    <StarterSettings module="planning" />
     <div class="rk-tabs pl-tabs">
       <button :class="['rk-tab', { on: tab === 'structure' }]" @click="tab = 'structure'">مستويات الهيكل</button>
       <button :class="['rk-tab', { on: tab === 'lists' }]" @click="tab = 'lists'">القوائم والحدود</button>

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
+import { assertSafeXlsx } from '../../core/files/xlsx-guard';
 import { AccCore, cents, fromCents } from './acc-core.service';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { addDaysIso, AssetsService, bad } from './assets.service';
@@ -161,6 +162,7 @@ export class AssetImportService {
     this.assets.need(actor, P.assetsManage, 'ليست لديك صلاحية تسجيل الأصول');
     if (!file?.buffer?.length) bad('اختر ملف Excel');
     if (!/\.xlsx$/i.test(file!.originalname)) bad('الملف يجب أن يكون Excel بصيغة xlsx (استخدم النموذج المنزَّل من النظام)');
+    assertSafeXlsx(file!.buffer);
     const org = actor.organizationId;
     const wb = new ExcelJS.Workbook();
     try {

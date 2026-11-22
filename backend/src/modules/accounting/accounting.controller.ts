@@ -1,4 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import { memoryStorage } from 'multer';
+import { MAX_UPLOAD_BYTES } from '../../core/files/file-store.service';
 import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { isTypeCode, today } from './acc-core.service';
 import {
@@ -8,6 +13,7 @@ import {
 } from './accounting.dto';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
 import { AccountsService } from './accounts.service';
+import { ChartImportService } from './chart-import.service';
 import { EntryStatus, VoucherKind, VoucherStatus } from './entities/accounting.entity';
 import { EntriesService } from './entries.service';
 import { InventoryService } from './inventory.service';
@@ -29,6 +35,8 @@ const kindOf = (k: string): VoucherKind => {
 };
 
 /** النظام المالي: الافتتاحيات، الدليل والتحليلي، البيانات الأساسية، القيود والترحيل، السندات، المحضر، التقارير */
+const CHART_FILE_BYTES = 2 * 1024 * 1024;
+
 @Controller('accounting')
 export class AccountingController {
   constructor(
@@ -39,6 +47,7 @@ export class AccountingController {
     private readonly vouchers: VouchersService,
     private readonly inventory: InventoryService,
     private readonly reports: ReportsService,
+    private readonly chartImport: ChartImportService,
   ) {}
 
   // ---------------- اللوحة والافتتاحيات ----------------
@@ -218,6 +227,28 @@ export class AccountingController {
   }
 
   // ---------------- الدليل والتحليلي ----------------
+
+  // ---------------- استيراد الدليل من Excel ----------------
+  // 5000 حساب أقل من 1MB، فحد 2MB كافٍ ويقلل أثر الملفات المضغوطة المتضخمة
+
+  @Get('accounts/import/template')
+  @RequirePermissions(P.accounts)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  async chartTemplate(@Res() res: Response) {
+    const buf = await this.chartImport.template();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="chart-import-template.xlsx"; filename*=UTF-8''${encodeURIComponent('نموذج استيراد الدليل المحاسبي.xlsx')}`);
+    res.send(buf);
+  }
+
+  /** mode=check يفحص الملف ويعيد التقرير دون حفظ، وmode=apply يحفظ الحسابات المطابقة فقط */
+  @Post('accounts/import')
+  @RequirePermissions(P.accounts)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: CHART_FILE_BYTES, files: 1 } }))
+  importChart(@CurrentOrgUser() actor: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
+    return this.chartImport.import(actor, file, mode ?? 'check');
+  }
 
   @Get('accounts')
   @RequirePermissions(P.read)

@@ -4,7 +4,11 @@ import { ReportColumn, ReportOutput } from './report.types';
 
 /** ملف CSV بترميز UTF-8 مع BOM حتى يفتحه Excel بالعربي مباشرة */
 export function renderCsv(r: ReportOutput): Buffer {
-  const q = (s: string) => (/[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  // خلية تبدأ بـ = + - @ تُفتح في Excel كمعادلة، فنسبقها بفاصلة علوية لتبقى نصًا
+  const q = (raw: string) => {
+    const s = /^[=+\-@\t\r]/.test(raw) && !/^-?\d+(\.\d+)?$/.test(raw) ? `'${raw}` : raw;
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
   const lines = [r.columns.map((c) => q(c.label)).join(',')];
   for (const row of r.rows) lines.push(r.columns.map((c) => q(plainValue(row[c.key], c.type))).join(','));
   if (r.totals && r.rows.length) {

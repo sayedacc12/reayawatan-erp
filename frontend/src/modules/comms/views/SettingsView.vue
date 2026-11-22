@@ -7,6 +7,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import { loadLookups } from '../lib';
 import '../../../shared/module.css';
 import '../comms.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 interface Category { code: string; name: string; kind: 'admin' | 'financial'; dueDays: number; isActive: boolean }
 const route = useRoute();
@@ -49,6 +50,7 @@ async function save() {
       <h1>الإعدادات</h1>
       <p class="pm-sub">تصنيفات المعاملات ومهلة إنجاز كل تصنيف، وتذكير المهام، وصلاحيات النظام.</p>
     </section>
+    <StarterSettings module="comms" />
     <div class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'general' }]" @click="tab = 'general'">التصنيفات والمهل</button>
       <button :class="['pm-tab', { on: tab === 'permissions' }]" @click="tab = 'permissions'">الصلاحيات</button>

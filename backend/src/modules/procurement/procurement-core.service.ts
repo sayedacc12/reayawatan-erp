@@ -89,7 +89,7 @@ export class ProcurementCore {
     if (a.kind !== 'sub') throw new BadRequestException(`${label}: الحساب ${a.code} ليس حسابًا فرعيًا`);
     if (!a.is_active) throw new BadRequestException(`${label}: الحساب ${a.code} موقوف`);
     if (nature && a.nature !== nature) {
-      const names = { assets: 'الأصول', liabilities: 'الخصوم', expenses: 'المصروفات', revenue: 'الإيرادات والتبرعات', net_assets: 'صافي الأصول' };
+      const names = { assets: 'الأصول', liabilities: 'الخصوم', expenses: 'المصروفات', revenue: 'الإيرادات', net_assets: 'حقوق الملكية' };
       throw new BadRequestException(`${label}: يجب أن يكون الحساب من ${names[nature]}`);
     }
     return a as { id: string; code: string; name: string };

@@ -8,6 +8,7 @@ import SearchSelect from '../../../shared/SearchSelect.vue';
 import { docTypes, dt, loadDocTypes, useAccounts, type DocType } from '../lib';
 import '../../../shared/module.css';
 import '../acc.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 interface Category { id: string; name: string; behavior: 'customer' | 'supplier' | 'other'; behaviorLabel: string; partners: number }
 interface Settings { analyticLevels: number; warehouseTypes: string[]; chartInstalledAt: string | null; closingAccount: { id: string; code: string; name: string } | null; categories: Category[] }
@@ -17,7 +18,7 @@ interface Stage { id?: string | null; name: string; instructions: string | null;
 const toast = useToast();
 type Tab = 'general' | 'chart' | 'receipt' | 'payment' | 'doctypes' | 'categories' | 'assets' | 'permissions';
 const tabs: { key: Tab; label: string }[] = [
-  { key: 'general', label: 'عام' }, { key: 'chart', label: 'الدليل الموحد' }, { key: 'receipt', label: 'مراحل اعتماد القبض' }, { key: 'payment', label: 'مراحل اعتماد الصرف' }, { key: 'doctypes', label: 'أنواع السندات' },
+  { key: 'general', label: 'عام' }, { key: 'chart', label: 'دليل الشركات الجاهز' }, { key: 'receipt', label: 'مراحل اعتماد القبض' }, { key: 'payment', label: 'مراحل اعتماد الصرف' }, { key: 'doctypes', label: 'أنواع السندات' },
   { key: 'categories', label: 'تصنيفات العملاء والموردين' }, { key: 'assets', label: 'الأصول الثابتة' }, { key: 'permissions', label: 'الصلاحيات' },
 ];
 const tab = ref<Tab>('general');
@@ -62,7 +63,7 @@ async function install() {
   try {
     installed.value = await api('/accounting/chart/install', { method: 'POST' });
     confirmOpen.value = false;
-    toast.success('تم تنصيب الدليل المحاسبي الموحد');
+    toast.success('تم تنصيب دليل الشركات');
     await load();
     await loadAccounts();
   } catch (e) {
@@ -151,9 +152,10 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
       <div>
         <p class="pm-kicker">النظام المالي</p>
         <h1>إعدادات النظام المالي</h1>
-        <p class="pm-sub">الدليل الموحد، مستويات التحليلي، حساب إقفال النتائج، مراحل اعتماد السندات، التصنيفات، والصلاحيات.</p>
+        <p class="pm-sub">دليل الحسابات، مستويات التحليلي، حساب إقفال النتائج، مراحل اعتماد السندات، التصنيفات، والصلاحيات.</p>
       </div>
     </section>
+    <StarterSettings module="accounting" />
     <div class="pm-tabs">
       <button v-for="t in tabs" :key="t.key" :class="['pm-tab', { on: tab === t.key }]" @click="tab = t.key">{{ t.label }}</button>
     </div>
@@ -165,8 +167,8 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
           <label class="field"><span>مستويات الحسابات التحليلية</span>
             <select v-model.number="levels" class="input"><option :value="2">مستويان (رئيسي ← فرعي)</option><option :value="3">ثلاثة مستويات</option></select>
           </label>
-          <label class="field" style="grid-column: span 2"><span>حساب إقفال نتائج النشاط (من حسابات صافي الأصول)</span>
-            <SearchSelect v-model="closingId" :options="subOptions((a) => a.nature === 'net_assets')" :selected-label="s.closingAccount ? `${s.closingAccount.code} ${s.closingAccount.name}` : ''" placeholder="ابحث في صافي الأصول" />
+          <label class="field" style="grid-column: span 2"><span>حساب إقفال النتائج (من حسابات حقوق الملكية)</span>
+            <SearchSelect v-model="closingId" :options="subOptions((a) => a.nature === 'net_assets')" :selected-label="s.closingAccount ? `${s.closingAccount.code} ${s.closingAccount.name}` : ''" placeholder="ابحث في حقوق الملكية" />
           </label>
         </div>
         <p class="pm-muted">عند فتح سنة جديدة لا تُرحَّل أرصدة الإيرادات والمصروفات، وتُقفل نتيجتها (الفائض أو العجز) في هذا الحساب.</p>
@@ -178,17 +180,17 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
           <div class="book">📘</div>
           <div>
             <h2 style="justify-content: flex-start">{{ chart.name }}</h2>
-            <p class="pm-muted">{{ chart.accounts.toLocaleString('en') }} حسابًا، منها {{ chart.postingAccounts }} حسابًا فرعيًا للتسجيل في المستوى {{ chart.levels }}. تُنشأ معه مراكز التكلفة حسب التصنيف الوظيفي للمصروفات، ويُضبط حساب الإقفال على «صافي الأصول غير المقيدة».</p>
+            <p class="pm-muted">{{ chart.accounts.toLocaleString('en') }} حسابًا، منها {{ chart.postingAccounts }} حسابًا فرعيًا للتسجيل في المستوى {{ chart.levels }}. تُنشأ معه مراكز التكلفة حسب أنشطة الشركة، ويُضبط حساب الإقفال على «الأرباح المبقاة».</p>
           </div>
         </div>
         <ul class="facts">
-          <li>راجعنا الدليل قبل تنصيبه: صُححت أخطاء ترقيم في النسخة المطبوعة، ووُحِّدت الحسابات الفرعية في مستوى واحد بحساب تفصيلي بالاسم نفسه حيث لزم، كما توصي تعليمات الدليل.</li>
+          <li>دليل مصمم لشركة خدمات استشارية وتدريبية: البنوك والعملاء والموردون وضريبة القيمة المضافة وإيرادات الخدمات وتكاليف المشاريع والمصاريف العمومية وحقوق الملكية، والحسابات الفرعية كلها في المستوى السادس.</li>
           <li>حسابات المصروفات الفرعية تتطلب حسابًا تحليليًا (مركز تكلفة) في كل قيد.</li>
           <li>التنصيب متاح في بداية الإعداد فقط والدليل فارغ، ويمكن بعده إضافة حسابات خاصة بالشركة.</li>
         </ul>
-        <div v-if="chart.installedAt" class="alert alert-success">تم تنصيب الدليل الموحد في {{ dt(chart.installedAt) }}.</div>
-        <div v-else-if="!chart.canInstall" class="alert alert-error">في الدليل {{ chart.existingAccounts }} حساب بالفعل، والتنصيب متاح في بداية الإعداد فقط والدليل فارغ.</div>
-        <button v-else class="btn ac-glow big" :disabled="busy" @click="confirmOpen = true; typed = ''">تنصيب الدليل المحاسبي الموحد</button>
+        <div v-if="chart.installedAt" class="alert alert-success">تم تنصيب دليل الشركات في {{ dt(chart.installedAt) }}.</div>
+        <div v-else-if="!chart.canInstall" class="alert alert-error">بدأت الشركة دليلًا خاصًا ({{ chart.existingAccounts }} حساب يدويًا أو بالاستيراد)، فتوقف زر الدليل الجاهز حتى لا يختلط الدليلان.</div>
+        <button v-else class="btn ac-glow big" :disabled="busy" @click="confirmOpen = true; typed = ''">تنصيب دليل الشركات الجاهز</button>
         <div v-if="installed" class="alert alert-success" style="margin-top: 10px">نُصّب {{ installed.installed }} حسابًا. <RouterLink to="/accounting/accounts" class="pm-link">افتح الدليل المحاسبي</RouterLink></div>
       </section>
 
@@ -273,8 +275,8 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
 
     <div v-if="confirmOpen" class="modal-backdrop" @click.self="confirmOpen = false">
       <div class="card modal">
-        <h2>تأكيد تنصيب الدليل الموحد</h2>
-        <p>سيُضاف إلى الدليل المحاسبي <b>{{ chart?.accounts.toLocaleString('en') }}</b> حسابًا من «{{ chart?.name }}»، ومراكز التكلفة الوظيفية الخمسة. لا يمكن تنصيبه مرة أخرى بعد ذلك.</p>
+        <h2>تأكيد تنصيب دليل الشركات</h2>
+        <p>سيُضاف إلى الدليل المحاسبي <b>{{ chart?.accounts.toLocaleString('en') }}</b> حسابًا من «{{ chart?.name }}»، ومراكز التكلفة الخمسة حسب أنشطة الشركة. لا يمكن تنصيبه مرة أخرى بعد ذلك.</p>
         <label class="field"><span>للتأكيد اكتب: تنصيب</span><input v-model="typed" class="input" /></label>
         <div class="modal-actions">
           <button class="btn btn-primary" :disabled="busy || typed.trim() !== 'تنصيب'" @click="install">{{ busy ? 'جارٍ التنصيب...' : 'نعم، نصّب الدليل' }}</button>

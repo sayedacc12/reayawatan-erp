@@ -16,6 +16,42 @@ export class BillingOpsService {
 
   // ---------------- الإعدادات ----------------
 
+  /**
+   * ربط الحسابات الناقصة فقط (للإعدادات الافتراضية): داخل معاملة مع قفل صف الإعدادات، فلا يُعاد أي حقل
+   * عدّله مستخدم في اللحظة نفسها، ولا تُمس البيانات الضريبية أو الوضع. يتخطى الشركة إن بدأت الربط مع «فاتورة».
+   * يعيد عدد الحقول التي رُبطت، أو null إن كانت الشركة مربوطة أو في مرحلة الربط.
+   */
+  async linkDefaults(a: OrgUser, fill: Partial<Record<'receivablesAccountId' | 'vatOutputAccountId' | 'revenueAccountId' | 'customerCategoryId', string>>) {
+    const org = a.organizationId;
+    await this.core.settings(org);
+    return this.db.transaction(async (em) => {
+      const s = await em.getRepository(BlSettings).createQueryBuilder('s').setLock('pessimistic_write').where('s.organization_id = :org', { org }).getOneOrFail();
+      const [z] = await em.query('SELECT stage FROM bl_zatca WHERE organization_id = $1', [org]);
+      if (s.mode === 'integrated' || (z && z.stage !== 'none')) return null;
+      const natures = { receivablesAccountId: ['assets', 'حساب الذمم المدينة'], vatOutputAccountId: ['liabilities', 'حساب ضريبة المخرجات'], revenueAccountId: ['revenue', 'حساب الإيراد الافتراضي'] } as const;
+      const next: Partial<BlSettings> = {};
+      for (const [k, [nature, label]] of Object.entries(natures) as [keyof typeof natures, (typeof natures)[keyof typeof natures]][]) {
+        const id = fill[k];
+        if (!id || s[k]) continue;
+        await this.core.account(org, id, nature, label, em);
+        next[k] = id;
+      }
+      if (fill.customerCategoryId && !s.customerCategoryId) {
+        const [c] = await em.query('SELECT behavior FROM acc_partner_categories WHERE organization_id = $1 AND id = $2', [org, fill.customerCategoryId]);
+        if (c?.behavior === 'customer') next.customerCategoryId = fill.customerCategoryId;
+      }
+      const n = Object.keys(next).length;
+      if (!n) return 0;
+      const note = diffNote(s as never, { ...s, ...next } as never, {
+        receivablesAccountId: 'حساب العملاء', vatOutputAccountId: 'حساب ضريبة المخرجات', revenueAccountId: 'حساب الإيراد', customerCategoryId: 'تصنيف العملاء',
+      });
+      await em.getRepository(BlSettings).update({ organizationId: org }, {
+        ...next, log: [...s.log, logEntry('ربط الحسابات ضمن الإعدادات الافتراضية', a.fullName, note)].slice(-200), updatedAt: new Date(),
+      });
+      return n;
+    });
+  }
+
   async saveSettings(a: OrgUser, dto: BillingSettingsDto) {
     const org = a.organizationId;
     const s = await this.core.settings(org);

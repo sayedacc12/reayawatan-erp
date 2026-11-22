@@ -8,6 +8,7 @@ import { addressPayload, billingLookups, emptyAddress, fmtDateTime } from '../li
 import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 const toast = useToast();
 const lk = ref<any>(null);
@@ -67,6 +68,7 @@ async function save() {
         <p class="muted">النظام اختياري. اختر وضع الشركة الضريبي، وأكمل بياناتها كما في شهادة التسجيل، وحدد حسابات القيود في الدليل.</p>
       </div>
     </div>
+    <StarterSettings module="billing" />
     <div :class="['pc-check-box', lk.readiness.ready ? 'ok' : 'bad']" style="margin-bottom: 12px">
       {{ lk.readiness.ready ? '✓ النظام جاهز لإصدار الفواتير' : `ينقص لإصدار الفواتير: ${lk.readiness.missing.join('، ')}` }}
     </div>

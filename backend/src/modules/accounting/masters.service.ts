@@ -101,7 +101,7 @@ export class MastersService {
     if (dto.closingAccountId !== undefined) {
       if (dto.closingAccountId) {
         const a = await this.accounts.postable(org, dto.closingAccountId);
-        if (a.nature !== 'net_assets') throw new BadRequestException('حساب إقفال نتائج النشاط يجب أن يكون من حسابات صافي الأصول');
+        if (a.nature !== 'net_assets') throw new BadRequestException('حساب إقفال نتائج النشاط يجب أن يكون من حسابات حقوق الملكية');
       }
       s.closingAccountId = dto.closingAccountId;
     }
