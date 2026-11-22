@@ -1,4 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import { memoryStorage } from 'multer';
+import { IMPORT_FILE_BYTES } from '../../core/files/xlsx-sheets';
 import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { ChangeService } from './change.service';
 import { ComplianceService } from './compliance.service';
@@ -13,6 +18,7 @@ import {
   TaskDto, TaskProgressDto,
 } from './risk.dto';
 import { RISK_PERMISSIONS as P } from './risk.manifest';
+import { StrategyImportService } from './strategy-import.service';
 
 const uuid = new ParseUUIDPipe();
 
@@ -27,6 +33,7 @@ export class RiskController {
     private readonly continuity: ContinuityService,
     private readonly reports: RiskReportsService,
     private readonly bridge: RiskAuditBridge,
+    private readonly importer: StrategyImportService,
   ) {}
 
   // ---------------- اللوحة والتقارير والاعتمادات ----------------
@@ -154,6 +161,24 @@ export class RiskController {
   removeControl(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.register.removeControl(a, id); }
 
   // ---------------- التحليلات ----------------
+
+  /** نموذج استيراد PESTEL وSWOT وTOWS والمخاطر */
+  @Get('analyses/import/template') @RequirePermissions(P.analysis, P.register)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  async importTemplate(@Res() res: Response) {
+    const buf = await this.importer.template();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="risk-analysis-import.xlsx"; filename*=UTF-8''${encodeURIComponent('نموذج استيراد التحليلات والمخاطر.xlsx')}`);
+    res.send(buf);
+  }
+
+  /** mode=check يفحص ويعرض التقرير دون حفظ، وmode=apply يحفظ الكل في معاملة واحدة أو لا شيء */
+  @Post('analyses/import') @RequirePermissions(P.analysis, P.register)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1, fields: 2, fieldSize: 64, parts: 3 } }))
+  importAnalyses(@CurrentOrgUser() a: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
+    return this.importer.import(a, file, mode ?? 'check');
+  }
 
   @Get('analyses') @RequirePermissions(P.read)
   analyses(@CurrentOrgUser() a: OrgUser) { return this.register.listAnalyses(a); }

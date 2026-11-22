@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import PlanForm from '../components/PlanForm.vue';
+import ExcelImportDialog from '../../../components/ExcelImportDialog.vue';
 import ProgressRing from '../components/ProgressRing.vue';
 import MiniBar from '../components/MiniBar.vue';
 import { errMsg, EXEC, loadConfig, loadLookups, money, P, pct, PERIODICITY, WF_STATUS, type ConfigPayload, type Lookups } from '../lib';
@@ -24,6 +25,7 @@ const year = ref('');
 const status = ref('');
 const unitId = ref('');
 const showForm = ref(false);
+const importing = ref(false);
 const canManage = computed(() => session.can(props.kind === 'strategic' ? P.strategic : P.operational));
 async function load() {
   try {
@@ -52,6 +54,7 @@ const ringColor = (s: any) => (s.delayed ? EXEC.delayed.color : s.atRisk ? EXEC.
           ? 'خطط متعددة السنوات بهيكل مرن: محاور وأهداف ومبادرات ومؤشرات، بإصدارات معتمدة ومقارنة بين الأصل والمعدل.'
           : 'خطة سنوية لكل إدارة: أنشطة بمسؤولين وجداول زمنية ومعالم وموارد وتكلفة، ترتبط بأهداف الخطة الاستراتيجية.' }}</p></div>
       <button v-if="canManage && cfg && lookups" class="btn pl-glow" @click="showForm = true">+ خطة {{ kind === 'strategic' ? 'استراتيجية' : 'تشغيلية' }}</button>
+      <button v-if="canManage" class="btn rk-ghost" @click="importing = true">استيراد من Excel</button>
     </div>
     <div class="pm-filters">
       <select v-model="year" class="input"><option value="">كل السنوات</option><option v-for="y in years" :key="y" :value="String(y)">{{ y }}</option></select>
@@ -87,5 +90,16 @@ const ringColor = (s: any) => (s.delayed ? EXEC.delayed.color : s.atRisk ? EXEC.
     </div>
     <PlanForm v-if="showForm && cfg && lookups" :kind="kind" :plan="null" :cfg="cfg" :lookups="lookups" :strategic-plans="strategicPlans"
       @close="showForm = false" @saved="(p: any) => router.push(`/planning/plans/${p.id}`)" />
+    <ExcelImportDialog v-if="importing" title="استيراد خطة من Excel"
+      intro="الخطة بعناصرها ومستوياتها ومؤشراتها ومستهدفاتها السنوية وروابطها بسجل المخاطر وتحليلات PESTEL وSWOT المعتمدة. يُفحص الملف أولًا دون حفظ، ثم تُنشأ الخطة مسودة كاملة أو لا شيء."
+      template-url="/planning/plans/import/template" template-name="نموذج استيراد خطة.xlsx" upload-url="/planning/plans/import"
+      @close="importing = false" @done="(r: any) => r.plan?.id && router.push(`/planning/plans/${r.plan.id}`)">
+      <template #summary="{ report }">
+        <ul v-if="report.plan" class="pm-sub" style="margin: 0">
+          <li>{{ (report.plan as any).kind === 'strategic' ? 'خطة استراتيجية' : 'خطة تشغيلية' }}: {{ (report.plan as any).title }} ({{ (report.plan as any).startYear }} - {{ (report.plan as any).endYear }})</li>
+          <li>{{ (report.items as any[]).length }} عنصرًا · {{ report.kpis }} مؤشرًا · {{ (report.links as any[]).filter((l) => l.resolved).length }} ربطًا من {{ (report.links as any[]).length }}</li>
+        </ul>
+      </template>
+    </ExcelImportDialog>
   </div>
 </template>

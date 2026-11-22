@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
+import ExcelImportDialog from '../../../components/ExcelImportDialog.vue';
 import { fmtDate, P, WF_STATUS } from '../lib';
 import '../../../shared/module.css';
 import '../risk.css';
@@ -12,7 +13,9 @@ import '../risk.css';
 const session = useSession();
 const router = useRouter();
 const rows = ref<any[] | null>(null);
-onMounted(async () => { rows.value = await api<any[]>('/risk/analyses'); });
+const importing = ref(false);
+async function load() { rows.value = await api<any[]>('/risk/analyses'); }
+onMounted(load);
 </script>
 
 <template>
@@ -23,6 +26,7 @@ onMounted(async () => { rows.value = await api<any[]>('/risk/analyses'); });
       <div v-if="session.can(P.analysis)" class="pm-actions">
         <RouterLink to="/risk/analysis/new?kind=pestel" class="btn rk-glow">تحليل PESTEL</RouterLink>
         <RouterLink to="/risk/analysis/new?kind=swot" class="btn rk-ghost">تحليل SWOT</RouterLink>
+        <button v-if="session.can(P.register)" class="btn rk-ghost" @click="importing = true">استيراد من Excel</button>
       </div>
     </section>
     <section class="card">
@@ -36,5 +40,16 @@ onMounted(async () => { rows.value = await api<any[]>('/risk/analyses'); });
         </tr></tbody>
       </table></div>
     </section>
+    <ExcelImportDialog v-if="importing" title="استيراد التحليلات والمخاطر من Excel"
+      intro="ملف واحد فيه تحليل PESTEL وتحليل SWOT واستراتيجيات TOWS والمخاطر المرتبطة بعواملها. يُفحص أولًا دون حفظ، ثم يُحفظ كله أو لا شيء، ولا يُكرر تحليلًا أو خطرًا موجودًا بالعنوان نفسه."
+      template-url="/risk/analyses/import/template" template-name="نموذج استيراد التحليلات والمخاطر.xlsx" upload-url="/risk/analyses/import"
+      @close="importing = false" @done="load">
+      <template #summary="{ report }">
+        <ul class="pm-sub" style="margin: 0">
+          <li v-for="a in (report.analyses as any[])" :key="a.kind">{{ a.kind === 'pestel' ? 'PESTEL' : 'SWOT' }}: {{ a.title }} · {{ a.items }} عاملًا<template v-if="a.strategies"> · {{ a.strategies }} استراتيجية</template> · {{ a.status === 'exists' ? 'موجود مسبقًا' : a.code ?? 'جديد' }}</li>
+          <li>المخاطر: {{ (report.risks as any[]).filter((r) => r.status === 'new').length }} جديدًا من {{ (report.risks as any[]).length }}</li>
+        </ul>
+      </template>
+    </ExcelImportDialog>
   </div>
 </template>

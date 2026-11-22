@@ -24,10 +24,13 @@ import { PlansService } from './plans.service';
  * يقرأ من الأنظمة الأخرى للاختيار والربط فقط (الهيكل التنظيمي، المستخدمون، المشاريع، مراكز التكلفة، الموازنة الرأسمالية)
  * ولا يكتب في جداولها؛ والمراجع تُحفظ برمزها وعنوانها في plan_refs.
  */
+import { PlanImportService } from './plan-import.service';
+import { BudgetImportService } from './budget/budget-import.service';
+
 @Module({
   imports: [TypeOrmModule.forFeature(PLANNING_ENTITIES), CoreModule],
   controllers: [PlanningController, BudgetController],
-  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks],
+  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks],
   exports: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
 })
 export class PlanningModule {}

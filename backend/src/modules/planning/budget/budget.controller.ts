@@ -1,4 +1,10 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import { memoryStorage } from 'multer';
+import { IMPORT_FILE_BYTES } from '../../../core/files/xlsx-sheets';
+import { BudgetImportService } from './budget-import.service';
 import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../../core/auth/decorators';
 import { DecideDto, SubmitDto } from '../planning.dto';
 import { PLANNING_PERMISSIONS as P } from '../planning.manifest';
@@ -21,7 +27,7 @@ const READ = [P.read, P.budgets];
 export class BudgetController {
   constructor(
     private readonly budgets: BudgetsService, private readonly formulas: FormulasService, private readonly avail: BudgetAvailability, private readonly scenarios: ScenariosService,
-    private readonly exec: BudgetExecution,
+    private readonly exec: BudgetExecution, private readonly lineImport: BudgetImportService,
   ) {}
 
   // ---------------- المعادلات ----------------
@@ -60,6 +66,23 @@ export class BudgetController {
 
   @Delete('budgets/:id') @RequirePermissions(P.budgets)
   remove(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.budgets.remove(a, id); }
+
+  @Get('budget-lines/import/template') @RequirePermissions(P.budgets)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  async linesTemplate(@Res() res: Response) {
+    const buf = await this.lineImport.template();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="budget-lines-import.xlsx"; filename*=UTF-8''${encodeURIComponent('نموذج استيراد بنود الموازنة.xlsx')}`);
+    res.send(buf);
+  }
+
+  /** mode=check يحتسب البنود ويعرضها دون حفظ، وmode=apply يحفظها كلها أو لا شيء */
+  @Post('budgets/:id/lines/import') @RequirePermissions(P.budgets)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1, fields: 2, fieldSize: 64, parts: 3 } }))
+  importLinesFile(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
+    return this.lineImport.import(a, id, file, mode ?? 'check');
+  }
 
   @Post('budgets/:id/import') @RequirePermissions(P.budgets)
   import(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: ImportDto) { return this.budgets.importLines(a, id, dto); }
