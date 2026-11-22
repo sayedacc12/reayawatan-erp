@@ -6,6 +6,8 @@ import { PASSWORD_CHARS } from './validation';
 import { DataSource } from 'typeorm';
 import { Organization, User } from './entities';
 import { companySlug } from './company';
+import { FileStore } from './files/file-store.service';
+import { seedCompanyBrand } from './identity/company-brand';
 
 /**
  * أول تشغيل للمنصة: ينشئ حساب مدير المنصة (من PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD).
@@ -15,10 +17,11 @@ import { companySlug } from './company';
 export class BootstrapService implements OnApplicationBootstrap {
   private readonly logger = new Logger('Bootstrap');
 
-  constructor(private readonly db: DataSource, private readonly config: ConfigService) {}
+  constructor(private readonly db: DataSource, private readonly config: ConfigService, private readonly files: FileStore) {}
 
   async onApplicationBootstrap() {
     await this.ensureCompany();
+    await this.ensureBrand();
     // وضع الشركة الواحدة: لا حساب لمدير منصة إلا إذا طُلب صراحة بكلمة مرور
     if (companySlug() && !this.config.get<string>('PLATFORM_ADMIN_PASSWORD')) return;
     await this.db.transaction(async (em) => {
@@ -45,6 +48,18 @@ export class BootstrapService implements OnApplicationBootstrap {
           : `Created platform admin ${email} (password from PLATFORM_ADMIN_PASSWORD)`,
       );
     });
+  }
+
+  /** هوية رعاية وطن الافتراضية (الشعار والألوان والبيانات النظامية) ما لم تُعدَّل يدويًا. خطؤها لا يوقف التشغيل. */
+  private async ensureBrand() {
+    const slug = companySlug();
+    if (!slug) return;
+    try {
+      const org = await this.db.getRepository(Organization).findOne({ where: { slug } });
+      if (org) await seedCompanyBrand(this.db, this.files, org, this.logger);
+    } catch (e) {
+      this.logger.error(`Company identity defaults not applied: ${(e as Error).message}`);
+    }
   }
 
   /**

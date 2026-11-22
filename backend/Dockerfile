@@ -12,6 +12,8 @@ ENV NODE_ENV=production
 RUN apk add --no-cache chromium font-noto-arabic
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+# شعار الشركة الافتراضي (يُحفظ في هوية الشركة عند أول تشغيل)
+COPY --from=build /app/assets ./assets
 COPY package.json ./
 # مستندات المستفيدين المرفوعة (مجلد دائم في docker-compose)
 RUN mkdir -p /app/uploads && chown node:node /app/uploads
