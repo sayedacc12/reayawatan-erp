@@ -4,8 +4,8 @@ import { Organization } from '../entities';
 import { DEFAULT_NATIONALITIES } from './nationalities';
 
 /**
- * قوائم مرجعية مشتركة لكل وحدات الجمعية (حاليًا: الجنسيات).
- * القيم أسماء عربية تُحفظ كما هي في السجلات، والجمعية تعدّل القائمة من الإعدادات.
+ * قوائم مرجعية مشتركة لكل وحدات الشركة (حاليًا: الجنسيات).
+ * القيم أسماء عربية تُحفظ كما هي في السجلات، والشركة تعدّل القائمة من الإعدادات.
  */
 @Injectable()
 export class LookupsService {
@@ -23,7 +23,7 @@ export class LookupsService {
     return clean;
   }
 
-  /** يرفض أي جنسية ليست في قائمة الجمعية */
+  /** يرفض أي جنسية ليست في قائمة الشركة */
   async assertNationalities(orgId: string, values: (string | null | undefined)[], m?: EntityManager) {
     const given = values.filter((v): v is string => !!v && !!v.trim());
     if (!given.length) return;

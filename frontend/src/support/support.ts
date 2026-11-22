@@ -16,7 +16,7 @@ export const CATEGORY: Record<string, string> = {
 export const STATUS: Record<string, { label: string; tone: string }> = {
   new: { label: 'جديد', tone: 'warn' },
   in_progress: { label: 'قيد المعالجة', tone: 'info' },
-  waiting_customer: { label: 'بانتظار رد الجمعية', tone: 'muted' },
+  waiting_customer: { label: 'بانتظار رد الشركة', tone: 'muted' },
   resolved: { label: 'تم الحل', tone: 'ok' },
   closed: { label: 'مغلق', tone: 'muted' },
 };
@@ -26,7 +26,7 @@ export const SLA_STATE: Record<string, { label: string; tone: string }> = {
   on_track: { label: 'ضمن المهلة', tone: 'ok' },
   at_risk: { label: 'قاربت على الانتهاء', tone: 'warn' },
   breached: { label: 'تجاوز المهلة', tone: 'bad' },
-  paused: { label: 'متوقفة (بانتظار الجمعية)', tone: 'muted' },
+  paused: { label: 'متوقفة (بانتظار الشركة)', tone: 'muted' },
 };
 
 export interface SlaLevel {

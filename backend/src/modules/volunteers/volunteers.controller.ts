@@ -14,7 +14,7 @@ import { VolReportsService } from './vol-reports.service';
 const uuid = new ParseUUIDPipe();
 const SECTIONS: SettingsSection[] = ['registration', 'lookups', 'events', 'closure', 'surveys', 'certificates', 'contract', 'general'];
 
-/** نظام التطوع داخل الجمعية */
+/** نظام التطوع داخل الشركة */
 @Controller('volunteers')
 export class VolunteersController {
   constructor(

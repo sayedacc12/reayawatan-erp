@@ -9,7 +9,7 @@ const money = (name: string) => ({ name, type: 'numeric' as const, precision: 16
 // ---------------- القوائم الثابتة ----------------
 
 /**
- * وضع الجمعية في الفوترة:
+ * وضع الشركة في الفوترة:
  * - off: النظام غير مفعّل، ولا تصدر فواتير.
  * - unregistered: غير مسجلة في ضريبة القيمة المضافة، فتصدر فواتير عادية بلا ضريبة.
  * - registered: مسجلة، فتصدر فواتير ضريبية برمز QR (المرحلة الأولى) دون إرسال للهيئة.
@@ -22,7 +22,7 @@ export type BillingMode = keyof typeof BILLING_MODES;
 
 /** نوع المعرّف الآخر للبائع أو المشتري حسب قائمة الهيئة */
 export const ID_TYPES = {
-  CRN: 'السجل التجاري', MOM: 'ترخيص وزارة الموارد البشرية', MLS: 'ترخيص وزارة الشؤون البلدية', SAG: 'ترخيص الاستثمار', '700': 'الرقم الموحد (700)', OTH: 'معرّف آخر (مثل ترخيص الجمعية)',
+  CRN: 'السجل التجاري', MOM: 'ترخيص وزارة الموارد البشرية', MLS: 'ترخيص وزارة الشؤون البلدية', SAG: 'ترخيص الاستثمار', '700': 'الرقم الموحد (700)', OTH: 'معرّف آخر (مثل ترخيص الشركة)',
   NAT: 'الهوية الوطنية', IQA: 'الإقامة', PAS: 'جواز السفر', GCC: 'هوية مواطن خليجي', TIN: 'الرقم المميز',
 } as const;
 export type IdType = keyof typeof ID_TYPES;
@@ -259,7 +259,7 @@ export class BlCustomer {
   updatedAt!: Date;
 }
 
-/** الأصناف والخدمات التي تبيعها الجمعية */
+/** الأصناف والخدمات التي تبيعها الشركة */
 @Entity('bl_items')
 @Index('UQ_bl_items_code', ['organizationId', 'code'], { unique: true })
 export class BlItem {
@@ -312,7 +312,7 @@ export class BlItem {
   updatedAt!: Date;
 }
 
-/** الفواتير والإشعارات الدائنة والمدينة (رقم واحد مسلسل لكل مستندات الجمعية) */
+/** الفواتير والإشعارات الدائنة والمدينة (رقم واحد مسلسل لكل مستندات الشركة) */
 @Entity('bl_documents')
 @Index('UQ_bl_documents_no', ['organizationId', 'docNo'], { unique: true })
 @Index('IDX_bl_documents_customer', ['organizationId', 'customerId', 'status'])
@@ -403,7 +403,7 @@ export class BlDocument {
   @Column({ type: 'text', nullable: true })
   qr!: string | null;
 
-  /** وضع الجمعية وقت الإصدار */
+  /** وضع الشركة وقت الإصدار */
   @Column({ name: 'issued_mode', type: 'varchar', length: 16, nullable: true })
   issuedMode!: BillingMode | null;
 
@@ -452,7 +452,7 @@ export class BlDocument {
   @Column({ name: 'invoice_hash', type: 'varchar', length: 100, nullable: true })
   invoiceHash!: string | null;
 
-  /** بصمة المستند السابق في سلسلة الجمعية (PIH) */
+  /** بصمة المستند السابق في سلسلة الشركة (PIH) */
   @Column({ type: 'varchar', length: 100, nullable: true })
   pih!: string | null;
 
@@ -482,7 +482,7 @@ export class BlDocument {
   updatedAt!: Date;
 }
 
-export const ZATCA_ENVS = { sandbox: 'بيئة المطورين (للتجربة الفنية)', simulation: 'بيئة المحاكاة (لتجربة الجمعية قبل الإنتاج)', production: 'بيئة الإنتاج (الفواتير النظامية)' } as const;
+export const ZATCA_ENVS = { sandbox: 'بيئة المطورين (للتجربة الفنية)', simulation: 'بيئة المحاكاة (لتجربة الشركة قبل الإنتاج)', production: 'بيئة الإنتاج (الفواتير النظامية)' } as const;
 export type ZatcaEnv = keyof typeof ZATCA_ENVS;
 /**
  * مراحل الربط: none لم يبدأ ← compliance صدرت شهادة الامتثال ← checked نجحت فحوص الامتثال ← production صدرت شهادة الإنتاج.
@@ -491,7 +491,7 @@ export const ZATCA_STAGES = { none: 'لم يبدأ الربط', compliance: 'ص�
 export type ZatcaStage = keyof typeof ZATCA_STAGES;
 export interface ZatcaCheck { label: string; kind: DocKind; docType: DocType; status: string; ok: boolean; messages: string[] }
 
-/** ربط الجمعية بمنصة «فاتورة» (صف واحد لكل جمعية). الأسرار تُحفظ مشفرة ولا تُعاد في أي استجابة */
+/** ربط الشركة بمنصة «فاتورة» (صف واحد لكل جمعية). الأسرار تُحفظ مشفرة ولا تُعاد في أي استجابة */
 @Entity('bl_zatca')
 export class BlZatca {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' })
@@ -539,7 +539,7 @@ export class BlZatca {
   @Column({ type: 'jsonb', default: () => `'[]'` })
   checks!: ZatcaCheck[];
 
-  /** بصمة آخر مستند موقّع في سلسلة الجمعية (PIH للمستند التالي) */
+  /** بصمة آخر مستند موقّع في سلسلة الشركة (PIH للمستند التالي) */
   @Column({ name: 'last_hash', type: 'varchar', length: 100, nullable: true })
   lastHash!: string | null;
 

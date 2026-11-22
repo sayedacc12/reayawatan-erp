@@ -20,7 +20,7 @@ export class LoginDto {
   @MaxLength(200)
   password!: string;
 
-  /** معرف الجمعية (slug) من رابط صفحة دخولها. بدونه الدخول لمدير المنصة فقط */
+  /** معرف الشركة (slug) من رابط صفحة دخولها. بدونه الدخول لمدير المنصة فقط */
   @IsOptional()
   @IsString()
   @MaxLength(64)
@@ -43,7 +43,7 @@ export class ForgotPasswordDto {
   @MaxLength(254)
   login!: string;
 
-  /** معرف الجمعية من رابط صفحة دخولها، وبدونه الطلب لفريق المنصة */
+  /** معرف الشركة من رابط صفحة دخولها، وبدونه الطلب لفريق المنصة */
   @IsOptional()
   @IsString()
   @MaxLength(64)

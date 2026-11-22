@@ -16,7 +16,7 @@ export class DemoController {
     return this.demo.create(user, originOf(req));
   }
 
-  /** حذف الجمعية التجريبية تمهيدًا لإعادة إنشائها */
+  /** حذف الشركة التجريبية تمهيدًا لإعادة إنشائها */
   @Delete()
   @HttpCode(204)
   @RequirePermissions(PLATFORM_PERMISSIONS.organizationsManage)

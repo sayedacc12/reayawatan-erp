@@ -11,10 +11,10 @@ import { StockService } from '../procurement/stock.service';
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 
 /**
- * المستودعات في الجمعية التجريبية (المرحلة الثالثة من المشتريات)، بعد دورة الشراء:
+ * المستودعات في الشركة التجريبية (المرحلة الثالثة من المشتريات)، بعد دورة الشراء:
  * - حسابات قيود المستودعات في الإعدادات، وأرصدة افتتاحية للمستودع الرئيسي ومستودع المقر بتشغيلات وصلاحيات (منها دفعة تنتهي قريبًا).
  * - استلام جزئي لتعميد السلال الغذائية بمحضر لجنة فحص ورفض كمية تالفة، فيصبح التعميد «مستلمًا جزئيًا» ويُستهلك جزء الحجز من مصدر التمويل.
- * - تبرع عيني ببطانيات بالقيمة العادلة.
+ * - رصيد افتتاحي للبطانيات.
  * - طلب صرف معتمد ومصروف بالكامل على مركز تكلفة البرامج، وطلب معتمد بانتظار الصرف، وطلب بانتظار الاعتماد.
  * - تحويل إلى المستودع الميداني، ومحضر إتلاف لدفعة منتهية بانتظار اعتماد المالية، ومحضر جرد بعجز بانتظار الاعتماد.
  * كل العمليات عبر خدمات الوحدة نفسها، فتصدر سندات المخازن في النظام المالي وتبقى المطابقة مع الدليل سليمة.
@@ -51,14 +51,13 @@ export class StockSeed {
     const cc = async (code: string) => ((await this.db.query('SELECT id FROM acc_analytic_accounts WHERE organization_id = $1 AND code = $2', [org, code]))[0]?.id ?? null) as string | null;
     const grni = await acc('موردون ــ متنوعون');
     const adjust = await acc('مستهلكات أخرى', 'مصاريف الضيافة');
-    const donation = await acc('تبرعات عينية ــ أسر محتاجة', 'تبرعات وهبات غير مقيدة ــ عينية');
     const opening = await acc('صافي الأصول غير المقيدة');
     const expense = await acc('مستلزمات مكتبية');
     const ccAdmin = await cc('CC01');
     const ccPrograms = await cc('CC02');
-    if (!grni || !adjust || !donation || !opening) return;
+    if (!grni || !adjust || !opening) return;
     await this.stock.saveSettings(admin, {
-      grniAccountId: grni, adjustAccountId: adjust, adjustAnalyticId: ccAdmin, donationAccountId: donation, openingAccountId: opening, defaultExpenseAccountId: expense,
+      grniAccountId: grni, adjustAccountId: adjust, adjustAnalyticId: ccAdmin, openingAccountId: opening, defaultExpenseAccountId: expense,
       expiryAlertDays: 60, overReceiptPct: 5, vatInCost: true, requireInspection: false,
     });
 
@@ -121,25 +120,23 @@ export class StockSeed {
       } as never);
     }
 
-    // ---- 3) تبرع عيني بالقيمة العادلة ----
+    // ---- 3) رصيد افتتاحي للبطانيات ----
     const blanket = it('بطانية شتوية مزدوجة');
     if (blanket) {
       await this.receipts.create(admin, {
-        kind: 'donation', warehouseId: main.id, date: d(2), donorName: 'مؤسسة البر الخيرية', deliveryRef: 'خطاب تبرع 1447/233',
-        inspection: { committee: ['مدير المستودع', 'ممثل الإدارة المالية'], result: 'accepted', note: 'بطانيات جديدة بتغليفها الأصلي' },
+        kind: 'opening', warehouseId: main.id, date: d(2),
         lines: [{ itemId: blanket, qty: 100, unitPrice: 110 }],
       } as never);
     }
 
     // ---- 4) طلبات الصرف ----
     const basket = it('سلة غذائية متكاملة لأسرة');
-    // رعاية وطن: لا مصادر تمويل مقيدة، فقد لا تُورَّد السلال بتعميد. نستلمها تبرعًا عينيًا إن لم يكفِ الرصيد
+    // رعاية وطن: لا مصادر تمويل مقيدة، فقد لا تُورَّد السلال بتعميد. نسجل لها رصيدًا افتتاحيًا إن لم يكفِ الرصيد
     if (basket) {
       const [onHand] = await this.db.query('SELECT COALESCE(SUM(qty), 0)::numeric AS q FROM pr_stock_balances WHERE organization_id = $1 AND item_id = $2 AND warehouse_id = $3', [org, basket, main.id]).catch(() => [{ q: 0 }]);
       if (Number(onHand?.q ?? 0) < 60) {
         await this.receipts.create(admin, {
-          kind: 'donation', warehouseId: main.id, date: d(2), donorName: 'مؤسسة البر الخيرية', deliveryRef: 'خطاب تبرع 1447/240',
-          inspection: { committee: ['مدير المستودع', 'ممثل الإدارة المالية'], result: 'accepted', note: 'سلال مطابقة للمواصفات' },
+          kind: 'opening', warehouseId: main.id, date: d(2),
           lines: [{ itemId: basket, qty: 100, unitPrice: 130, lot: 'FB-2611', expiryDate: daysAhead(180) }],
         } as never);
       }

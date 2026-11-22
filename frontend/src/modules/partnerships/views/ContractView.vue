@@ -219,7 +219,7 @@ const stepIdx = computed(() => {
   if (['signed', 'expired', 'terminated'].includes(s)) return 5;
   return STEPS.findIndex(([k]) => k === s);
 });
-const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || 'قيد الإعداد'} · بين الجمعية و${c.value.partnerName}` : ''));
+const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || 'قيد الإعداد'} · بين الشركة و${c.value.partnerName}` : ''));
 </script>
 
 <template>
@@ -252,7 +252,7 @@ const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || '�
       </section>
       <section v-if="supplyContracts.length" class="card pm-panel" style="margin-bottom: 14px; border-inline-start: 4px solid #b45309">
         <h2>عقود توريد مشتركة مع هذا الشريك</h2>
-        <p class="pm-muted" style="font-size: .85rem; margin: 0 0 6px">الشريك مورد للجمعية أيضًا، وهذه عقود التوريد المرتبطة بهذه الشراكة في نظام المشتريات.</p>
+        <p class="pm-muted" style="font-size: .85rem; margin: 0 0 6px">الشريك مورد للشركة أيضًا، وهذه عقود التوريد المرتبطة بهذه الشراكة في نظام المشتريات.</p>
         <ul style="margin: 0; padding-inline-start: 18px">
           <li v-for="k in supplyContracts" :key="k.id"><RouterLink :to="`/procurement/contracts/${k.id}`">{{ k.code }} · {{ k.title }}</RouterLink> · {{ k.statusLabel }} · {{ sar(k.value) }} (المستخدم {{ sar(k.used) }})</li>
         </ul>
@@ -341,7 +341,7 @@ const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || '�
           <div class="field"><label>تاريخ النهاية</label><input v-model="terms.endsOn" type="date" class="input" @input="touch" /></div>
           <div class="field"><label>قيمة الشراكة (ريال)</label><input v-model.number="terms.value" type="number" min="0" step="0.01" class="input" @input="touch" /></div>
           <div class="field"><label>المشروع المرتبط</label><select v-model="terms.projectId" class="input" @change="touch"><option value="">بدون مشروع</option><option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option></select></div>
-          <div class="field"><label>ممثل الجمعية في التوقيع</label><input v-model="terms.orgSignerName" class="input" @input="touch" /></div>
+          <div class="field"><label>ممثل الشركة في التوقيع</label><input v-model="terms.orgSignerName" class="input" @input="touch" /></div>
           <div class="field"><label>صفته</label><input v-model="terms.orgSignerTitle" class="input" @input="touch" /></div>
         </div>
         <p class="pm-muted">بيانات الشريك (الاسم والسجل وممثله) تُؤخذ من <RouterLink :to="`/partnerships/partners/${c.partnerId}`" class="pm-link">ملف الشريك</RouterLink>.</p>
@@ -359,7 +359,7 @@ const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || '�
         <form v-if="c.can.followups" class="fu-form" @submit.prevent="addFollowup">
           <input v-model="fu.title" class="input grow" placeholder="الالتزام أو الموعد (مثل: التقرير الربعي)" required minlength="3" />
           <select v-model="fu.kind" class="input"><option v-for="(l, k) in lk.followupKinds" :key="k" :value="k">{{ l }}</option></select>
-          <select v-model="fu.party" class="input"><option value="org">على الجمعية</option><option value="partner">على الشريك</option></select>
+          <select v-model="fu.party" class="input"><option value="org">على الشركة</option><option value="partner">على الشريك</option></select>
           <input v-model="fu.dueDate" type="date" class="input" required />
           <input v-model="fu.responsible" class="input" placeholder="المكلف" />
           <button class="btn btn-primary">+ إضافة</button>
@@ -370,7 +370,7 @@ const docSub = computed(() => (c.value ? `الإصدار ${c.value.version || '�
             <tbody>
               <tr v-for="f in c.followups" :key="f.id" :class="{ donerow: f.doneAt }">
                 <td>{{ KIND_ICON[f.kind] }} <b>{{ f.title }}</b><span class="pm-muted">{{ f.kindLabel }}{{ f.note ? ` · ${f.note}` : '' }}</span></td>
-                <td>{{ f.party === 'partner' ? 'الشريك' : 'الجمعية' }}</td><td>{{ f.responsible ?? '—' }}</td><td>{{ fmtDate(f.dueDate) }}</td>
+                <td>{{ f.party === 'partner' ? 'الشريك' : 'الشركة' }}</td><td>{{ f.responsible ?? '—' }}</td><td>{{ fmtDate(f.dueDate) }}</td>
                 <td><span v-if="f.doneAt" class="pt-days ok">منجز {{ fmtDate(f.doneAt) }}</span><span v-else-if="f.overdue" class="pt-days late">متأخر {{ -f.daysLeft }} يوم</span><span v-else class="pt-days">بعد {{ f.daysLeft }} يوم</span></td>
                 <td style="white-space: nowrap"><template v-if="c.can.followups">
                   <button class="btn btn-sm" @click="toggleDone(f)">{{ f.doneAt ? 'إعادة فتح' : '✓ تم' }}</button>

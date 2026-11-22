@@ -82,7 +82,7 @@ export class RequestsService {
 
   // ---------------- أنواع الطلبات ----------------
 
-  /** أنواع الطلبات، مع إنشاء الأنواع الافتراضية للجمعية أول مرة */
+  /** أنواع الطلبات، مع إنشاء الأنواع الافتراضية للشركة أول مرة */
   async types(org: string) {
     const repo = this.db.getRepository(HrRequestType);
     const n = await repo.count({ where: { organizationId: org } });
@@ -564,10 +564,10 @@ export class RequestsService {
         اسم_الموظف: e.fullName, رقم_الهوية: e.nationalId, الجنسية: e.nationality, الرقم_الوظيفي: String(e.employeeNo), المسمى_الوظيفي: job?.title ?? '',
         الإدارة: unit?.name ?? '', تاريخ_المباشرة: fmtAr(e.hireDate), مدة_الخدمة: `${span.years} سنة و${span.months} شهر`,
         الراتب_الأساسي: money(e.basicSalary), البدلات: e.allowances.map((a) => `${a.name}: ${money(a.amount)}`).join('\n'), إجمالي_الراتب: money(gross),
-        الجهة: String(r.data.addressee ?? 'إلى من يهمه الأمر'), اسم_الجمعية: org1?.name ?? actor.organizationName ?? '', التاريخ: fmtAr(t), التاريخ_الهجري: hijriAr(t),
+        الجهة: String(r.data.addressee ?? 'إلى من يهمه الأمر'), اسم_الشركة: org1?.name ?? actor.organizationName ?? '', التاريخ: fmtAr(t), التاريخ_الهجري: hijriAr(t),
         رقم_الخطاب: letterNo,
       };
-      return { letterNo, date: t, templateName: tp!.name, body: renderLetter(tp!.body, vars), organizationName: vars.اسم_الجمعية, signedBy: actor.fullName };
+      return { letterNo, date: t, templateName: tp!.name, body: renderLetter(tp!.body, vars), organizationName: vars.اسم_الشركة, signedBy: actor.fullName };
     }
     if (r.kind === 'resignation' && this.resignationHook) return this.resignationHook(em, actor, r);
     return null;

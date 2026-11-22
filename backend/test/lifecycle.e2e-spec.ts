@@ -7,7 +7,7 @@ import { LifecycleService } from '../src/core/lifecycle/lifecycle.service';
 import { addDays, todayRiyadh } from '../src/core/organizations/org-access';
 import { configureApp } from '../src/main';
 
-/** دورة حياة الجمعية: تنبيهات التجربة، وحذف جمعيات التجربة بعد المهلة، وإنهاء العقد بالتراضي والتصدير والإلغاء */
+/** دورة حياة الشركة: تنبيهات التجربة، وحذف جمعيات التجربة بعد المهلة، وإنهاء العقد بالتراضي والتصدير والإلغاء */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
 describe('Organization lifecycle: trial deletion and mutual termination', () => {
@@ -62,7 +62,7 @@ describe('Organization lifecycle: trial deletion and mutual termination', () => 
     const id = await makeOrg('expired', { status: 'trial', trialEndsOn: addDays(today, -3) });
     // الدخول متوقف، والرسالة توضح موعد الحذف
     const res = await login('admin@expired.sa', 'Owner12345', 'expired').expect(401);
-    expect(res.body.message).toContain('ستُحذف الجمعية وكل بياناتها نهائيًا بعد 5 أيام');
+    expect(res.body.message).toContain('ستُحذف الشركة وكل بياناتها نهائيًا بعد 5 أيام');
 
     const o = (await http.get('/api/platform/lifecycle').set(as(platform)).expect(200)).body;
     expect(o.upcoming.find((u: { slug: string }) => u.slug === 'expired')).toMatchObject({ reason: 'trial_expired', daysToDelete: 5 });
@@ -86,7 +86,7 @@ describe('Organization lifecycle: trial deletion and mutual termination', () => 
     await http.post(`/api/platform/organizations/${id}/terminate`).set(as(platform)).send({ ...body, confirm: 'mutual' }).expect(201);
     await http.post(`/api/platform/organizations/${id}/terminate`).set(as(platform)).send({ ...body, confirm: 'mutual' }).expect(409);
     const res = await login('admin@mutual.sa', 'Owner12345', 'mutual').expect(401);
-    expect(res.body.message).toContain('أُنهي عقد الجمعية بالتراضي');
+    expect(res.body.message).toContain('أُنهي عقد الشركة بالتراضي');
 
     // التصدير قبل الحذف: بلا كلمات مرور
     const exp = await http.get(`/api/platform/organizations/${id}/export`).set(as(platform)).expect(200);
@@ -94,7 +94,7 @@ describe('Organization lifecycle: trial deletion and mutual termination', () => 
     expect(data.tables.users[0].email).toBe('admin@mutual.sa');
     expect(data.tables.users[0].password_hash).toBeUndefined();
 
-    // الإلغاء خلال المهلة يعيد الجمعية
+    // الإلغاء خلال المهلة يعيد الشركة
     await http.post(`/api/platform/organizations/${id}/terminate/cancel`).set(as(platform)).expect(201);
     await login('admin@mutual.sa', 'Owner12345', 'mutual').expect(200);
 

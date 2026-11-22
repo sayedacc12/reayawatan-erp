@@ -27,7 +27,7 @@ export const governanceManifest: ErpModuleManifest = {
     { code: P.actions, name: 'إدارة خطة التحسين ومتابعة تنفيذها' },
     { code: P.calendar, name: 'إدارة تقويم الالتزامات (الاجتماعات والتقارير والمواعيد النظامية)' },
     { code: P.reports, name: 'عرض تقارير الحوكمة وتصديرها' },
-    { code: P.settings, name: 'إعدادات الحوكمة وربط الحسابات وبيانات الجمعية النظامية' },
+    { code: P.settings, name: 'إعدادات الحوكمة وربط الحسابات وبيانات الشركة النظامية' },
   ],
   settingsPermission: P.settings,
   menu: [

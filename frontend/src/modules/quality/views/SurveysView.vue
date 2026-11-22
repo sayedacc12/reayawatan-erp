@@ -21,13 +21,13 @@ const STATUS = { draft: { l: 'مسودة', c: '#94a3b8' }, open: { l: 'مفتو�
 const ringColor = (v: number | null) => (v === null ? '#94a3b8' : v >= 80 ? '#10b981' : v >= 60 ? '#f59e0b' : '#ef4444');
 
 const TEMPLATE = [
-  'مدى رضاك عن سهولة تقديم الطلب', 'مدى رضاك عن سرعة إنجاز الطلب', 'مدى رضاك عن تعامل الموظفين', 'مدى رضاك عن وضوح المعلومات والتواصل', 'مدى رضاك العام عن خدمات الجمعية',
+  'مدى رضاك عن سهولة تقديم الطلب', 'مدى رضاك عن سرعة إنجاز الطلب', 'مدى رضاك عن تعامل الموظفين', 'مدى رضاك عن وضوح المعلومات والتواصل', 'مدى رضاك العام عن خدمات الشركة',
 ];
 type Q = { id: string; text: string; type: 'rating' | 'choice' | 'text'; options: string };
 const form = reactive({ show: false, title: '', audience: 'beneficiary', description: '', formCode: '', targetResponses: 50, questions: [] as Q[] });
 function newSurvey() {
   Object.assign(form, {
-    show: true, title: 'استبانة رضا المستفيدين', audience: 'beneficiary', description: 'نسعد بمعرفة رأيك لتحسين خدماتنا. لن تستغرق الإجابة أكثر من دقيقتين.', formCode: 'QF-QMS-06', targetResponses: 50,
+    show: true, title: 'استبانة رضا العملاء', audience: 'beneficiary', description: 'نسعد بمعرفة رأيك لتحسين خدماتنا. لن تستغرق الإجابة أكثر من دقيقتين.', formCode: 'QF-QMS-06', targetResponses: 50,
     questions: [...TEMPLATE.map((t) => ({ id: uid(), text: t, type: 'rating' as const, options: '' })), { id: uid(), text: 'ما الذي تقترحه لتحسين خدماتنا؟', type: 'text' as const, options: '' }],
   });
 }
@@ -51,8 +51,8 @@ async function create() {
 <template>
   <div>
     <section class="pm-hero q-hero">
-      <div><p class="pm-kicker">البند 9.1.2</p><h1>قياس رضا المستفيدين والأطراف المعنية</h1>
-        <p class="pm-sub">استبانات برابط عام يرسل للمستفيدين والداعمين والمتطوعين، أو تُدخل ردودها يدويًا. مؤشر الرضا يُحسب من أسئلة التقييم (1 إلى 5) ويغذي أهداف الجودة ومراجعة الإدارة.</p></div>
+      <div><p class="pm-kicker">البند 9.1.2</p><h1>قياس رضا العملاء والأطراف المعنية</h1>
+        <p class="pm-sub">استبانات برابط عام يرسل للعملاء والداعمين والمتطوعين، أو تُدخل ردودها يدويًا. مؤشر الرضا يُحسب من أسئلة التقييم (1 إلى 5) ويغذي أهداف الجودة ومراجعة الإدارة.</p></div>
       <div class="pm-actions"><button v-if="session.can(P.feedback)" class="btn q-glow" @click="newSurvey">استبانة جديدة</button></div>
     </section>
     <div class="q-grid3">

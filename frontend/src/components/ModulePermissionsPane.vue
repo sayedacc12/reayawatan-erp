@@ -5,7 +5,7 @@ import { useSession } from '../stores/session';
 import { useToast } from '../stores/toast';
 
 /**
- * صلاحيات وحدة واحدة على أدوار الجمعية، داخل شاشة إعدادات الوحدة.
+ * صلاحيات وحدة واحدة على أدوار الشركة، داخل شاشة إعدادات الوحدة.
  * بيعدّل صلاحيات الوحدة دي بس في كل دور، وصلاحيات باقي الوحدات بتفضل زي ما هي.
  */
 const props = defineProps<{ module: string }>();

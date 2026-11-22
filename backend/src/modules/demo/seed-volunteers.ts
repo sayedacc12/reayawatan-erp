@@ -6,7 +6,7 @@ import { DEFAULT_CHARTER, DEFAULT_POLICY } from '../volunteers/volunteers-defaul
 import { DemoTeam, daysAgo, daysAhead } from './demo-context';
 
 /**
- * التطوع في الجمعية التجريبية: اللائحة والميثاق معتمدان، متطوعون بأنواع ومجالات مختلفة (منهم طلبات تسجيل جديدة)،
+ * التطوع في الشركة التجريبية: اللائحة والميثاق معتمدان، متطوعون بأنواع ومجالات مختلفة (منهم طلبات تسجيل جديدة)،
  * فعاليات ميدانية وعن بعد في كل المراحل (مغلقة بتقريرها واستبانتها، معتمدة قادمة، قيد الاعتماد، معادة، مسودة)،
  * شهادات ساعات وشكر، عقود موقعة وغير موقعة، وشكاوى ومقترحات واستفسارات. كل العمليات عبر خدمات الوحدة نفسها.
  */
@@ -75,8 +75,8 @@ export class VolunteersSeed {
     // 1) فعالية ميدانية مغلقة: توزيع سلال رمضان
     const ramadan = (await this.events.create(admin, {
       ...base, title: 'توزيع السلال الغذائية على الأسر المستفيدة', kind: 'field', categoryCode: 'distribution', fieldCodes: ['relief', 'social'],
-      description: 'تجهيز السلال الغذائية في مستودع الجمعية وتوزيعها على الأسر المسجلة في حي النسيم.', objectives: 'إيصال 300 سلة غذائية للأسر المستحقة خلال يومين.',
-      location: 'مستودع الجمعية، حي النسيم، الرياض', startDate: daysAgo(40), endDate: daysAgo(39), startTime: '08:00', endTime: '14:00', plannedHours: 6,
+      description: 'تجهيز السلال الغذائية في مستودع الشركة وتوزيعها على الأسر المسجلة في حي النسيم.', objectives: 'إيصال 300 سلة غذائية للأسر المستحقة خلال يومين.',
+      location: 'مستودع الشركة، حي النسيم، الرياض', startDate: daysAgo(40), endDate: daysAgo(39), startTime: '08:00', endTime: '14:00', plannedHours: 6,
       volunteersNeeded: 10, targetBeneficiaries: 300, budget: 4500, supervisorName: 'فيصل عبدالرحمن القحطاني', answers: { partners: 'بنك الطعام السعودي', needs_transport: true },
     })).id;
     await approve(ramadan);
@@ -93,7 +93,7 @@ export class VolunteersSeed {
       })),
     });
     await this.events.close(admin, ramadan, {
-      actualBeneficiaries: 312, closureSummary: 'وُزعت 312 سلة غذائية على الأسر المستحقة خلال يومين بمشاركة 5 متطوعين وفريق الجمعية.',
+      actualBeneficiaries: 312, closureSummary: 'وُزعت 312 سلة غذائية على الأسر المستحقة خلال يومين بمشاركة 5 متطوعين وفريق الشركة.',
       achievements: 'تجاوز المستهدف بـ 12 سلة بعد تبرع إضافي من الشريك.', challenges: 'ازدحام في نقطة التوزيع في اليوم الأول.',
       recommendations: 'تقسيم التوزيع على فترات زمنية حسب الأحياء، وتوفير مظلات للانتظار.', actualCost: 4200,
       closureAnswers: { goals_met: 'تحققت بالكامل', media_coverage: 'https://x.com/sanabel/status/1' }, openSurvey: true,
@@ -111,7 +111,7 @@ export class VolunteersSeed {
     d = await this.events.detail(admin, online);
     await this.events.attendance(admin, online, { rows: d.participants.map((p) => ({ id: p.id, status: 'attended', hours: 9, rating: 5, role: p.role, note: null })) });
     await this.events.close(admin, online, {
-      actualBeneficiaries: 0, closureSummary: 'أُنتجت 14 تصميمًا و3 مقاطع قصيرة نُشرت في حسابات الجمعية ضمن حملة كفالة الأيتام.',
+      actualBeneficiaries: 0, closureSummary: 'أُنتجت 14 تصميمًا و3 مقاطع قصيرة نُشرت في حسابات الشركة ضمن حملة كفالة الأيتام.',
       achievements: 'وصلت المقاطع إلى أكثر من 40 ألف مشاهدة.', challenges: null, recommendations: 'إشراك المتطوعين في التخطيط للحملة من بدايتها.',
       closureAnswers: { goals_met: 'تحققت بالكامل' }, openSurvey: true,
     });
@@ -164,7 +164,7 @@ export class VolunteersSeed {
     // 6) مسودة
     await this.events.create(admin, {
       ...base, title: 'برنامج القراءة الصيفي للأطفال', kind: 'field', categoryCode: 'awareness', fieldCodes: ['education'],
-      description: 'جلسات قراءة أسبوعية لأطفال الأسر المستفيدة في مقر الجمعية.', location: 'مقر الجمعية', startDate: daysAhead(60), endDate: daysAhead(90), plannedHours: 2,
+      description: 'جلسات قراءة أسبوعية لأطفال الأسر المستفيدة في مقر الشركة.', location: 'مقر الشركة', startDate: daysAhead(60), endDate: daysAhead(90), plannedHours: 2,
       volunteersNeeded: 6, targetBeneficiaries: 50,
     });
 

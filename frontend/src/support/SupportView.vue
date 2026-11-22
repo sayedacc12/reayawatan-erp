@@ -8,7 +8,7 @@ import SlaBadge from './SlaBadge.vue';
 import SlaLevels from './SlaLevels.vue';
 import { CATEGORY, PRIORITY, STATUS, fmtDT, hoursLabel, type SlaLevel, type TicketDetail, type TicketSummary } from './support';
 
-/** الدعم الفني والصيانة: طلبات الجمعية لفريق المنصة */
+/** الدعم الفني والصيانة: طلبات الشركة لفريق المنصة */
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -107,10 +107,10 @@ async function submit() {
     <form v-else-if="tab === 'new'" class="new-grid" @submit.prevent="submit">
       <section class="card p-panel">
         <h2>📝 بيانات الطلب</h2>
-        <div class="field"><label>عنوان الطلب</label><input v-model="form.subject" class="input" required minlength="5" maxlength="200" placeholder="مثال: لا يمكن حفظ طلب مستفيد جديد" /></div>
+        <div class="field"><label>عنوان الطلب</label><input v-model="form.subject" class="input" required minlength="5" maxlength="200" placeholder="مثال: لا يمكن حفظ سند قبض جديد" /></div>
         <div class="p-row-2">
           <div class="field"><label>نوع الطلب</label><select v-model="form.category" class="input"><option v-for="(l, k) in CATEGORY" :key="k" :value="k">{{ l }}</option></select></div>
-          <div class="field"><label>الشاشة المتأثرة (اختياري)</label><input v-model="form.screen" class="input" maxlength="200" placeholder="مثال: سجل المستفيدين" /></div>
+          <div class="field"><label>الشاشة المتأثرة (اختياري)</label><input v-model="form.screen" class="input" maxlength="200" placeholder="مثال: العملاء المحتملون" /></div>
         </div>
         <div class="field">
           <label>مستوى الخدمة</label>

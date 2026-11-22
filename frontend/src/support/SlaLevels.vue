@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { PRIORITY, hoursLabel, type SlaLevel } from './support';
-/** دليل مستويات الخدمة وآلية التعامل مع كل مستوى (يظهر للجمعية ولمدير المنصة) */
+/** دليل مستويات الخدمة وآلية التعامل مع كل مستوى (يظهر للشركة ولمدير المنصة) */
 defineProps<{ levels: SlaLevel[]; compact?: boolean }>();
 </script>
 

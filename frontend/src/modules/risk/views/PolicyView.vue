@@ -60,7 +60,7 @@ async function view(v: number) {
     <section class="pm-hero rk-hero">
       <div><p class="pm-kicker">سياسة إدارة المخاطر والتغيير والالتزام{{ data.current ? ` · الإصدار ${data.current.version}` : ' · المقترحة من النظام' }}</p>
         <h1>السياسة واللائحة المعتمدة</h1>
-        <p class="pm-sub">نص مفتوح تعدّله الجمعية حسب ما يعتمده مجلس الإدارة. كل حفظ يصبح إصدارًا جديدًا بتاريخ سريانه وملخص لما تغير، ويبقى كل إصدار سابق متاحًا للرجوع إليه.</p></div>
+        <p class="pm-sub">نص مفتوح تعدّله الشركة حسب ما يعتمده مجلس الإدارة. كل حفظ يصبح إصدارًا جديدًا بتاريخ سريانه وملخص لما تغير، ويبقى كل إصدار سابق متاحًا للرجوع إليه.</p></div>
       <div v-if="data.current" class="pm-actions"><span class="pm-pill" style="--c: #10b981; background: rgba(255,255,255,.9)">سارية من {{ fmtDate(data.current.effectiveDate) }}</span></div>
     </section>
     <div class="rk-tabs">

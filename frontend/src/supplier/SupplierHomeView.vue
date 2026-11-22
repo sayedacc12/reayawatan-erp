@@ -18,19 +18,19 @@ onMounted(async () => {
 const m = computed(() => me.value);
 const editable = computed(() => ['draft', 'returned'].includes(m.value?.supplier.status));
 const STEP: Record<string, string> = {
-  draft: 'أكمل بيانات المنشأة وارفع المستندات المطلوبة، ثم أرسل الطلب للجمعية.',
-  pending: 'طلبك قيد المراجعة لدى الجمعية. سنبلغك بالبريد عند اتخاذ القرار.',
-  returned: 'أعادت الجمعية الطلب لاستكمال ما يلي، ثم أعد إرساله.',
-  approved: 'منشأتك مورد معتمد لدى الجمعية. حافظ على تحديث مستنداتك قبل انتهائها.',
+  draft: 'أكمل بيانات المنشأة وارفع المستندات المطلوبة، ثم أرسل الطلب للشركة.',
+  pending: 'طلبك قيد المراجعة لدى الشركة. سنبلغك بالبريد عند اتخاذ القرار.',
+  returned: 'أعادت الشركة الطلب لاستكمال ما يلي، ثم أعد إرساله.',
+  approved: 'منشأتك مورد معتمد لدى الشركة. حافظ على تحديث مستنداتك قبل انتهائها.',
   rejected: 'لم يُقبل طلب التسجيل.',
-  suspended: 'أُوقف التعامل مع منشأتك مؤقتًا. تواصل مع الجمعية.',
+  suspended: 'أُوقف التعامل مع منشأتك مؤقتًا. تواصل مع الشركة.',
 };
 async function submit() {
   busy.value = true;
   error.value = '';
   try {
     setMe(await supplierApi('/submit', { method: 'POST' }));
-    ok.value = 'أُرسل الطلب للجمعية ✓';
+    ok.value = 'أُرسل الطلب للشركة ✓';
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -47,7 +47,7 @@ async function submit() {
         <h1>{{ m.supplier.name }}</h1>
         <span class="pm-pill" :style="{ '--c': SUPPLIER_COLOR[m.supplier.status] }">{{ m.supplier.statusLabel }}</span>
         <p>{{ STEP[m.supplier.status] }}</p>
-        <p v-if="m.supplier.reviewNote && ['returned', 'rejected', 'suspended'].includes(m.supplier.status)" class="alert alert-error">ملاحظة الجمعية: {{ m.supplier.reviewNote }}</p>
+        <p v-if="m.supplier.reviewNote && ['returned', 'rejected', 'suspended'].includes(m.supplier.status)" class="alert alert-error">ملاحظة الشركة: {{ m.supplier.reviewNote }}</p>
       </div>
     </section>
     <div v-if="summary && (summary.openRfqs || summary.newOrders)" class="pc-cards" style="margin-bottom: 16px">
@@ -76,7 +76,7 @@ async function submit() {
           <RouterLink :to="`/supplier/${slug}/profile`" class="btn btn-sm">بيانات المنشأة</RouterLink>
           <RouterLink :to="`/supplier/${slug}/docs`" class="btn btn-sm">المستندات</RouterLink>
           <button v-if="editable && m.user.role === 'owner'" class="btn btn-primary" :disabled="busy || !m.checklist.complete" @click="submit">
-            {{ m.supplier.status === 'returned' ? 'إعادة إرسال الطلب' : 'إرسال الطلب للجمعية' }}
+            {{ m.supplier.status === 'returned' ? 'إعادة إرسال الطلب' : 'إرسال الطلب للشركة' }}
           </button>
         </div>
         <p v-if="editable && !m.checklist.complete" class="pm-muted" style="font-size: .84rem">يُفعّل زر الإرسال بعد اكتمال البيانات والمستندات المطلوبة.</p>

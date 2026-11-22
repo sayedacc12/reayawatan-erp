@@ -31,7 +31,7 @@ export class OrganizationsService {
     const bad = modules.filter((m) => !this.catalog.isOptionalModule(m));
     if (bad.length) throw new BadRequestException(`وحدات غير قابلة للتفعيل: ${bad.join(', ')}`);
     await this.db.transaction(async (em) => {
-      if (!(await em.exists(Organization, { where: { id } }))) throw new NotFoundException('الجمعية غير موجودة');
+      if (!(await em.exists(Organization, { where: { id } }))) throw new NotFoundException('الشركة غير موجودة');
       await em.delete(OrganizationModule, { organizationId: id });
       if (modules.length) {
         await em.insert(OrganizationModule, modules.map((moduleCode) => ({ organizationId: id, moduleCode })));
@@ -70,15 +70,15 @@ export class OrganizationsService {
     }));
   }
 
-  /** ينشئ الجمعية ومدير نظامها في معاملة واحدة */
+  /** ينشئ الشركة ومدير نظامها في معاملة واحدة */
   async create(dto: CreateOrganizationDto) {
     const email = dto.adminEmail.trim().toLowerCase();
     const id = await this.db.transaction(async (em) => {
       if (await em.exists(Organization, { where: { slug: dto.slug } })) {
-        throw new ConflictException('معرف الجمعية مستخدم بالفعل');
+        throw new ConflictException('معرف الشركة مستخدم بالفعل');
       }
       if (await em.exists(User, { where: { email } })) {
-        throw new ConflictException('بريد مدير الجمعية مستخدم بالفعل');
+        throw new ConflictException('بريد مدير الشركة مستخدم بالفعل');
       }
       const org = await em.save(em.create(Organization, { name: dto.name.trim(), slug: dto.slug }));
       await em.save(em.create(User, {
@@ -95,14 +95,14 @@ export class OrganizationsService {
 
   async update(id: string, dto: UpdateOrganizationDto) {
     const org = await this.orgs.findOne({ where: { id } });
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
     if (dto.name !== undefined) org.name = dto.name.trim();
     if (dto.isActive !== undefined) org.isActive = dto.isActive;
     await this.orgs.save(org);
     return this.get(id);
   }
 
-  /** الشاشات المسموحة للجمعية والخدمات الاختيارية المفعلة لها */
+  /** الشاشات المسموحة للشركة والخدمات الاختيارية المفعلة لها */
   async setAccess(id: string, screens: string[] | null, modules: string[]) {
     await this.setModules(id, modules);
     await this.orgs.update(id, { allowedScreens: screens });
@@ -112,7 +112,7 @@ export class OrganizationsService {
   /** تعديل يدوي لحالة الاشتراك (تمديد التجربة، تفعيل، ...) */
   async setSubscription(id: string, dto: SubscriptionDto) {
     const org = await this.orgs.findOne({ where: { id } });
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
     if (dto.status === 'trial' && !dto.trialEndsOn) throw new BadRequestException('حدد آخر يوم في الفترة التجريبية');
     if (dto.startsOn && dto.endsOn && dto.endsOn < dto.startsOn) throw new BadRequestException('نهاية الاشتراك قبل بدايته');
     org.subscriptionStatus = dto.status;
@@ -123,7 +123,7 @@ export class OrganizationsService {
     return this.get(id);
   }
 
-  /** حسابات مدير نظام الجمعية (لعرض بيانات الدخول في ملف الجمعية بإدارة المنصة) */
+  /** حسابات مدير نظام الشركة (لعرض بيانات الدخول في ملف الشركة بإدارة المنصة) */
   async admins(organizationId: string) {
     const rows = await this.db.getRepository(User).find({
       where: { organizationId, isSuperadmin: true },
@@ -134,12 +134,12 @@ export class OrganizationsService {
   }
 
   /**
-   * كلمة مرور مؤقتة جديدة لمدير نظام الجمعية، تظهر لمدير المنصة مرة واحدة ليرسلها للجمعية، وتُرسل لبريده إن طُلب.
+   * كلمة مرور مؤقتة جديدة لمدير نظام الشركة، تظهر لمدير المنصة مرة واحدة ليرسلها للشركة، وتُرسل لبريده إن طُلب.
    * صالحة 24 ساعة ويغيّرها المدير عند أول دخول، وتغلق طلب «نسيت كلمة المرور» إن وُجد.
    */
   async resetAdminPassword(organizationId: string, userId: string, issuedBy: string, opts: { sendEmail?: boolean; origin?: string } = {}) {
     const user = await this.db.getRepository(User).findOne({ where: { id: userId, organizationId, isSuperadmin: true } });
-    if (!user) throw new NotFoundException('حساب مدير النظام غير موجود في هذه الجمعية');
+    if (!user) throw new NotFoundException('حساب مدير النظام غير موجود في هذه الشركة');
     const { password, login, expiresAt } = await this.resets.issueForUser(user.id, issuedBy);
     let emailedTo: string | null = null;
     if (opts.sendEmail && user.email) {
@@ -153,7 +153,7 @@ export class OrganizationsService {
 
   async get(id: string) {
     const row = (await this.list()).find((o) => o.id === id);
-    if (!row) throw new NotFoundException('الجمعية غير موجودة');
+    if (!row) throw new NotFoundException('الشركة غير موجودة');
     return row;
   }
 }

@@ -168,7 +168,7 @@ const openFile = (key: string) => openProtectedFile(`${base()}/files/${key}`).ca
 
         <section v-if="d.partnership" class="card pm-panel" style="border-inline-start: 4px solid #0891b2">
           <h2>عقد مشترك مع شريك</h2>
-          <p style="margin: 0">الجهة شريك للجمعية أيضًا، والعقد مرتبط بعقد الشراكة
+          <p style="margin: 0">الجهة شريك للشركة أيضًا، والعقد مرتبط بعقد الشراكة
             <RouterLink class="pm-link" :to="`/partnerships/contracts/${d.partnership.id}`">{{ d.partnership.number }} · {{ d.partnership.title }}</RouterLink>
             <span v-if="d.partnership.partnerName"> مع {{ d.partnership.partnerName }}</span>.</p>
         </section>

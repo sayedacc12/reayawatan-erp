@@ -141,7 +141,7 @@ export class RiskAnalysis extends GrcRecord {
   @Column({ type: 'varchar', length: 200 })
   title!: string;
 
-  /** نطاق التحليل: الجمعية كلها أو برنامج أو مشروع أو خدمة */
+  /** نطاق التحليل: الشركة كلها أو برنامج أو مشروع أو خدمة */
   @Column({ type: 'varchar', length: 200, nullable: true })
   scope!: string | null;
 
@@ -159,7 +159,7 @@ export class RiskAnalysis extends GrcRecord {
   summary!: string | null;
 }
 
-/** سجل المخاطر المؤسسي: المرجع الموحد لكل مخاطر الجمعية (الداخلية والخارجية ومخاطر المنتجات والخدمات) */
+/** سجل المخاطر المؤسسي: المرجع الموحد لكل مخاطر الشركة (الداخلية والخارجية ومخاطر المنتجات والخدمات) */
 @Entity('risk_register')
 @Index('UQ_risk_register_code', ['organizationId', 'code'], { unique: true })
 export class RiskItem extends GrcRecord {
@@ -400,7 +400,7 @@ export class RiskChange extends GrcRecord {
   closedAt!: Date | null;
 }
 
-/** سجل الالتزام: المتطلبات النظامية والتعاقدية والداخلية التي تلتزم بها الجمعية */
+/** سجل الالتزام: المتطلبات النظامية والتعاقدية والداخلية التي تلتزم بها الشركة */
 @Entity('risk_obligations')
 @Index('UQ_risk_obligations_code', ['organizationId', 'code'], { unique: true })
 export class RiskObligation {

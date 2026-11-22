@@ -6,7 +6,7 @@ const meta = (title: string, permission: string = P.read) => ({ permission, titl
 
 export const qualityRoutes: RouteRecordRaw[] = [
   { path: '/quality', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة الجودة') },
-  { path: '/quality/context', component: () => import('./views/ContextView.vue'), meta: meta('سياق الجمعية وسياسة الجودة') },
+  { path: '/quality/context', component: () => import('./views/ContextView.vue'), meta: meta('سياق الشركة وسياسة الجودة') },
   { path: '/quality/risks', component: () => import('./views/RisksView.vue'), meta: meta('المخاطر والفرص') },
   { path: '/quality/objectives', component: () => import('./views/ObjectivesView.vue'), meta: meta('أهداف الجودة ومؤشراتها') },
   { path: '/quality/documents', component: () => import('./views/DocumentsView.vue'), meta: meta('سجل الوثائق المضبوطة') },

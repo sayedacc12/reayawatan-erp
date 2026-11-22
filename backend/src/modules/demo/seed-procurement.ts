@@ -19,7 +19,7 @@ const file = (name: string) => ({ buffer: PDF, originalname: `${name}.pdf`, mime
 export interface DemoSupplierLogin { supplier: string; status: string; fullName: string; email: string }
 
 /**
- * المشتريات والمستودعات في الجمعية التجريبية (المرحلة الأولى):
+ * المشتريات والمستودعات في الشركة التجريبية (المرحلة الأولى):
  * ربط المجموعات بحساباتها، ودليل أصناف ببدائل وصنف موقوف، ومستودعات بمواقعها،
  * وموردون في كل حالة: معتمد بحساب بنكي معتمد، ومستند قارب على الانتهاء، وطلب من البوابة بانتظار الاعتماد،
  * وطلب معاد للاستكمال، وتسجيل لم يكتمل، وطلب تغيير حساب بنكي بانتظار المالية.
@@ -46,7 +46,7 @@ export class ProcurementSeed {
     const [category] = await this.db.query(`SELECT id FROM acc_partner_categories WHERE organization_id = $1 AND behavior = 'supplier' ORDER BY sort_order LIMIT 1`, [org]);
     await this.db.getRepository(PrSettings).update({ organizationId: org }, {
       payablesAccountId: payables?.id ?? null, partnerCategoryId: category?.id ?? null, docAlertDays: 30,
-      portalIntro: 'نرحب بالموردين ومزودي الخدمات الراغبين في التعامل مع الجمعية. سجّل منشأتك وارفع مستنداتك النظامية، وستصلك طلبات عروض الأسعار في مجال نشاطك.',
+      portalIntro: 'نرحب بالموردين ومزودي الخدمات الراغبين في التعامل مع الشركة. سجّل منشأتك وارفع مستنداتك النظامية، وستصلك طلبات عروض الأسعار في مجال نشاطك.',
     });
 
     const charity = await acc('بضائع ومنتجات للتوزيع الخيري');
@@ -196,7 +196,7 @@ export class ProcurementSeed {
       for (const [docType, expiry] of docs) await this.portal.addDoc(p, { docType, number: null, issueDate: daysAgo(100), expiryDate: expiry } as never, file(docType));
     };
 
-    // التسجيل الذاتي من البوابة (يُتخطى إن أغلقت الجمعية البوابة)
+    // التسجيل الذاتي من البوابة (يُتخطى إن أغلقت الشركة البوابة)
     if (settings.portalOpen) {
       // 4) طلب مكتمل من البوابة بانتظار الاعتماد
       const naqaa = await register('naqaa', 'نورة الدوسري', {
@@ -206,7 +206,7 @@ export class ProcurementSeed {
       await portalDocs(naqaa, [['cr', daysAhead(250)], ['zakat', daysAhead(120)], ['address', null], ['license', daysAhead(60)]]);
       await this.portal.submit(naqaa);
 
-      // 5) طلب أعادته الجمعية للاستكمال
+      // 5) طلب أعادته الشركة للاستكمال
       const tech = await register('tech', 'ماجد الحربي', {
         name: 'مؤسسة التقنية الحديثة', entityType: 'establishment', crNumber: '1010789012', city: 'الرياض', phone: '0114443322',
         activities: ['أجهزة حاسب وتقنية'], categoryIds: cat('موردو أجهزة'),

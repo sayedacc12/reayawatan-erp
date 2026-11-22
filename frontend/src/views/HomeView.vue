@@ -23,12 +23,7 @@ const tint = (i: number) => {
 };
 
 // خارطة الطريق: وحدات قادمة تظهر لمستخدمي الجمعيات كبطاقات "قريبًا"
-const upcoming = [
-  { name: 'الأعضاء', icon: 'users', desc: 'سجل الأعضاء والاشتراكات' },
-  { name: 'التبرعات', icon: 'heart', desc: 'الإيصالات والحملات والمتبرعين' },
-  { name: 'المحاسبة', icon: 'wallet', desc: 'القيود والحسابات والتقارير' },
-  { name: 'الموقع ومنصة التبرعات', icon: 'globe', desc: 'خدمة إضافية لكل جمعية' },
-];
+const upcoming: { name: string; icon: string; desc: string }[] = [];
 
 function spotlight(e: PointerEvent) {
   const el = e.currentTarget as HTMLElement;

@@ -67,7 +67,7 @@ export class RolesService {
 
   // ---- صلاحيات وحدة واحدة (من داخل إعدادات الوحدة) ----
 
-  /** يتأكد إن الوحدة مفعلة للجمعية وإن المستخدم يملك إعداداتها أو صلاحيات الأدوار العامة */
+  /** يتأكد إن الوحدة مفعلة للشركة وإن المستخدم يملك إعداداتها أو صلاحيات الأدوار العامة */
   private async moduleFor(actor: OrgUser, code: string, write: boolean) {
     const m = this.catalog.manifest(code);
     const enabled = await this.catalog.enabledModuleCodes(actor.organizationId);

@@ -113,7 +113,7 @@ const KIND_OPT = { any: 'كل الخطط', strategic: 'الاستراتيجية'
 
     <section v-else-if="tab === 'fields'" class="card pm-panel">
       <h2>حقول إضافية لعناصر الخطط</h2>
-      <p class="pm-muted">حقول تضيفها الجمعية لكل عنصر (مثل الفئة المستهدفة أو رقم المبادرة في الخطة الوطنية) دون تطوير.</p>
+      <p class="pm-muted">حقول تضيفها الشركة لكل عنصر (مثل الفئة المستهدفة أو رقم المبادرة في الخطة الوطنية) دون تطوير.</p>
       <p v-if="!cfg.customFields.length" class="pm-empty">لا توجد حقول إضافية</p>
       <div v-else class="table-wrap"><table class="table">
         <thead><tr><th>اسم الحقل</th><th>النوع</th><th>يظهر في</th><th>خيارات القائمة (افصل بفاصلة)</th><th /></tr></thead>
@@ -156,7 +156,7 @@ const KIND_OPT = { any: 'كل الخطط', strategic: 'الاستراتيجية'
 
     <div v-else-if="tab === 'scope'" class="rk-grid" style="grid-template-columns: 1fr 1fr">
       <section class="card pm-panel">
-        <h2>تضبطه الجمعية بنفسها من الإعدادات</h2>
+        <h2>تضبطه الشركة بنفسها من الإعدادات</h2>
         <ul class="rk-log"><li v-for="x in payload.configurable" :key="x"><b style="color: #10b981">✓</b><span>{{ x }}</span></li></ul>
       </section>
       <section class="card pm-panel">

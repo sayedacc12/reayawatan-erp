@@ -37,7 +37,7 @@ async function save() {
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات أرشيف المعرفة</h1><p class="muted">تصنيفات الوثائق، وصلاحيات الأرشيف على أدوار الجمعية.</p></div></div>
+    <div class="page-head"><div><h1>إعدادات أرشيف المعرفة</h1><p class="muted">تصنيفات الوثائق، وصلاحيات الأرشيف على أدوار الشركة.</p></div></div>
     <div class="ws-tabs"><button :class="['ws-tab', { on: tab === 'categories' }]" @click="tab = 'categories'">التصنيفات</button><button :class="['ws-tab', { on: tab === 'permissions' }]" @click="tab = 'permissions'">الصلاحيات</button></div>
     <section v-if="tab === 'categories'" class="card ws-panel" style="max-width: 900px">
       <p class="ws-muted">التصنيف الذي فيه وثائق لا يُحذف، أوقفه بدلًا من ذلك. ترتيب التصنيفات هو ترتيبها في الأرشيف وفي صفحة الحوكمة بالموقع.</p>

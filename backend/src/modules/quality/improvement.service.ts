@@ -9,7 +9,7 @@ export const NCR_STATUS_LABELS: Record<NcrStatus, string> = {
   open: 'مفتوحة: بانتظار التصحيح', analysis: 'تحليل السبب الجذري', action: 'تنفيذ الإجراءات التصحيحية', verification: 'التحقق من الفاعلية', closed: 'مغلقة',
 };
 export const NCR_SOURCE_LABELS: Record<string, string> = {
-  audit: 'مراجعة داخلية', complaint: 'شكوى', process: 'متابعة العمليات', beneficiary: 'ملاحظة مستفيد', supplier: 'مورد أو جهة خارجية', review: 'مراجعة الإدارة', risk: 'خطر تحقق', other: 'أخرى',
+  audit: 'مراجعة داخلية', complaint: 'شكوى', process: 'متابعة العمليات', beneficiary: 'ملاحظة عميل', supplier: 'مورد أو جهة خارجية', review: 'مراجعة الإدارة', risk: 'خطر تحقق', other: 'أخرى',
 };
 export const AUDIT_STATUS_LABELS: Record<string, string> = { planned: 'مخططة', in_progress: 'قيد التنفيذ', completed: 'مكتملة', cancelled: 'ملغاة' };
 export const AUDIT_RESULT_LABELS: Record<string, string> = {
@@ -19,7 +19,7 @@ export const TREATMENT_LABELS: Record<string, string> = {
   avoid: 'تجنب', mitigate: 'تخفيف', transfer: 'نقل', accept: 'قبول', exploit: 'استغلال', enhance: 'تعزيز', share: 'مشاركة',
 };
 export const METRIC_LABELS: Record<AutoMetric, { label: string; unit: string; direction: 'increase' | 'decrease' }> = {
-  satisfaction: { label: 'مؤشر رضا المستفيدين من الاستبانات', unit: '%', direction: 'increase' },
+  satisfaction: { label: 'مؤشر رضا العملاء من الاستبانات', unit: '%', direction: 'increase' },
   complaint_days: { label: 'متوسط أيام معالجة الشكوى', unit: 'يوم', direction: 'decrease' },
   complaints_closed: { label: 'نسبة الشكاوى المعالجة', unit: '%', direction: 'increase' },
   ncr_closed: { label: 'نسبة إغلاق حالات عدم المطابقة', unit: '%', direction: 'increase' },

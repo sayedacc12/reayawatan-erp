@@ -82,9 +82,9 @@ const printPage = () => window.print();
           <dl class="pc-dl">
             <div v-if="r.order"><dt>التعميد</dt><dd><RouterLink class="pm-link" :to="`/procurement/orders/${r.order.id}`">{{ r.order.code }}</RouterLink> {{ r.order.title }}</dd></div>
             <div v-if="r.supplier"><dt>المورد</dt><dd><RouterLink class="pm-link" :to="`/procurement/suppliers/${r.supplier.id}`">{{ r.supplier.name }}</RouterLink></dd></div>
-            <div v-if="r.donorName"><dt>المتبرع</dt><dd>{{ r.donorName }}</dd></div>
             <div><dt>المستودع</dt><dd>{{ r.warehouse ? `${r.warehouse.code} · ${r.warehouse.name}` : 'تسليم مباشر' }}</dd></div>
-            <div v-if="r.deliveryRef"><dt>{{ r.kind === 'donation' ? 'مرجع التبرع' : 'إشعار التسليم' }}</dt><dd class="pc-code">{{ r.deliveryRef }}</dd></div>
+            <div v-if="r.donorName"><dt>المتبرع (سجل سابق)</dt><dd>{{ r.donorName }}</dd></div>
+            <div v-if="r.deliveryRef"><dt>إشعار التسليم</dt><dd class="pc-code">{{ r.deliveryRef }}</dd></div>
             <div><dt>المستلم</dt><dd>{{ r.createdByName }}</dd></div>
             <div v-if="r.extraCost"><dt>مصاريف النقل والتخليص</dt><dd>{{ sar(r.extraCost) }}<small v-if="r.extraNote" class="pm-muted"> · {{ r.extraNote }}</small></dd></div>
           </dl>

@@ -162,7 +162,7 @@ async function track() {
           <div v-if="tracked" class="ok" style="text-align: start; margin-top: 12px">
             <h3>{{ tracked.kindLabel }}: {{ tracked.subject }}</h3>
             <p>الحالة: <b>{{ tracked.statusLabel }}</b> · أُرسل {{ fmtDateTime(tracked.createdAt) }}</p>
-            <p v-if="tracked.reply" class="reply"><b>رد الجمعية ({{ fmtDateTime(tracked.repliedAt) }}):</b><br />{{ tracked.reply }}</p>
+            <p v-if="tracked.reply" class="reply"><b>رد الشركة ({{ fmtDateTime(tracked.repliedAt) }}):</b><br />{{ tracked.reply }}</p>
             <p v-else class="pm-muted">لم يصل رد بعد.</p>
           </div>
         </section>

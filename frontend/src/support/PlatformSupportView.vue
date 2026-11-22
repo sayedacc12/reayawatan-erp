@@ -83,7 +83,7 @@ const shown = computed(() => rows.value.filter((t) => {
 
     <div class="card table-wrap">
       <table class="table">
-        <thead><tr><th>الطلب</th><th>الجمعية</th><th>المستوى</th><th>الحالة</th><th>المهل</th><th>المسؤول</th></tr></thead>
+        <thead><tr><th>الطلب</th><th>الشركة</th><th>المستوى</th><th>الحالة</th><th>المهل</th><th>المسؤول</th></tr></thead>
         <tbody>
           <tr v-for="t in shown" :key="t.id" :class="['clickable', { hot: t.sla.needsEscalation }]" :style="{ '--c': PRIORITY[t.priority].color }" @click="router.push(`/support-desk/tickets/${t.id}`)">
             <td class="first"><b dir="ltr">{{ t.number }}</b> {{ t.subject }}<br /><small class="muted">{{ CATEGORY[t.category] }} · {{ fmtDT(t.createdAt) }}</small></td>

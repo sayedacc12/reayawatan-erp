@@ -104,7 +104,7 @@ async function save() {
       <input v-model="f.purpose" class="input grow" required placeholder="اكتب البيان يدويًا" />
       <select v-model="f.sourceType" class="input src" title="مصدر البيان">
         <option value="manual">كتابة يدوية</option>
-        <option value="opportunity">فرصة تبرع (يُربط لاحقًا)</option>
+        <option value="opportunity">فرصة دعم أو منحة (يُربط لاحقًا)</option>
         <option value="store">مشروع المتجر (يُربط لاحقًا)</option>
         <option v-if="f.sourceType === 'payroll'" value="payroll">مسير الرواتب</option>
         <option v-if="f.sourceType === 'separation'" value="separation">مستحقات نهاية الخدمة</option>
@@ -114,7 +114,7 @@ async function save() {
     </div>
     <div v-if="f.sourceType !== 'manual'" class="vline soft">
       <span class="lbl">مرجع المصدر</span>
-      <input v-model="f.sourceRef" class="input grow" :placeholder="f.sourceType === 'opportunity' ? 'رقم فرصة التبرع' : f.sourceType === 'payroll' ? 'شهر المسير' : f.sourceType === 'membership' ? 'رقم مطالبة العضوية' : 'رقم طلب المتجر'" :readonly="f.sourceType === 'payroll' || f.sourceType === 'membership' || f.sourceType === 'separation' || f.sourceType === 'comms'" />
+      <input v-model="f.sourceRef" class="input grow" :placeholder="f.sourceType === 'opportunity' ? 'رقم الفرصة' : f.sourceType === 'payroll' ? 'شهر المسير' : f.sourceType === 'membership' ? 'رقم مطالبة العضوية' : 'رقم طلب المتجر'" :readonly="f.sourceType === 'payroll' || f.sourceType === 'membership' || f.sourceType === 'separation' || f.sourceType === 'comms'" />
       <span class="pm-muted">يُملأ آليًا عند ربط النظام المالي بالموارد المالية والمتجر.</span>
     </div>
 
@@ -131,7 +131,7 @@ async function save() {
       <label v-if="f.method !== 'cash'" class="field"><span>{{ f.method === 'cheque' ? 'رقم الشيك' : 'رقم العملية' }}</span><input v-model="f.methodRef" class="input ac-code" /></label>
       <label class="field wide"><span>{{ isR ? 'الحساب الدائن (المقابل)' : 'الحساب المدين (المصروف عليه)' }}</span>
         <div v-if="lockedByPartner" class="input locked" title="من ملف الشريك">🔗 <span class="ac-code">{{ partner?.account?.code }}</span> {{ partner?.account?.name }} <small class="pm-muted">من ملف {{ partner?.name }}</small></div>
-        <SearchSelect v-else v-model="f.counterAccountId" :options="counterOptions" :selected-label="counter ? `${counter.code} ${counter.name}` : initial?.counterAccountCode ? `${initial.counterAccountCode} ${initial.counterAccountName}` : ''" placeholder="ابحث في حسابات الجمعية برقم الحساب أو اسمه" required />
+        <SearchSelect v-else v-model="f.counterAccountId" :options="counterOptions" :selected-label="counter ? `${counter.code} ${counter.name}` : initial?.counterAccountCode ? `${initial.counterAccountCode} ${initial.counterAccountName}` : ''" placeholder="ابحث في حسابات الشركة برقم الحساب أو اسمه" required />
       </label>
       <div class="field"><span>الحساب التحليلي {{ counter?.requiresAnalytic ? '(إلزامي)' : '' }}</span>
         <button type="button" :class="['btn', 'an', { need: counter?.requiresAnalytic && !f.analytic.length }]" @click="picker = true">{{ f.analytic.length ? analyticText : counter?.requiresAnalytic ? 'اختر الحساب التحليلي' : '+ تحليلي (اختياري)' }}</button>

@@ -35,7 +35,7 @@ const maxLevel = () => Math.max(1, ...(data.value?.risks.byLevel.map((l: Level &
       <div>
         <p class="pm-kicker">المخاطر والتغيير والالتزام</p>
         <h1>خريطة المخاطر المؤسسية في لمحة</h1>
-        <p class="pm-sub">سجل واحد لكل مخاطر الجمعية الداخلية والخارجية ومخاطر الخدمات، مع التغيير والالتزام واستمرارية الأعمال، وفق منهجيات معتمدة ومراحل اعتماد تضبطها الجمعية.</p>
+        <p class="pm-sub">سجل واحد لكل مخاطر الشركة الداخلية والخارجية ومخاطر الخدمات، مع التغيير والالتزام واستمرارية الأعمال، وفق منهجيات معتمدة ومراحل اعتماد تضبطها الشركة.</p>
       </div>
       <div class="pm-actions">
         <RouterLink v-if="session.can(P.register)" to="/risk/register/new" class="btn rk-glow">تسجيل خطر</RouterLink>

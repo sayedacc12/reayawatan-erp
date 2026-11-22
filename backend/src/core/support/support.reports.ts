@@ -11,7 +11,7 @@ const PRIORITY: Record<string, string> = { very_critical: 'حرج جدًا', cri
 const CATEGORY: Record<string, string> = {
   malfunction: 'عطل أو خطأ في النظام', access: 'مشكلة دخول أو صلاحيات', data: 'تصحيح بيانات', question: 'استفسار عن الاستخدام', feature: 'طلب تطوير أو ميزة', other: 'أخرى',
 };
-const STATUS: Record<string, string> = { new: 'جديد', in_progress: 'قيد المعالجة', waiting_customer: 'بانتظار رد الجمعية', resolved: 'تم الحل', closed: 'مغلق' };
+const STATUS: Record<string, string> = { new: 'جديد', in_progress: 'قيد المعالجة', waiting_customer: 'بانتظار رد الشركة', resolved: 'تم الحل', closed: 'مغلق' };
 const SLA: Record<string, string> = { met: 'ضمن المهلة', on_track: 'ضمن المهلة', at_risk: 'قاربت على الانتهاء', breached: 'تجاوز المهلة', paused: 'متوقفة' };
 const TASK: Record<string, string> = { todo: 'لم تبدأ', in_progress: 'جارية', done: 'منجزة', cancelled: 'ملغاة' };
 const ROLE: Record<string, string> = { owner: 'مدير المنصة', support_manager: 'مدير الدعم', support_agent: 'موظف الدعم' };
@@ -30,10 +30,10 @@ export class SupportReports implements OnModuleInit {
         orientation: 'landscape', link: '/support-desk/tickets/{id}',
         filters: [
           ...periodFilters('الطلب'), selectFilter('status', 'الحالة', STATUS), selectFilter('priority', 'المستوى', PRIORITY),
-          dynamicFilter('organizationId', 'الجمعية', async () => (await this.db.query('SELECT id AS value, name AS label FROM organizations ORDER BY name')) as { value: string; label: string }[]),
+          dynamicFilter('organizationId', 'الشركة', async () => (await this.db.query('SELECT id AS value, name AS label FROM organizations ORDER BY name')) as { value: string; label: string }[]),
         ],
         columns: [
-          { key: 'number', label: 'الرقم' }, { key: 'createdAt', label: 'التاريخ', type: 'datetime' }, { key: 'organization', label: 'الجمعية' }, { key: 'subject', label: 'الموضوع' },
+          { key: 'number', label: 'الرقم' }, { key: 'createdAt', label: 'التاريخ', type: 'datetime' }, { key: 'organization', label: 'الشركة' }, { key: 'subject', label: 'الموضوع' },
           { key: 'category', label: 'التصنيف' }, { key: 'priority', label: 'المستوى' }, { key: 'status', label: 'الحالة' }, { key: 'assignee', label: 'المسؤول' },
           { key: 'responseHours', label: 'أول رد (ساعة)', type: 'number' }, { key: 'response', label: 'مهلة الرد' },
           { key: 'resolutionHours', label: 'الحل (ساعة)', type: 'number' }, { key: 'resolution', label: 'مهلة الحل' }, { key: 'rating', label: 'التقييم', type: 'number' },
@@ -61,10 +61,10 @@ export class SupportReports implements OnModuleInit {
         },
       },
       {
-        ...base, code: 'support.by-organization', category: 'طلبات الصيانة', title: 'الطلبات حسب الجمعية', description: 'عدد طلبات كل جمعية ومستوياتها ومتوسط تقييمها في الفترة',
+        ...base, code: 'support.by-organization', category: 'طلبات الصيانة', title: 'الطلبات حسب الشركة', description: 'عدد طلبات كل جمعية ومستوياتها ومتوسط تقييمها في الفترة',
         filters: periodFilters('الطلب'),
         columns: [
-          { key: 'organization', label: 'الجمعية' }, { key: 'total', label: 'الطلبات', type: 'number', total: true }, { key: 'critical', label: 'حرجة', type: 'number', total: true },
+          { key: 'organization', label: 'الشركة' }, { key: 'total', label: 'الطلبات', type: 'number', total: true }, { key: 'critical', label: 'حرجة', type: 'number', total: true },
           { key: 'open', label: 'مفتوحة', type: 'number', total: true }, { key: 'resolved', label: 'محلولة', type: 'number', total: true },
           { key: 'avgResolution', label: 'متوسط الحل (ساعة)', type: 'number' }, { key: 'rating', label: 'متوسط التقييم', type: 'number' },
         ],

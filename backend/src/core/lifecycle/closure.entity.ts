@@ -6,7 +6,7 @@ export interface ClosureEvent { at: string; by: string; action: 'scheduled' | 'c
 
 /**
  * إغلاق جمعية وحذف بياناتها: إنهاء العقد بالتراضي (بمهلة قبل الحذف) أو انتهاء الفترة التجريبية دون اشتراك.
- * يبقى السجل بعد حذف الجمعية للرجوع إليه (اسمها ومعرفها وسبب الحذف ومن نفذه وعدد السجلات)، بلا أي بيانات من داخلها.
+ * يبقى السجل بعد حذف الشركة للرجوع إليه (اسمها ومعرفها وسبب الحذف ومن نفذه وعدد السجلات)، بلا أي بيانات من داخلها.
  */
 @Entity('organization_closures')
 export class OrganizationClosure {
@@ -30,11 +30,11 @@ export class OrganizationClosure {
   @Column({ type: 'varchar', length: 16 })
   status!: ClosureStatus;
 
-  /** يوم الحذف: تُحذف الجمعية في هذا اليوم أو بعده */
+  /** يوم الحذف: تُحذف الشركة في هذا اليوم أو بعده */
   @Column({ name: 'delete_on', type: 'date' })
   deleteOn!: string;
 
-  /** بيانات الاتفاق في الإنهاء بالتراضي: تاريخه وممثل الجمعية وملاحظات */
+  /** بيانات الاتفاق في الإنهاء بالتراضي: تاريخه وممثل الشركة وملاحظات */
   @Column({ type: 'jsonb', nullable: true })
   agreement!: { date: string; charityRep: string; note: string | null } | null;
 

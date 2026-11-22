@@ -4,7 +4,7 @@ export const coreRoutes: RouteRecordRaw[] = [
   {
     path: '/settings/identity',
     component: () => import('./views/IdentityView.vue'),
-    meta: { permission: 'core.identity.manage', title: 'هوية الجمعية', app: 'core' },
+    meta: { permission: 'core.identity.manage', title: 'هوية الشركة', app: 'core' },
   },
   {
     path: '/settings/users',

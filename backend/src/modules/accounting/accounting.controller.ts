@@ -153,7 +153,7 @@ export class AccountingController {
     return this.accounts.installChart(actor);
   }
 
-  // ---------------- أنواع السندات الخاصة بالجمعية ----------------
+  // ---------------- أنواع السندات الخاصة بالشركة ----------------
 
   @Get('document-types')
   @RequirePermissions(P.read)

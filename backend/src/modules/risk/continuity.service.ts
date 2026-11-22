@@ -118,7 +118,7 @@ export class ContinuityService {
     };
   }
 
-  /** الصلاحيات المتاحة لاختيار صلاحيات الطوارئ (صلاحيات وحدات الجمعية المفعلة) */
+  /** الصلاحيات المتاحة لاختيار صلاحيات الطوارئ (صلاحيات وحدات الشركة المفعلة) */
   async permissionOptions(actor: OrgUser) {
     const enabled = await this.catalog.enabledModuleCodes(actor.organizationId);
     const codes = this.catalog.permissionCodes('organization', enabled);
@@ -133,7 +133,7 @@ export class ContinuityService {
     if (new Set(userIds).size !== userIds.length) throw new BadRequestException('عضو مكرر في الفريق');
     if (userIds.length) {
       const rows: unknown[] = await em.query('SELECT id FROM users WHERE organization_id = $1 AND id = ANY($2)', [org, userIds]);
-      if (rows.length !== userIds.length) throw new BadRequestException('أحد الأعضاء ليس من مستخدمي الجمعية');
+      if (rows.length !== userIds.length) throw new BadRequestException('أحد الأعضاء ليس من مستخدمي الشركة');
     }
     if (dto.systemPermissions.length && !userIds.length) throw new BadRequestException('صلاحيات النظام تُمنح لأعضاء من مستخدمي النظام، اختر الأعضاء من المستخدمين');
     // نفس قاعدة الأدوار: لا تُمنح صلاحية غير معروفة، ولا صلاحية لا يملكها من يحدد صلاحيات الفريق

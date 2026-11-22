@@ -110,7 +110,7 @@ const TITLES: Record<string, string> = { approve: 'اعتماد طلب الصر�
             <div><dt>مركز التكلفة</dt><dd>{{ r.analytic ? `${r.analytic.code} · ${r.analytic.name}` : '—' }}</dd></div>
             <div><dt>المشروع</dt><dd>{{ r.projectName ?? '—' }}</dd></div>
             <div><dt>مصدر التمويل</dt><dd>{{ r.funding?.label ?? '—' }}</dd></div>
-            <div v-if="r.beneficiaryRef"><dt>مرجع المستفيد</dt><dd class="pc-code">{{ r.beneficiaryRef }}</dd></div>
+            <div v-if="r.beneficiaryRef"><dt>مرجع العميل أو البرنامج</dt><dd class="pc-code">{{ r.beneficiaryRef }}</dd></div>
           </dl>
         </section>
         <section class="card pm-panel">

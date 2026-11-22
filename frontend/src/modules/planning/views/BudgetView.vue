@@ -258,7 +258,7 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
                   <span v-if="l.note" class="pm-pill" style="--c: #64748b" :title="l.note">{{ l.included ? 'ملاحظة' : 'سبب الاستبعاد' }}</span>
                   <span v-if="l.warnings?.length" class="pm-pill" style="--c: #f59e0b" :title="l.warnings.join(' · ')">تنبيه</span>
                   <span v-if="l.overrideAmount !== null && l.overrideAmount !== undefined" class="pm-pill" style="--c: #b45309">معدّل</span></td>
-                <td>{{ l.unitName ?? 'الجمعية' }}<small v-if="l.accountCode" class="pm-muted" style="display: block">{{ l.accountCode }}</small></td>
+                <td>{{ l.unitName ?? 'الشركة' }}<small v-if="l.accountCode" class="pm-muted" style="display: block">{{ l.accountCode }}</small></td>
                 <td v-if="!sel" class="num">{{ num(l.auto, 0) }}</td>
                 <td class="num"><b>{{ num(l.amount, 0) }}</b></td>
                 <td v-if="!sel"><span class="bg-spark"><i v-for="(m, i) in l.monthly" :key="i" :style="{ height: `${Math.max(1, (Math.abs(m) / Math.max(1, ...l.monthly.map(Math.abs))) * 18)}px`, '--c': SECTIONS[tab].color }" /></span></td>
@@ -354,7 +354,7 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
         <label v-if="add.kind === 'account'" class="field"><span>الحساب</span><select v-model="add.accountId" class="input" required>
           <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}{{ a.payroll ? ' (حساب رواتب)' : '' }}</option></select></label>
         <label class="field"><span>{{ add.kind === 'new_position' ? 'المسمى الوظيفي' : 'اسم البند' }}</span><input v-model="add.name" class="input" :required="add.kind !== 'account'" :placeholder="add.kind === 'account' ? 'اسم الحساب افتراضيًا' : ''" /></label>
-        <label class="field"><span>الإدارة</span><select v-model="add.unitId" class="input"><option value="">الجمعية</option><option v-for="u in lk.units" :key="u.id" :value="u.id">{{ u.name }}</option></select></label>
+        <label class="field"><span>الإدارة</span><select v-model="add.unitId" class="input"><option value="">الشركة</option><option v-for="u in lk.units" :key="u.id" :value="u.id">{{ u.name }}</option></select></label>
         <label v-if="['manual', 'hr_other'].includes(add.kind)" class="field"><span>المبلغ السنوي</span><input v-model="add.amount" type="number" step="any" class="input" required /></label>
         <div v-if="add.kind === 'new_position'" class="rk-fields">
           <label class="field"><span>الأساسي</span><input v-model.number="add.basic" type="number" class="input" required /></label>

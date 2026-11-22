@@ -7,7 +7,7 @@ export const DOC_TYPES = {
 export type DocType = keyof typeof DOC_TYPES;
 export const DOC_STATUS = { draft: 'مسودة', published: 'منشورة', archived: 'مؤرشفة' } as const;
 export type DocStatus = keyof typeof DOC_STATUS;
-export const DOC_VISIBILITY = { internal: 'داخلية لموظفي الجمعية', public: 'منشورة في الموقع الإلكتروني' } as const;
+export const DOC_VISIBILITY = { internal: 'داخلية لموظفي الشركة', public: 'منشورة في الموقع الإلكتروني' } as const;
 export type DocVisibility = keyof typeof DOC_VISIBILITY;
 
 export interface DocFile { key: string; name: string; mime: string; size: number }
@@ -52,7 +52,7 @@ export class KnDocument {
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  /** الرمز (مثل ل-01 أو QP-HR-02)، فريد داخل الجمعية إن وُجد */
+  /** الرمز (مثل ل-01 أو QP-HR-02)، فريد داخل الشركة إن وُجد */
   @Column({ type: 'varchar', length: 40, nullable: true })
   code!: string | null;
 

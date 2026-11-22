@@ -31,7 +31,7 @@ onMounted(async () => { rows.value = await api<any[]>('/risk/analyses'); });
         <thead><tr><th>الرمز</th><th>النوع</th><th>العنوان</th><th>النطاق</th><th>التاريخ</th><th>العوامل</th><th>نُقلت للسجل</th><th>الاعتماد</th></tr></thead>
         <tbody><tr v-for="a in rows" :key="a.id" class="rk-row" @click="router.push(`/risk/analysis/${a.id}`)">
           <td class="rk-code">{{ a.code }}</td><td><span class="pm-tag">{{ a.kind === 'pestel' ? 'PESTEL' : 'SWOT' }}</span></td>
-          <td style="white-space: normal"><b>{{ a.title }}</b></td><td>{{ a.scope ?? 'الجمعية' }}</td><td>{{ fmtDate(a.analysisDate) }}</td>
+          <td style="white-space: normal"><b>{{ a.title }}</b></td><td>{{ a.scope ?? 'الشركة' }}</td><td>{{ fmtDate(a.analysisDate) }}</td>
           <td>{{ a.items }}</td><td>{{ a.linkedRisks }}</td><td><span class="pm-pill" :style="{ '--c': WF_STATUS[a.status].color }">{{ WF_STATUS[a.status].label }}</span></td>
         </tr></tbody>
       </table></div>

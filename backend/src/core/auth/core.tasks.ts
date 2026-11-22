@@ -4,7 +4,7 @@ import { CORE_PERMISSIONS } from '../core.manifest';
 import { OrgUser } from './decorators';
 import { PendingTask, TasksRegistry } from '../tasks/tasks.registry';
 
-/** جرس المهام: طلبات «نسيت كلمة المرور» من موظفي الجمعية تصل لمن يدير المستخدمين */
+/** جرس المهام: طلبات «نسيت كلمة المرور» من موظفي الشركة تصل لمن يدير المستخدمين */
 @Injectable()
 export class CoreTasks implements OnModuleInit {
   constructor(private readonly registry: TasksRegistry, private readonly db: DataSource) {}

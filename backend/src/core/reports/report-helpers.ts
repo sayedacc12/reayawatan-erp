@@ -14,12 +14,12 @@ export const selectFilter = (key: string, label: string, map: Record<string, str
   key, label, type: 'select', placeholder, options: Object.entries(map).map(([value, l]) => ({ value, label: l })),
 });
 
-/** قائمة اختيار تُحمّل من الجمعية بدالة */
+/** قائمة اختيار تُحمّل من الشركة بدالة */
 export const dynamicFilter = (key: string, label: string, load: (user: OrgUser) => Promise<ReportOption[]>, placeholder = 'الكل', required = false): ReportFilter => ({
   key, label, type: 'select', placeholder, required, loadOptions: (u: AuthUser) => load(u as OrgUser),
 });
 
-/** المستخدم داخل جمعية (التقارير ذات النطاق organization مضمونة الجمعية من السجل) */
+/** المستخدم داخل جمعية (التقارير ذات النطاق organization مضمونة الشركة من السجل) */
 export const org = (u: AuthUser) => u as OrgUser;
 
 /** رقم مرجعي بصيغة ثابتة: FR-00012 */

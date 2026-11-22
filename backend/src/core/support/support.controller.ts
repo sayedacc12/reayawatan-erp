@@ -24,7 +24,7 @@ function sendFile(res: Response, f: { stream: NodeJS.ReadableStream; name: strin
   return new StreamableFile(f.stream as never, { type: f.mime, disposition: `inline; filename*=UTF-8''${encodeURIComponent(f.name)}` });
 }
 
-/** طلبات الصيانة والدعم من داخل الجمعية */
+/** طلبات الصيانة والدعم من داخل الشركة */
 @Controller('support')
 @RequirePermissions(CORE_PERMISSIONS.supportManage)
 export class OrgSupportController {

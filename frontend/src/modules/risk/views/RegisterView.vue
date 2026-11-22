@@ -35,7 +35,7 @@ const catName = (c: string) => cfg.value?.categories.find((x) => x.code === c)?.
 <template>
   <div>
     <div class="page-head">
-      <div><h1>سجل المخاطر المؤسسي</h1><p class="muted">المرجع الموحد لمخاطر الجمعية. الترتيب حسب الخطر المتبقي من الأعلى.</p></div>
+      <div><h1>سجل المخاطر المؤسسي</h1><p class="muted">المرجع الموحد لمخاطر الشركة. الترتيب حسب الخطر المتبقي من الأعلى.</p></div>
       <RouterLink v-if="session.can(P.register)" to="/risk/register/new" class="btn btn-primary">تسجيل خطر</RouterLink>
     </div>
     <div class="pm-filters">

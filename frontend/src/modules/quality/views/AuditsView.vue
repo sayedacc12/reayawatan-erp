@@ -98,7 +98,7 @@ async function create() {
     <div v-if="form.show" class="modal-backdrop" @click.self="form.show = false">
       <form class="card modal" style="max-width: 640px" @submit.prevent="create">
         <h2>إضافة مراجعة للبرنامج</h2>
-        <label class="field"><span>العنوان</span><input v-model="form.title" class="input" required placeholder="مثال: مراجعة عملية طلبات المستفيدين" /></label>
+        <label class="field"><span>العنوان</span><input v-model="form.title" class="input" required placeholder="مثال: مراجعة عملية طلبات العملاء" /></label>
         <div class="pm-grid2">
           <label class="field"><span>العملية محل المراجعة</span><input v-model="form.scope" class="input" required /></label>
           <label class="field"><span>الإدارة</span><select v-model="form.department" class="input"><option v-for="d in settings?.departments" :key="d.code" :value="d.code">{{ d.code }} · {{ d.name }}</option></select></label>

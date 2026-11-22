@@ -82,7 +82,7 @@ const slug = (s: string, i: number) => s.trim().toLowerCase().replace(/[^a-z0-9]
           </table></div>
           <button class="btn btn-sm" :disabled="cfg.levels.length >= 6" @click="addLevel">+ مستوى</button>
           <div class="rk-sec">حد القابلية للمخاطر (Risk Appetite)</div>
-          <label class="field" style="max-width: 360px"><span>أعلى درجة متبقية تقبلها الجمعية دون معالجة إضافية: <b>{{ cfg.appetite }}</b></span><input v-model.number="cfg.appetite" type="range" min="1" max="25" /></label>
+          <label class="field" style="max-width: 360px"><span>أعلى درجة متبقية تقبلها الشركة دون معالجة إضافية: <b>{{ cfg.appetite }}</b></span><input v-model.number="cfg.appetite" type="range" min="1" max="25" /></label>
         </section>
       </div>
       <section class="card pm-panel" style="align-self: start">

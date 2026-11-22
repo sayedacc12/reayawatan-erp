@@ -6,7 +6,7 @@ import { addDays, today } from './gov-finance.service';
 
 /**
  * حالة الإشارة الآلية:
- *  met = متحقق، partial = جزئي، missing = غير متحقق، na = لا ينطبق على الجمعية (يأخذ مسار «لا يوجد» بنسبة 100%).
+ *  met = متحقق، partial = جزئي، missing = غير متحقق، na = لا ينطبق على الشركة (يأخذ مسار «لا يوجد» بنسبة 100%).
  */
 export type SignalStatus = 'met' | 'partial' | 'missing' | 'na';
 export interface Signal { status: SignalStatus; text: string; source: string }
@@ -61,7 +61,7 @@ const OBLIGATION_SIGNALS: Record<string, { kind: ObligationKind; need: number; t
   'gov.quarterly_board': { kind: 'quarterly_report', need: 4, title: 'عرض التقارير الربعية على المجلس' },
   'gov.board_meetings': { kind: 'board_meeting', need: 4, title: 'اجتماعات مجلس الإدارة' },
   'gov.board_regular': { kind: 'board_meeting', need: 4, title: 'انتظام اجتماعات المجلس' },
-  'members.ga_ordinary': { kind: 'ga_meeting', need: 1, title: 'الاجتماع العادي للجمعية العمومية' },
+  'members.ga_ordinary': { kind: 'ga_meeting', need: 1, title: 'الاجتماع العادي للشركة العمومية' },
   'members.ga_meeting': { kind: 'ga_meeting', need: 1, title: 'اجتماع الجمعية العمومية' },
   'gov.statements_ga': { kind: 'annual_statements', need: 1, title: 'اعتماد القوائم المالية من الجمعية العمومية' },
   'gov.statements_issued': { kind: 'annual_statements', need: 1, title: 'إصدار القوائم المالية المدققة' },
@@ -101,7 +101,7 @@ export class GovSignals {
       const chart = await this.count(`SELECT COUNT(*) AS n FROM acc_settings WHERE organization_id = $1 AND chart_installed_at IS NOT NULL`, [org]);
       set('acc.unified_chart', chart ? 'met' : 'missing', chart ? 'دليل الحسابات الموحد مثبّت في النظام المالي' : 'لم يُثبّت دليل الحسابات الموحد بعد', 'النظام المالي');
       const posted = await this.count(`SELECT COUNT(*) AS n FROM acc_entries WHERE organization_id = $1 AND status = 'posted'`, [org]);
-      set('acc.software', posted ? 'met' : 'missing', posted ? `الجمعية تستخدم النظام المالي (${posted} قيد مرحّل)` : 'لا توجد قيود مرحّلة في النظام المالي', 'النظام المالي');
+      set('acc.software', posted ? 'met' : 'missing', posted ? `الشركة تستخدم النظام المالي (${posted} قيد مرحّل)` : 'لا توجد قيود مرحّلة في النظام المالي', 'النظام المالي');
       const recent = await this.count(`SELECT COUNT(*) AS n FROM acc_entries WHERE organization_id = $1 AND status = 'posted' AND document_date >= $2`, [org, addDays(at, -45)]);
       set('acc.activity', recent ? 'met' : posted ? 'partial' : 'missing', recent ? `${recent} قيد مرحّل خلال آخر 45 يوماً` : 'لا قيود حديثة خلال 45 يوماً', 'النظام المالي');
     }
@@ -222,28 +222,28 @@ export class GovSignals {
       for (const k of ['gov.board_meetings', 'gov.board_regular']) {
         fromMeetings(k, mt.board, 4, `انعقد ${mt.board} اجتماعًا لمجلس الإدارة خلال السنة الأخيرة (${mt.board_adopted} بمحضر معتمد)`);
       }
-      for (const k of ['members.ga_ordinary', 'members.ga_meeting']) fromMeetings(k, mt.ga, 1, `انعقد ${mt.ga} اجتماع عادي للجمعية العمومية خلال السنة الأخيرة`);
+      for (const k of ['members.ga_ordinary', 'members.ga_meeting']) fromMeetings(k, mt.ga, 1, `انعقد ${mt.ga} اجتماع عادي للشركة العمومية خلال السنة الأخيرة`);
     }
 
-    // ---- البيانات النظامية للجمعية (من الإعدادات)
+    // ---- البيانات النظامية للشركة (من الإعدادات)
     if (facts.licenseExpiry) {
-      set('gov.license', facts.licenseExpiry >= at ? 'met' : 'missing', facts.licenseExpiry >= at ? `شهادة التسجيل سارية حتى ${facts.licenseExpiry}` : `شهادة التسجيل منتهية منذ ${facts.licenseExpiry}`, 'بيانات الجمعية');
+      set('gov.license', facts.licenseExpiry >= at ? 'met' : 'missing', facts.licenseExpiry >= at ? `شهادة التسجيل سارية حتى ${facts.licenseExpiry}` : `شهادة التسجيل منتهية منذ ${facts.licenseExpiry}`, 'بيانات الشركة');
     }
     if (facts.boardTermEnd) {
       const soon = facts.boardTermEnd <= addDays(at, 30) && facts.boardTermEnd >= addDays(at, -180);
-      if (!soon) set('gov.board_term_end', 'na', `دورة المجلس تنتهي ${facts.boardTermEnd} (خارج نافذة الانتخابات في التقييم)`, 'بيانات الجمعية');
+      if (!soon) set('gov.board_term_end', 'na', `دورة المجلس تنتهي ${facts.boardTermEnd} (خارج نافذة الانتخابات في التقييم)`, 'بيانات الشركة');
     }
     if (facts.externalAuditor) {
       const valid = !facts.auditorContractEnd || facts.auditorContractEnd >= at;
-      set('gov.external_auditor', valid ? 'met' : 'partial', valid ? `التعاقد مع ${facts.externalAuditor}` : `عقد ${facts.externalAuditor} انتهى ${facts.auditorContractEnd}`, 'بيانات الجمعية');
+      set('gov.external_auditor', valid ? 'met' : 'partial', valid ? `التعاقد مع ${facts.externalAuditor}` : `عقد ${facts.externalAuditor} انتهى ${facts.auditorContractEnd}`, 'بيانات الشركة');
     }
-    if (facts.hasBranches === false) set('gov.branches', 'na', 'لا توجد فروع أو مكاتب للجمعية', 'بيانات الجمعية');
-    else if (facts.hasBranches) set('gov.branches', facts.branchesApproved ? 'met' : 'missing', facts.branchesApproved ? 'الفروع بموافقة المركز والجهة المشرفة' : 'توجد فروع دون موافقة موثقة', 'بيانات الجمعية');
-    if (facts.hasCommittees === false) set('gov.committees', 'na', 'لا توجد لجان دائمة أو مؤقتة', 'بيانات الجمعية');
+    if (facts.hasBranches === false) set('gov.branches', 'na', 'لا توجد فروع أو مكاتب للشركة', 'بيانات الشركة');
+    else if (facts.hasBranches) set('gov.branches', facts.branchesApproved ? 'met' : 'missing', facts.branchesApproved ? 'الفروع بموافقة المركز والجهة المشرفة' : 'توجد فروع دون موافقة موثقة', 'بيانات الشركة');
+    if (facts.hasCommittees === false) set('gov.committees', 'na', 'لا توجد لجان دائمة أو مؤقتة', 'بيانات الشركة');
     if (facts.openViolations !== null && facts.openViolations !== undefined) {
-      set('gov.violations', facts.openViolations ? 'missing' : 'na', facts.openViolations ? `${facts.openViolations} مخالفة أو إنذار لم يُصحح` : 'لا توجد مخالفات أو إنذارات قائمة', 'بيانات الجمعية');
+      set('gov.violations', facts.openViolations ? 'missing' : 'na', facts.openViolations ? `${facts.openViolations} مخالفة أو إنذار لم يُصحح` : 'لا توجد مخالفات أو إنذارات قائمة', 'بيانات الشركة');
     }
-    if (facts.websiteUrl) set('site.exists', 'met', `الموقع الإلكتروني: ${facts.websiteUrl}`, 'بيانات الجمعية');
+    if (facts.websiteUrl) set('site.exists', 'met', `الموقع الإلكتروني: ${facts.websiteUrl}`, 'بيانات الشركة');
     return out;
   }
 }

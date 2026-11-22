@@ -94,14 +94,14 @@ const title = computed(() => ({ login: 'دخول الموردين', register: '�
 </script>
 
 <template>
-  <div v-if="notFound" class="card nf"><h2>البوابة غير متاحة</h2><p class="muted">تأكد من الرابط، أو تواصل مع الجمعية.</p></div>
+  <div v-if="notFound" class="card nf"><h2>البوابة غير متاحة</h2><p class="muted">تأكد من الرابط، أو تواصل مع الشركة.</p></div>
   <div v-else-if="info" :class="['auth', { wide: mode === 'register' }]">
     <section class="hero">
       <ParticleField />
       <div class="hero-in">
         <p class="kicker">بوابة الموردين</p>
         <h1>{{ info.name }}</h1>
-        <p class="sub">{{ info.intro || 'سجّل منشأتك موردًا معتمدًا لدى الجمعية، وارفع مستنداتك، وتابع حالة طلبك وحسابك البنكي من مكان واحد.' }}</p>
+        <p class="sub">{{ info.intro || 'سجّل منشأتك موردًا معتمدًا لدى الشركة، وارفع مستنداتك، وتابع حالة طلبك وحسابك البنكي من مكان واحد.' }}</p>
         <ol class="steps">
           <li><span>1</span>أنشئ حساب المنشأة وبياناتها</li>
           <li><span>2</span>ارفع المستندات النظامية المطلوبة</li>

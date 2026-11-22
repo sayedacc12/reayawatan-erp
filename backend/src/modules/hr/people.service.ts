@@ -114,7 +114,7 @@ export class PeopleService {
     };
   }
 
-  /** تفصيل الراتب الشهري: البنود، التأمينات بحصتيها، الصافي، والتكلفة الكاملة على الجمعية */
+  /** تفصيل الراتب الشهري: البنود، التأمينات بحصتيها، الصافي، والتكلفة الكاملة على الشركة */
   breakdown(policy: HrPolicy, e: HrEmployee, onDate: string) {
     const parts = partsOf(e.basicSalary, e.allowances);
     const gross = round2(wageTotal(parts));
@@ -145,7 +145,7 @@ export class PeopleService {
     }
     if (dto.userId) {
       const [u] = await this.db.query('SELECT id FROM users WHERE id = $1 AND organization_id = $2', [dto.userId, org]);
-      if (!u) throw new BadRequestException('حساب الدخول غير موجود في الجمعية');
+      if (!u) throw new BadRequestException('حساب الدخول غير موجود في الشركة');
       const other = await this.employees.findOne({ where: { userId: dto.userId } });
       if (other && other.id !== selfId) throw new ConflictException(`حساب الدخول مربوط بالموظف ${other.fullName}`);
     }

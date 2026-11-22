@@ -13,8 +13,8 @@ import { DemoTeam, daysAhead } from './demo-context';
 type Ref = { id: string };
 
 /**
- * الأصول الثابتة في الجمعية التجريبية (بعد النظام المالي والموارد البشرية): مجموعات بحساباتها، أصول بأرصدة افتتاحية
- * وعهد موظفين، إهلاك شهري مرحّل لكل شهر سابق، وعمليات في شهورها (شراء بنكي وآجل، تبرع عيني، إضافة، بيع، تخريد)،
+ * الأصول الثابتة في الشركة التجريبية (بعد النظام المالي والموارد البشرية): مجموعات بحساباتها، أصول بأرصدة افتتاحية
+ * وعهد موظفين، إهلاك شهري مرحّل لكل شهر سابق، وعمليات في شهورها (شراء بنكي وآجل، عيني، إضافة، بيع، تخريد)،
  * وشراء ينتظر اعتماد سند الصرف، ونقل عهدة، وجرد بملصقات QR، وقيد يدوي على حساب أصل يُظهر علامة عدم المطابقة.
  * والمرحلة الثانية: تأمين وضمان بتنبيهاتهما، خطط صيانة وقائية وسجل صيانة فيه أصل كثير الأعطال، إعادة تقييم أرض وهبوط قيمة آلة،
  * أجهزة ممولة من منحة (يُخفَّض المقيد عند اعتماد شرائها)، ملحق مبنى تحت التنفيذ بدفعاته، وموازنة رأسمالية معتمدة مربوطة بالمشتريات.
@@ -58,7 +58,7 @@ export class AssetsSeed {
 
     // الإعدادات: بادئة الترميز، العهدة الإلزامية، كسر الشهر بالأيام، وحساب التبرعات العينية
     await this.assets.saveConfig(admin, {
-      prefix: 'FA', requireCustody: true, alertDays: 45, partialMonth: 'days', donationAccountId: id('3120200101'),
+      prefix: 'FA', requireCustody: true, alertDays: 45, partialMonth: 'days',
       revaluationAccountId: id('2310100101'), impairmentAccountId: id('4140100101'), wipAccountId: id('1240100201'),
       grantReleaseAccountId: id('3140100101'), maintenanceAccountId: id('4120200401'), budgetControl: 'warn',
     });
@@ -201,12 +201,6 @@ export class AssetsSeed {
       });
       const op = await this.ops.purchase(admin, { assetId: van.id, date: day(m, 14), amount: 138000, method: 'credit', partnerId: dealer.id, notes: 'عقد بيع آجل على 6 دفعات', budgetLineId: line.car }) as { voucher: Ref };
       await approve(op.voucher.id, 1);
-    });
-    // تبرع عيني بمولد كهربائي بالقيمة العادلة (بلا سند صرف)
-    at(Math.min(4, month - 1), async () => {
-      const m = Math.min(4, month - 1);
-      const gen = await asset({ groupId: off.id, name: 'مولد كهربائي احتياطي (تبرع عيني)', location: 'المقر - الفناء الخلفي', custodianEmployeeId: emp(7), custodyDate: day(m, 6) });
-      await this.ops.donation(admin, { assetId: gen.id, date: day(m, 6), amount: 9500, partyName: 'مؤسسة الرواد للتجارة', notes: 'تقييم بسعر السوق بموجب عرض سعر' });
     });
     // إضافة رأسمالية على المبنى (تركيب مصعد) تُوزع على العمر المتبقي
     at(Math.min(5, month - 1), async () => {

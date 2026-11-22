@@ -55,7 +55,7 @@ export interface GlLine { accountId: string; debit: number; credit: number; labe
 export class StockCore {
   constructor(private readonly db: DataSource, private readonly entries: EntriesService, private readonly accounts: AccountsService) {}
 
-  /** الرقم التالي في جدول (تحت قفل الجمعية)، ولمستندات المخزون لكل نوع تسلسل مستقل */
+  /** الرقم التالي في جدول (تحت قفل الشركة)، ولمستندات المخزون لكل نوع تسلسل مستقل */
   async nextNo(em: EntityManager, table: 'pr_receipts' | 'pr_issue_requests' | 'pr_stock_docs' | 'pr_counts', column: string, org: string, kind?: StockDocKind) {
     await em.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`${table}:${kind ?? ''}:${org}`]);
     const [{ n }] = await em.query(

@@ -30,13 +30,13 @@ export function effectiveState(o: AccessFields, today = todayRiyadh()): Effectiv
   return o.subscriptionEndsOn && o.subscriptionEndsOn < today ? 'expired' : 'active';
 }
 
-/** سبب منع دخول الجمعية، أو null لو مسموح */
+/** سبب منع دخول الشركة، أو null لو مسموح */
 export function accessProblem(o: AccessFields, today = todayRiyadh()): string | null {
   switch (effectiveState(o, today)) {
-    case 'suspended': return 'حساب الجمعية موقوف، تواصل مع إدارة المنصة';
-    case 'trial_expired': return 'انتهت الفترة التجريبية للجمعية، تواصل مع إدارة المنصة لإتمام التعاقد';
-    case 'awaiting_contract': return 'حساب الجمعية بانتظار توقيع عقد الاشتراك';
-    case 'expired': return 'انتهى اشتراك الجمعية، تواصل مع إدارة المنصة للتجديد';
+    case 'suspended': return 'حساب الشركة موقوف، تواصل مع إدارة المنصة';
+    case 'trial_expired': return 'انتهت الفترة التجريبية للشركة، تواصل مع إدارة المنصة لإتمام التعاقد';
+    case 'awaiting_contract': return 'حساب الشركة بانتظار توقيع عقد الاشتراك';
+    case 'expired': return 'انتهى اشتراك الشركة، تواصل مع إدارة المنصة للتجديد';
     default: return null;
   }
 }

@@ -31,7 +31,7 @@ const example = computed(() => `${f.prefixes.procedure ?? 'QP'}-${f.departments[
 
 <template>
   <div>
-    <div class="page-head"><div><h1>إعدادات الجودة</h1><p class="muted">نظام الترميز الموحد لكل وثائق الجمعية، ورموز الإدارات، والمدد المستهدفة، وصلاحيات الأدوار.</p></div></div>
+    <div class="page-head"><div><h1>إعدادات الجودة</h1><p class="muted">نظام الترميز الموحد لكل وثائق الشركة، ورموز الإدارات، والمدد المستهدفة، وصلاحيات الأدوار.</p></div></div>
     <div class="q-tabs">
       <button :class="['q-tab', { on: tab === 'coding' }]" @click="tab = 'coding'">الترميز</button>
       <button :class="['q-tab', { on: tab === 'departments' }]" @click="tab = 'departments'">الإدارات</button>
@@ -40,7 +40,7 @@ const example = computed(() => `${f.prefixes.procedure ?? 'QP'}-${f.departments[
     </div>
     <section v-if="tab === 'coding' && s" class="card pm-panel" style="max-width: 720px">
       <h2>الترميز الموحد</h2>
-      <p class="pm-muted">صيغة الرمز: <b>البادئة - رمز الإدارة - الرقم التسلسلي</b>، مثل <span class="q-code">{{ example }}</span>. يُستخدم الترميز نفسه في نماذج المستفيدين والأوصاف الوظيفية، ولا يتكرر رمز في الجمعية.</p>
+      <p class="pm-muted">صيغة الرمز: <b>البادئة - رمز الإدارة - الرقم التسلسلي</b>، مثل <span class="q-code">{{ example }}</span>. يُستخدم الترميز نفسه في نماذج العملاء والأوصاف الوظيفية، ولا يتكرر رمز في الشركة.</p>
       <div class="q-fields">
         <label v-for="t in s.docTypes" :key="t.value" class="field"><span>{{ t.label }}</span><input v-model="f.prefixes[t.value]" class="input" dir="ltr" maxlength="5" style="text-transform: uppercase" /></label>
         <label class="field"><span>خانات الرقم التسلسلي</span><select v-model.number="f.seqDigits" class="input"><option v-for="n in [2, 3, 4]" :key="n" :value="n">{{ n }} ({{ '1'.padStart(n, '0') }})</option></select></label>

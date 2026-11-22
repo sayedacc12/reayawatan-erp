@@ -123,7 +123,7 @@ export const buyerOf = (c: { name: string; kind: BuyerSnapshot['kind']; vatNumbe
 });
 
 /**
- * أساس نظام الفوترة: الإعدادات (تُنشأ عند أول استخدام)، والتحقق من الحسابات، وجاهزية الجمعية للإصدار، والقوائم المرجعية.
+ * أساس نظام الفوترة: الإعدادات (تُنشأ عند أول استخدام)، والتحقق من الحسابات، وجاهزية الشركة للإصدار، والقوائم المرجعية.
  */
 @Injectable()
 export class BillingCore {
@@ -165,18 +165,18 @@ export class BillingCore {
     return a as { id: string; code: string; name: string };
   }
 
-  /** ما ينقص الجمعية لإصدار الفواتير في وضعها الحالي */
+  /** ما ينقص الشركة لإصدار الفواتير في وضعها الحالي */
   readiness(s: BlSettings) {
     const missing: string[] = [];
-    if (s.mode === 'off') missing.push('تفعيل النظام واختيار وضع الجمعية الضريبي من الإعدادات');
-    if (!s.sellerName) missing.push('اسم الجمعية كما يظهر في الفاتورة');
+    if (s.mode === 'off') missing.push('تفعيل النظام واختيار وضع الشركة الضريبي من الإعدادات');
+    if (!s.sellerName) missing.push('اسم الشركة كما يظهر في الفاتورة');
     if (!s.receivablesAccountId) missing.push('حساب الذمم المدينة (العملاء)');
     if (!s.revenueAccountId) missing.push('حساب الإيراد الافتراضي');
     if (s.mode === 'registered' || s.mode === 'integrated') {
-      if (!s.vatNumber || vatProblem(s.vatNumber)) missing.push('الرقم الضريبي للجمعية');
+      if (!s.vatNumber || vatProblem(s.vatNumber)) missing.push('الرقم الضريبي للشركة');
       if (!s.vatOutputAccountId) missing.push('حساب ضريبة القيمة المضافة (المخرجات)');
-      if (!s.idType || !s.idNumber) missing.push('المعرّف الآخر للجمعية (السجل أو ترخيص الجمعية)');
-      missing.push(...addressProblems(s.address, 'الجمعية'));
+      if (!s.idType || !s.idNumber) missing.push('المعرّف الآخر للشركة (السجل أو ترخيص الشركة)');
+      missing.push(...addressProblems(s.address, 'الشركة'));
     }
     return { ready: !missing.length, missing };
   }

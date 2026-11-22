@@ -78,7 +78,7 @@ describe('Fixed assets', () => {
         allowances: [], iban: 'SA0380000000608010167599', userId: null,
       }).expect(201)).body.id as string;
     };
-    ids.driver = await emp('سائق الجمعية');
+    ids.driver = await emp('سائق الشركة');
     ids.keeper = await emp('أمين المستودع');
   });
 
@@ -134,7 +134,7 @@ describe('Fixed assets', () => {
     ids.car = car.body.id;
     expect(car.body.code).toBe('FA-CAR-0001');
     expect(car.body.status).toBe('draft');
-    expect(car.body.custodianName).toBe('سائق الجمعية');
+    expect(car.body.custodianName).toBe('سائق الشركة');
     expect(car.body.custody[0].kind).toBe('issue');
   });
 
@@ -258,10 +258,12 @@ describe('Fixed assets', () => {
     expect((await http.get(`${F}/reconciliation`).set(as(admin)).expect(200)).body.ok).toBe(true);
   });
 
-  it('records in-kind donations and scrapping, and cancels a scrap', async () => {
-    const d = await http.post(F).set(as(admin)).send({ groupId: ids.it, name: 'شاشة عرض متبرع بها', custodianEmployeeId: ids.keeper }).expect(201);
-    const don = await http.post(`${F}/operations/donation`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-05`, amount: 1200, counterAccountId: acc['3120200101'], partyName: 'متبرع كريم' }).expect(201);
-    expect(don.body.entry.voucherNo).toBe(`1/${year}`);
+  it('has no in-kind donation operation, and scraps and cancels a scrap', async () => {
+    const d = await http.post(F).set(as(admin)).send({ groupId: ids.it, name: 'شاشة عرض', custodianEmployeeId: ids.keeper }).expect(201);
+    // رعاية وطن: التبرع العيني بالأصول أُلغي تمامًا
+    await http.post(`${F}/operations/donation`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-05`, amount: 1200 }).expect(404);
+    const buy = await http.post(`${F}/operations/purchase`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-05`, amount: 1200, method: 'credit', partnerId: ids.supplier }).expect(201);
+    await http.post(`${A}/voucher/${buy.body.voucher.id}/submit`).set(as(admin)).expect(201);
     const sc = await http.post(`${F}/operations/scrap`).set(as(admin)).send({ assetId: d.body.id, date: `${year}-04-20`, notes: 'تلف كامل' }).expect(201);
     expect((await http.get(`${F}/${d.body.id}`).set(as(admin)).expect(200)).body.status).toBe('scrapped');
     expect((await http.get(`${F}/reconciliation`).set(as(admin)).expect(200)).body.ok).toBe(true);
@@ -293,10 +295,10 @@ describe('Fixed assets', () => {
     for (const a of held) await http.post(`${F}/${a.id}/custody`).set(as(admin)).send({ toEmployeeId: ids.driver, toLocation: 'المستودع', condition: 'جيد' }).expect(201);
     await expect(svc.assertNoCustody(org, ids.keeper)).resolves.toBeUndefined();
     const board = (await http.get(`${F}/custody`).set(as(admin)).expect(200)).body;
-    expect(board.employees[0].name).toBe('سائق الجمعية');
+    expect(board.employees[0].name).toBe('سائق الشركة');
     const form = board.recent[0];
     await http.post(`${F}/custody/forms/${form.id}/confirm`).set(as(admin)).expect(201);
-    expect((await http.get(`${F}/custody/forms/${form.id}`).set(as(admin)).expect(200)).body.to.name).toBe('سائق الجمعية');
+    expect((await http.get(`${F}/custody/forms/${form.id}`).set(as(admin)).expect(200)).body.to.name).toBe('سائق الشركة');
   });
 
   it('runs a stocktake with QR labels and reports variances', async () => {

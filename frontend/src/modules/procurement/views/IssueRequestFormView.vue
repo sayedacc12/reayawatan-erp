@@ -81,7 +81,7 @@ async function save(andSubmit = false) {
             <label class="field"><span>الإدارة الطالبة</span><select v-model="form.unitId" class="input"><option value="">—</option><option v-for="u in lk.units" :key="u.id" :value="u.id">{{ u.name }}</option></select></label>
             <label class="field"><span>المستلم</span><input v-model="form.receiverName" class="input" maxlength="200" /></label>
             <label class="field"><span>مطلوب قبل</span><input v-model="form.neededBy" type="date" class="input" /></label>
-            <label class="field"><span>مرجع المستفيد (اختياري)</span><input v-model="form.beneficiaryRef" class="input" maxlength="120" placeholder="رقم الملف أو الطلب فقط" /></label>
+            <label class="field"><span>مرجع العميل أو البرنامج (اختياري)</span><input v-model="form.beneficiaryRef" class="input" maxlength="120" placeholder="رقم الملف أو الطلب فقط" /></label>
           </div>
         </section>
         <section class="card pm-panel">

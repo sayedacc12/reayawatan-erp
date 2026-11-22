@@ -9,7 +9,7 @@ import { rel } from './ess';
 
 /**
  * لوحتي لمن ليس له ملف موظف بعد (مثل مدير نظام جمعية جديدة): ترحيب ومهام وأنظمة وخطوات الإطلاق.
- * تحل محل شاشة التطبيقات القديمة، فكل مستخدم في الجمعية يبدأ من لوحته.
+ * تحل محل شاشة التطبيقات القديمة، فكل مستخدم في الشركة يبدأ من لوحته.
  */
 interface Task { id: string; title: string; subtitle?: string | null; link: string; at?: string | null; urgent?: boolean }
 interface Group { module: string; name: string; color: string; items: Task[] }

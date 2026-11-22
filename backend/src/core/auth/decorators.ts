@@ -22,7 +22,7 @@ export interface AuthUser {
   /** null لمدير المنصة فقط */
   organizationId: string | null;
   organizationName: string | null;
-  /** معرف الجمعية (يستخدم في رابط بوابة المستفيدين) */
+  /** معرف الشركة (يستخدم في رابط بوابة المستفيدين) */
   organizationSlug: string | null;
   email: string;
   username: string | null;
@@ -34,7 +34,7 @@ export interface AuthUser {
   mustChangePassword?: boolean;
   /** رموز الدخول الصادرة قبل هذا الوقت مرفوضة (داخلي، لا يُرسل للواجهة) */
   sessionsValidAfter?: Date | null;
-  /** الشاشات المسموحة للجمعية (null = كل الشاشات) */
+  /** الشاشات المسموحة للشركة (null = كل الشاشات) */
   allowedScreens?: string[] | null;
 }
 
@@ -46,18 +46,18 @@ export const CurrentUser = createParamDecorator(
 );
 
 /**
- * المستخدم الحالي داخل جمعيته. يُستخدم في كل endpoints الوحدات؛
+ * المستخدم الحالي داخل شركته. يُستخدم في كل endpoints الوحدات؛
  * يرفض الطلب لو المستخدم مدير منصة بدون جمعية، فلا يمكن تمرير طلب بدون نطاق جمعية.
  */
 export const CurrentOrgUser = createParamDecorator((_: unknown, ctx: ExecutionContext): OrgUser => {
   const user: AuthUser = ctx.switchToHttp().getRequest().user;
-  if (!user?.organizationId) throw new ForbiddenException('هذا الإجراء داخل جمعية فقط');
+  if (!user?.organizationId) throw new ForbiddenException('هذا الإجراء لمستخدمي الشركة فقط');
   return user as OrgUser;
 });
 
 export const AUTHENTICATED_ONLY_KEY = 'erp:authenticatedOnly';
 /**
- * قرار صريح: المسار متاح لأي مستخدم مسجل في جمعيته، والتحقق من الملكية أو العضوية
+ * قرار صريح: المسار متاح لأي مستخدم مسجل في شركته، والتحقق من الملكية أو العضوية
  * داخل الخدمة (مثل الخدمة الذاتية /me أو الاجتماعات لأعضائها). السبب إلزامي ويظهر في المراجعة.
  * لا يغيّر سلوك الحارس، لكنه يمنع فشل اختبار test/security/route-authz.spec.ts.
  */

@@ -48,7 +48,7 @@ describe('Volunteers', () => {
     typeCode: 'field', fieldCodes: ['social'], answers: { experience: 'نعم' }, ...extra,
   });
   const event = (extra: Record<string, unknown> = {}) => ({
-    title: 'توزيع سلال غذائية', kind: 'field', categoryCode: 'distribution', fieldCodes: ['relief'], location: 'مستودع الجمعية',
+    title: 'توزيع سلال غذائية', kind: 'field', categoryCode: 'distribution', fieldCodes: ['relief'], location: 'مستودع الشركة',
     startDate: ago(3), endDate: ago(2), plannedHours: 5, volunteersNeeded: 4, targetBeneficiaries: 100, answers: {}, ...extra,
   });
 
@@ -211,7 +211,7 @@ describe('Volunteers', () => {
   it('contract clauses are flexible and the volunteer signs electronically', async () => {
     const s = (await http.get(`${V}/settings`).set(as(admin)).expect(200)).body;
     const clauses = s.contractClauses.map((c: { key: string }) => (c.key === 'expenses' ? { ...c, isActive: false } : c));
-    clauses.push({ title: 'التأمين', body: 'تؤمّن الجمعية على {اسم المتطوع} ضد الحوادث أثناء الفعاليات الميدانية.', isActive: true });
+    clauses.push({ title: 'التأمين', body: 'تؤمّن الشركة على {اسم المتطوع} ضد الحوادث أثناء الفعاليات الميدانية.', isActive: true });
     await http.put(`${V}/settings/contract`).set(as(admin)).send({ data: { contractClauses: clauses } }).expect(200);
     await http.post(`${V}/contracts`).set(as(admin)).send({ volunteerId: ids.v1, startDate: ago(0), endDate: ago(10) }).expect(400);
     const c = (await http.post(`${V}/contracts`).set(as(admin)).send({ volunteerId: ids.v1, startDate: ago(0), endDate: ago(-365) }).expect(201)).body;

@@ -5,7 +5,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 
-/** طلبات الصيانة: الجمعية تقدّم، والمنصة ترد وتعالج حسب مستوى الخدمة، والجمعية تغلق وتقيّم */
+/** طلبات الصيانة: الشركة تقدّم، والمنصة ترد وتعالج حسب مستوى الخدمة، والشركة تغلق وتقيّم */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
 describe('Support tickets & SLA', () => {
@@ -99,7 +99,7 @@ describe('Support tickets & SLA', () => {
     t = (await http.patch(`/api/support-desk/tickets/${ticketId}`).set(as(platform)).send({ assigneeId: team[0].id }).expect(200)).body;
     expect(t.assigneeName).toBe('مدير المنصة');
 
-    // رد الجمعية يعيد الطلب للمعالجة
+    // رد الشركة يعيد الطلب للمعالجة
     t = (await http.post(`/api/support/tickets/${ticketId}/messages`).set(as(org)).send({ body: 'المشكلة تظهر في شاشة الطلبات فقط' }).expect(201)).body;
     expect(t.status).toBe('in_progress');
     expect(t.messages.some((m: { body: string }) => m.body.includes('مستوى الخدمة'))).toBe(true);

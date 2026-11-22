@@ -111,7 +111,7 @@ const hintI = (v: number) => cfg.value?.impact.find((x) => x.value === v);
       <fieldset :disabled="!canEdit" style="border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; align-content: start">
         <section class="card pm-panel">
           <h2>تعريف الخطر</h2>
-          <label class="field"><span>عنوان الخطر</span><input v-model="form.title" class="input" placeholder="مثل: انخفاض التبرعات عن المستهدف" /></label>
+          <label class="field"><span>عنوان الخطر</span><input v-model="form.title" class="input" placeholder="مثل: انخفاض الإيرادات عن المستهدف" /></label>
           <div class="rk-sec">مصدر الخطر</div>
           <div class="rk-tabs">
             <button v-for="(s, k) in SOURCES" :key="k" type="button" :class="['rk-tab', { on: form.source === k }]" :title="s.hint" @click="form.source = k">{{ s.label }}</button>

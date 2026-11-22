@@ -36,7 +36,7 @@ export class MailMessage {
   @Column({ default: false })
   sensitive!: boolean;
 
-  /** يمنع تكرار نفس التذكير (مثل تنبيه الحذف لنفس الجمعية ونفس الموعد) */
+  /** يمنع تكرار نفس التذكير (مثل تنبيه الحذف لنفس الشركة ونفس الموعد) */
   @Index('UQ_mail_outbox_dedupe', { unique: true })
   @Column({ name: 'dedupe_key', type: 'varchar', length: 200, nullable: true })
   dedupeKey!: string | null;

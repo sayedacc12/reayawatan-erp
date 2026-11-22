@@ -5,7 +5,7 @@ export type RiskLevel = (typeof RISK_LEVELS)[number];
 export const AREA_CATEGORIES = ['governance', 'strategic', 'operational', 'financial', 'compliance', 'it', 'programs', 'fundraising', 'hr'] as const;
 export const CONTROL_RATINGS = ['strong', 'adequate', 'weak', 'unknown'] as const;
 export type ControlRating = (typeof CONTROL_RATINGS)[number];
-/** نطاق الخطة أو المهمة: الجمعية كلها، أو وحدة من الهيكل التنظيمي، أو جهة خارج الهيكل (شريك منفذ، مورد، فرع...) */
+/** نطاق الخطة أو المهمة: الشركة كلها، أو وحدة من الهيكل التنظيمي، أو جهة خارج الهيكل (شريك منفذ، مورد، فرع...) */
 export const SCOPE_TYPES = ['org', 'unit', 'outside'] as const;
 export type ScopeType = (typeof SCOPE_TYPES)[number];
 export type PlanStatus = 'draft' | 'submitted' | 'approved' | 'closed';

@@ -3,7 +3,7 @@ import { AuthUser, CurrentUser } from '../auth/decorators';
 import { UpdateOnboardingDto } from './onboarding.dto';
 import { OnboardingService } from './onboarding.service';
 
-/** التعريف بالنظام للمستخدم الجديد: الترحيب والجولة وخطوات إطلاق الجمعية */
+/** التعريف بالنظام للمستخدم الجديد: الترحيب والجولة وخطوات إطلاق الشركة */
 @Controller('onboarding')
 export class OnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}

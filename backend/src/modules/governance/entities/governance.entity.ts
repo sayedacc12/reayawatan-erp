@@ -7,7 +7,7 @@ const num: ValueTransformer = {
   from: (v?: string | null) => (v === null || v === undefined ? null : Number(v)),
 };
 
-/** بيانات نظامية عن الجمعية تُستخدم في الإشارات والإنذارات (تُحدّث من الإعدادات) */
+/** بيانات نظامية عن الشركة تُستخدم في الإشارات والإنذارات (تُحدّث من الإعدادات) */
 export interface GovFacts {
   licenseNo?: string | null;
   licenseExpiry?: string | null;
@@ -29,7 +29,7 @@ export class GovSettings {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  /** تعديلات الجمعية على ربط الأرقام المالية بالحسابات (ما لم يُعدّل يُؤخذ من الافتراضي) */
+  /** تعديلات الشركة على ربط الأرقام المالية بالحسابات (ما لم يُعدّل يُؤخذ من الافتراضي) */
   @Column({ type: 'jsonb', default: () => `'{}'` })
   mapping!: Partial<Record<FinFigureKey, AccountRule[]>>;
 
@@ -40,7 +40,7 @@ export class GovSettings {
   @Column({ name: 'alert_days', type: 'int', default: 30 })
   alertDays!: number;
 
-  /** الدرجة المستهدفة للجمعية في التقييم الكلي */
+  /** الدرجة المستهدفة للشركة في التقييم الكلي */
   @Column({ name: 'target_score', type: 'numeric', precision: 5, scale: 2, default: 90, transformer: num })
   targetScore!: number;
 

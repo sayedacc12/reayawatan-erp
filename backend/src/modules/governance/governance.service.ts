@@ -149,7 +149,7 @@ export class GovernanceService {
 
   /**
    * توليد الالتزامات النظامية لسنة مالية من الدليل: 4 اجتماعات مجلس (CMP-P13)، 4 تقارير مالية ربعية (CMP-P21)،
-   * الاجتماع العادي للجمعية العمومية والقوائم المالية وتقرير البرامج والموازنة خلال 4 أشهر من نهاية السنة (CMP-P20)،
+   * الاجتماع العادي للشركة العمومية والقوائم المالية وتقرير البرامج والموازنة خلال 4 أشهر من نهاية السنة (CMP-P20)،
    * ونموذج الإفصاح، و4 تقييمات ذاتية ربعية (توصية النظام). لا يكرر ما سبق توليده.
    */
   async generateCalendar(a: OrgUser, dto: GenerateCalendarDto) {
@@ -175,8 +175,8 @@ export class GovernanceService {
     const after4 = addMonths(end, 4);
     add('annual_statements', `القوائم المالية المدققة لسنة ${dto.fiscalYear}: اعتمادها من الجمعية العمومية ورفعها للمركز`, after4, 'خلال 4 أشهر من نهاية السنة المالية');
     add('programs_report', `التقرير السنوي للبرامج والأنشطة لسنة ${dto.fiscalYear} ورفعه للمركز ومجلس الإدارة`, after4, 'خلال 4 أشهر من نهاية السنة المالية');
-    add('ga_meeting', `الاجتماع العادي للجمعية العمومية عن سنة ${dto.fiscalYear}`, after4, 'خلال 4 أشهر من نهاية السنة المالية، والدعوة قبل 15 يوماً مع إبلاغ المركز والجهة المشرفة');
-    add('budget', `الموازنة التقديرية لسنة ${dto.fiscalYear + 1} معتمدة من الجمعية العمومية`, after4, 'تُقر في الاجتماع العادي للجمعية العمومية');
+    add('ga_meeting', `الاجتماع العادي للشركة العمومية عن سنة ${dto.fiscalYear}`, after4, 'خلال 4 أشهر من نهاية السنة المالية، والدعوة قبل 15 يوماً مع إبلاغ المركز والجهة المشرفة');
+    add('budget', `الموازنة التقديرية لسنة ${dto.fiscalYear + 1} معتمدة من الجمعية العمومية`, after4, 'تُقر في الاجتماع العادي للشركة العمومية');
     add('disclosure', `نموذج الإفصاح السنوي لسنة ${dto.fiscalYear}`, after4, 'موعد داخلي مقترح مع التقارير السنوية');
     if (rows.length) await repo.save(rows.map((r) => repo.create(r)));
     return { created: rows.length, items: await this.obligations(a, dto.fiscalYear) };
@@ -484,7 +484,7 @@ export class GovernanceService {
     const f = s.facts ?? {};
     if (f.licenseExpiry) {
       const left = daysBetween(t, f.licenseExpiry);
-      if (left < 0) push({ key: 'fact:license', level: 'critical', category: 'compliance', title: 'شهادة تسجيل الجمعية منتهية', detail: `انتهت في ${f.licenseExpiry}. بادر بالتجديد فوراً.`, ref: 'CMP-P27-1', due: f.licenseExpiry, link: '/governance/settings' });
+      if (left < 0) push({ key: 'fact:license', level: 'critical', category: 'compliance', title: 'شهادة تسجيل الشركة منتهية', detail: `انتهت في ${f.licenseExpiry}. بادر بالتجديد فوراً.`, ref: 'CMP-P27-1', due: f.licenseExpiry, link: '/governance/settings' });
       else if (left <= 90) push({ key: 'fact:license', level: 'warning', category: 'compliance', title: `شهادة التسجيل تنتهي خلال ${left} يوماً`, detail: 'ابدأ إجراءات التجديد قبل الانتهاء.', ref: 'CMP-P27-1', due: f.licenseExpiry, link: '/governance/settings' });
     }
     if (f.boardTermEnd) {
@@ -506,7 +506,7 @@ export class GovernanceService {
     }
     if (f.openViolations) push({ key: 'fact:violations', level: 'critical', category: 'compliance', title: `${f.openViolations} مخالفة أو إنذار لم يُصحح`, detail: 'تصحيح المخالفات خلال المدة المحددة يحفظ درجة البند CMP-P18-1.', ref: 'CMP-P18-1', link: '/governance/settings' });
     const missingFacts = (['licenseExpiry', 'boardTermEnd', 'externalAuditor'] as (keyof GovFacts)[]).filter((k) => !f[k]);
-    if (missingFacts.length) push({ key: 'fact:missing', level: 'info', category: 'data', title: 'أكمل البيانات النظامية للجمعية', detail: 'تاريخ انتهاء شهادة التسجيل ونهاية دورة المجلس والمراجع الخارجي تُستخدم في الإنذار المبكر.', link: '/governance/settings' });
+    if (missingFacts.length) push({ key: 'fact:missing', level: 'info', category: 'data', title: 'أكمل البيانات النظامية للشركة', detail: 'تاريخ انتهاء شهادة التسجيل ونهاية دورة المجلس والمراجع الخارجي تُستخدم في الإنذار المبكر.', link: '/governance/settings' });
 
     // 3) السلامة المالية (المتوقع لنهاية السنة)
     const ready = await this.finance.ready(org);
@@ -542,7 +542,7 @@ export class GovernanceService {
     // 4) التقييم الذاتي
     const cur = await this.current(org);
     if (!cur || daysBetween(cur.periodTo, t) > 100) {
-      push({ key: 'assess:due', level: 'warning', category: 'compliance', title: 'حان موعد التقييم الذاتي الدوري', detail: cur ? `آخر تقييم ${cur.code} كان لفترة تنتهي ${cur.periodTo}.` : 'لم يُجر أي تقييم ذاتي بعد. ابدأ بتقييم تجريبي لمعرفة وضع الجمعية.', link: '/governance/assessments' });
+      push({ key: 'assess:due', level: 'warning', category: 'compliance', title: 'حان موعد التقييم الذاتي الدوري', detail: cur ? `آخر تقييم ${cur.code} كان لفترة تنتهي ${cur.periodTo}.` : 'لم يُجر أي تقييم ذاتي بعد. ابدأ بتقييم تجريبي لمعرفة وضع الشركة.', link: '/governance/assessments' });
     }
     if (cur) {
       const d = await this.assessment(a, cur.id);

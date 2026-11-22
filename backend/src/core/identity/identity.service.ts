@@ -20,7 +20,7 @@ const https = (s: string | undefined) => {
   return v;
 };
 
-/** هوية الجمعية: تُقرأ داخل النظام وفي الصفحات العامة، ويعدّلها مدير نظام الجمعية */
+/** هوية الشركة: تُقرأ داخل النظام وفي الصفحات العامة، ويعدّلها مدير نظام الشركة */
 @Injectable()
 export class IdentityService {
   constructor(private readonly db: DataSource, private readonly files: FileStore) {}
@@ -36,7 +36,7 @@ export class IdentityService {
     return this.repo().findOneOrFail({ where: { organizationId: org } });
   }
 
-  /** الهوية كاملة بصيغة الواجهة، مع اسم الجمعية المسجل وروابط الشعار */
+  /** الهوية كاملة بصيغة الواجهة، مع اسم الشركة المسجل وروابط الشعار */
   async view(org: string) {
     const [o] = await this.db.query('SELECT name, slug FROM organizations WHERE id = $1', [org]);
     const r = await this.row(org);
@@ -104,11 +104,11 @@ export class IdentityService {
     return this.view(org);
   }
 
-  /** الجمعية من معرفها في الرابط العام، مع منع الجمعية الموقوفة أو المنتهي اشتراكها */
+  /** الشركة من معرفها في الرابط العام، مع منع الشركة الموقوفة أو المنتهي اشتراكها */
   async organization(slug: string) {
     const org = await this.db.getRepository(Organization).findOne({ where: { slug: String(slug).toLowerCase() } });
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
-    if (accessProblem(org)) throw new NotFoundException('صفحة الجمعية غير متاحة حاليًا');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
+    if (accessProblem(org)) throw new NotFoundException('صفحة الشركة غير متاحة حاليًا');
     return org;
   }
 

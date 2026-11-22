@@ -24,7 +24,7 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   manual: 'دليل', policy: 'سياسة', procedure: 'إجراء', instruction: 'تعليمات عمل', form: 'نموذج', record: 'سجل', plan: 'خطة', external: 'وثيقة خارجية',
 };
 
-/** وثيقة مرمّزة من نظام آخر تظهر في السجل الموحد (نماذج المستفيدين، الأوصاف الوظيفية) */
+/** وثيقة مرمّزة من نظام آخر تظهر في السجل الموحد (نماذج العملاء، الأوصاف الوظيفية) */
 export interface ExternalDoc { id: string; code: string; title: string; docType: DocType; revision: number; status: string; source: string; sourceLabel: string; path: string; updatedAt: Date }
 
 const EMPTY_CONTEXT: QmsContext = {
@@ -144,7 +144,7 @@ export class QmsCore {
     ];
   }
 
-  /** هل الكود مستخدم في أي نظام (وثائق الجودة، الخرائط، نماذج المستفيدين، الأوصاف الوظيفية) */
+  /** هل الكود مستخدم في أي نظام (وثائق الجودة، الخرائط، نماذج العملاء، الأوصاف الوظيفية) */
   async codeOwner(org: string, code: string, except?: { table: 'doc' | 'map'; id: string }): Promise<string | null> {
     const up = code.toUpperCase();
     const doc = await this.db.getRepository(QmsDocument).findOne({ where: { organizationId: org, code: up }, select: { id: true, title: true } });

@@ -48,7 +48,7 @@ const printNow = () => window.print();
       <p class="no">رقم العقد <span class="vt-code">{{ c.contractNo }}</span> · من {{ fmtDate(c.startDate) }} إلى {{ fmtDate(c.endDate) }}</p>
       <section v-for="(cl, i) in c.clauses" :key="i"><h3>{{ i + 1 }}. {{ cl.title }}</h3><p>{{ cl.body }}</p></section>
       <div class="sig">
-        <div><span>الطرف الأول: الجمعية</span><b>........................</b></div>
+        <div><span>الطرف الأول: الشركة</span><b>........................</b></div>
         <div><span>الطرف الثاني: المتطوع</span><b>{{ c.signedName ?? '........................' }}</b>
           <small v-if="c.signedAt">{{ c.signedVia === 'paper' ? 'وُقّع ورقيًا' : 'وُقّع إلكترونيًا' }} · {{ fmtDateTime(c.signedAt) }}</small></div>
       </div>

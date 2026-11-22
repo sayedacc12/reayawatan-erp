@@ -101,7 +101,7 @@ function exportCsv() {
           <h3>1. الملخص التنفيذي</h3>
           <div class="pm-kpis">
             <div class="pm-kpi"><span>المطابقة للمواصفة</span><strong>{{ r.standard.score }}%</strong></div>
-            <div class="pm-kpi"><span>مؤشر رضا المستفيدين</span><strong>{{ pc(r.satisfaction.index) }}</strong></div>
+            <div class="pm-kpi"><span>مؤشر رضا العملاء</span><strong>{{ pc(r.satisfaction.index) }}</strong></div>
             <div class="pm-kpi"><span>إغلاق حالات عدم المطابقة</span><strong>{{ pc(r.ncr.closureRate) }}</strong></div>
             <div class="pm-kpi"><span>الأهداف المحققة</span><strong>{{ r.objectives.achieved }}/{{ r.objectives.total }}</strong></div>
             <div class="pm-kpi"><span>الشكاوى</span><strong>{{ r.complaints.total }}</strong></div>
@@ -132,7 +132,7 @@ function exportCsv() {
             <div><b class="pm-muted">حسب الإدارة</b><div class="q-dist"><div v-for="g in r.ncr.byDepartment" :key="g.label" class="r" style="grid-template-columns: 120px 1fr 30px"><span>{{ g.label }}</span><i :style="{ width: (g.count / maxOf(r.ncr.byDepartment)) * 100 + '%', '--c': '#6366f1' }" /><span>{{ g.count }}</span></div></div></div>
           </div>
 
-          <h3>5. رضا المستفيدين والشكاوى</h3>
+          <h3>5. رضا العملاء والشكاوى</h3>
           <p>مؤشر الرضا {{ pc(r.satisfaction.index) }} من {{ r.satisfaction.responses }} رد. الشكاوى {{ r.complaints.total }}: عولج منها {{ r.complaints.resolved }} بمتوسط {{ num(r.complaints.avgDays) }} يوم (المستهدف {{ r.complaints.targetDays }})، والمفتوح {{ r.complaints.open }}، وحُول لعدم مطابقة {{ r.complaints.toNcr }}.<template v-if="r.complaints.satisfaction"> رضا أصحاب الشكاوى عن المعالجة {{ num(r.complaints.satisfaction) }} من 5.</template></p>
           <div class="q-grid" style="grid-template-columns: 1fr 1fr">
             <table class="table"><thead><tr><th>الاستبانة</th><th>الردود</th><th>المؤشر</th></tr></thead><tbody><tr v-for="s in r.satisfaction.surveys" :key="s.id"><td>{{ s.title }}<span class="pm-muted">{{ s.audienceLabel }}</span></td><td class="q-num">{{ s.responses }}</td><td class="q-num">{{ pc(s.index) }}</td></tr></tbody></table>

@@ -348,7 +348,7 @@ export class SecurityDetector {
         `SELECT u.full_name AS name, u.email, o.name AS org FROM users u LEFT JOIN organizations o ON o.id = u.organization_id WHERE u.id = $1`, [inc.userId]);
       if (u) {
         facts.push({ label: 'الحساب', value: `${u.name} (${u.email})` });
-        facts.push({ label: 'الجمعية', value: u.org ?? 'إدارة المنصة' });
+        facts.push({ label: 'الشركة', value: u.org ?? 'إدارة المنصة' });
       }
     }
     await this.mail.queue({

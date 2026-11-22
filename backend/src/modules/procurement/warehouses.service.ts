@@ -67,7 +67,7 @@ export class WarehousesService {
     const keepers = [...new Set(dto.keeperIds ?? [])];
     if (keepers.length) {
       const names = await this.core.userNames(org, keepers);
-      if (names.size !== keepers.length) throw new BadRequestException('أحد أمناء المستودع غير موجود في مستخدمي الجمعية');
+      if (names.size !== keepers.length) throw new BadRequestException('أحد أمناء المستودع غير موجود في مستخدمي الشركة');
     }
     await this.core.account(org, dto.glAccountId, 'assets', 'حساب المخزون');
     if (s.accountLevel === 'warehouse' && !dto.glAccountId) {

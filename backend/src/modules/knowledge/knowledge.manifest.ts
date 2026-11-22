@@ -13,7 +13,7 @@ const P = KNOWLEDGE_PERMISSIONS;
 export const knowledgeManifest: ErpModuleManifest = {
   code: 'knowledge',
   name: 'أرشيف المعرفة',
-  description: 'اللوائح والسياسات والأدلة والدراسات والتقارير والدروس المستفادة في مكان واحد، بإصدارات وتصنيفات وبحث، مع نشر ما تختاره الجمعية في موقعها',
+  description: 'اللوائح والسياسات والأدلة والدراسات والتقارير والدروس المستفادة في مكان واحد، بإصدارات وتصنيفات وبحث، مع نشر ما تختاره الشركة في موقعها',
   icon: 'book',
   version: '1.0.0',
   alwaysEnabled: true,

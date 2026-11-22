@@ -9,7 +9,7 @@ export class TerminateDto {
   @IsDateString({}, { message: 'تاريخ الاتفاق غير صحيح' })
   agreementDate!: string;
 
-  @IsString() @MinLength(2, { message: 'اكتب اسم ممثل الجمعية في الاتفاق' }) @MaxLength(200)
+  @IsString() @MinLength(2, { message: 'اكتب اسم ممثل الشركة في الاتفاق' }) @MaxLength(200)
   charityRep!: string;
 
   @IsOptional() @IsString() @MaxLength(2000)
@@ -32,7 +32,7 @@ export class LifecycleSettingsDto {
   trialGraceDays!: number;
 }
 
-/** تنبيه موعد الحذف لكل مستخدمي الجمعية (شريط أعلى النظام) */
+/** تنبيه موعد الحذف لكل مستخدمي الشركة (شريط أعلى النظام) */
 @Controller('organization/lifecycle')
 export class OrgLifecycleController {
   constructor(private readonly lifecycle: LifecycleService) {}

@@ -18,7 +18,7 @@ const event = (step: TicketEvent['step'], by: string, note?: string): TicketEven
 export type SlaState = 'met' | 'on_track' | 'at_risk' | 'breached' | 'paused';
 
 /**
- * طلبات الصيانة والدعم الفني: الجمعية تقدّم الطلب وتتابعه، وفريق المنصة يعالجه
+ * طلبات الصيانة والدعم الفني: الشركة تقدّم الطلب وتتابعه، وفريق المنصة يعالجه
  * حسب مستوى الخدمة (مهلة أول رد ومهلة الحل، مع التصعيد).
  */
 @Injectable()
@@ -50,7 +50,7 @@ export class SupportService {
 
   // ---------- حساب المهل ----------
 
-  /** حالة المهلة الآن. أثناء انتظار رد الجمعية تتوقف المهل */
+  /** حالة المهلة الآن. أثناء انتظار رد الشركة تتوقف المهل */
   private slaInfo(t: SupportTicket, levels: SlaLevel[], now = new Date()) {
     const paused = t.status === 'waiting_customer' && t.waitingSince ? now.getTime() - new Date(t.waitingSince).getTime() : 0;
     const respDue = new Date(new Date(t.responseDueAt).getTime() + (t.firstResponseAt ? 0 : paused));
@@ -84,7 +84,7 @@ export class SupportService {
     };
   }
 
-  // ---------- الجمعية ----------
+  // ---------- الشركة ----------
 
   async create(actor: OrgUser, dto: CreateTicketDto, file?: Express.Multer.File) {
     const stored = file ? await this.files.save(`support/${actor.organizationId}`, file, 'المرفق') : null;
@@ -157,7 +157,7 @@ export class SupportService {
     };
   }
 
-  /** رد الجمعية: لو الطلب بانتظار ردها يعود للمعالجة وتُستأنف المهل */
+  /** رد الشركة: لو الطلب بانتظار ردها يعود للمعالجة وتُستأنف المهل */
   async orgReply(actor: OrgUser, id: string, dto: MessageDto, file?: Express.Multer.File) {
     return this.reply(id, dto, file, { side: 'org', name: actor.fullName, orgId: actor.organizationId });
   }
@@ -200,7 +200,7 @@ export class SupportService {
 
   // ---------- مشترك ----------
 
-  /** ينهي توقف المهل (انتظار رد الجمعية) بتأجيل مواعيدها بمدة الانتظار */
+  /** ينهي توقف المهل (انتظار رد الشركة) بتأجيل مواعيدها بمدة الانتظار */
   private resume(t: SupportTicket) {
     if (!t.waitingSince) return;
     const paused = Date.now() - new Date(t.waitingSince).getTime();
@@ -312,7 +312,7 @@ export class SupportService {
       if (dto.status) this.setStatus(t, dto.status, actor.fullName, actor.id);
       if (dto.priority && dto.priority !== t.priority) {
         if (!manager) throw new ForbiddenException('تعديل مستوى الخدمة لمدير الدعم فقط');
-        if (!dto.priorityReason || dto.priorityReason.length < 3) throw new BadRequestException('اكتب سبب تغيير مستوى الخدمة ليظهر للجمعية');
+        if (!dto.priorityReason || dto.priorityReason.length < 3) throw new BadRequestException('اكتب سبب تغيير مستوى الخدمة ليظهر للشركة');
         // المهل تُعاد حسابها من وقت تقديم الطلب بالمستوى الجديد
         const lvl = this.level(await this.sla(em), dto.priority);
         const created = new Date(t.createdAt).getTime();

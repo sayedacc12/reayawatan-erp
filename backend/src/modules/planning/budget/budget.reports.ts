@@ -55,7 +55,7 @@ export class BudgetReports implements OnModuleInit {
           const b = await load(u, f.budgetId);
           const lines = (b.lines as unknown as Line[]).filter((l) => l.included && (!f.section || l.section === f.section));
           const rows: ReportRow[] = lines.map((l) => ({
-            section: ar(SECTION_NAME, l.section), name: l.name, kind: ar(KIND, l.kind), unitName: l.unitName ?? 'الجمعية', accountCode: l.accountCode, funding: ar(FUNDING, l.fundingType),
+            section: ar(SECTION_NAME, l.section), name: l.name, kind: ar(KIND, l.kind), unitName: l.unitName ?? 'الشركة', accountCode: l.accountCode, funding: ar(FUNDING, l.fundingType),
             auto: l.auto, amount: l.amount, diff: Math.round((l.amount - l.auto) * 100) / 100,
             basis: l.overrideNote ? `معدّل: ${l.overrideNote}` : l.trace.filter((t) => !t.label.startsWith('إجمالي') && !t.label.startsWith('التقدير الآلي')).map((t) => t.label).slice(0, 2).join(' · '),
           }));

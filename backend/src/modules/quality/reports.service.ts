@@ -139,8 +139,8 @@ export class ReportsService {
     const docsFor = (clause: string) => docs.filter((d) => d.isoClauses.some((c) => c === clause || c.startsWith(`${clause}.`)));
     const [{ jobs }] = await this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'approved')::int AS jobs FROM hr_jobs WHERE organization_id = $1`, [org]);
     const [{ forms }] = await this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'approved')::int AS forms FROM dynamic_forms WHERE organization_id = $1`, [org]);
-    const [{ projects }] = await this.db.query(`SELECT COUNT(*)::int AS projects FROM activities WHERE organization_id = $1 AND level = 'project'`, [org]).catch(() => [{ projects: 0 }]);
-    const [{ requests }] = await this.db.query(`SELECT COUNT(*)::int AS requests FROM beneficiary_requests WHERE organization_id = $1`, [org]).catch(() => [{ requests: 0 }]);
+    const [{ projects }] = await this.db.query(`SELECT COUNT(*)::int AS projects FROM rw_services WHERE organization_id = $1 AND published`, [org]).catch(() => [{ projects: 0 }]);
+    const [{ requests }] = await this.db.query(`SELECT COUNT(*)::int AS requests FROM rw_leads WHERE organization_id = $1`, [org]).catch(() => [{ requests: 0 }]);
     const allNcr = await this.db.getRepository(QmsNcr).count({ where: { organizationId: org } });
     const closedNcr = await this.db.getRepository(QmsNcr).count({ where: { organizationId: org, status: 'closed' } });
     const audits = await this.db.getRepository(QmsAudit).count({ where: { organizationId: org, status: 'completed' } });
@@ -167,10 +167,10 @@ export class ReportsService {
       documents: { ok: docs.length > 0 && s.documents.overdue === 0, partial: docs.length > 0, text: `${docs.length} وثيقة معتمدة، ${s.documents.overdue} متأخرة المراجعة` },
       procedures: { ok: s.documents.procedures > 0, text: `${s.documents.procedures} إجراء موثق` },
       forms: { ok: forms > 0, text: `${forms} نموذج طلب معتمد` },
-      design: { ok: Number(projects) > 0, text: `${projects} مشروع` },
+      design: { ok: Number(projects) > 0, text: `${projects} خدمة منشورة` },
       external: { ok: docsFor('8.4').length > 0, text: docsFor('8.4').length ? `${docsFor('8.4').length} وثيقة للبند` : 'لا يوجد إجراء معتمد للبند' },
-      delivery: { ok: Number(requests) > 0, text: `${requests} طلب مستفيد` },
-      release: { ok: Number(requests) > 0, text: 'اعتماد نهائي قبل الصرف' },
+      delivery: { ok: Number(requests) > 0, text: `${requests} طلب عميل` },
+      release: { ok: Number(requests) > 0, text: 'مراجعة المخرجات قبل التسليم' },
       nonconforming: { ok: allNcr > 0, text: `${allNcr} حالة مسجلة` },
       satisfaction: { ok: s.satisfaction.responses > 0, partial: s.satisfaction.surveys.length > 0, text: s.satisfaction.index !== null ? `مؤشر الرضا ${s.satisfaction.index}%` : 'لا توجد ردود هذا العام' },
       audits: { ok: audits > 0, partial: s.audits.planned > 0, text: `${audits} مراجعة مكتملة` },

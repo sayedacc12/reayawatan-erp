@@ -11,7 +11,7 @@ export interface TicketEvent {
 
 /**
  * طلب صيانة أو دعم فني من جمعية إلى إدارة المنصة.
- * المهل: response_due_at (أول رد من المنصة) و resolution_due_at (الحل)، وتتأجل بمدة انتظار رد الجمعية.
+ * المهل: response_due_at (أول رد من المنصة) و resolution_due_at (الحل)، وتتأجل بمدة انتظار رد الشركة.
  */
 @Entity('support_tickets')
 @Index(['organizationId', 'createdAt'])
@@ -37,7 +37,7 @@ export class SupportTicket {
   @Column({ type: 'varchar', length: 24 })
   category!: Category;
 
-  /** المستوى الذي اختارته الجمعية، ويمكن لمدير المنصة إعادة تصنيفه */
+  /** المستوى الذي اختارته الشركة، ويمكن لمدير المنصة إعادة تصنيفه */
   @Column({ type: 'varchar', length: 24 })
   priority!: Priority;
 
@@ -87,7 +87,7 @@ export class SupportTicket {
   @Column({ name: 'resolved_by_id', type: 'uuid', nullable: true })
   resolvedById!: string | null;
 
-  /** بداية انتظار رد الجمعية (تتوقف المهل) */
+  /** بداية انتظار رد الشركة (تتوقف المهل) */
   @Column({ name: 'waiting_since', type: 'timestamptz', nullable: true })
   waitingSince!: Date | null;
 
@@ -100,7 +100,7 @@ export class SupportTicket {
   @Column({ name: 'escalated_at', type: 'timestamptz', nullable: true })
   escalatedAt!: Date | null;
 
-  /** تقييم الجمعية للخدمة عند الإغلاق (1 إلى 5) */
+  /** تقييم الشركة للخدمة عند الإغلاق (1 إلى 5) */
   @Column({ type: 'smallint', nullable: true })
   rating!: number | null;
 
@@ -114,7 +114,7 @@ export class SupportTicket {
   updatedAt!: Date;
 }
 
-/** رسالة في محادثة الطلب، مع مرفق اختياري. الملاحظة الداخلية لا تظهر للجمعية */
+/** رسالة في محادثة الطلب، مع مرفق اختياري. الملاحظة الداخلية لا تظهر للشركة */
 @Entity('support_messages')
 @Index(['ticketId', 'createdAt'])
 export class SupportMessage {
@@ -128,7 +128,7 @@ export class SupportMessage {
   @JoinColumn({ name: 'ticket_id' })
   ticket!: SupportTicket;
 
-  /** org: من الجمعية، platform: من فريق المنصة */
+  /** org: من الشركة، platform: من فريق المنصة */
   @Column({ type: 'varchar', length: 16 })
   side!: 'org' | 'platform';
 

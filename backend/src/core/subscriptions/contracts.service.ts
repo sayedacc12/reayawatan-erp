@@ -118,10 +118,10 @@ export class ContractsService implements OnApplicationBootstrap {
 
   // ---------- العقود ----------
 
-  /** ينشئ مسودة عقد لجمعية من بنود المكتبة الفعّالة. يُرفض لو للجمعية عقد مفتوح */
+  /** ينشئ مسودة عقد لجمعية من بنود المكتبة الفعّالة. يُرفض لو للشركة عقد مفتوح */
   async createDraft(em: EntityManager, organizationId: string, terms: ContractTerms, actor: string, applicationId: string | null = null) {
     if (await em.exists(SubscriptionContract, { where: { organizationId, status: In([...OPEN_STATUSES]) } })) {
-      throw new ConflictException('للجمعية عقد مفتوح بالفعل. أكمله أو ألغه أولًا');
+      throw new ConflictException('للشركة عقد مفتوح بالفعل. أكمله أو ألغه أولًا');
     }
     const clauses = await em.find(ContractClause, { where: { isActive: true }, order: { sequence: 'ASC', createdAt: 'ASC' } });
     const items: ContractItem[] = clauses.map((c) => ({
@@ -140,7 +140,7 @@ export class ContractsService implements OnApplicationBootstrap {
   async createForOrganization(organizationId: string, actor: AuthUser) {
     const id = await this.db.transaction(async (em) => {
       const org = await em.findOne(Organization, { where: { id: organizationId } });
-      if (!org) throw new NotFoundException('الجمعية غير موجودة');
+      if (!org) throw new NotFoundException('الشركة غير موجودة');
       const app = await em.findOne(SubscriptionApplication, { where: { organizationId }, order: { createdAt: 'DESC' } });
       const provider = await this.provider(em);
       const today = todayRiyadh();
@@ -191,13 +191,13 @@ export class ContractsService implements OnApplicationBootstrap {
     return {
       ...this.summary(c), items: c.items, rendered: c.rendered, contentHash: c.contentHash,
       changeRequest: c.changeRequest, signerTitle: c.signerTitle, signerIp: c.signerIp, history: c.history,
-      // رابط التوقيع يظهر لمدير المنصة فقط ليرسله للجمعية
+      // رابط التوقيع يظهر لمدير المنصة فقط ليرسله للشركة
       signPath: c.status === 'draft' ? null : `/contract/${c.token}`,
       recipients: await this.recipients(c),
     };
   }
 
-  /** جهات التواصل في الجمعية التي يُرسَل لها رابط العقد (من طلب الاشتراك) */
+  /** جهات التواصل في الشركة التي يُرسَل لها رابط العقد (من طلب الاشتراك) */
   private async recipients(c: SubscriptionContract) {
     const repo = this.db.getRepository(SubscriptionApplication);
     const app = (c.applicationId ? await repo.findOne({ where: { id: c.applicationId } }) : null)
@@ -206,7 +206,7 @@ export class ContractsService implements OnApplicationBootstrap {
     const list = [
       { role: 'المدير التنفيذي', name: app.executiveDirector?.name, phone: app.executiveDirector?.phone, email: app.executiveDirector?.email },
       { role: app.boardMember?.position || 'عضو مجلس الإدارة', name: app.boardMember?.name, phone: app.boardMember?.phone, email: app.boardMember?.email },
-      { role: 'الجمعية', name: app.orgName, phone: app.orgPhone, email: app.orgEmail },
+      { role: 'الشركة', name: app.orgName, phone: app.orgPhone, email: app.orgEmail },
     ];
     return list
       .filter((r) => r.phone || r.email)
@@ -256,7 +256,7 @@ export class ContractsService implements OnApplicationBootstrap {
     return screens;
   }
 
-  /** معاينة النص النهائي كما سيظهر للجمعية */
+  /** معاينة النص النهائي كما سيظهر للشركة */
   async preview(id: string, origin: string) {
     const c = await this.db.getRepository(SubscriptionContract).findOne({ where: { id } });
     if (!c) throw new NotFoundException('العقد غير موجود');
@@ -284,7 +284,7 @@ export class ContractsService implements OnApplicationBootstrap {
     });
   }
 
-  /** إرسال العقد للجمعية: يُثبَّت النص النهائي وبصمته ويظهر رابط التوقيع، ويُرسل الرابط بالبريد لجهات التواصل */
+  /** إرسال العقد للشركة: يُثبَّت النص النهائي وبصمته ويظهر رابط التوقيع، ويُرسل الرابط بالبريد لجهات التواصل */
   async send(id: string, actor: AuthUser, origin: string, email = true) {
     await this.db.transaction(async (em) => {
       const c = await em.findOne(SubscriptionContract, { where: { id }, lock: { mode: 'pessimistic_write' } });
@@ -306,7 +306,7 @@ export class ContractsService implements OnApplicationBootstrap {
     return { ...(await this.get(id)), emailed };
   }
 
-  /** يرسل رابط توقيع العقد بالبريد لكل جهة تواصل لها بريد (المدير التنفيذي وعضو المجلس وبريد الجمعية) */
+  /** يرسل رابط توقيع العقد بالبريد لكل جهة تواصل لها بريد (المدير التنفيذي وعضو المجلس وبريد الشركة) */
   async emailLink(id: string, actor: AuthUser, origin: string) {
     const c = await this.db.getRepository(SubscriptionContract).findOne({ where: { id }, relations: { organization: true }, select: this.withToken() });
     if (!c) throw new NotFoundException('العقد غير موجود');
@@ -346,7 +346,7 @@ export class ContractsService implements OnApplicationBootstrap {
     return this.get(id);
   }
 
-  // ---------- صفحة الجمعية العامة (برابط سري) ----------
+  // ---------- صفحة الشركة العامة (برابط سري) ----------
 
   private async byToken(em: EntityManager, token: string, lock = false) {
     if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException('الرابط غير صحيح');
@@ -367,14 +367,14 @@ export class ContractsService implements OnApplicationBootstrap {
     };
   }
 
-  /** توقيع الجمعية إلكترونيًا: يُفعَّل اشتراكها بشروط العقد */
+  /** توقيع الشركة إلكترونيًا: يُفعَّل اشتراكها بشروط العقد */
   async sign(token: string, dto: SignContractDto, ip: string) {
     await this.db.transaction(async (em) => {
       const c = await this.byToken(em, token, true);
       if (c.status !== 'sent') throw new BadRequestException(c.status === 'signed' ? 'العقد موقّع بالفعل' : 'العقد غير متاح للتوقيع');
       const app = await em.findOne(SubscriptionApplication, { where: { organizationId: c.organizationId }, order: { createdAt: 'DESC' } });
       if (app && normalizeLicense(app.licenseNumber) !== normalizeLicense(dto.licenseNumber)) {
-        throw new BadRequestException('رقم الترخيص لا يطابق المسجل للجمعية');
+        throw new BadRequestException('رقم الترخيص لا يطابق المسجل للشركة');
       }
       Object.assign(c, {
         status: 'signed', signedAt: new Date(), signerName: dto.signerName, signerTitle: dto.signerTitle, signerIp: ip.slice(0, 64),
@@ -401,13 +401,13 @@ export class ContractsService implements OnApplicationBootstrap {
       if (c.status !== 'sent') throw new BadRequestException('لا يمكن طلب تعديل في حالة العقد الحالية');
       c.status = 'changes_requested';
       c.changeRequest = note;
-      c.history = [...c.history, event('changes_requested', 'الجمعية', note)];
+      c.history = [...c.history, event('changes_requested', 'الشركة', note)];
       await em.save(c);
     });
     return this.publicView(token);
   }
 
-  /** عقود جمعية (لصفحة الجمعية عند مدير المنصة) */
+  /** عقود جمعية (لصفحة الشركة عند مدير المنصة) */
   async forOrganization(organizationId: string) {
     const rows = await this.db.getRepository(SubscriptionContract).find({
       where: { organizationId }, relations: { organization: true }, order: { createdAt: 'DESC' },

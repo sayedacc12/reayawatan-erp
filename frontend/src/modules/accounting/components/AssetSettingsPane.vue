@@ -12,7 +12,7 @@ const { load: reloadLookups } = useLookups();
 const { load: loadAccounts, subOptions } = useAccounts();
 const cfg = ref<AssetConfig | null>(null);
 const form = reactive({
-  prefix: 'FA', requireCustody: true, alertDays: 30, partialMonth: 'days' as 'days' | 'next_month', donationAccountId: null as string | null,
+  prefix: 'FA', requireCustody: true, alertDays: 30, partialMonth: 'days' as 'days' | 'next_month',
   revaluationAccountId: null as string | null, impairmentAccountId: null as string | null, wipAccountId: null as string | null,
   grantReleaseAccountId: null as string | null, maintenanceAccountId: null as string | null, budgetControl: 'warn' as 'warn' | 'block',
 });
@@ -30,7 +30,7 @@ onMounted(async () => {
   cfg.value = await api<AssetConfig>(`${AF}/config`);
   const c = cfg.value;
   Object.assign(form, {
-    prefix: c.prefix, requireCustody: c.requireCustody, alertDays: c.alertDays, partialMonth: c.partialMonth, donationAccountId: c.donationAccountId,
+    prefix: c.prefix, requireCustody: c.requireCustody, alertDays: c.alertDays, partialMonth: c.partialMonth,
     revaluationAccountId: c.revaluationAccountId, impairmentAccountId: c.impairmentAccountId, wipAccountId: c.wipAccountId,
     grantReleaseAccountId: c.grantReleaseAccountId, maintenanceAccountId: c.maintenanceAccountId, budgetControl: c.budgetControl ?? 'warn',
   });
@@ -75,9 +75,6 @@ async function save() {
         </div>
         <small class="pm-muted">لا تتغير هذه القاعدة بعد ترحيل أي إهلاك، حتى لا يختلف أساس الاحتساب بين الفترات.</small>
       </div>
-      <label class="field"><span>حساب التبرعات العينية (للأصول المتبرع بها)</span>
-        <SearchSelect v-model="form.donationAccountId" :options="revenue" :selected-label="cfg?.donationAccount ? `${cfg.donationAccount.code} ${cfg.donationAccount.name}` : ''" placeholder="ابحث برقم الحساب أو اسمه" />
-      </label>
       <div class="accs">
         <label v-for="x in ACCS" :key="x.key" class="field"><span>{{ x.label }}</span>
           <SearchSelect v-model="form[x.key]" :options="all" :selected-label="lbl(x.key)" placeholder="ابحث برقم الحساب أو اسمه" />

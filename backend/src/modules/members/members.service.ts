@@ -93,7 +93,7 @@ export class MembersService {
     if (m) {
       const st = this.core.effectiveStatus(m, s);
       if (st !== 'expired' && st !== 'terminated') {
-        throw new ConflictException(`صاحب هذه الهوية عضو مسجل برقم ${m.memberNo}. للتجديد استخدم «عضويتي» أو تواصل مع الجمعية`);
+        throw new ConflictException(`صاحب هذه الهوية عضو مسجل برقم ${m.memberNo}. للتجديد استخدم «عضويتي» أو تواصل مع الشركة`);
       }
     }
   }
@@ -146,7 +146,7 @@ export class MembersService {
 
   // ---------------- الإضافة المباشرة والتعديل ----------------
 
-  /** إضافة عضو قائم (أعضاء الجمعية قبل استخدام النظام) دون طلب ولا مطالبة */
+  /** إضافة عضو قائم (أعضاء الشركة قبل استخدام النظام) دون طلب ولا مطالبة */
   async createDirect(actor: OrgUser, dto: DirectMemberDto) {
     const org = actor.organizationId;
     const s = await this.core.settings(org);

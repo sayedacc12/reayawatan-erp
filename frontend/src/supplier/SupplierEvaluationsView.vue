@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { GRADE_COLOR, fmtDate, fmtDateTime } from '../modules/procurement/lib';
 import { me, supplierApi } from './supplier';
 
-/** تقييمات الأداء المعتمدة التي شاركتها الجمعية، ورد المورد عليها بخطة تحسين (مرة واحدة، لمالك الحساب) */
+/** تقييمات الأداء المعتمدة التي شاركتها الشركة، ورد المورد عليها بخطة تحسين (مرة واحدة، لمالك الحساب) */
 const rows = ref<any[]>([]);
 const error = ref('');
 const ok = ref('');
@@ -36,7 +36,7 @@ async function send() {
     await supplierApi(`/evaluations/${replying.value.id}/respond`, {
       method: 'POST', json: { response: reply.value.response, improvementPlan: reply.value.improvementPlan.trim() || null },
     });
-    ok.value = 'وصل ردكم إلى الجمعية.';
+    ok.value = 'وصل ردكم إلى الشركة.';
     replying.value = null;
     await load();
   } catch (e) {
@@ -52,7 +52,7 @@ async function send() {
     <div class="page-head">
       <div>
         <h1>تقييم الأداء</h1>
-        <p class="muted">تقييمات الجمعية لأدائكم: التوريد في الموعد، واكتمال الكميات، والجودة، ومطابقة الفواتير، ومستويات الخدمة. يمكن لمالك الحساب الرد على كل تقييم مرة واحدة بخطة تحسين.</p>
+        <p class="muted">تقييمات الشركة لأدائكم: التوريد في الموعد، واكتمال الكميات، والجودة، ومطابقة الفواتير، ومستويات الخدمة. يمكن لمالك الحساب الرد على كل تقييم مرة واحدة بخطة تحسين.</p>
       </div>
     </div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>

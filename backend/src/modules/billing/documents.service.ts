@@ -76,17 +76,17 @@ export class DocumentsService implements OnModuleInit {
     return n as number;
   }
 
-  /** نوع الفاتورة حسب وضع الجمعية ونوع العميل */
+  /** نوع الفاتورة حسب وضع الشركة ونوع العميل */
   private resolveType(s: BlSettings, dto: DocDto, customer: BlCustomer | null): DocType {
     if (s.mode === 'unregistered') {
-      if (dto.docType && dto.docType !== 'nontax') throw new BadRequestException('الجمعية غير مسجلة في الضريبة، فتصدر فواتير عادية بلا ضريبة');
+      if (dto.docType && dto.docType !== 'nontax') throw new BadRequestException('الشركة غير مسجلة في الضريبة، فتصدر فواتير عادية بلا ضريبة');
       return 'nontax';
     }
     if (s.mode === 'off') {
       if (dto.docType) return dto.docType;
       return customer?.kind === 'business' ? 'standard' : 'simplified';
     }
-    if (dto.docType === 'nontax') throw new BadRequestException('الجمعية مسجلة في الضريبة، فتصدر فواتير ضريبية أو مبسطة');
+    if (dto.docType === 'nontax') throw new BadRequestException('الشركة مسجلة في الضريبة، فتصدر فواتير ضريبية أو مبسطة');
     return dto.docType ?? (customer?.kind === 'business' ? 'standard' : 'simplified');
   }
 
@@ -167,7 +167,7 @@ export class DocumentsService implements OnModuleInit {
   private async save(a: OrgUser, dto: DocDto, id: string | null) {
     const org = a.organizationId;
     const s = await this.core.settings(org);
-    if (s.mode === 'off') throw new BadRequestException('فعّل نظام الفوترة واختر وضع الجمعية الضريبي من الإعدادات أولًا');
+    if (s.mode === 'off') throw new BadRequestException('فعّل نظام الفوترة واختر وضع الشركة الضريبي من الإعدادات أولًا');
     if (dto.dueDate && dto.dueDate < blToday() && !id) throw new BadRequestException('تاريخ الاستحقاق في الماضي');
     if (dto.kind !== 'invoice' && !dto.reason) throw new BadRequestException('اكتب سبب الإشعار');
     await this.core.analytic(org, dto.analyticId);
@@ -298,8 +298,8 @@ export class DocumentsService implements OnModuleInit {
       const d = await this.lock(em, org, id);
       if (d.status !== 'pending') throw new ConflictException(d.status === 'draft' ? 'أرسل المستند للإصدار أولًا' : 'المستند لا ينتظر الإصدار');
       if (s.separateIssuer && !a.isSuperadmin && (d.createdById === a.id || d.editorIds.includes(a.id))) throw new ForbiddenException('لا يصدر الموظف مستندًا أنشأه أو عدّله أو أرسله بنفسه (فصل المهام)');
-      if (s.mode === 'unregistered' && d.docType !== 'nontax') throw new ConflictException('الجمعية غير مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة عادية');
-      if (s.mode !== 'unregistered' && d.docType === 'nontax') throw new ConflictException('الجمعية مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة ضريبية');
+      if (s.mode === 'unregistered' && d.docType !== 'nontax') throw new ConflictException('الشركة غير مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة عادية');
+      if (s.mode !== 'unregistered' && d.docType === 'nontax') throw new ConflictException('الشركة مسجلة في الضريبة الآن، فأعد المستند للمسودة وأعد حفظه كفاتورة ضريبية');
       let ref: BlDocument | null = null;
       if (d.refId) {
         ref = await this.lock(em, org, d.refId);

@@ -17,7 +17,7 @@ export const PURCHASE_METHODS = {
 export type PurchaseMethod = keyof typeof PURCHASE_METHODS;
 
 export const REQUEST_KINDS = {
-  goods: 'مواد وأصناف', services: 'خدمات تشغيلية', assets: 'أصول ثابتة', beneficiary: 'خدمة لمستفيد أو برنامج',
+  goods: 'مواد وأصناف', services: 'خدمات تشغيلية', assets: 'أصول ثابتة', beneficiary: 'خدمة لعميل أو برنامج',
 } as const;
 export type RequestKind = keyof typeof REQUEST_KINDS;
 
@@ -38,7 +38,7 @@ export type RfqStatus = keyof typeof RFQ_STATUS;
 export const QUOTE_STATUS = { draft: 'مسودة', submitted: 'مقدَّم', withdrawn: 'مسحوب', excluded: 'مستبعد' } as const;
 export type QuoteStatus = keyof typeof QUOTE_STATUS;
 
-export const ORDER_KINDS = { goods: 'أمر شراء', services: 'تعميد خدمة', beneficiary: 'تعميد خدمة لمستفيد' } as const;
+export const ORDER_KINDS = { goods: 'أمر شراء', services: 'تعميد خدمة', beneficiary: 'تعميد خدمة لعميل أو برنامج' } as const;
 export type OrderKind = keyof typeof ORDER_KINDS;
 
 export const ORDER_STATUS = {
@@ -145,7 +145,7 @@ export class PrRfq {
   @Column({ type: 'jsonb', default: () => `'[]'` }) criteria!: EvalCriterion[];
   /** الحد الأدنى للدرجة الفنية (من 100) لتأهل العرض ماليًا */
   @Column({ name: 'technical_pass', type: 'int', default: 0 }) technicalPass!: number;
-  /** أعضاء لجنة التقييم (مستخدمو الجمعية) */
+  /** أعضاء لجنة التقييم (مستخدمو الشركة) */
   @Column({ name: 'committee_ids', type: 'jsonb', default: () => `'[]'` }) committeeIds!: string[];
   @Column({ type: 'varchar', length: 12, default: 'draft' }) status!: RfqStatus;
   @Column({ name: 'published_at', type: 'timestamptz', nullable: true }) publishedAt!: Date | null;

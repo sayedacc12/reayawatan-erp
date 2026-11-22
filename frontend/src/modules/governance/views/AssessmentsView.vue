@@ -55,7 +55,7 @@ onMounted(async () => {
       <div class="pm-actions"><button v-if="session.can(P.assess)" class="btn gv-glow" @click="open">تقييم جديد</button></div>
     </section>
     <section class="card pm-panel">
-      <p v-if="rows && !rows.length" class="pm-empty">لا توجد تقييمات بعد. ابدأ بتقييم تجريبي لمعرفة وضع الجمعية.</p>
+      <p v-if="rows && !rows.length" class="pm-empty">لا توجد تقييمات بعد. ابدأ بتقييم تجريبي لمعرفة وضع الشركة.</p>
       <table v-else-if="rows" class="table">
         <thead><tr><th>الرمز</th><th>العنوان</th><th>النوع</th><th>الفترة</th><th>الحالة</th><th>الاكتمال</th><th>الدرجة</th><th>المتوقعة</th></tr></thead>
         <tbody>

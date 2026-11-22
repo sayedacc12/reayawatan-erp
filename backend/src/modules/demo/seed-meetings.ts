@@ -12,7 +12,7 @@ const pdf = (name: string) => ({
 } as Express.Multer.File);
 
 /**
- * الاجتماعات واللجان في الجمعية التجريبية: الجمعية العمومية (أعضاؤها من نظام العضوية)، مجلس الإدارة، لجنة تنفيذية،
+ * الاجتماعات واللجان في الشركة التجريبية: الجمعية العمومية (أعضاؤها من نظام العضوية)، مجلس الإدارة، لجنة تنفيذية،
  * وفريق عمل إدارة الحالات. واجتماعات في كل المراحل: محضر معتمد بالتوقيع الإلكتروني تحولت توصياته إلى مهام،
  * محضر بانتظار التوقيع، محضر اعتُمد بالنسخة الموقعة يدويًا، اجتماع انتهى ويُحرر محضره، اجتماع منعقد الآن،
  * دعوة لاجتماع الجمعية العمومية، وخطة بانتظار الاعتماد.
@@ -42,7 +42,7 @@ export class MeetingsSeed {
 
     // ---- الجهات
     const ga = await this.meetings.saveBody(t.admin, null, {
-      kind: 'general_assembly', code: 'GA', name: 'الجمعية العمومية', description: 'أعلى سلطة في الجمعية: تعتمد القوائم المالية وتنتخب مجلس الإدارة', quorumPercent: 50,
+      kind: 'general_assembly', code: 'GA', name: 'الجمعية العمومية', description: 'أعلى سلطة في الشركة: تعتمد القوائم المالية وتنتخب مجلس الإدارة', quorumPercent: 50,
       isConfidential: false, isActive: true, secretaryUserId: t.admin.id,
       members: assembly.filter((m) => m.voting).slice(0, 12).map((m, i) => ({ type: 'member' as const, memberId: m.id, role: i === 0 ? 'chair' as const : 'member' as const, title: null, voting: true })),
     });
@@ -111,7 +111,7 @@ export class MeetingsSeed {
 
     // ---- 1) اجتماع مجلس الإدارة الأول: محضر معتمد إلكترونيًا وتحولت توصياته إلى مهام
     const b1 = await this.meetings.create(t.admin, {
-      bodyId: board.id, title: 'الاجتماع الدوري الثالث لمجلس الإدارة', meetingType: 'ordinary', mode: 'hybrid', location: 'قاعة الاجتماعات بمقر الجمعية',
+      bodyId: board.id, title: 'الاجتماع الدوري الثالث لمجلس الإدارة', meetingType: 'ordinary', mode: 'hybrid', location: 'قاعة الاجتماعات بمقر الشركة',
       onlineLink: 'https://meet.example.org/board-3', meetingDate: daysAhead(1), startTime: '18:00', endTime: '20:00',
       objectives: 'مراجعة أداء الربع الثالث واعتماد الخطة التشغيلية المعدلة', agenda: ['المصادقة على محضر الاجتماع السابق', 'تقرير الأداء المالي للربع الثالث', 'الخطة التشغيلية المعدلة', 'ما يستجد من أعمال'],
     });
@@ -209,7 +209,7 @@ export class MeetingsSeed {
 
     // ---- 8) اجتماع مجلس قادم معتمد (المدير المالي أكد حضوره)
     const b2 = await this.meetings.create(t.admin, {
-      bodyId: board.id, title: 'الاجتماع الدوري الرابع لمجلس الإدارة', meetingType: 'ordinary', mode: 'hybrid', location: 'قاعة الاجتماعات بمقر الجمعية', onlineLink: 'https://meet.example.org/board-4',
+      bodyId: board.id, title: 'الاجتماع الدوري الرابع لمجلس الإدارة', meetingType: 'ordinary', mode: 'hybrid', location: 'قاعة الاجتماعات بمقر الشركة', onlineLink: 'https://meet.example.org/board-4',
       meetingDate: daysAhead(9), startTime: '18:00', agenda: ['متابعة قرارات الاجتماع السابق', 'خطة خفض المصروفات الإدارية', 'الاستعداد لاجتماع الجمعية العمومية'],
     });
     await this.meetings.submit(t.admin, b2.id);

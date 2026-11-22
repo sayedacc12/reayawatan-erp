@@ -13,7 +13,7 @@ import { PlansService } from '../planning/plans.service';
 import { DemoTeam, daysAgo } from './demo-context';
 
 /**
- * الموازنة التقديرية في الجمعية التجريبية للسنة القادمة، مبنية من بيانات الأنظمة الأخرى:
+ * الموازنة التقديرية في الشركة التجريبية للسنة القادمة، مبنية من بيانات الأنظمة الأخرى:
  * الموظفون ورواتبهم من الموارد البشرية، وخطة تعيين للسنة القادمة، والمصروفات والإيرادات الفعلية من المحاسبة،
  * وأنشطة خطة تشغيلية معتمدة للسنة القادمة، وموازنات المشاريع. مع افتراضات بقيم مرحلية، وقواعد علاوات،
  * ومعادلة خاصة، واستبعاد مصروف غير متكرر، وعقد جديد، وتعديل يدوي بمبرر، وسقوف للإدارات.
@@ -115,8 +115,8 @@ export class BudgetSeed {
     // ---- خطة تشغيلية معتمدة للسنة القادمة (مصدر بنود الأنشطة)
     const U = unit('إدارة البرامج والخدمات');
     let op = await this.plans.create(admin, { kind: 'operational', title: `الخطة التشغيلية لإدارة البرامج والخدمات ${Y}`, startYear: Y, endYear: Y, periodicity: 'quarterly', unitId: U, parentPlanId: strategicId, ownerName: projectsManager.fullName });
-    op = await this.plans.addItem(admin, op.id, { title: 'برنامج التمكين الاقتصادي للأسر', ownerName: projectsManager.fullName, unitId: U });
-    const pid = op.items.find((i) => i.title === 'برنامج التمكين الاقتصادي للأسر')!.id;
+    op = await this.plans.addItem(admin, op.id, { title: 'برنامج متابعة العملاء بعد التسليم', ownerName: projectsManager.fullName, unitId: U });
+    const pid = op.items.find((i) => i.title === 'برنامج متابعة العملاء بعد التسليم')!.id;
     for (const [title, from, to, cost, funding] of [
       ['دورات المهارات المهنية للأسر المنتجة', '01-15', '06-30', 120000, 'restricted'],
       ['معرض الأسر المنتجة السنوي', '10-01', '10-31', 65000, 'unrestricted'],
@@ -131,7 +131,7 @@ export class BudgetSeed {
     let opv = await this.plans.get(admin, op.id);
     for (let i = 0; i < 8 && opv.status === 'in_review'; i++) opv = await this.plans.decide(admin, op.id, { decision: 'approve', note: null });
 
-    // ---- معادلة خاصة بالجمعية
+    // ---- معادلة خاصة بالشركة
     await this.formulas.create(finance, {
       code: 'OPEX_FLEET', name: 'مصروفات الأسطول حسب عدد الرحلات', target: 'opex', expression: 'hist_avg * volume_ratio * (1 + fuel_increase)',
       description: 'المصروف التاريخي معدّلًا بنسبة الزيادة في رحلات نقل المستفيدين وزيادة أسعار الوقود.',

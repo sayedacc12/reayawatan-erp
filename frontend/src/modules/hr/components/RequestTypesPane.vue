@@ -214,7 +214,7 @@ const isDated = computed(() => ['leave', 'permission', 'exit_reentry'].includes(
             <textarea v-model="tp.body" class="input" rows="6" required />
             <div class="hr-chips"><button v-for="v in lk.letterVars" :key="v.key" type="button" class="hr-chip" style="cursor: pointer" @click="insertVar(i, v.key)">+ {{ v.label }}</button></div>
           </div>
-          <button type="button" class="btn btn-sm" @click="ed.f.templates.push({ id: '', name: '', withSalary: false, body: 'تشهد {اسم_الجمعية} بأن {اسم_الموظف} ...' })">+ نموذج</button>
+          <button type="button" class="btn btn-sm" @click="ed.f.templates.push({ id: '', name: '', withSalary: false, body: 'تشهد {اسم_الشركة} بأن {اسم_الموظف} ...' })">+ نموذج</button>
         </template>
 
         <p class="hr-sec">حقول إضافية يعبئها الموظف</p>

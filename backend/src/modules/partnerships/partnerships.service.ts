@@ -46,7 +46,7 @@ export class PartnershipsService {
 
   // ================= التهيئة والإعدادات =================
 
-  /** أول استخدام للجمعية: تُنشأ الإعدادات المقترحة (الأنواع والتصنيفات والمعايير والبنود) */
+  /** أول استخدام للشركة: تُنشأ الإعدادات المقترحة (الأنواع والتصنيفات والمعايير والبنود) */
   async settings(org: string, em: EntityManager = this.db.manager): Promise<PtSettings> {
     const found = await em.findOne(PtSettings, { where: { organizationId: org } });
     if (found) return found;
@@ -247,7 +247,7 @@ export class PartnershipsService {
     return this.clauses(u.organizationId);
   }
 
-  /** استعادة البنود المقترحة: تُضاف البنود الناقصة (بالعنوان) دون المساس بما عدّلته الجمعية */
+  /** استعادة البنود المقترحة: تُضاف البنود الناقصة (بالعنوان) دون المساس بما عدّلته الشركة */
   async restoreClauses(u: OrgUser) {
     const org = u.organizationId;
     const s = await this.settings(org);

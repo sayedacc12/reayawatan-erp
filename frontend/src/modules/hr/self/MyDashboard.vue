@@ -103,12 +103,12 @@ const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
             <RouterLink v-if="data.manager.isManager" to="/me/manager" class="btn btn-ghost">لوحة المدير ({{ data.manager.team }})</RouterLink>
           </div>
         </div>
-        <div class="ess-counter" aria-label="مدة الخدمة في الجمعية">
+        <div class="ess-counter" aria-label="مدة الخدمة في الشركة">
           <div class="u" style="--i: 0"><b>{{ counter.y }}</b><span>سنة</span></div>
           <div class="u" style="--i: 1"><b>{{ counter.m }}</b><span>شهر</span></div>
           <div class="u" style="--i: 2"><b>{{ counter.d }}</b><span>يوم</span></div>
           <div class="u tick" style="--i: 3"><b>{{ pad(counter.h) }}:{{ pad(counter.mi) }}:{{ pad(counter.s) }}</b><span>ساعة</span></div>
-          <span class="cap">مدة خدمتك في الجمعية منذ {{ fmtDate(data.service.hireDate) }} ({{ counter.total.toLocaleString('ar-SA') }} يومًا)</span>
+          <span class="cap">مدة خدمتك في الشركة منذ {{ fmtDate(data.service.hireDate) }} ({{ counter.total.toLocaleString('ar-SA') }} يومًا)</span>
         </div>
       </section>
 
@@ -169,7 +169,7 @@ const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
 
         <section class="card ess-card">
           <h2>الحضور والانصراف</h2>
-          <p v-if="!data.attendance.enabled" class="pm-empty">نظام البصمة غير مفعل في الجمعية</p>
+          <p v-if="!data.attendance.enabled" class="pm-empty">نظام البصمة غير مفعل في الشركة</p>
           <template v-else>
             <div class="ess-today">
               <div><span class="pm-muted">حضور اليوم</span><b>{{ data.attendance.today.checkIn ?? '—' }}</b></div>

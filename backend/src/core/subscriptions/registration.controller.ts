@@ -8,7 +8,7 @@ import { licenseUpload } from './subscriptions.controller';
 import { ApplicationDto, NoteDto, SignContractDto, UpdateApplicationDto } from './subscriptions.dto';
 
 /**
- * صفحات الجمعية العامة (بدون تسجيل دخول):
+ * صفحات الشركة العامة (بدون تسجيل دخول):
  * تقديم طلب الاشتراك، ومتابعته برابط سري، ومراجعة العقد الإلكتروني وتوقيعه.
  */
 @Controller('public')

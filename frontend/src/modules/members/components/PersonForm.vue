@@ -111,7 +111,7 @@ defineExpose({ setError: (m: string) => (error.value = m) });
     <template v-if="mode === 'direct'">
       <div class="mb-sec">العضوية الحالية</div>
       <div class="pm-grid2">
-        <label class="field"><span>تاريخ الانضمام للجمعية *</span><input v-model="f.joinedOn" type="date" class="input" required /></label>
+        <label class="field"><span>تاريخ الانضمام للشركة *</span><input v-model="f.joinedOn" type="date" class="input" required /></label>
         <label class="field"><span>رقم العضوية (اختياري، يُرقّم تلقائيًا)</span><input v-model.number="f.memberNo" type="number" min="1" class="input" dir="ltr" /></label>
         <label class="field"><span>بداية مدة العضوية الحالية *</span><input v-model="f.startDate" type="date" class="input" required /></label>
         <label class="field"><span>نهاية مدة العضوية الحالية</span><input v-model="f.endDate" type="date" class="input" /><small class="pm-muted">تُحسب من مدة النوع إن تُركت فارغة</small></label>

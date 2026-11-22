@@ -185,7 +185,7 @@ const TITLES: Record<string, string> = {
         <section class="card pm-panel pc-noprint">
           <h2>الاستفسارات مع المورد</h2>
           <ul class="pc-log">
-            <li v-for="(m, i) in d.messages" :key="i"><span><b>{{ m.from === 'supplier' ? 'المورد' : 'الجمعية' }}: {{ m.byName }}</b> <small class="pm-muted">{{ fmtDateTime(m.at) }}</small><div style="white-space: pre-line">{{ m.text }}</div></span></li>
+            <li v-for="(m, i) in d.messages" :key="i"><span><b>{{ m.from === 'supplier' ? 'المورد' : 'الشركة' }}: {{ m.byName }}</b> <small class="pm-muted">{{ fmtDateTime(m.at) }}</small><div style="white-space: pre-line">{{ m.text }}</div></span></li>
             <li v-if="!d.messages.length" class="pm-muted">لا توجد استفسارات.</li>
           </ul>
           <form v-if="d.can.message" class="pc-inline" style="margin-top: 8px" @submit.prevent="send"><input v-model="msg" class="input grow" maxlength="2000" placeholder="اكتب رسالة للمورد" /><button class="btn" :disabled="busy">إرسال</button></form>

@@ -81,7 +81,7 @@ export class DocLineDto {
 /** فاتورة أو إشعار دائن أو مدين */
 export class DocDto {
   @IsIn(Object.keys(DOC_KINDS)) kind!: keyof typeof DOC_KINDS;
-  /** نوع الفاتورة (يُحدد آليًا من وضع الجمعية ونوع العميل إن لم يُرسل) */
+  /** نوع الفاتورة (يُحدد آليًا من وضع الشركة ونوع العميل إن لم يُرسل) */
   @IsOptional() @IsIn(Object.keys(DOC_TYPES)) docType?: keyof typeof DOC_TYPES;
   @IsOptional() @IsUUID() customerId?: string | null;
   /** اسم المشتري للفاتورة المبسطة بلا عميل مسجل */

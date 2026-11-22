@@ -120,7 +120,7 @@ export class PlanningService {
     const st = stats ?? { total: 0, done: 0, active: 0, hours: 0, actualHours: 0, findings: 0 };
     return {
       id: p.id, code: p.code, kind: p.kind, parentId: p.parentId, year: p.year, title: p.title, scopeType: p.scopeType, unitId: p.unitId,
-      scopeLabel: p.scopeType === 'unit' ? units.get(p.unitId ?? '') ?? '—' : p.scopeType === 'outside' ? p.outsideLabel : 'الجمعية كلها',
+      scopeLabel: p.scopeType === 'unit' ? units.get(p.unitId ?? '') ?? '—' : p.scopeType === 'outside' ? p.outsideLabel : 'الشركة كلها',
       outsideLabel: p.outsideLabel, periodFrom: p.periodFrom, periodTo: p.periodTo, objectives: p.objectives, methodology: p.methodology,
       availableHours: p.availableHours, riskRefs: p.riskRefs, status: p.status, statusLabel: PLAN_STATUS_AR[p.status], decisionNote: p.decisionNote,
       approvedByName: p.approvedByName, approvedAt: p.approvedAt, createdByName: p.createdByName, history: p.history,

@@ -6,7 +6,7 @@ import { daysLabel, inDays, type DeletionNotice } from '../modules/platform/life
 import { fmtDate } from '../modules/platform/labels';
 
 /**
- * تنبيه مستخدمي جمعية التجربة بالأيام المتبقية: نهاية التجربة ثم حذف الجمعية وبياناتها إن لم يتم التعاقد.
+ * تنبيه مستخدمي جمعية التجربة بالأيام المتبقية: نهاية التجربة ثم حذف الشركة وبياناتها إن لم يتم التعاقد.
  * يمكن إخفاؤه ليوم واحد، إلا في آخر 3 أيام فيبقى ظاهرًا.
  */
 const session = useSession();
@@ -37,7 +37,7 @@ function hide() {
     <span class="count" aria-hidden="true"><b>{{ days }}</b><small>{{ days === 1 ? 'يوم' : 'أيام' }}</small></span>
     <div class="msg">
       <strong>{{ days === 0 ? 'اليوم آخر يوم في الفترة التجريبية' : `متبقٍ ${daysLabel(days)} على نهاية الفترة التجريبية` }}</strong>
-      <span>تنتهي في {{ fmtDate(notice.trialEndsOn) }}، وبعدها يتوقف الدخول. وإن لم يتم التعاقد تُحذف الجمعية وكل بياناتها نهائيًا في {{ fmtDate(notice.deleteOn) }} ({{ inDays(notice.daysToDelete) }}). للاشتراك تواصلوا مع الدعم الفني.</span>
+      <span>تنتهي في {{ fmtDate(notice.trialEndsOn) }}، وبعدها يتوقف الدخول. وإن لم يتم التعاقد تُحذف الشركة وكل بياناتها نهائيًا في {{ fmtDate(notice.deleteOn) }} ({{ inDays(notice.daysToDelete) }}). للاشتراك تواصلوا مع الدعم الفني.</span>
     </div>
     <button v-if="!urgent" class="close" title="إخفاء اليوم" @click="hide">×</button>
   </div>

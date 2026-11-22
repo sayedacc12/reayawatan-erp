@@ -63,6 +63,8 @@ describe('Clearance and end-of-service settlement', () => {
     await http.post(`${A}/setup`).set(as(tk.admin)).send({
       fiscalYear: year, startDate: `${year}-01-01`, endDate: `${year}-12-31`, isFirstYear: true, firstYearStart: `${year}-01-01`, firstYearEnd: `${year}-12-31`,
     }).expect(201);
+    // آخر يوم عمل بعد 40 يومًا قد يقع في السنة التالية (من أواخر نوفمبر)، فتُفتح السنة التالية أيضًا
+    await http.post(`${A}/years/next`).set(as(tk.admin)).expect(201);
     ids.bank = (await http.post(`${A}/cash-accounts`).set(as(tk.admin)).send({ kind: 'bank', name: 'الراجحي', bankName: 'مصرف الراجحي', accountNumber: '608010167519', glAccountId: acc['1110100201'] }).expect(201)).body.id;
     await http.put(`${H}/payroll-config`).set(as(tk.admin)).send({
       payableAccountId: acc['2140100101'], gosiPayableAccountId: acc['2140100108'], deductionsAccountId: acc['1140100401'], defaultCashAccountId: ids.bank, stages: [],

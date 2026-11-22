@@ -57,7 +57,7 @@ function saved(d: any) {
     <section class="kn-hero">
       <div class="kn-hero-text">
         <span class="kn-kicker">أرشيف المعرفة</span>
-        <h1>كل معرفة الجمعية في مكان واحد</h1>
+        <h1>كل معرفة الشركة في مكان واحد</h1>
         <p>اللوائح والسياسات والأدلة والدراسات والتقارير والدروس المستفادة، بإصداراتها المعتمدة.</p>
         <div class="kn-search">
           <span>⌕</span><input v-model="f.q" placeholder="ابحث بالعنوان أو الرمز أو الكلمات المفتاحية أو المحتوى" />

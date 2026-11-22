@@ -24,7 +24,7 @@ const counts = computed(() => {
   <div v-if="data">
     <section class="pm-hero q-hero">
       <div><p class="pm-kicker">ISO 9001:2015</p><h1>متطلبات المواصفة ومصفوفة المطابقة</h1>
-        <p class="pm-sub">كل بند من 4 إلى 10، وأين يُطبَّق في سنابل، والدليل المحسوب تلقائيًا من بيانات الجمعية. استخدمها للاستعداد لمراجعة جهة المنح أو المراجعة الداخلية.</p></div>
+        <p class="pm-sub">كل بند من 4 إلى 10، وأين يُطبَّق في النظام، والدليل المحسوب تلقائيًا من بيانات الشركة. استخدمها للاستعداد لمراجعة جهة المنح أو المراجعة الداخلية.</p></div>
     </section>
     <div class="q-grid" style="margin-bottom: 16px">
       <section class="card pm-panel">
@@ -49,7 +49,7 @@ const counts = computed(() => {
     <section v-for="s in data.sections" :id="`sec-${s.code}`" :key="s.code" class="card pm-panel" style="margin-bottom: 16px">
       <h2>البند {{ s.code }}: {{ s.title }} <span class="pm-pill" :style="{ '--c': ringColor(s.score) }">{{ s.score }}%</span></h2>
       <div class="table-wrap"><table class="table">
-        <thead><tr><th style="width: 60px">البند</th><th>المتطلب</th><th>التطبيق في سنابل</th><th>الدليل</th><th>الوثائق المعتمدة</th><th>الحالة</th></tr></thead>
+        <thead><tr><th style="width: 60px">البند</th><th>المتطلب</th><th>التطبيق في النظام</th><th>الدليل</th><th>الوثائق المعتمدة</th><th>الحالة</th></tr></thead>
         <tbody>
           <tr v-for="c in s.clauses.filter((x) => !filter || x.status === filter)" :key="c.code">
             <td><span class="q-code">{{ c.code }}</span></td>

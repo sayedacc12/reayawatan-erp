@@ -8,7 +8,7 @@ import { FundingSources } from './funding-sources.service';
 import { BudgetAvailability } from '../planning/budget/budget-availability.service';
 import { ITEM_KINDS, PrItem, PrSupplier } from './entities/procurement.entity';
 import { ORDER_STATUS, PrOrder } from './entities/sourcing.entity';
-import { INSPECTION_RESULTS, LINE_TREATMENT, LineTreatment, PrReceipt, PrStockDoc, RECEIPT_KINDS, RECEIPT_STATUS, ReceiptLine } from './entities/stock.entity';
+import { INSPECTION_RESULTS, LINE_TREATMENT, LineTreatment, PrReceipt, PrStockDoc, RECEIPT_KINDS, RECEIPT_KIND_LABELS, RECEIPT_STATUS, ReceiptLine } from './entities/stock.entity';
 import { PROCUREMENT_PERMISSIONS as P } from './procurement.manifest';
 import { logEntry, ProcurementCore, prToday, supplierCode } from './procurement-core.service';
 import { can } from './requests.service';
@@ -22,7 +22,7 @@ export const RECEIVABLE = ['issued', 'acknowledged', 'accepted', 'clarification'
 /**
  * الاستلام والفحص: استلام المواد أو إنجاز الخدمة بتعميد (بعد فحص لجنة الاستلام، والمرفوض لا يدخل)، والتبرع العيني بالقيمة العادلة،
  * والرصيد الافتتاحي للمستودعات. كل استلام يصدر سند مخازن واحد: المخزون أو الأصل الثابت أو المصروف مدين،
- * والبضاعة المستلمة غير المفوترة (أو التبرعات العينية أو الرصيد الافتتاحي) دائنة. والأصل الثابت يُنشأ تلقائيًا في الأصول الثابتة.
+ * والبضاعة المستلمة غير المفوترة (أو الرصيد الافتتاحي) دائنة. والأصل الثابت يُنشأ تلقائيًا في الأصول الثابتة.
  * ويستهلك الاستلام بتعميد حجزه في بند الموازنة ومصدر التمويل بقيمته بأسعار التعميد.
  */
 @Injectable()
@@ -100,15 +100,12 @@ export class ReceiptsService {
         if (!o) throw new NotFoundException('التعميد غير موجود');
         if (!RECEIVABLE.includes(o.status)) throw new ConflictException(`لا يُستلم على تعميد «${ORDER_STATUS[o.status]}»`);
         if (!a.isSuperadmin && o.createdById === a.id) throw new ForbiddenException('لا يستلم الموظف تعميدًا أعده بنفسه (فصل المهام)');
-      } else if (dto.kind === 'donation') {
-        if (!dto.donorName) throw new BadRequestException('اكتب اسم المتبرع');
-        if (!s.donationAccountId) throw new BadRequestException('حدد حساب التبرعات العينية في إعدادات المستودعات أولًا');
       } else if (!s.openingAccountId) throw new BadRequestException('حدد الحساب المقابل للأرصدة الافتتاحية في إعدادات المستودعات أولًا');
       const warehouseId = dto.warehouseId ?? o?.warehouseId ?? null;
       const wh = warehouseId ? await this.stock.warehouse(org, warehouseId, em) : null;
       if (wh) this.stock.assertKeeper(a, wh);
       if (dto.kind === 'opening' && !wh) throw new BadRequestException('اختر المستودع');
-      const credit = dto.kind === 'order' ? s.grniAccountId : dto.kind === 'donation' ? s.donationAccountId : s.openingAccountId;
+      const credit = dto.kind === 'order' ? s.grniAccountId : s.openingAccountId;
       if (!credit) throw new BadRequestException('حدد حساب البضاعة المستلمة غير المفوترة في إعدادات المستودعات أولًا');
 
       // ---- البنود ----
@@ -152,7 +149,7 @@ export class ReceiptsService {
           if (item.status !== 'active') throw new ConflictException(`الصنف «${item.name}» موقوف`);
           description = x.description ?? item.name;
           uomId = item.uomId;
-          if (!(x.unitPrice && x.unitPrice > 0)) throw new BadRequestException(`البند ${n}: اكتب ${dto.kind === 'donation' ? 'القيمة العادلة للوحدة' : 'تكلفة الوحدة'}`);
+          if (!(x.unitPrice && x.unitPrice > 0)) throw new BadRequestException(`البند ${n}: اكتب تكلفة الوحدة`);
           unitPrice = r2(x.unitPrice);
         }
         const treatment = this.treatment(item, !!wh);
@@ -213,11 +210,11 @@ export class ReceiptsService {
       const code = receiptCode(no);
       const r = await em.getRepository(PrReceipt).save(em.create(PrReceipt, {
         organizationId: org, receiptNo: no, kind: dto.kind, orderId: o?.id ?? null, supplierId: o?.supplierId ?? null, warehouseId: wh?.id ?? null, date: dto.date,
-        deliveryRef: dto.deliveryRef ?? null, donorName: dto.kind === 'donation' ? dto.donorName ?? null : null, analyticId: dto.analyticId ?? null,
+        deliveryRef: dto.deliveryRef ?? null, donorName: null, analyticId: dto.analyticId ?? null,
         projectId: dto.projectId ?? o?.projectId ?? null, lines: lines.map(({ item: _i, orderPrice: _p, ...l }) => l), extraCost: extra, extraNote: dto.extraNote ?? null,
         total, orderValue, status: 'posted', notes: dto.notes ?? null, createdById: a.id, createdByName: a.fullName,
         inspection: dto.inspection ? { committee: dto.inspection.committee, result: dto.inspection.result, note: dto.inspection.note ?? null, byName: a.fullName, at: new Date().toISOString() } : null,
-        log: [logEntry(`اعتماد ${RECEIPT_KINDS[dto.kind]}`, a.fullName, o ? orderCode(o.orderNo) : dto.donorName ?? null)],
+        log: [logEntry(`اعتماد ${RECEIPT_KINDS[dto.kind]}`, a.fullName, o ? orderCode(o.orderNo) : null)],
       }));
       const ctx: MoveCtx = { org, date: dto.date, docType: 'receipt', docId: r.id, docCode: code, byName: a.fullName, projectId: r.projectId, unitId: o?.unitId ?? null };
       for (const l of accepted.filter((x) => x.treatment === 'stock')) {
@@ -227,8 +224,8 @@ export class ReceiptsService {
         });
       }
       const sup = o ? await em.getRepository(PrSupplier).findOneOrFail({ where: { id: o.supplierId } }) : null;
-      const party = sup?.name ?? dto.donorName ?? null;
-      const label = dto.kind === 'order' ? `استلام ${code} على التعميد ${orderCode(o!.orderNo)} من ${party}` : dto.kind === 'donation' ? `تبرع عيني ${code} من ${party}` : `رصيد افتتاحي للمستودع ${wh!.name} ${code}`;
+      const party = sup?.name ?? null;
+      const label = dto.kind === 'order' ? `استلام ${code} على التعميد ${orderCode(o!.orderNo)} من ${party}` : `رصيد افتتاحي للمستودع ${wh!.name} ${code}`;
       const gl: GlLine[] = [];
       for (const l of accepted) {
         gl.push({ accountId: l.accountId!, debit: l.value, credit: 0, label: `${label}: ${l.description}`.slice(0, 250), analyticId: l.treatment === 'expense' ? dto.analyticId ?? null : null });
@@ -244,7 +241,7 @@ export class ReceiptsService {
           rest = r2(rest - v);
           const asset = await this.assetOps.receiveFromProcurement(em, a, {
             groupId: eff.assetGroupId!, name: l.description, description: `${label}`, serialNumber: null, location: wh?.name ?? null, unitId: o?.unitId ?? null,
-            analyticId: null, date: dto.date, amount: v, donation: dto.kind === 'donation', counterAccountId: credit, partyName: party, entryId: r.entryId!, receiptId: r.id,
+            analyticId: null, date: dto.date, amount: v, counterAccountId: credit, partyName: party, entryId: r.entryId!, receiptId: r.id,
             note: `${code}${o ? ` · ${orderCode(o.orderNo)}` : ''}`,
           });
           const rl = r.lines.find((x) => x.id === l.id)!;
@@ -357,10 +354,10 @@ export class ReceiptsService {
          FROM pr_receipts r LEFT JOIN pr_orders o ON o.id = r.order_id LEFT JOIN pr_suppliers s ON s.id = r.supplier_id LEFT JOIN pr_warehouses w ON w.id = r.warehouse_id
         WHERE r.organization_id = $1 AND ($2::text IS NULL OR r.kind = $2) AND ($3::uuid IS NULL OR r.warehouse_id = $3::uuid) AND ($4::text IS NULL OR r.status = $4)
           AND ($5::uuid IS NULL OR r.order_id = $5::uuid)
-          AND ($6::text IS NULL OR s.name ILIKE '%' || $6 || '%' OR r.donor_name ILIKE '%' || $6 || '%' OR ('GRN-' || LPAD(r.receipt_no::text, 4, '0')) ILIKE '%' || $6 || '%')
+          AND ($6::text IS NULL OR s.name ILIKE '%' || $6 || '%' OR ('GRN-' || LPAD(r.receipt_no::text, 4, '0')) ILIKE '%' || $6 || '%')
         ORDER BY r.receipt_no DESC LIMIT 500`, [a.organizationId, q.kind || null, q.warehouse || null, q.status || null, q.order || null, q.q?.trim() || null]);
     return rows.map((r) => ({
-      ...r, code: receiptCode(r.receiptNo as number), kindLabel: RECEIPT_KINDS[r.kind as keyof typeof RECEIPT_KINDS], statusLabel: RECEIPT_STATUS[r.status as keyof typeof RECEIPT_STATUS],
+      ...r, code: receiptCode(r.receiptNo as number), kindLabel: RECEIPT_KIND_LABELS[r.kind as string], statusLabel: RECEIPT_STATUS[r.status as keyof typeof RECEIPT_STATUS],
       orderCode: r.orderNo ? orderCode(r.orderNo as number) : null, inspectionLabel: r.inspection ? INSPECTION_RESULTS[r.inspection as keyof typeof INSPECTION_RESULTS] : null,
     }));
   }
@@ -386,7 +383,7 @@ export class ReceiptsService {
     const returned = new Map<string, number>();
     for (const d of returns.filter((x) => x.status === 'posted')) for (const l of d.lines) returned.set(l.refLineId ?? '', q3((returned.get(l.refLineId ?? '') ?? 0) + l.qty));
     return {
-      ...r, code: receiptCode(r.receiptNo), kindLabel: RECEIPT_KINDS[r.kind], statusLabel: RECEIPT_STATUS[r.status],
+      ...r, code: receiptCode(r.receiptNo), kindLabel: RECEIPT_KIND_LABELS[r.kind], statusLabel: RECEIPT_STATUS[r.status],
       order: o ? { id: o.id, code: orderCode(o.orderNo), title: o.title, status: o.status, statusLabel: ORDER_STATUS[o.status] } : null,
       supplier: sup ? { id: sup.id, code: supplierCode(sup.supplierNo), name: sup.name } : null,
       warehouse: wh ? { id: wh.id, code: wh.code, name: wh.name } : null,

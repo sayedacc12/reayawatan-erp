@@ -165,7 +165,7 @@ const steps = ['تقديم الطلب وإرفاق الهوية', 'مراجعة 
             <div v-for="(s, i) in info.regulation.sections" :key="i"><b>{{ s.title }}</b><p class="mb-pre">{{ s.body }}</p></div>
           </details>
           <button v-if="info.publicEnabled" class="btn btn-primary go" @click="go('apply')">قدّم طلب العضوية الآن</button>
-          <p v-else class="alert">التقديم من الموقع متوقف حاليًا، تواصل مع الجمعية.</p>
+          <p v-else class="alert">التقديم من الموقع متوقف حاليًا، تواصل مع الشركة.</p>
         </section>
 
         <section v-else-if="tab === 'apply'" key="p" class="card panel">

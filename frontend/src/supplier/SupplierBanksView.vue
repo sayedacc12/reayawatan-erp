@@ -20,7 +20,7 @@ async function send() {
   ok.value = '';
   try {
     setMe(await supplierUpload('/banks', f.value.file, { bankName: f.value.bankName, iban: f.value.iban, accountName: f.value.accountName }));
-    ok.value = 'أُرسل الطلب، ويُعتمد الحساب بعد مراجعة الجمعية ✓';
+    ok.value = 'أُرسل الطلب، ويُعتمد الحساب بعد مراجعة الشركة ✓';
     f.value = { bankName: '', iban: '', accountName: '', file: null };
     if (fileInput.value) fileInput.value.value = '';
   } catch (e) {
@@ -33,7 +33,7 @@ async function send() {
 
 <template>
   <div>
-    <div class="page-head"><div><h1>الحساب البنكي</h1><p class="muted">الحساب الذي تُحوَّل عليه المستحقات. أي تغيير فيه لا يُعتمد إلا بعد تحقق الجمعية من خطاب البنك.</p></div></div>
+    <div class="page-head"><div><h1>الحساب البنكي</h1><p class="muted">الحساب الذي تُحوَّل عليه المستحقات. أي تغيير فيه لا يُعتمد إلا بعد تحقق الشركة من خطاب البنك.</p></div></div>
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="ok" class="alert alert-success">{{ ok }}</div>
     <template v-if="m">

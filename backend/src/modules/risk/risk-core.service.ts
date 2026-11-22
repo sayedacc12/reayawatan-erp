@@ -275,7 +275,7 @@ export class RiskCore {
     const org = actor.organizationId;
     const s = await this.settings(org);
     if (!s.guideInstalled) {
-      // ننصّب الدليل المقترح أول مرة فقط، فما تحذفه الجمعية لا يعود
+      // ننصّب الدليل المقترح أول مرة فقط، فما تحذفه الشركة لا يعود
       await this.db.transaction(async (em) => {
         const locked = await em.getRepository(RiskSettings).findOne({ where: { organizationId: org }, lock: { mode: 'pessimistic_write' } });
         if (locked?.guideInstalled) return;

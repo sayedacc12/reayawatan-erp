@@ -34,7 +34,7 @@ watch(slug, async (s) => {
     orgMissing.value = true;
   }
 }, { immediate: true });
-// لو موظف جمعية دخل من الصفحة العامة، الرسالة فيها رابط جمعيته
+// لو موظف جمعية دخل من الصفحة العامة، الرسالة فيها رابط شركته
 const orgLink = computed(() => error.value.match(/\/o\/[a-z0-9-]+/)?.[0] ?? '');
 function goToOrg() {
   const target = orgLink.value;
@@ -63,7 +63,7 @@ function spotlight(e: PointerEvent) {
   el.style.setProperty('--my', `${e.clientY - r.top}px`);
 }
 
-// نسيت كلمة المرور: الطلب يصل لمدير النظام في الجمعية (أو لمالك المنصة) ليسلّم كلمة مؤقتة
+// نسيت كلمة المرور: الطلب يصل لمدير النظام في الشركة (أو لمالك المنصة) ليسلّم كلمة مؤقتة
 const mode = ref<'login' | 'forgot'>('login');
 const forgotDone = ref('');
 function setMode(m: 'login' | 'forgot') {
@@ -157,11 +157,11 @@ async function submit() {
             </div>
           </div>
 
-          <div v-if="orgMissing" class="error" role="alert">رابط الجمعية غير صحيح. تأكد من الرابط مع إدارة جمعيتك.</div>
+          <div v-if="orgMissing" class="error" role="alert">رابط الشركة غير صحيح. تأكد من الرابط مع إدارة شركتك.</div>
           <Transition name="fade">
             <div v-if="error" class="error" role="alert">
               {{ orgLink ? error.replace(/:?\s*\/o\/[a-z0-9-]+/, '.') : error }}
-              <button v-if="orgLink" type="button" class="org-jump" @click="goToOrg">افتح صفحة جمعيتك ←</button>
+              <button v-if="orgLink" type="button" class="org-jump" @click="goToOrg">افتح صفحة شركتك ←</button>
             </div>
           </Transition>
 

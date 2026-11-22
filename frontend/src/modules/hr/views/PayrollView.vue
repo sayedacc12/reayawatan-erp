@@ -64,7 +64,7 @@ const pending = computed(() => live.value.filter((r) => r.status === 'pending').
     <div class="pm-kpis">
       <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>كشوف معتمدة هذا العام</span><strong><CountUp :value="year.length" /></strong><small>{{ pending ? `${pending} قيد الاعتماد` : 'لا كشوف معلقة' }}</small></div>
       <div class="pm-kpi" style="--a: #10b981; --i: 1"><span>صافي الرواتب هذا العام</span><strong><CountUp :value="year.reduce((s, r) => s + r.net, 0)" :decimals="2" /></strong><small>ريال</small></div>
-      <div class="pm-kpi" style="--a: #f472b6; --i: 2"><span>التكلفة الكاملة هذا العام</span><strong><CountUp :value="year.reduce((s, r) => s + r.employerCost, 0)" :decimals="2" /></strong><small>مع حصة الجمعية في التأمينات</small></div>
+      <div class="pm-kpi" style="--a: #f472b6; --i: 2"><span>التكلفة الكاملة هذا العام</span><strong><CountUp :value="year.reduce((s, r) => s + r.employerCost, 0)" :decimals="2" /></strong><small>مع حصة الشركة في التأمينات</small></div>
     </div>
 
     <section class="card pm-panel">

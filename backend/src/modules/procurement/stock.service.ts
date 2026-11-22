@@ -27,7 +27,6 @@ export class StockService {
     await this.core.settings(org);
     await this.core.account(org, dto.grniAccountId, 'liabilities', 'حساب البضاعة المستلمة غير المفوترة');
     await this.core.account(org, dto.adjustAccountId, 'expenses', 'حساب فروقات الجرد والإتلاف');
-    await this.core.account(org, dto.donationAccountId, 'revenue', 'حساب التبرعات العينية');
     await this.core.account(org, dto.openingAccountId, 'net_assets', 'الحساب المقابل للأرصدة الافتتاحية');
     await this.core.account(org, dto.defaultExpenseAccountId, 'expenses', 'حساب المصروف الافتراضي');
     if (dto.adjustAnalyticId) {
@@ -36,7 +35,7 @@ export class StockService {
     }
     await this.db.getRepository(PrSettings).update({ organizationId: org }, {
       grniAccountId: dto.grniAccountId ?? null, adjustAccountId: dto.adjustAccountId ?? null, adjustAnalyticId: dto.adjustAnalyticId ?? null,
-      donationAccountId: dto.donationAccountId ?? null, openingAccountId: dto.openingAccountId ?? null, defaultExpenseAccountId: dto.defaultExpenseAccountId ?? null,
+      openingAccountId: dto.openingAccountId ?? null, defaultExpenseAccountId: dto.defaultExpenseAccountId ?? null,
       expiryAlertDays: dto.expiryAlertDays, overReceiptPct: dto.overReceiptPct, vatInCost: dto.vatInCost, requireInspection: dto.requireInspection,
     });
     return this.core.settings(org);
@@ -204,8 +203,7 @@ export class StockService {
                             COALESCE(SUM(total) FILTER (WHERE kind = 'issue' AND status = 'posted' AND date >= date_trunc('month', $2::date)), 0)::float AS "issuedMonth"
                        FROM pr_stock_docs WHERE organization_id = $1`, [org, today]),
       this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'open')::int AS open, COUNT(*) FILTER (WHERE status = 'submitted')::int AS submitted FROM pr_counts WHERE organization_id = $1`, [org]),
-      this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'posted' AND date >= date_trunc('month', $2::date))::int AS month,
-                            COALESCE(SUM(total) FILTER (WHERE status = 'posted' AND kind = 'donation'), 0)::float AS donations FROM pr_receipts WHERE organization_id = $1`, [org, today]),
+      this.db.query(`SELECT COUNT(*) FILTER (WHERE status = 'posted' AND date >= date_trunc('month', $2::date))::int AS month FROM pr_receipts WHERE organization_id = $1`, [org, today]),
       this.db.query(
         `SELECT o.id, o.order_no AS "orderNo", o.title, o.status, to_char(o.delivery_date, 'YYYY-MM-DD') AS "deliveryDate", s.name AS "supplierName"
            FROM pr_orders o JOIN pr_suppliers s ON s.id = o.supplier_id
@@ -220,7 +218,7 @@ export class StockService {
       dueOrders: due.map((o: { deliveryDate: string | null }) => ({ ...o, late: !!o.deliveryDate && o.deliveryDate < today })),
       reconcile: rec ? { ok: rec.ok, issues: rec.issues, accounts: rec.accounts.filter((x) => !x.ok).map((x) => ({ code: x.code, name: x.name, diff: x.diff })) } : null,
       byWarehouse: byWh,
-      configured: { grni: !!s.grniAccountId, adjust: !!s.adjustAccountId, donation: !!s.donationAccountId },
+      configured: { grni: !!s.grniAccountId, adjust: !!s.adjustAccountId },
       can: { operate: can(a, P.stockOperate), approve: can(a, P.stockApprove) },
     };
   }

@@ -14,7 +14,7 @@ import {
 import { BankDecisionDto, BankDto, DocMetaDto, DocReviewDto, InviteUserDto, SupplierDecisionDto, SupplierDto, SuspendDto } from './procurement.dto';
 import { addDays, cleanIban, ibanProblem, logEntry, prToday, ProcurementCore, supplierCode } from './procurement-core.service';
 
-/** من يقوم بالإجراء: موظف الجمعية أو مستخدم بوابة المورد */
+/** من يقوم بالإجراء: موظف الشركة أو مستخدم بوابة المورد */
 export interface Actor { name: string; userId: string | null; via: 'staff' | 'portal' }
 export const staffActor = (a: OrgUser): Actor => ({ name: a.fullName, userId: a.id, via: 'staff' });
 
@@ -251,8 +251,8 @@ export class SuppliersService implements OnApplicationBootstrap, OnApplicationSh
     });
     if (dto.decision === 'approve' && !sup.accPartnerId) await this.ensurePartner(a, id).catch((e) => this.logger.warn(`Supplier partner link skipped: ${(e as Error).message}`));
     await this.notify(org, id, `${action}`, dto.decision === 'approve'
-      ? ['اعتمدت الجمعية تسجيلكم موردًا لديها. يمكنكم الآن استقبال طلبات عروض الأسعار والتعميدات عبر البوابة.']
-      : dto.decision === 'return' ? ['أعادت الجمعية طلب تسجيلكم لاستكمال بعض البيانات أو المستندات:', note!] : ['نعتذر، لم تعتمد الجمعية طلب تسجيلكم:', note!]);
+      ? ['اعتمدت الشركة تسجيلكم موردًا لديها. يمكنكم الآن استقبال طلبات عروض الأسعار والتعميدات عبر البوابة.']
+      : dto.decision === 'return' ? ['أعادت الشركة طلب تسجيلكم لاستكمال بعض البيانات أو المستندات:', note!] : ['نعتذر، لم تعتمد الشركة طلب تسجيلكم:', note!]);
     return this.get(org, id);
   }
 
@@ -303,7 +303,7 @@ export class SuppliersService implements OnApplicationBootstrap, OnApplicationSh
     const sup = await this.find(org, id);
     if (sup.status !== 'approved') throw new ConflictException('الإيقاف للموردين المعتمدين فقط');
     await this.db.getRepository(PrSupplier).update({ id }, { status: 'suspended', reviewNote: dto.reason, decidedByName: a.fullName, decidedAt: new Date(), log: [...sup.log, logEntry('إيقاف المورد', a.fullName, dto.reason)] });
-    await this.notify(org, id, 'إيقاف التعامل', ['أوقفت الجمعية التعامل مع حسابكم مؤقتًا للسبب التالي:', dto.reason, 'يمكنكم الدخول للبوابة للاطلاع، والتواصل مع الجمعية لمعالجة السبب.']);
+    await this.notify(org, id, 'إيقاف التعامل', ['أوقفت الشركة التعامل مع حسابكم مؤقتًا للسبب التالي:', dto.reason, 'يمكنكم الدخول للبوابة للاطلاع، والتواصل مع الشركة لمعالجة السبب.']);
     return this.get(org, id);
   }
 
@@ -350,7 +350,7 @@ export class SuppliersService implements OnApplicationBootstrap, OnApplicationSh
     // السجل التجاري المقبول يحدّث تاريخ انتهاء السجل في ملف المورد
     if (status === 'accepted' && d.docType === 'cr' && d.expiryDate) patch.crExpiry = d.expiryDate;
     await this.db.getRepository(PrSupplier).update({ id: supplierId }, patch);
-    if (status === 'rejected') await this.notify(org, supplierId, `رفض مستند: ${d.title}`, [`لم تقبل الجمعية المستند «${d.title}» للسبب التالي:`, dto.note!.trim(), 'ارفع نسخة صحيحة من البوابة.']);
+    if (status === 'rejected') await this.notify(org, supplierId, `رفض مستند: ${d.title}`, [`لم تقبل الشركة المستند «${d.title}» للسبب التالي:`, dto.note!.trim(), 'ارفع نسخة صحيحة من البوابة.']);
     return this.get(org, supplierId);
   }
 
@@ -423,7 +423,7 @@ export class SuppliersService implements OnApplicationBootstrap, OnApplicationSh
       });
     });
     await this.notify(org, supplierId, dto.decision === 'approve' ? 'اعتماد الحساب البنكي' : 'رفض الحساب البنكي',
-      dto.decision === 'approve' ? [`اعتمدت الجمعية حسابكم البنكي (${masked})، وستُحوّل إليه مستحقاتكم.`] : [`لم تعتمد الجمعية الحساب البنكي (${masked}):`, dto.note!.trim()]);
+      dto.decision === 'approve' ? [`اعتمدت الشركة حسابكم البنكي (${masked})، وستُحوّل إليه مستحقاتكم.`] : [`لم تعتمد الشركة الحساب البنكي (${masked}):`, dto.note!.trim()]);
     return this.get(org, supplierId);
   }
 
@@ -459,7 +459,7 @@ export class SuppliersService implements OnApplicationBootstrap, OnApplicationSh
       to: dto.email, kind: 'supplier-invite', organizationId: org, sensitive: true, event: 'suppliers', createdBy: a.fullName,
       ...mailLayout({
         title: 'حسابكم في بوابة الموردين', greeting: `السلام عليكم ${dto.fullName}`,
-        paragraphs: [`أنشأت ${a.organizationName ?? 'الجمعية'} حسابًا لمنشأتكم «${sup.name}» في بوابة الموردين، لاستقبال طلبات العروض والتعميدات ورفع المستندات والفواتير.`],
+        paragraphs: [`أنشأت ${a.organizationName ?? 'الشركة'} حسابًا لمنشأتكم «${sup.name}» في بوابة الموردين، لاستقبال طلبات العروض والتعميدات ورفع المستندات والفواتير.`],
         facts: [{ label: 'البريد للدخول', value: dto.email, ltr: true }, { label: 'كلمة المرور المؤقتة', value: password, ltr: true }],
         button: { label: 'الدخول للبوابة', url }, note: 'ستُطلب منكم كلمة مرور جديدة عند أول دخول.',
       }),
@@ -502,7 +502,7 @@ export class SuppliersService implements OnApplicationBootstrap, OnApplicationSh
     await this.mail.queue({
       to, kind: 'supplier-notice', organizationId: org, event: 'suppliers',
       ...mailLayout({
-        title: subject, subject: `${o?.name ?? 'الجمعية'}: ${subject}`, greeting: `السلام عليكم ${sup.name}`, paragraphs,
+        title: subject, subject: `${o?.name ?? 'الشركة'}: ${subject}`, greeting: `السلام عليكم ${sup.name}`, paragraphs,
         button: { label: 'فتح بوابة الموردين', url: await this.portalUrl(org) },
       }),
     }).catch((e) => this.logger.warn(`Supplier mail failed: ${(e as Error).message}`));

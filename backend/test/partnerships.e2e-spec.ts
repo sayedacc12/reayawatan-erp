@@ -24,8 +24,8 @@ describe('Partnerships rules', () => {
   });
 
   it('contract text: variables, unknown variables and durations', () => {
-    const items = [{ key: '1', clauseId: null, categoryId: 'x', categoryName: 'التمهيد', title: 'بين {{اسم الجمعية}}', paragraphs: ['مع {{اسم الشريك}} و{{متغير خطأ}}', ' '], mandatory: false }];
-    expect(fillItems(items, { 'اسم الجمعية': 'سنابل', 'اسم الشريك': 'الخير' })).toEqual([{ title: 'بين سنابل', category: 'التمهيد', paragraphs: ['مع الخير و{{متغير خطأ}}'] }]);
+    const items = [{ key: '1', clauseId: null, categoryId: 'x', categoryName: 'التمهيد', title: 'بين {{اسم الشركة}}', paragraphs: ['مع {{اسم الشريك}} و{{متغير خطأ}}', ' '], mandatory: false }];
+    expect(fillItems(items, { 'اسم الشركة': 'سنابل', 'اسم الشريك': 'الخير' })).toEqual([{ title: 'بين سنابل', category: 'التمهيد', paragraphs: ['مع الخير و{{متغير خطأ}}'] }]);
     expect(unknownVars(items)).toEqual(['متغير خطأ']);
     expect(durationLabel('2026-01-01', '2026-12-31')).toBe('سنة واحدة');
     expect(durationLabel('2026-01-01', '2026-06-30')).toBe('6 أشهر');

@@ -41,7 +41,7 @@ export const ORDER_COLOR: Record<string, string> = {
   declined: '#dc2626', cancelled: '#94a3b8', closed: '#15803d', partial: '#ca8a04',
 };
 export const RECEIPT_COLOR: Record<string, string> = { posted: '#059669', cancelled: '#94a3b8' };
-export const RECEIPT_KIND_COLOR: Record<string, string> = { order: '#0369a1', donation: '#be185d', opening: '#64748b' };
+export const RECEIPT_KIND_COLOR: Record<string, string> = { order: '#0369a1', opening: '#64748b', donation: '#be185d' };
 export const ISR_COLOR: Record<string, string> = {
   draft: '#64748b', submitted: '#d97706', approved: '#0369a1', partial: '#ca8a04', issued: '#059669', returned: '#db2777', rejected: '#dc2626', cancelled: '#94a3b8',
 };

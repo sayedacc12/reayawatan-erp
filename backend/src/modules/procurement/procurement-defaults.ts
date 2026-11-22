@@ -1,6 +1,6 @@
 import { SupplierDocType } from './entities/procurement.entity';
 
-/** المستندات المطلوبة من الموردين افتراضيًا (وفق المتعارف عليه في المملكة)، وتعدّلها الجمعية من الإعدادات */
+/** المستندات المطلوبة من الموردين افتراضيًا (وفق المتعارف عليه في المملكة)، وتعدّلها الشركة من الإعدادات */
 export const DEFAULT_DOC_TYPES: SupplierDocType[] = [
   { key: 'cr', name: 'السجل التجاري', required: true, hasExpiry: true, entityTypes: ['company', 'establishment'], isActive: true },
   { key: 'vat', name: 'شهادة التسجيل في ضريبة القيمة المضافة', required: false, hasExpiry: false, entityTypes: ['company', 'establishment'], isActive: true },
@@ -63,6 +63,6 @@ export const DEFAULT_EVAL_CRITERIA: { key: string; name: string; weight: number;
 export const DEFAULT_ORDER_TERMS = [
   'يلتزم المورد بتوريد الأصناف أو تنفيذ الخدمات وفق المواصفات والكميات والأسعار الواردة في هذا التعميد.',
   'لا تُقبل الفاتورة إلا بعد الاستلام والفحص، ويُذكر فيها رقم التعميد.',
-  'للجمعية رفض ما يخالف المواصفات، وعلى المورد استبداله على نفقته.',
+  'للشركة رفض ما يخالف المواصفات، وعلى المورد استبداله على نفقته.',
   'أي تعديل على التعميد لا يُعتد به إلا إذا صدر كتابيًا عبر بوابة الموردين.',
 ].join('\n');

@@ -99,7 +99,7 @@ export class AssetOpsService implements OnModuleInit {
     }));
   }
 
-  // ---------------- الشراء والإضافات والتبرع العيني ----------------
+  // ---------------- الشراء والإضافات ----------------
 
   /**
    * شراء أصل جديد أو إضافة على أصل قائم أو دفعة على أصل تحت التنفيذ: سند صرف بمراحل الاعتماد، ولا يدخل المبلغ الدفاتر إلا باعتماده النهائي.
@@ -227,46 +227,16 @@ export class AssetOpsService implements OnModuleInit {
     return { method, voucherMethod: method === 'bank' ? 'transfer' as const : 'cash' as const, accountId: c.glAccountId, partnerId: partner?.id ?? null, cashAccountId: c.id, partyName: partner?.name ?? null };
   }
 
-  /** أصل متبرع به عينيًا: يُثبت بقيمته العادلة مقابل حساب التبرعات العينية بسند أصول ثابتة، بدون سند صرف */
-  async donation(actor: OrgUser, input: Record<string, unknown>) {
-    this.assets.need(actor, P.assetsOperate, 'ليست لديك صلاحية عمليات الأصول');
-    const org = actor.organizationId;
-    let moveId = '';
-    await this.db.transaction(async (em) => {
-      await this.assets.lock(em, org);
-      const a = await this.assets.load(em, org, idOf(input.assetId, 'الأصل'));
-      if (a.status !== 'draft') bad('التبرع العيني لأصل مسجل بلا قيمة فقط');
-      const g = await this.assets.group(org, a.groupId, em);
-      const cfg = await this.assets.config(org, em);
-      if (g.isTangible && cfg.requireCustody && !a.custodianEmployeeId) bad('سلّم الأصل لموظف أولًا (الأصول المادية يجب أن تكون في عهدة موظف)');
-      const date = dateOf(input.date, 'تاريخ الاستلام');
-      if (date > today()) bad('التاريخ في المستقبل');
-      const value = amountOf(input.amount, 'القيمة العادلة');
-      const counter = optId(input.counterAccountId) ?? cfg.donationAccountId ?? bad('اختر حساب التبرعات العينية، أو حدده في إعدادات الأصول');
-      const donor = str(input.partyName, 250) ?? 'متبرع';
-      const label = `تبرع عيني بأصل ثابت ${a.code} ${a.name} من ${donor}`;
-      const analytic = a.analyticId ?? g.analyticId;
-      const entry = await this.entries.createAssetEntry(em, actor, 'asset', { documentDate: date, description: label, counterparty: donor }, [
-        await this.line(em, org, g.assetAccountId, value, 0, label, analytic, `مجموعة «${g.name}»`),
-        await this.line(em, org, counter, 0, value, label, analytic, `مجموعة «${g.name}»`),
-      ]);
-      const m = await this.newMove(em, actor, { assetId: a.id, kind: 'donation', date, amount: value, counterAccountId: counter, partyName: donor, entryId: entry.id, notes: str(input.notes, 1000) });
-      moveId = m.id;
-      await this.assets.refresh(em, org, a.id);
-    });
-    return this.operation(actor, moveId);
-  }
-
   // ---------------- الأصول المستلمة من المشتريات ----------------
 
   /**
-   * أصل ثابت مستلم في المشتريات (بتعميد أو تبرع عيني): يُسجَّل الأصل وحركة اقتنائه داخل سند المخازن الصادر من الاستلام،
+   * أصل ثابت مستلم في المشتريات بتعميد: يُسجَّل الأصل وحركة اقتنائه داخل سند المخازن الصادر من الاستلام،
    * فلا يمر بسند صرف (السداد للمورد يكون من المستحقات)، ولا تُلغى الحركة إلا بإلغاء الاستلام.
    * يُسلَّم للعهدة لاحقًا من سجل الأصول.
    */
   async receiveFromProcurement(em: EntityManager, actor: { id: string | null; fullName: string; organizationId: string }, d: {
     groupId: string; name: string; description: string | null; serialNumber: string | null; location: string | null; unitId: string | null; analyticId: string | null;
-    date: string; amount: number; donation: boolean; counterAccountId: string; partyName: string | null; entryId: string; receiptId: string; note: string | null;
+    date: string; amount: number; counterAccountId: string; partyName: string | null; entryId: string; receiptId: string; note: string | null;
   }) {
     const org = actor.organizationId;
     await this.assets.lock(em, org);
@@ -281,7 +251,7 @@ export class AssetOpsService implements OnModuleInit {
     }));
     const moveNo = await this.assets.nextNo(em, 'acc_asset_moves', 'move_no', org);
     await em.getRepository(AssetMove).save(em.create(AssetMove, {
-      organizationId: org, moveNo, assetId: a.id, kind: d.donation ? 'donation' : 'purchase', date: d.date, amount: r2(d.amount), status: 'done',
+      organizationId: org, moveNo, assetId: a.id, kind: 'purchase', date: d.date, amount: r2(d.amount), status: 'done',
       counterAccountId: d.counterAccountId, partyName: d.partyName, entryId: d.entryId, prReceiptId: d.receiptId, notes: d.note, createdByName: actor.fullName,
     }));
     await this.assets.refresh(em, org, a.id);
@@ -580,7 +550,7 @@ export class AssetOpsService implements OnModuleInit {
     await this.assets.addCustody(em, actor, a, { kind: 'issue', toEmployeeId: last.fromEmployeeId, toLocation: last.fromLocation, date, condition: null, notes });
   }
 
-  /** إلغاء عملية لا تمر بسند قبض أو صرف (التبرع العيني والتخريد): يُلغى قيدها ويبقى رقمه */
+  /** إلغاء عملية لا تمر بسند قبض أو صرف (مثل التخريد): يُلغى قيدها ويبقى رقمه */
   async cancelOperation(actor: OrgUser, id: string, reasonIn: unknown) {
     this.assets.need(actor, P.assetsReverse, 'ليست لديك صلاحية إلغاء عمليات الأصول');
     const org = actor.organizationId;

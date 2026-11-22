@@ -8,7 +8,7 @@ const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.t
 const emptyToUndefined = () => Transform(({ value }) => (value === '' || value === null ? undefined : value));
 const toBool = () => Transform(({ value }) => value === true || value === 'true' || value === '1');
 
-/** طلب صيانة جديد من الجمعية (multipart مع مرفق اختياري) */
+/** طلب صيانة جديد من الشركة (multipart مع مرفق اختياري) */
 export class CreateTicketDto {
   @trim() @IsString() @MinLength(5, { message: 'اكتب عنوانًا واضحًا للطلب' }) @MaxLength(200)
   subject!: string;
@@ -37,7 +37,7 @@ export class MessageDto {
   @IsOptional() @toBool() @IsBoolean()
   internal?: boolean;
 
-  /** المنصة: تغيير الحالة مع الرد (مثل: بانتظار رد الجمعية، تم الحل) */
+  /** المنصة: تغيير الحالة مع الرد (مثل: بانتظار رد الشركة، تم الحل) */
   @emptyToUndefined() @IsOptional() @IsIn(['in_progress', 'waiting_customer', 'resolved'], { message: 'الحالة غير صحيحة' })
   status?: 'in_progress' | 'waiting_customer' | 'resolved';
 }

@@ -33,7 +33,7 @@ function switchMode(m: 'employee' | 'manager') {
 }
 
 const linked = computed(() => !!ess.summary?.linked);
-// خطوات الإطلاق لمدير نظام الجمعية حتى تكتمل
+// خطوات الإطلاق لمدير نظام الشركة حتى تكتمل
 const launchLink = computed(() => (launchView.value && !launchView.value.complete
   ? [{ to: '/launch', label: 'خطوات الإطلاق', icon: 'sprout', badge: launchView.value.total - launchView.value.done }]
   : []));

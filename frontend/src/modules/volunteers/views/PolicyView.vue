@@ -54,7 +54,7 @@ const printNow = () => window.print();
     <section class="pm-hero vt-hero no-print">
       <div><p class="pm-kicker">{{ doc.title }}{{ doc.current ? ` · الإصدار ${doc.current.version}` : ' · مسودة مقترحة' }}</p>
         <h1>لائحة التطوع وميثاقه</h1>
-        <p class="pm-sub">تأتي بمسودة مقترحة تراجعها الجمعية وتعدّل أقسامها بحرية ثم تعتمدها. كل اعتماد إصدار جديد بتاريخه، والميثاق يظهر للمتطوع عند التسجيل.</p></div>
+        <p class="pm-sub">تأتي بمسودة مقترحة تراجعها الشركة وتعدّل أقسامها بحرية ثم تعتمدها. كل اعتماد إصدار جديد بتاريخه، والميثاق يظهر للمتطوع عند التسجيل.</p></div>
       <div class="pm-actions">
         <button class="btn vt-ghost" @click="printNow">طباعة</button>
         <button v-if="canEdit && !editing" class="btn vt-glow" @click="edit">تعديل واعتماد إصدار جديد</button>
@@ -64,7 +64,7 @@ const printNow = () => window.print();
       <button :class="['vt-tab', { on: kind === 'policy' }]" @click="kind = 'policy'; editing = false">لائحة التطوع</button>
       <button :class="['vt-tab', { on: kind === 'charter' }]" @click="kind = 'charter'; editing = false">ميثاق التطوع</button>
     </div>
-    <div v-if="!doc.current && !editing" class="alert alert-error no-print">هذه مسودة مقترحة ولم تعتمدها الجمعية بعد.</div>
+    <div v-if="!doc.current && !editing" class="alert alert-error no-print">هذه مسودة مقترحة ولم تعتمدها الشركة بعد.</div>
     <div class="vt-grid">
       <section v-if="!editing" class="card pm-panel vt-print">
         <h2 style="justify-content: center; font-size: 1.3rem">{{ doc.title }}</h2>

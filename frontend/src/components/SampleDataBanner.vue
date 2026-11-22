@@ -5,7 +5,7 @@ import { useSession } from '../stores/session';
 import SampleDataResult, { type SampleResult } from './SampleDataResult.vue';
 
 /**
- * شريط البيانات التجريبية لمدير نظام الجمعية في فترة التجربة:
+ * شريط البيانات التجريبية لمدير نظام الشركة في فترة التجربة:
  * في البداية يعرض إضافة بيانات تجريبية جاهزة أو البدء بجمعية فارغة، وبعد الإضافة يذكّر بأن البيانات تجريبية.
  */
 interface Status { status: 'none' | 'loading' | 'stalled' | 'loaded' | 'cleared'; canLoad: boolean; isTrial: boolean }
@@ -61,13 +61,13 @@ const done = () => location.reload();
       <div class="icon" aria-hidden="true">🌾</div>
       <div class="text">
         <h2>هل تريد تجربة النظام ببيانات جاهزة؟</h2>
-        <p v-if="!busy">نضيف إلى جمعيتك بيانات تجريبية مترابطة في كل الأنظمة: مستفيدون وطلبات، ومتبرعون وتبرعات، وقيود وسندات، وموظفون ورواتب، ومشاريع وتقارير. تتعرف بها على النظام في دقائق، وتُحذف كلها عند بدء العمل الفعلي.</p>
+        <p v-if="!busy">نضيف إلى شركتك بيانات تجريبية مترابطة في كل الأنظمة: مستفيدون وطلبات، ومتبرعون وتبرعات، وقيود وسندات، وموظفون ورواتب، ومشاريع وتقارير. تتعرف بها على النظام في دقائق، وتُحذف كلها عند بدء العمل الفعلي.</p>
         <p v-else class="loading"><span class="spinner" aria-hidden="true" /> جارٍ إضافة البيانات التجريبية في كل الأنظمة... قد يستغرق ذلك دقيقة أو دقيقتين، فلا تغلق الصفحة.</p>
         <p v-if="error" class="err">{{ error }}</p>
       </div>
       <div v-if="!busy" class="actions">
         <button class="btn btn-primary" @click="load">أضف بيانات تجريبية</button>
-        <button class="btn btn-quiet" @click="startEmpty">أبدأ بجمعية فارغة</button>
+        <button class="btn btn-quiet" @click="startEmpty">أبدأ ببيانات فارغة</button>
       </div>
     </section>
     <div v-else-if="reminder" class="sample-reminder">
@@ -78,7 +78,7 @@ const done = () => location.reload();
 
   <div v-if="result" class="modal-backdrop">
     <div class="modal card wide">
-      <h3>🎉 أصبحت جمعيتك جاهزة للتجربة</h3>
+      <h3>🎉 أصبحت شركتك جاهزة للتجربة</h3>
       <SampleDataResult :result="result" :slug="session.user?.organizationSlug ?? ''" />
       <div class="modal-actions">
         <button class="btn btn-primary" @click="done">ابدأ الاستكشاف</button>

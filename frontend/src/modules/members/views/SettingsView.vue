@@ -59,7 +59,7 @@ const link = (p: string) => publicUrl(p);
 async function copyLink(p: string) {
   if (await copy(link(p))) toast.success('نُسخ الرابط');
 }
-const VARS = ['اسم العضو', 'رقم العضوية', 'نوع العضوية', 'اسم الجمعية', 'تاريخ الانتهاء', 'المبلغ', 'رابط السداد'];
+const VARS = ['اسم العضو', 'رقم العضوية', 'نوع العضوية', 'اسم الشركة', 'تاريخ الانتهاء', 'المبلغ', 'رابط السداد'];
 const reminderText = ref('');
 function syncReminders() {
   reminderText.value = (s.value?.renewal.reminderDays ?? []).join('، ');
@@ -161,7 +161,7 @@ const accLabel = (a: any) => `${a.code} · ${a.name}`;
 
         <section v-else-if="tab === 'form'" key="f" class="card pm-panel">
           <h2>حقول إضافية في نموذج الطلب</h2>
-          <FieldsEditor v-model="s.applicationFields" hint="البيانات الأساسية ثابتة (الاسم، الهوية وانتهاؤها، الجنسية، الجنس، الميلاد، الجوال، البريد، المدينة، العنوان، المهنة، جهة العمل، المؤهل). أضف هنا ما تحتاجه الجمعية فوقها." />
+          <FieldsEditor v-model="s.applicationFields" hint="البيانات الأساسية ثابتة (الاسم، الهوية وانتهاؤها، الجنسية، الجنس، الميلاد، الجوال، البريد، المدينة، العنوان، المهنة، جهة العمل، المؤهل). أضف هنا ما تحتاجه الشركة فوقها." />
           <div class="mb-sec">المستندات المطلوبة</div>
           <p class="pm-muted">تُرفع صورة أو PDF مع الطلب وتُحفظ في ملف العضو. المستند ذو المفتاح id_front هو صورة الهوية، وphoto الصورة الشخصية التي تظهر في البطاقة.</p>
           <div v-for="(d, i) in s.documents" :key="d.key ?? i" class="row">
@@ -194,7 +194,7 @@ const accLabel = (a: any) => `${a.code} · ${a.name}`;
           <div class="flags">
             <label class="check"><input v-model="s.payment.online" type="checkbox" /> دفع إلكتروني (مدى، فيزا، ماستركارد، Apple Pay)</label>
             <label class="check"><input v-model="s.payment.transfer" type="checkbox" /> تحويل بنكي مع رفع الإيصال</label>
-            <label class="check"><input v-model="s.payment.cash" type="checkbox" /> في مقر الجمعية</label>
+            <label class="check"><input v-model="s.payment.cash" type="checkbox" /> في مقر الشركة</label>
           </div>
           <label class="field"><span>مهلة السداد (يوم من إصدار المطالبة)</span><input v-model.number="s.payment.dueDays" type="number" min="1" max="180" class="input" style="max-width: 160px" /></label>
           <template v-if="s.payment.online">

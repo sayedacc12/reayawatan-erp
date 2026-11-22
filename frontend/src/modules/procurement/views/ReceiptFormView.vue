@@ -11,7 +11,7 @@ import '../procurement.css';
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
-const kind = ref<'order' | 'donation' | 'opening'>((['order', 'donation', 'opening'].includes(String(route.query.kind)) ? route.query.kind : 'order') as any);
+const kind = ref<'order' | 'opening'>((['order', 'opening'].includes(String(route.query.kind)) ? route.query.kind : 'order') as any);
 const lk = ref<any>(null);
 const slk = ref<any>(null);
 const items = ref<any[]>([]);
@@ -19,7 +19,7 @@ const orders = ref<any[]>([]);
 const orderId = ref(String(route.query.order ?? ''));
 const rec = ref<any>(null);
 const busy = ref(false);
-const form = ref<any>({ warehouseId: '', date: today(), deliveryRef: '', donorName: '', analyticId: '', projectId: '', extraCost: 0, extraNote: '', notes: '', lines: [] as any[] });
+const form = ref<any>({ warehouseId: '', date: today(), deliveryRef: '', analyticId: '', projectId: '', extraCost: 0, extraNote: '', notes: '', lines: [] as any[] });
 const insp = ref({ on: false, committee: '', result: 'accepted', note: '' });
 const RECEIVABLE = ['issued', 'acknowledged', 'accepted', 'clarification', 'partial'];
 
@@ -72,7 +72,7 @@ async function save() {
   const nul = (v: string) => (v ? v : null);
   const body: any = {
     kind: kind.value, orderId: kind.value === 'order' ? orderId.value : null, warehouseId: nul(f.warehouseId), date: f.date, deliveryRef: nul(f.deliveryRef),
-    donorName: kind.value === 'donation' ? nul(f.donorName) : null, analyticId: nul(f.analyticId), projectId: nul(f.projectId),
+    analyticId: nul(f.analyticId), projectId: nul(f.projectId),
     extraCost: Number(f.extraCost) || 0, extraNote: nul(f.extraNote), notes: nul(f.notes),
     inspection: insp.value.on ? { committee: insp.value.committee.split(/[،,\n]/).map((x) => x.trim()).filter(Boolean), result: insp.value.result, note: nul(insp.value.note) } : null,
     lines: f.lines.filter((l: any) => Number(l.qty) > 0).map((l: any) => ({
@@ -91,10 +91,9 @@ async function save() {
     busy.value = false;
   }
 }
-const TITLE = { order: 'استلام تعميد وفحصه', donation: 'استلام تبرع عيني', opening: 'رصيد افتتاحي للمستودع' };
+const TITLE = { order: 'استلام تعميد وفحصه', opening: 'رصيد افتتاحي للمستودع' };
 const HINT = {
   order: 'سجّل الكمية المسلّمة لكل بند، والمرفوض بعد الفحص بسببه. المقبول يدخل المستودع بتكلفته شاملة الضريبة غير المستردة ونصيبه من مصاريف النقل والتخليص، والأصناف الأصول تُنشأ أصولًا ثابتة تلقائيًا.',
-  donation: 'التبرعات العينية تُسجل بالقيمة العادلة للوحدة، وتدخل المستودع ويُقيد مقابلها حساب التبرعات العينية.',
   opening: 'لإدخال أرصدة المستودع عند بدء العمل بالنظام. تُقيد مقابل الحساب المحدد للأرصدة الافتتاحية في الإعدادات.',
 };
 </script>
@@ -114,7 +113,6 @@ const HINT = {
               <option v-for="o in orders" :key="o.id" :value="o.id">{{ o.code }} · {{ o.title }} · {{ o.supplierName }} ({{ o.statusLabel }})</option>
             </select>
           </label>
-          <label v-if="kind === 'donation'" class="field"><span>المتبرع</span><input v-model="form.donorName" class="input" required maxlength="250" /></label>
           <label class="field">
             <span>المستودع</span>
             <select v-model="form.warehouseId" class="input" :required="kind !== 'order'">
@@ -123,14 +121,10 @@ const HINT = {
             </select>
           </label>
           <label class="field"><span>تاريخ الاستلام</span><input v-model="form.date" type="date" class="input" :max="today()" required /></label>
-          <label class="field"><span>{{ kind === 'donation' ? 'مرجع التبرع' : 'رقم إشعار التسليم' }}</span><input v-model="form.deliveryRef" class="input" maxlength="80" /></label>
+          <label class="field"><span>رقم إشعار التسليم</span><input v-model="form.deliveryRef" class="input" maxlength="80" /></label>
           <label v-if="kind !== 'opening'" class="field">
             <span>مركز التكلفة (للبنود المصروفة مباشرة)</span>
             <select v-model="form.analyticId" class="input"><option value="">—</option><option v-for="x in slk?.analytics ?? []" :key="x.id" :value="x.id">{{ x.code }} · {{ x.name }}</option></select>
-          </label>
-          <label v-if="kind === 'donation'" class="field">
-            <span>المشروع</span>
-            <select v-model="form.projectId" class="input"><option value="">—</option><option v-for="p in lk?.projects ?? []" :key="p.id" :value="p.id">{{ p.code }} · {{ p.name }}</option></select>
           </label>
         </div>
         <p v-if="rec && !rec.receivable" class="alert alert-error" style="margin-top: 10px">لا يُستلم على هذا التعميد في حالته الحالية ({{ rec.order.statusLabel }}).</p>
@@ -146,7 +140,7 @@ const HINT = {
                 <th v-if="kind === 'order'">المتبقي</th>
                 <th style="width: 100px">المسلّم</th>
                 <th v-if="kind !== 'opening'" style="width: 100px">المرفوض</th>
-                <th style="width: 120px">{{ kind === 'order' ? 'تكلفة الوحدة' : kind === 'donation' ? 'القيمة العادلة للوحدة' : 'تكلفة الوحدة' }}</th>
+                <th style="width: 120px">تكلفة الوحدة</th>
                 <th style="width: 120px">التشغيلة</th>
                 <th style="width: 140px">الصلاحية</th>
                 <th v-if="locations.length" style="width: 130px">الموقع</th>

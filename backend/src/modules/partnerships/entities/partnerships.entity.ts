@@ -37,7 +37,7 @@ export class PtSettings {
   @Column({ name: 'alert_days', type: 'int', default: 60 }) alertDays!: number;
   /** صلاحية تقييم الشريك بالأشهر، ثم يُعاد تقييمه */
   @Column({ name: 'evaluation_months', type: 'int', default: 24 }) evaluationMonths!: number;
-  /** من يمثل الجمعية في توقيع العقود افتراضيًا */
+  /** من يمثل الشركة في توقيع العقود افتراضيًا */
   @Column({ name: 'signer_name', type: 'varchar', length: 200, nullable: true }) signerName!: string | null;
   @Column({ name: 'signer_title', type: 'varchar', length: 200, nullable: true }) signerTitle!: string | null;
   @Column({ name: 'org_city', type: 'varchar', length: 100, nullable: true }) orgCity!: string | null;
@@ -235,7 +235,7 @@ export class PtFollowup {
   @Column({ name: 'contract_id', type: 'uuid' }) contractId!: string;
   @Column({ length: 250 }) title!: string;
   @Column({ type: 'varchar', length: 12, default: 'obligation' }) kind!: FollowupKind;
-  /** الطرف المسؤول: الجمعية أو الشريك */
+  /** الطرف المسؤول: الشركة أو الشريك */
   @Column({ type: 'varchar', length: 8, default: 'org' }) party!: 'org' | 'partner';
   @Column({ name: 'due_date', type: 'date' }) dueDate!: string;
   @Column({ type: 'varchar', length: 200, nullable: true }) responsible!: string | null;

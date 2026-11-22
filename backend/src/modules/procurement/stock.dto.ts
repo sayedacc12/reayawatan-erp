@@ -13,14 +13,14 @@ const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.t
 export class ReceiptLineDto {
   /** بند التعميد (للاستلام بتعميد) */
   @IsOptional() @IsUUID() orderLineId?: string | null;
-  /** الصنف (للتبرع العيني والرصيد الافتتاحي) */
+  /** الصنف (للرصيد الافتتاحي) */
   @IsOptional() @IsUUID() itemId?: string | null;
   @IsOptional() @IsString() @MaxLength(500) @trim() description?: string | null;
   @IsNumber({}, { message: 'الكمية المسلّمة رقم' }) @Min(0) @Max(10_000_000) qty!: number;
   /** المرفوض بعد الفحص (والباقي مقبول) */
   @IsOptional() @IsNumber() @Min(0) rejectedQty?: number;
   @IsOptional() @IsString() @MaxLength(500) @trim() rejectReason?: string | null;
-  /** القيمة العادلة للوحدة (التبرع العيني) أو تكلفة الوحدة (الرصيد الافتتاحي) */
+  /** تكلفة الوحدة (الرصيد الافتتاحي) */
   @IsOptional() @IsNumber() @Min(0) @Max(100_000_000) unitPrice?: number;
   @IsOptional() @IsString() @MaxLength(60) @trim() lot?: string | null;
   @IsOptional() @Matches(DATE, { message: 'تاريخ الصلاحية غير صحيح' }) expiryDate?: string | null;
@@ -39,7 +39,6 @@ export class ReceiptDto {
   @IsOptional() @IsUUID() warehouseId?: string | null;
   @Matches(DATE, { message: 'تاريخ الاستلام غير صحيح' }) date!: string;
   @IsOptional() @IsString() @MaxLength(80) @trim() deliveryRef?: string | null;
-  @IsOptional() @IsString() @MaxLength(250) @trim() donorName?: string | null;
   @IsOptional() @IsUUID() analyticId?: string | null;
   @IsOptional() @IsUUID() projectId?: string | null;
   @IsOptional() @IsNumber() @Min(0) @Max(100_000_000) extraCost?: number;
@@ -142,7 +141,6 @@ export class StockSettingsDto {
   @IsOptional() @IsUUID() grniAccountId?: string | null;
   @IsOptional() @IsUUID() adjustAccountId?: string | null;
   @IsOptional() @IsUUID() adjustAnalyticId?: string | null;
-  @IsOptional() @IsUUID() donationAccountId?: string | null;
   @IsOptional() @IsUUID() openingAccountId?: string | null;
   @IsOptional() @IsUUID() defaultExpenseAccountId?: string | null;
   @IsInt() @Min(1) @Max(730) expiryAlertDays!: number;

@@ -73,7 +73,7 @@ onMounted(async () => {
 });
 function applyStock(s: any) {
   st.value = {
-    grniAccountId: s.grniAccountId ?? '', adjustAccountId: s.adjustAccountId ?? '', adjustAnalyticId: s.adjustAnalyticId ?? '', donationAccountId: s.donationAccountId ?? '',
+    grniAccountId: s.grniAccountId ?? '', adjustAccountId: s.adjustAccountId ?? '', adjustAnalyticId: s.adjustAnalyticId ?? '',
     openingAccountId: s.openingAccountId ?? '', defaultExpenseAccountId: s.defaultExpenseAccountId ?? '', expiryAlertDays: s.expiryAlertDays ?? 60,
     overReceiptPct: s.overReceiptPct ?? 0, vatInCost: s.vatInCost ?? true, requireInspection: !!s.requireInspection,
   };
@@ -92,7 +92,7 @@ async function saveStock() {
     const s = await api<any>('/procurement/stock-settings', {
       method: 'PUT',
       json: {
-        grniAccountId: nul(x.grniAccountId), adjustAccountId: nul(x.adjustAccountId), adjustAnalyticId: nul(x.adjustAnalyticId), donationAccountId: nul(x.donationAccountId),
+        grniAccountId: nul(x.grniAccountId), adjustAccountId: nul(x.adjustAccountId), adjustAnalyticId: nul(x.adjustAnalyticId),
         openingAccountId: nul(x.openingAccountId), defaultExpenseAccountId: nul(x.defaultExpenseAccountId), expiryAlertDays: Number(x.expiryAlertDays),
         overReceiptPct: Number(x.overReceiptPct), vatInCost: !!x.vatInCost, requireInspection: !!x.requireInspection,
       },
@@ -382,8 +382,6 @@ function addActivity() {
           <label class="field"><span>مركز تكلفة الفروقات</span>
             <select v-model="st.adjustAnalyticId" class="input"><option value="">—</option><option v-for="a in slk?.analytics ?? []" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select>
             <small class="pm-muted">يلزم إذا كان حساب الفروقات يتطلب مركز تكلفة.</small></label>
-          <label class="field"><span>التبرعات العينية (دائن عند استلام التبرع)</span>
-            <select v-model="st.donationAccountId" class="input"><option value="">—</option><option v-for="a in accs(['revenue'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
           <label class="field"><span>مقابل الأرصدة الافتتاحية</span>
             <select v-model="st.openingAccountId" class="input"><option value="">—</option><option v-for="a in accs(['net_assets'])" :key="a.id" :value="a.id">{{ a.code }} · {{ a.name }}</option></select></label>
           <label class="field"><span>المصروف الافتراضي للبنود الحرة والخدمات</span>

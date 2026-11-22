@@ -19,7 +19,7 @@ const C = 2 * Math.PI * 34;
       <b>{{ v.pct }}%</b>
     </div>
     <div class="lc-body">
-      <p class="lc-kicker">🚀 خطوات إطلاق الجمعية · {{ v.done }} من {{ v.total }}</p>
+      <p class="lc-kicker">🚀 خطوات إطلاق الشركة · {{ v.done }} من {{ v.total }}</p>
       <h2 v-if="v.next">الخطوة التالية: {{ v.next.title }}</h2>
       <p v-if="v.next" class="lc-hint">{{ v.next.hint }}</p>
       <div class="lc-phases">

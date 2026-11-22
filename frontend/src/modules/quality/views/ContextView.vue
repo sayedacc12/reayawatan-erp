@@ -28,7 +28,7 @@ async function save() {
   try {
     ctx.value = await api<Ctx>('/quality/context', { method: 'PUT', json: { context: ctx.value } });
     edit.value = false;
-    toast.success('حُفظ سياق الجمعية');
+    toast.success('حُفظ سياق الشركة');
   } catch (e) {
     toast.error(errMsg(e));
   }
@@ -42,8 +42,8 @@ const tabs = [
 <template>
   <div>
     <section class="pm-hero q-hero">
-      <div><p class="pm-kicker">البندان 4 و5 من المواصفة</p><h1>سياق الجمعية وسياسة الجودة</h1>
-        <p class="pm-sub">ما يؤثر في الجمعية من الداخل والخارج، ومن يهمه أمرها، ونطاق النظام وعملياته، والسياسة التي تلتزم بها القيادة.</p></div>
+      <div><p class="pm-kicker">البندان 4 و5 من المواصفة</p><h1>سياق الشركة وسياسة الجودة</h1>
+        <p class="pm-sub">ما يؤثر في الشركة من الداخل والخارج، ومن يهمه أمرها، ونطاق النظام وعملياته، والسياسة التي تلتزم بها القيادة.</p></div>
       <div class="pm-actions no-print">
         <button v-if="canEdit && !edit" class="btn q-glow" @click="edit = true">تعديل</button>
         <template v-if="edit"><button class="btn q-glow" @click="save">حفظ</button><button class="btn q-ghost" @click="edit = false">إلغاء</button></template>

@@ -4,7 +4,7 @@ import { addDays, todayRiyadh } from '../organizations/org-access';
 
 /** إعدادات دورة حياة الجمعيات في platform_settings (المفتاح lifecycle) */
 export interface LifecycleSettings {
-  /** أيام المهلة بعد نهاية الفترة التجريبية قبل حذف الجمعية وبياناتها */
+  /** أيام المهلة بعد نهاية الفترة التجريبية قبل حذف الشركة وبياناتها */
   trialGraceDays: number;
 }
 export const DEFAULT_LIFECYCLE: LifecycleSettings = { trialGraceDays: 7 };
@@ -30,8 +30,8 @@ export interface DeletionNotice {
 type Org = Pick<Organization, 'id' | 'slug' | 'subscriptionStatus' | 'trialEndsOn'>;
 
 /**
- * موعد حذف الجمعية إن وُجد: إنهاء بالتراضي مجدول، أو جمعية في فترة تجربة (تُحذف بعد نهاية التجربة بالمهلة).
- * الجمعية التجريبية العامة (demo) لا تُحذف تلقائيًا.
+ * موعد حذف الشركة إن وُجد: إنهاء بالتراضي مجدول، أو جمعية في فترة تجربة (تُحذف بعد نهاية التجربة بالمهلة).
+ * الشركة التجريبية العامة (demo) لا تُحذف تلقائيًا.
  */
 export async function deletionNotice(db: DataSource | EntityManager, org: Org, today = todayRiyadh()): Promise<DeletionNotice | null> {
   const [closure] = await db.query(
@@ -53,8 +53,8 @@ export async function deletionNotice(db: DataSource | EntityManager, org: Org, t
 const arDate = (d: string) => new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
 const days = (n: number) => (n === 0 ? 'اليوم' : n === 1 ? 'بعد يوم واحد' : n === 2 ? 'بعد يومين' : n <= 10 ? `بعد ${n} أيام` : `بعد ${n} يومًا`);
 
-/** رسالة صفحة الدخول بعد توقف الجمعية، توضح موعد حذف بياناتها */
+/** رسالة صفحة الدخول بعد توقف الشركة، توضح موعد حذف بياناتها */
 export function loginDeletionText(n: DeletionNotice): string {
-  if (n.reason === 'mutual') return `أُنهي عقد الجمعية بالتراضي، وستُحذف الجمعية وكل بياناتها نهائيًا ${days(n.daysToDelete)} (${arDate(n.deleteOn)}).`;
-  return `انتهت الفترة التجريبية للجمعية. ستُحذف الجمعية وكل بياناتها نهائيًا ${days(n.daysToDelete)} (${arDate(n.deleteOn)}) ما لم يتم التعاقد. تواصل مع إدارة المنصة.`;
+  if (n.reason === 'mutual') return `أُنهي عقد الشركة بالتراضي، وستُحذف الشركة وكل بياناتها نهائيًا ${days(n.daysToDelete)} (${arDate(n.deleteOn)}).`;
+  return `انتهت الفترة التجريبية للشركة. ستُحذف الشركة وكل بياناتها نهائيًا ${days(n.daysToDelete)} (${arDate(n.deleteOn)}) ما لم يتم التعاقد. تواصل مع إدارة المنصة.`;
 }

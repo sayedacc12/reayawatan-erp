@@ -3,7 +3,7 @@ import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsOptional, IsString, Matches
 
 export class CreateOrganizationDto {
   @IsString()
-  @MinLength(2, { message: 'اسم الجمعية قصير جدًا' })
+  @MinLength(2, { message: 'اسم الشركة قصير جدًا' })
   @MaxLength(200)
   name!: string;
 
@@ -13,21 +13,21 @@ export class CreateOrganizationDto {
   slug!: string;
 
   @IsString()
-  @MinLength(2, { message: 'اسم مدير الجمعية قصير جدًا' })
+  @MinLength(2, { message: 'اسم مدير الشركة قصير جدًا' })
   @MaxLength(200)
   adminFullName!: string;
 
-  @IsEmail({}, { message: 'بريد مدير الجمعية غير صحيح' })
+  @IsEmail({}, { message: 'بريد مدير الشركة غير صحيح' })
   adminEmail!: string;
 
-  @IsValidPassword('كلمة مرور مدير الجمعية 8 أحرف على الأقل')
+  @IsValidPassword('كلمة مرور مدير الشركة 8 أحرف على الأقل')
   adminPassword!: string;
 }
 
 export class UpdateOrganizationDto {
   @IsOptional()
   @IsString()
-  @MinLength(2, { message: 'اسم الجمعية قصير جدًا' })
+  @MinLength(2, { message: 'اسم الشركة قصير جدًا' })
   @MaxLength(200)
   name?: string;
 
@@ -37,7 +37,7 @@ export class UpdateOrganizationDto {
 }
 
 export class SetOrganizationModulesDto {
-  /** أكواد الوحدات الاختيارية المفعلة لهذه الجمعية (القائمة كاملة) */
+  /** أكواد الوحدات الاختيارية المفعلة لهذه الشركة (القائمة كاملة) */
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })

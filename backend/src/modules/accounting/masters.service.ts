@@ -25,7 +25,7 @@ export class MastersService {
     @InjectRepository(CashAccount) private readonly cash: Repository<CashAccount>,
   ) {}
 
-  // ---------------- أنواع السندات الخاصة بالجمعية ----------------
+  // ---------------- أنواع السندات الخاصة بالشركة ----------------
 
   async listDocumentTypes(actor: OrgUser) {
     const rows = await this.core.documentTypes(actor.organizationId);

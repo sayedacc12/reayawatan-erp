@@ -107,7 +107,7 @@ export class SourcingPortalService {
     if (q.status !== 'published' || deadlinePassed(q)) throw new ConflictException('انتهى موعد تقديم العروض');
     const repo = this.db.getRepository(PrQuote);
     const row = (await repo.findOne({ where: { rfqId: id, supplierId: p.supplierId } })) ?? repo.create({ organizationId: p.organizationId, rfqId: id, supplierId: p.supplierId });
-    if (row.via === 'staff' && row.status === 'submitted') throw new ConflictException('سجّلت الجمعية عرضكم الورقي؛ تواصلوا معها لتعديله');
+    if (row.via === 'staff' && row.status === 'submitted') throw new ConflictException('سجّلت الشركة عرضكم الورقي؛ تواصلوا معها لتعديله');
     const lines = cleanQuoteLines(q, dto.lines, !!dto.submit);
     Object.assign(row, {
       lines, vatRate: dto.vatRate, ...quoteTotals(q, lines, dto.vatRate), deliveryDays: dto.deliveryDays ?? null, validityDays: dto.validityDays ?? null,

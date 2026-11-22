@@ -151,7 +151,7 @@ async function save() {
                   <select v-else-if="m.type === 'member'" class="input" :value="m.memberId ?? ''" @change="pickMember(m, ($event.target as HTMLSelectElement).value)">
                     <option value="">اختر من سجل العضوية</option><option v-for="a in L.assembly" :key="a.id" :value="a.id">{{ a.memberNo }} - {{ a.fullName }}</option>
                   </select>
-                  <input v-else v-model="m.name" class="input" placeholder="اسم العضو من خارج الجمعية" required />
+                  <input v-else v-model="m.name" class="input" placeholder="اسم العضو من خارج الشركة" required />
                   <small class="pm-muted">{{ { user: 'موظف أو مستخدم', member: 'عضو جمعية عمومية', external: 'من خارج النظام' }[m.type] }}</small>
                 </td>
                 <td><select v-model="m.role" class="input" style="width: 120px"><option v-for="r in ROLES" :key="r.value" :value="r.value">{{ r.label }}</option></select></td>

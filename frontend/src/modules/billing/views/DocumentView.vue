@@ -199,7 +199,7 @@ const docTitle = computed(() => {
         <section v-if="d.hasXml" class="card pm-panel">
           <h2>الفاتورة الإلكترونية</h2>
           <dl class="pc-dl" style="grid-template-columns: 1fr">
-            <div><dt>التوقيع</dt><dd>موقّعة بشهادة الجمعية ({{ d.signedEnvLabel }})</dd></div>
+            <div><dt>التوقيع</dt><dd>موقّعة بشهادة الشركة ({{ d.signedEnvLabel }})</dd></div>
             <div><dt>بصمة المستند السابق</dt><dd class="pc-code" dir="ltr" style="font-size: .72rem; word-break: break-all">{{ d.pih }}</dd></div>
             <div><dt>الإرسال للمنصة</dt><dd>لم يُرسل بعد (يُفعّل الإرسال في المرحلة القادمة)</dd></div>
           </dl>

@@ -29,7 +29,7 @@ function stream(res: Response, f: { stream: NodeJS.ReadableStream; mime: string;
   return new StreamableFile(f.stream as never, { type: f.mime, disposition: `inline; filename*=UTF-8''${encodeURIComponent(f.name)}` });
 }
 
-/** عضوية الجمعية العمومية داخل الجمعية */
+/** عضوية الجمعية العمومية داخل الشركة */
 @Controller('members')
 export class MembersController {
   constructor(

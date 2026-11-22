@@ -59,7 +59,7 @@ const custom = (key: string) => !!s.value?.overrides[key];
     <section class="pm-hero gv-hero">
       <div>
         <p class="pm-kicker">إعدادات الحوكمة</p>
-        <h1>بيانات الجمعية وربط الحسابات</h1>
+        <h1>بيانات الشركة وربط الحسابات</h1>
         <p class="pm-sub">البيانات النظامية يستخدمها الإنذار المبكر والإشارات الآلية، وربط الحسابات يحدد من أين تُستخرج أرقام مؤشرات الأداء المالي في دليل الحسابات الموحد.</p>
       </div>
     </section>
@@ -80,8 +80,8 @@ const custom = (key: string) => !!s.value?.overrides[key];
         <label class="field"><span>المحاسب القانوني (المراجع الخارجي)</span><input v-model="facts.externalAuditor" class="input" /></label>
         <label class="field"><span>نهاية عقد المراجع الخارجي</span><input v-model="facts.auditorContractEnd" type="date" class="input" /></label>
         <label class="field"><span>مخالفات أو إنذارات لم تُصحح</span><input v-model.number="facts.openViolations" type="number" min="0" class="input" /></label>
-        <label class="field"><span>الموقع الإلكتروني للجمعية</span><input v-model="facts.websiteUrl" class="input" dir="ltr" /></label>
-        <label class="field"><span>للجمعية فروع أو مكاتب</span><select v-model="triState.hasBranches" class="input"><option value="">غير محدد</option><option value="yes">نعم</option><option value="no">لا</option></select></label>
+        <label class="field"><span>الموقع الإلكتروني للشركة</span><input v-model="facts.websiteUrl" class="input" dir="ltr" /></label>
+        <label class="field"><span>للشركة فروع أو مكاتب</span><select v-model="triState.hasBranches" class="input"><option value="">غير محدد</option><option value="yes">نعم</option><option value="no">لا</option></select></label>
         <label v-if="triState.hasBranches === 'yes'" class="field"><span>الفروع معتمدة من المركز</span><select v-model="triState.branchesApproved" class="input"><option value="">غير محدد</option><option value="yes">نعم</option><option value="no">لا</option></select></label>
         <label class="field"><span>للمجلس لجان منبثقة</span><select v-model="triState.hasCommittees" class="input"><option value="">غير محدد</option><option value="yes">نعم</option><option value="no">لا</option></select></label>
         <label class="field"><span>تنطبق متطلبات مكافحة غسل الأموال وتمويل الإرهاب</span><select v-model="triState.ctfObliged" class="input"><option value="">غير محدد</option><option value="yes">نعم</option><option value="no">لا</option></select></label>

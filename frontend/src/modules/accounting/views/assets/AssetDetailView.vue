@@ -284,7 +284,7 @@ async function confirmForm(id: string) {
     <section v-if="tab === 'custody'" class="card pm-panel">
       <div v-if="held && session.can(P.assetsCustody)" class="fa-row" style="margin-bottom: 12px">
         <button class="btn btn-sm btn-primary" @click="openMove('transfer')">{{ a.custodianId ? 'نقل العهدة لموظف آخر أو موقع آخر' : 'تسليم الأصل لموظف' }}</button>
-        <button v-if="a.custodianId" class="btn btn-sm" @click="openMove('return')">إرجاع للمستودع (استلام نيابة عن الجمعية)</button>
+        <button v-if="a.custodianId" class="btn btn-sm" @click="openMove('return')">إرجاع للمستودع (استلام نيابة عن الشركة)</button>
       </div>
       <div class="table-wrap">
         <table class="table">
@@ -331,7 +331,7 @@ async function confirmForm(id: string) {
       <form class="card modal" @submit.prevent="doMove">
         <h2>{{ mv.kind === 'return' ? 'إرجاع الأصل' : a.custodianId ? 'نقل العهدة' : 'تسليم الأصل' }}</h2>
         <p class="fa-sub">يصدر نموذج {{ mv.kind === 'return' ? 'إرجاع' : 'استلام' }} برقم مسلسل، ويبقى في سجل الأصل. {{ a.custodianName ? `الحالي: ${a.custodianName}` : '' }}</p>
-        <label class="field"><span>{{ mv.kind === 'return' ? 'الموظف المستلم نيابة عن الجمعية (أمين المستودع)' : 'الموظف المستلم' }}</span><SearchSelect v-model="mv.toEmployeeId" :options="empOptions" placeholder="ابحث باسم الموظف" required /></label>
+        <label class="field"><span>{{ mv.kind === 'return' ? 'الموظف المستلم نيابة عن الشركة (أمين المستودع)' : 'الموظف المستلم' }}</span><SearchSelect v-model="mv.toEmployeeId" :options="empOptions" placeholder="ابحث باسم الموظف" required /></label>
         <div class="field-row">
           <label class="field"><span>الموقع الجديد</span><input v-model="mv.toLocation" class="input" /></label>
           <label class="field"><span>التاريخ</span><input v-model="mv.date" type="date" class="input" :max="todayStr()" required /></label>

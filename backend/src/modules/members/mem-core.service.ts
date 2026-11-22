@@ -38,11 +38,11 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export class MemCore {
   constructor(private readonly db: DataSource, private readonly lookupsService: LookupsService) {}
 
-  /** الجمعية من معرفها في الرابط العام، مع منع الجمعية الموقوفة أو المنتهي اشتراكها */
+  /** الشركة من معرفها في الرابط العام، مع منع الشركة الموقوفة أو المنتهي اشتراكها */
   async organization(slug: string) {
     const org = await this.db.getRepository(Organization).findOne({ where: { slug: String(slug).toLowerCase() } });
-    if (!org) throw new NotFoundException('الجمعية غير موجودة');
-    if (accessProblem(org)) throw new NotFoundException('صفحة الجمعية غير متاحة حاليًا');
+    if (!org) throw new NotFoundException('الشركة غير موجودة');
+    if (accessProblem(org)) throw new NotFoundException('صفحة الشركة غير متاحة حاليًا');
     return org;
   }
 
@@ -51,7 +51,7 @@ export class MemCore {
     return o as { name: string; slug: string };
   }
 
-  /** إعدادات الجمعية، وتُعبأ بالقيم الافتراضية عند أول استخدام */
+  /** إعدادات الشركة، وتُعبأ بالقيم الافتراضية عند أول استخدام */
   async settings(org: string, em: EntityManager = this.db.manager) {
     const repo = em.getRepository(MemSettings);
     let s = await repo.findOne({ where: { organizationId: org } });

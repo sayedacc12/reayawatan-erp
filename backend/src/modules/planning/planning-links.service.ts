@@ -251,7 +251,7 @@ export class PlanningLinks {
     };
   }
 
-  /** للتقارير: كل المراجع في خطط الجمعية مع حالتها الحالية */
+  /** للتقارير: كل المراجع في خطط الشركة مع حالتها الحالية */
   async allRefs(actor: OrgUser, system?: RefSystem) {
     const org = actor.organizationId;
     const refs = await this.db.getRepository(PlanRef).find({ where: { organizationId: org, ...(system ? { system } : {}) }, order: { createdAt: 'ASC' } });

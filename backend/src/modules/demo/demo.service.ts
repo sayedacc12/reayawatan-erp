@@ -32,7 +32,7 @@ import { PlanningSeed } from './seed-planning';
 import { BudgetSeed } from './seed-budget';
 
 /**
- * الجمعية التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
+ * الشركة التجريبية الكاملة للشرح والاختبار: كل الأنظمة مترابطة، وكل العمليات تمر عبر خدمات الوحدات
  * نفسها (بنفس التحقق والترقيم والقيود)، وتُسجَّل بأسماء الموظفين حسب أدوارهم.
  */
 @Injectable()
@@ -70,7 +70,7 @@ export class DemoService {
 
   async create(platformUser: AuthUser, origin: string) {
     if (await this.db.getRepository(Organization).exists({ where: { slug: DEMO_SLUG } })) {
-      throw new ConflictException('الجمعية التجريبية موجودة بالفعل (المعرّف demo)');
+      throw new ConflictException('الشركة التجريبية موجودة بالفعل (المعرّف demo)');
     }
     const staffPassword = `Demo-${randomBytes(4).toString('hex')}`;
     const portalPassword = `Portal-${randomBytes(3).toString('hex')}`;
@@ -97,7 +97,7 @@ export class DemoService {
   }
 
   /**
-   * بناء البيانات المترابطة لكل الأنظمة داخل جمعية: تُستخدم للجمعية التجريبية الكاملة (demo)،
+   * بناء البيانات المترابطة لكل الأنظمة داخل جمعية: تُستخدم للشركة التجريبية الكاملة (demo)،
    * ولزر «إضافة بيانات تجريبية» في جمعية مشتركة خلال فترة التجربة (بلا بيانات المنصة والدعم الفني).
    */
   async build(orgId: string, target: SeedTarget, staffPassword: string, portalPassword: string, origin: string) {
@@ -140,7 +140,7 @@ export class DemoService {
     return { team, staff: [...accounts, auditor], portalUsers: [] as { fullName: string; nationalId: string }[], supplierPortal };
   }
 
-  /** حذف الجمعية التجريبية وكل بياناتها وطلبات الاشتراك التجريبية، لإعادة إنشائها بأحدث بيانات */
+  /** حذف الشركة التجريبية وكل بياناتها وطلبات الاشتراك التجريبية، لإعادة إنشائها بأحدث بيانات */
   async reset() {
     const org = await this.db.getRepository(Organization).findOne({ where: { slug: DEMO_SLUG } });
     if (!org) throw new NotFoundException('لا توجد جمعية تجريبية');

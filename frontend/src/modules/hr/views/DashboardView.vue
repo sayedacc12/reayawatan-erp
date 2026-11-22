@@ -34,8 +34,8 @@ const ICON: Record<string, string> = { contract: 'العقد', probation: 'ال�
     <section class="pm-hero hr-hero">
       <div>
         <p class="pm-kicker">الموارد البشرية</p>
-        <h1>فريق الجمعية في لمحة</h1>
-        <p class="pm-sub">الهيكل والوظائف والرواتب والإجازات والأداء في مكان واحد، وفق لائحة الجمعية ونظام العمل السعودي.</p>
+        <h1>فريق الشركة في لمحة</h1>
+        <p class="pm-sub">الهيكل والوظائف والرواتب والإجازات والأداء في مكان واحد، وفق لائحة الشركة ونظام العمل السعودي.</p>
       </div>
       <div class="pm-actions">
         <RouterLink v-if="session.can(P.employees)" to="/hr/employees?new=1" class="btn hr-glow">موظف جديد</RouterLink>
@@ -94,7 +94,7 @@ const ICON: Record<string, string> = { contract: 'العقد', probation: 'ال�
             <RouterLink to="/hr/plans" class="hr-chip">خطط تعيين للاعتماد <b>{{ data.pendingPlans }}</b></RouterLink>
             <RouterLink to="/hr/leaves" class="hr-chip">إجازات للاعتماد <b>{{ data.pendingLeaves }}</b></RouterLink>
           </div>
-          <p v-if="data.payroll" class="pm-muted" style="margin-top: 14px">حصة الجمعية في التأمينات شهريًا: <b>{{ sar(data.payroll.gosiEmployer) }}</b></p>
+          <p v-if="data.payroll" class="pm-muted" style="margin-top: 14px">حصة الشركة في التأمينات شهريًا: <b>{{ sar(data.payroll.gosiEmployer) }}</b></p>
         </section>
       </div>
     </template>

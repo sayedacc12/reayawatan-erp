@@ -57,7 +57,7 @@ async function save() {
     });
     goalsText.value = d.value.goals.join('\n');
     applyIdentity(d.value);
-    toast.success('حُفظت هوية الجمعية');
+    toast.success('حُفظت هوية الشركة');
   } catch (e) {
     toast.error((e as Error).message);
   } finally {
@@ -98,7 +98,7 @@ async function removeLogo(kind: 'logo' | 'logoLight') {
 <template>
   <div>
     <div class="page-head">
-      <div><h1>هوية الجمعية</h1><p class="muted">الاسم والشعار والألوان والخطوط والرؤية والرسالة والأهداف. يستخدمها الموقع الإلكتروني وصفحات الجمعية العامة، ويمكن تطبيقها داخل النظام.</p></div>
+      <div><h1>هوية الشركة</h1><p class="muted">الاسم والشعار والألوان والخطوط والرؤية والرسالة والأهداف. يستخدمها الموقع الإلكتروني وصفحات الشركة العامة، ويمكن تطبيقها داخل النظام.</p></div>
       <button v-if="d" class="btn btn-primary" :disabled="busy" @click="save">حفظ الهوية</button>
     </div>
     <div v-if="d" class="id-layout">
@@ -107,12 +107,12 @@ async function removeLogo(kind: 'logo' | 'logoLight') {
         <Transition name="page" mode="out-in">
           <section v-if="tab === 'brand'" key="b" class="card ws-panel">
             <div class="ws-grid2">
-              <label class="field"><span>اسم الجمعية الظاهر</span><input v-model="d.displayName" class="input" :placeholder="d.organizationName" /><small class="muted">فارغ = الاسم المسجل في المنصة: {{ d.organizationName }}</small></label>
-              <label class="field"><span>الاسم المختصر</span><input v-model="d.shortName" class="input" placeholder="مثل: سنابل الخير" /></label>
+              <label class="field"><span>اسم الشركة الظاهر</span><input v-model="d.displayName" class="input" :placeholder="d.organizationName" /><small class="muted">فارغ = الاسم المسجل في المنصة: {{ d.organizationName }}</small></label>
+              <label class="field"><span>الاسم المختصر</span><input v-model="d.shortName" class="input" placeholder="مثل: رعاية وطن الخير" /></label>
               <label class="field"><span>الاسم بالإنجليزية</span><input v-model="d.englishName" class="input" dir="ltr" /></label>
               <label class="field"><span>العبارة التعريفية</span><input v-model="d.slogan" class="input" placeholder="مثل: نزرع الخير.. ليحصده المحتاج" /></label>
             </div>
-            <label class="field"><span>نبذة عن الجمعية</span><textarea v-model="d.about" class="input" rows="4" /></label>
+            <label class="field"><span>نبذة عن الشركة</span><textarea v-model="d.about" class="input" rows="4" /></label>
             <div class="ws-grid2">
               <div class="logo-box">
                 <div class="logo-prev light"><img v-if="d.logoUrl" :src="d.logoUrl" alt="" /><span v-else class="muted">لا يوجد شعار</span></div>
@@ -152,7 +152,7 @@ async function removeLogo(kind: 'logo' | 'logoLight') {
                 <strong>نزرع الخير</strong><span>{{ f }}</span>
               </div>
             </div>
-            <label class="check" style="margin-top: 14px"><input v-model="d.applyToSystem" type="checkbox" /> تطبيق ألوان الهوية وشعارها داخل النظام لموظفي الجمعية</label>
+            <label class="check" style="margin-top: 14px"><input v-model="d.applyToSystem" type="checkbox" /> تطبيق ألوان الهوية وشعارها داخل النظام لموظفي الشركة</label>
           </section>
 
           <section v-else-if="tab === 'vision'" key="v" class="card ws-panel">
