@@ -5,9 +5,9 @@ import { ReportDefinition, ReportRow } from '../../core/reports/report.types';
 import { REPORT_QUERY_LIMIT, ReportsRegistry } from '../../core/reports/reports.registry';
 import { AccCore, voucherNo } from './acc-core.service';
 import { ACC_PERMISSIONS as P } from './accounting.manifest';
-import { NATURE_AR } from './accounts.service';
+import { KIND_AR as ACC_KIND_AR, NATURE_AR } from './accounts.service';
 import { STATUS_AR } from './entries.service';
-import { VoucherType } from './entities/accounting.entity';
+import { AccountKind, AccountNature, VoucherType } from './entities/accounting.entity';
 import { ReportsService } from './reports.service';
 import { VOUCHER_STATUS_AR } from './vouchers.service';
 
@@ -47,6 +47,29 @@ export class AccountingReports implements OnModuleInit {
     ];
 
     const defs: ReportDefinition[] = [
+      {
+        module: 'accounting', permission: [P.read, P.accounts, P.reports], code: 'accounting.chart', category: 'الدليل المحاسبي', title: 'الدليل المحاسبي',
+        description: 'كل الحسابات بأرقامها وأسمائها ومستوياتها ونوعها وطبيعتها وحساباتها الأب، للتصدير إلى Excel أو PDF أو الطباعة',
+        filters: [{ ...selectFilter('level', 'المستوى', LEVELS), default: '9', required: true }],
+        orientation: 'landscape', indentColumn: 'name',
+        columns: [
+          { key: 'code', label: 'رقم الحساب' }, { key: 'name', label: 'اسم الحساب' }, { key: 'level', label: 'المستوى' },
+          { key: 'kindLabel', label: 'النوع' }, { key: 'natureLabel', label: 'الطبيعة' }, { key: 'parentCode', label: 'رقم الحساب الأب' },
+          { key: 'analytic', label: 'يتطلب مركز تكلفة' }, { key: 'status', label: 'الحالة' },
+        ],
+        run: async (u, f) => {
+          const rows: { code: string; name: string; level: number; kind: AccountKind; nature: AccountNature; parent_code: string | null; requires_analytic: boolean; is_active: boolean }[] = await this.db.query(
+            `SELECT a.code, a.name, a.level, a.kind, a.nature, p.code AS parent_code, a.requires_analytic, a.is_active
+               FROM acc_accounts a LEFT JOIN acc_accounts p ON p.id = a.parent_id AND p.organization_id = a.organization_id
+              WHERE a.organization_id = $1 AND a.level <= $2 ORDER BY a.code LIMIT $3`, [org(u).organizationId, Number(f.level ?? 9), REPORT_QUERY_LIMIT]);
+          return {
+            rows: rows.map((r) => ({
+              code: r.code, name: r.name, level: r.level, kindLabel: ACC_KIND_AR[r.kind], natureLabel: NATURE_AR[r.nature], parentCode: r.parent_code ?? '',
+              analytic: r.requires_analytic ? 'نعم' : '', status: r.is_active ? 'نشط' : 'موقوف', _level: r.level, _style: r.level === 1 ? 'strong' as const : undefined,
+            })),
+          };
+        },
+      },
       {
         ...base, code: 'accounting.trial-balance', category: 'الأرصدة', title: 'ميزان المراجعة',
         description: 'أرصدة الحسابات: افتتاحي وحركة الفترة وختامي، لأي فترة داخل السنة المالية',

@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { CoreModule } from '../../core/core.module';
 import { AssetBudgetService } from './asset-budget.service';
 import { AssetImportService } from './asset-import.service';
+import { ChartImportService } from './chart-import.service';
 import { AssetMaintenanceService } from './asset-maintenance.service';
 import { AssetOpsService } from './asset-ops.service';
 import { AssetsController } from './assets.controller';
@@ -29,7 +30,7 @@ import { VouchersService } from './vouchers.service';
 @Module({
   imports: [TypeOrmModule.forFeature([...ACCOUNTING_ENTITIES, ...ASSET_ENTITIES]), CoreModule],
   controllers: [AccountingController, AssetsController],
-  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks, AssetsService, AssetOpsService, AssetsReports, AssetMaintenanceService, AssetBudgetService, AssetImportService],
+  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks, AssetsService, AssetOpsService, AssetsReports, AssetMaintenanceService, AssetBudgetService, AssetImportService, ChartImportService],
   exports: [AccCore, AccountsService, MastersService, EntriesService, SetupService, VouchersService, AssetsService, AssetOpsService, AssetMaintenanceService, AssetBudgetService],
 })
 export class AccountingModule {}

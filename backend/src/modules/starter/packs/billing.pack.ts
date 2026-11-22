@@ -10,7 +10,7 @@ import { StarterPack, StarterStep, added, existing } from '../starter.types';
 const LINKS = [
   { field: 'receivablesAccountId', prefix: '11402001', nature: 'assets' },
   { field: 'vatOutputAccountId', prefix: '21305001', nature: 'liabilities' },
-  { field: 'revenueAccountId', prefix: '31205002', nature: 'revenue' },
+  { field: 'revenueAccountId', prefix: '31101001', nature: 'revenue' },
 ] as const;
 
 /**
@@ -30,7 +30,7 @@ export class BillingStarter implements StarterPack {
   ) {
     this.steps = [{
       key: 'accounts', label: 'ربط الفوترة بحسابات الدليل',
-      detail: 'حساب العملاء (مدينون تجاريون)، وحساب ضريبة القيمة المضافة (مخرجات)، وحساب إيراد بيع الخدمات، وتصنيف «عملاء». يُربط الناقص فقط، ولا يتغير وضع الشركة الضريبي ولا بياناتها الضريبية.',
+      detail: 'حساب العملاء (مدينون تجاريون)، وحساب ضريبة القيمة المضافة (مخرجات)، وحساب إيرادات الاستشارات، وتصنيف «عملاء». يُربط الناقص فقط، ولا يتغير وضع الشركة الضريبي ولا بياناتها الضريبية.',
       run: async (a) => this.linkAccounts(a),
     }];
   }

@@ -66,7 +66,7 @@ const ready = computed(() => data.value?.setup.chartInstalled && data.value?.set
         <h2>ابدأ إعداد النظام المالي</h2>
         <div class="ac-steps">
           <div :class="['ac-step', { done: data.setup.chartInstalled || data.setup.accounts > 0 }]">
-            <div class="grow"><b>الدليل المحاسبي</b><div class="pm-muted">نصّب دليل الحسابات الموحد للجمعيات الأهلية من الإعدادات، أو أضف حساباتك يدويًا</div></div>
+            <div class="grow"><b>الدليل المحاسبي</b><div class="pm-muted">نصّب دليل الشركات الجاهز من الإعدادات، أو استورده من Excel، أو أضف حساباتك يدويًا</div></div>
             <RouterLink v-if="session.can(P.settings) && !data.setup.accounts" to="/accounting/settings" class="btn btn-sm btn-primary">تنصيب الدليل</RouterLink>
             <RouterLink v-else to="/accounting/accounts" class="btn btn-sm">الدليل</RouterLink>
           </div>
@@ -83,9 +83,9 @@ const ready = computed(() => data.value?.setup.chartInstalled && data.value?.set
 
       <template v-if="data.year">
         <div class="pm-kpis">
-          <div class="pm-kpi" style="--a: #10b981; --i: 0"><span>الإيرادات والتبرعات</span><strong><CountUp :value="data.revenue ?? 0" :decimals="2" /></strong><small>ريال · قيود مرحّلة</small></div>
+          <div class="pm-kpi" style="--a: #10b981; --i: 0"><span>الإيرادات</span><strong><CountUp :value="data.revenue ?? 0" :decimals="2" /></strong><small>ريال · قيود مرحّلة</small></div>
           <div class="pm-kpi" style="--a: #ef4444; --i: 1"><span>المصروفات</span><strong><CountUp :value="data.expenses ?? 0" :decimals="2" /></strong><small>ريال</small></div>
-          <div class="pm-kpi" style="--a: #8b5cf6; --i: 2"><span>{{ (data.surplus ?? 0) >= 0 ? 'فائض النشاط' : 'عجز النشاط' }}</span><strong><CountUp :value="Math.abs(data.surplus ?? 0)" :decimals="2" /></strong><small>يُقفل في صافي الأصول آخر السنة</small></div>
+          <div class="pm-kpi" style="--a: #8b5cf6; --i: 2"><span>{{ (data.surplus ?? 0) >= 0 ? 'صافي الربح' : 'صافي الخسارة' }}</span><strong><CountUp :value="Math.abs(data.surplus ?? 0)" :decimals="2" /></strong><small>يُقفل في الأرباح المبقاة آخر السنة</small></div>
           <div class="pm-kpi" style="--a: #0ea5e9; --i: 3"><span>النقدية والبنوك</span><strong><CountUp :value="cashTotal" :decimals="2" /></strong><small>{{ data.cash?.length ?? 0 }} حساب</small></div>
           <div class="pm-kpi" style="--a: #f59e0b; --i: 4"><span>قيود غير مرحّلة</span><strong><CountUp :value="data.entries?.draft ?? 0" /></strong><small>{{ data.entries?.posted ?? 0 }} مرحّل</small></div>
           <div class="pm-kpi" style="--a: #6366f1; --i: 5"><span>سندات تنتظر الاعتماد</span><strong><CountUp :value="(data.receipts?.pending.n ?? 0) + (data.payments?.pending.n ?? 0)" /></strong><small>قبض {{ data.receipts?.pending.n }} · صرف {{ data.payments?.pending.n }}</small></div>

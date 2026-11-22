@@ -4,12 +4,12 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { AccCore, cents, fromCents } from './acc-core.service';
 import { AccountDto, AccountUpdateDto, AnalyticDto, AnalyticUpdateDto } from './accounting.dto';
-import { buildNcnpChart, COA_NAME, NCNP_COST_CENTERS } from './coa-ncnp';
+import { buildCompanyChart, COA_NAME, COMPANY_COST_CENTERS } from './coa-company';
 import { Account, AccountKind, AccountNature, AnalyticAccount } from './entities/accounting.entity';
 
 export const MAX_LEVELS = 9;
 export const NATURE_AR: Record<AccountNature, string> = {
-  assets: 'أصول', liabilities: 'خصوم', net_assets: 'صافي أصول', expenses: 'مصروفات', revenue: 'إيرادات',
+  assets: 'أصول', liabilities: 'خصوم', net_assets: 'حقوق ملكية', expenses: 'مصروفات', revenue: 'إيرادات',
 };
 export const KIND_AR: Record<AccountKind, string> = { root: 'جذري', main: 'رئيسي', sub: 'فرعي' };
 
@@ -191,11 +191,11 @@ export class AccountsService {
     return a;
   }
 
-  // ---------------- تنصيب الدليل الموحد ----------------
+  // ---------------- تنصيب دليل الشركات ----------------
 
   async chartInfo(actor: OrgUser) {
     const org = actor.organizationId;
-    const chart = buildNcnpChart();
+    const chart = buildCompanyChart();
     const [s, count] = await Promise.all([this.core.settings(org), this.accounts.count({ where: { organizationId: org } })]);
     return {
       name: COA_NAME, accounts: chart.length, postingAccounts: chart.filter((a) => a.kind === 'sub').length, levels: 6,
@@ -203,14 +203,14 @@ export class AccountsService {
     };
   }
 
-  /** تنصيب دليل الحسابات الموحد للجمعيات الأهلية (في بداية الإعداد فقط، والدليل فارغ) */
+  /** تنصيب دليل حسابات الشركات (في بداية الإعداد فقط والدليل فارغ؛ متى بدأ المستخدم دليلًا يدويًا يتوقف هذا الزر) */
   async installChart(actor: OrgUser) {
     const org = actor.organizationId;
     return this.db.transaction(async (em) => {
       if (await em.getRepository(Account).exist({ where: { organizationId: org } })) {
-        throw new ConflictException('الدليل المحاسبي فيه حسابات بالفعل. تنصيب الدليل الموحد متاح في بداية الإعداد فقط والدليل فارغ');
+        throw new ConflictException('الدليل المحاسبي فيه حسابات بالفعل. تنصيب دليل الشركات الجاهز متاح في بداية الإعداد فقط والدليل فارغ');
       }
-      const chart = buildNcnpChart();
+      const chart = buildCompanyChart();
       const ids = new Map<string, string>();
       // الإدراج مستوى بعد مستوى (الآباء قبل الأبناء) وعلى دفعات
       const levels = [...new Set(chart.map((c) => c.level))].sort((a, b) => a - b);
@@ -224,16 +224,16 @@ export class AccountsService {
         })));
         saved.forEach((a) => ids.set(a.code, a.id));
       }
-      // مراكز التكلفة حسب التصنيف الوظيفي للمصروفات
+      // مراكز التكلفة حسب أنشطة الشركة
       const repo = em.getRepository(AnalyticAccount);
-      let main = await repo.findOne({ where: { organizationId: org, code: NCNP_COST_CENTERS.main.code } });
-      if (!main) main = await repo.save(repo.create({ organizationId: org, code: NCNP_COST_CENTERS.main.code, name: NCNP_COST_CENTERS.main.name, kind: 'main', level: 1, parentId: null }));
-      for (const c of NCNP_COST_CENTERS.subs) {
+      let main = await repo.findOne({ where: { organizationId: org, code: COMPANY_COST_CENTERS.main.code } });
+      if (!main) main = await repo.save(repo.create({ organizationId: org, code: COMPANY_COST_CENTERS.main.code, name: COMPANY_COST_CENTERS.main.name, kind: 'main', level: 1, parentId: null }));
+      for (const c of COMPANY_COST_CENTERS.subs) {
         if (!(await repo.exist({ where: { organizationId: org, code: c.code } }))) {
           await repo.save(repo.create({ organizationId: org, code: c.code, name: c.name, kind: 'sub', level: 2, parentId: main.id }));
         }
       }
-      // حساب إقفال نتائج النشاط الافتراضي: صافي الأصول غير المقيدة
+      // حساب إقفال النتائج الافتراضي: الأرباح المبقاة
       const closing = ids.get('2310100101') ?? null;
       await this.core.settings(org, em);
       await em.update('acc_settings', { organizationId: org }, { chartInstalledAt: new Date(), ...(closing ? { closingAccountId: closing } : {}) });

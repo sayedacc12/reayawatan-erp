@@ -154,7 +154,7 @@ describe('Default settings button per system', () => {
       `SELECT s.mode, r.code AS rec, v.code AS vat, rv.code AS rev, s.customer_category_id AS cat FROM bl_settings s
          LEFT JOIN acc_accounts r ON r.id = s.receivables_account_id LEFT JOIN acc_accounts v ON v.id = s.vat_output_account_id
          LEFT JOIN acc_accounts rv ON rv.id = s.revenue_account_id WHERE s.organization_id = $1`, [orgA]);
-    expect(bl).toMatchObject({ mode: 'off', rec: '1140200101', vat: '2130500101', rev: '3120500201' });
+    expect(bl).toMatchObject({ mode: 'off', rec: '1140200101', vat: '2130500101', rev: '3110100101' });
     expect(bl.cat).toBeTruthy();
     // ولا شيء منها في المنشأة الأخرى (عدا ما فعّلته هي)
     expect(await count('audit_areas', orgB)).toBe(0);

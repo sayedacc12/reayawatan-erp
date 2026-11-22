@@ -58,14 +58,14 @@ describe('Accounting', () => {
     rmSync(uploadDir, { recursive: true, force: true });
   });
 
-  it('installs the unified NPO chart once, with all sub accounts at one level', async () => {
+  it('installs the companies chart once, with all sub accounts at one level', async () => {
     const info = await http.get(`${A}/chart`).set(as(admin)).expect(200);
-    expect(info.body).toMatchObject({ installedAt: null, canInstall: true, accounts: 1386 });
+    expect(info.body).toMatchObject({ installedAt: null, canInstall: true, accounts: 508 });
     await http.post(`${A}/chart/install`).set(as(admin)).expect(201);
     await http.post(`${A}/chart/install`).set(as(admin)).expect(409);
     const list = await http.get(`${A}/accounts`).set(as(admin)).expect(200);
     const accounts = list.body.accounts as { id: string; code: string; name: string; kind: string; nature: string; level: number; requiresAnalytic: boolean; parentId: string | null }[];
-    expect(accounts).toHaveLength(1386);
+    expect(accounts).toHaveLength(508);
     expect(new Set(accounts.filter((a) => a.kind === 'sub').map((a) => a.level))).toEqual(new Set([6]));
     expect(accounts.filter((a) => !a.parentId).length).toBe(4);
     const sub = (pred: (a: (typeof accounts)[number]) => boolean) => accounts.find((a) => a.kind === 'sub' && pred(a))!;

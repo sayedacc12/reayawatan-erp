@@ -26,7 +26,7 @@ const hi = ref(0);
 const input = ref<HTMLInputElement | null>(null);
 const picked = ref<SelectOption | null>(null);
 
-const shownLabel = computed(() => picked.value?.label ?? props.selectedLabel ?? props.options?.find((o) => o.id === props.modelValue)?.label ?? '');
+const shownLabel = computed(() => picked.value?.label || props.selectedLabel || props.options?.find((o) => o.id === props.modelValue)?.label || '');
 watch(() => props.modelValue, (v) => { if (!v) picked.value = null; else if (picked.value && picked.value.id !== v) picked.value = null; });
 
 const norm = (s: string) => s.toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').trim();

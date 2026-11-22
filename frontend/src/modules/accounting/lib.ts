@@ -28,8 +28,8 @@ export interface Partner {
 export const NATURES = [
   { value: 'assets', label: 'الأصول', color: '#0ea5e9' },
   { value: 'liabilities', label: 'الالتزامات', color: '#f59e0b' },
-  { value: 'net_assets', label: 'صافي الأصول', color: '#8b5cf6' },
-  { value: 'revenue', label: 'الإيرادات والتبرعات', color: '#10b981' },
+  { value: 'net_assets', label: 'حقوق الملكية', color: '#8b5cf6' },
+  { value: 'revenue', label: 'الإيرادات', color: '#10b981' },
   { value: 'expenses', label: 'المصروفات', color: '#ef4444' },
 ];
 export const natureColor = (n: string) => NATURES.find((x) => x.value === n)?.color ?? '#64748b';

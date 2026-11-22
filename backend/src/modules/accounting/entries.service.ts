@@ -134,7 +134,7 @@ export class EntriesService {
         throw new BadRequestException(`السطر ${n}: الحساب ${account.code} «${account.name}» حساب مخزون مرتبط بالمستودعات، وحركاته تصدر بسندات المخازن فقط (الاستلام والصرف والجرد والرصيد الافتتاحي للمستودع)، حتى تبقى مطابقة لأرصدة المستودعات`);
       }
       if (type === 'opening' && (account.nature === 'revenue' || account.nature === 'expenses')) {
-        throw new BadRequestException(`السطر ${n}: يُمنع وضع أرصدة افتتاحية لحسابات الإيرادات والتبرعات والمصروفات (${account.code} ${account.name})`);
+        throw new BadRequestException(`السطر ${n}: يُمنع وضع أرصدة افتتاحية لحسابات الإيرادات والمصروفات (${account.code} ${account.name})`);
       }
       const analytic = l.analytic ?? [];
       if (account.requiresAnalytic && !analytic.length) {
