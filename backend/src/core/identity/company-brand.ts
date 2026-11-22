@@ -35,8 +35,9 @@ export const COMPANY_BRAND = {
   colors: { primary: '#164e38', secondary: '#2c3e33', accent: '#c7a27a', dark: '#0f2e22' },
   fonts: { body: 'IBM Plex Sans Arabic', heading: 'Reem Kufi' },
   contact: {
-    phone: '', email: 'info@reayawatan.com', address: 'حي الرحمانية، شارع الوليد التميمي، الرمز البريدي 12341', city: 'الرياض', mapUrl: '', workingHours: '', poBox: '',
-    social: { x: '', instagram: '', linkedin: '', youtube: '', snapchat: '', tiktok: '', facebook: '', whatsapp: '' },
+    phone: '+966564355564', email: 'info@reayawatan.com', address: 'حي الرحمانية، شارع الوليد التميمي، الرمز البريدي 12341', city: 'الرياض', mapUrl: '',
+    workingHours: 'الأحد إلى الخميس، من 9 صباحاً إلى 2 ظهراً. الجمعة والسبت إجازة.', poBox: '',
+    social: { x: '', instagram: '', linkedin: '', youtube: '', snapchat: '', tiktok: '', facebook: '', whatsapp: '966564355564' },
   },
   taxNumber: '314466205600003',
   licenseNo: '7052873945',
@@ -53,6 +54,7 @@ export async function seedCompanyBrand(db: DataSource, files: FileStore, org: { 
   const repo = db.getRepository(OrgIdentity);
   const b = COMPANY_BRAND;
   await repo.createQueryBuilder().insert().values({ organizationId: org.id, colors: b.colors, fonts: b.fonts, contact: b.contact }).orIgnore().execute();
+  await fillEmptyContact(db, org.id, logger);
   const row = await repo.findOneOrFail({ where: { organizationId: org.id } });
   if (row.updatedByName) return;
 
@@ -86,4 +88,26 @@ export async function seedCompanyBrand(db: DataSource, files: FileStore, org: { 
     return;
   }
   logger.log('Company identity filled with the رعاية وطن defaults');
+}
+
+/**
+ * بيانات التواصل المعتمدة (الهاتف وأوقات العمل والواتساب) تُملأ في الهوية المحفوظة إن كانت فارغة فقط،
+ * فلا يُكتب فوق ما أدخله مدير الشركة.
+ */
+async function fillEmptyContact(db: DataSource, orgId: string, logger: Logger) {
+  const c = COMPANY_BRAND.contact;
+  await db.transaction(async (em) => {
+    const [row] = await em.query('SELECT contact FROM org_identity WHERE organization_id = $1 FOR UPDATE', [orgId]);
+    if (!row) return;
+    const cur = (row.contact ?? {}) as Record<string, unknown> & { social?: Record<string, string> };
+    const next = { ...cur, social: { ...(cur.social ?? {}) } } as typeof cur & { social: Record<string, string> };
+    let changed = false;
+    for (const k of ['phone', 'workingHours'] as const) {
+      if (!String(cur[k] ?? '').trim()) { next[k] = c[k]; changed = true; }
+    }
+    if (!String(next.social.whatsapp ?? '').trim()) { next.social.whatsapp = c.social.whatsapp; changed = true; }
+    if (!changed) return;
+    await em.query('UPDATE org_identity SET contact = $1 WHERE organization_id = $2', [JSON.stringify(next), orgId]);
+    logger.log('Company contact details filled with the approved defaults');
+  }).catch((e) => logger.warn(`Company contact defaults not saved: ${(e as Error).message}`));
 }

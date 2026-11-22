@@ -50,6 +50,20 @@ function shape(def: unknown, val: unknown, path: string, depth = 0): unknown {
   throw new BadRequestException(`الحقل ${path} غير مدعوم`);
 }
 
+/**
+ * المحتوى المحفوظ فوق الافتراضي. الحقل النصي المحفوظ وهو ما زال معلّقًا ({{...}}) يأخذ القيمة الافتراضية
+ * إن صارت معتمدة (بلا {{ }})، فتصل البيانات المعتمدة الجديدة مع التحديث دون إدخال يدوي.
+ */
+export function withDefaults(key: ContentKey, saved: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  const def = DEFAULT_CONTENT[key] as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...def, ...(saved ?? {}) };
+  for (const [k, v] of Object.entries(saved ?? {})) {
+    const d = def[k];
+    if (typeof v === 'string' && v.includes('{{') && typeof d === 'string' && !d.includes('{{')) out[k] = d;
+  }
+  return out;
+}
+
 @Injectable()
 export class ContentService {
   constructor(private readonly db: DataSource) {}
@@ -63,7 +77,7 @@ export class ContentService {
 
   async section<T = Record<string, unknown>>(org: string, key: ContentKey, em: EntityManager = this.db.manager): Promise<T> {
     const row = await em.findOne(SiteContent, { where: { organizationId: org, key } });
-    return { ...DEFAULT_CONTENT[key], ...(row?.data ?? {}) } as T;
+    return withDefaults(key, row?.data) as T;
   }
 
   booking(org: string, em?: EntityManager) {
@@ -79,7 +93,7 @@ export class ContentService {
     const saved = new Map(rows.map((r) => [r.key, r]));
     return CONTENT_KEYS.map((key) => ({
       key,
-      data: { ...DEFAULT_CONTENT[key], ...(saved.get(key)?.data ?? {}) },
+      data: withDefaults(key, saved.get(key)?.data),
       defaults: DEFAULT_CONTENT[key],
       updatedAt: saved.get(key)?.updatedAt ?? null,
     }));
