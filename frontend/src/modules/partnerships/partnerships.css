@@ -45,7 +45,7 @@ button.pt-chip.on { background: var(--c); color: #fff; }
 .pt-bars { display: grid; gap: 9px; }
 .pt-bars .r { display: grid; grid-template-columns: minmax(110px, 160px) 1fr 40px; gap: 8px; align-items: center; font-size: .82rem; }
 .pt-bar { height: 9px; border-radius: 9px; background: var(--surface-2); overflow: hidden; }
-.pt-bar i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, var(--c, #14b8a6), color-mix(in srgb, var(--c, #14b8a6) 55%, #fde68a)); animation: pm-fill .9s var(--ease) both; transform-origin: right; }
+.pt-bar i { display: block; height: 100%; border-radius: 9px; background: linear-gradient(90deg, var(--c, #2f7a57), color-mix(in srgb, var(--c, #2f7a57) 55%, #fde68a)); animation: pm-fill .9s var(--ease) both; transform-origin: right; }
 
 /* سجل الأحداث */
 .pt-log { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }

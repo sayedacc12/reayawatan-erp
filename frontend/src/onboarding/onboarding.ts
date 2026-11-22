@@ -88,7 +88,7 @@ function absorb(s: OnboardingState) {
     }
     if (p.complete && !seen.has(`phase:${p.key}`)) {
       keys.push(`phase:${p.key}`);
-      fresh.push({ key: `phase:${p.key}`, kind: 'phase', icon: p.icon, title: `اكتملت مرحلة ${p.title}`, text: 'خطوة كبيرة نحو إطلاق جمعيتك على سنابل. واصل إلى المرحلة التالية.', cta: view.next ? { label: `التالي: ${view.next.title}`, to: view.next.link } : undefined });
+      fresh.push({ key: `phase:${p.key}`, kind: 'phase', icon: p.icon, title: `اكتملت مرحلة ${p.title}`, text: 'خطوة كبيرة نحو إطلاق النظام. واصل إلى المرحلة التالية.', cta: view.next ? { label: `التالي: ${view.next.title}`, to: view.next.link } : undefined });
     }
   }
   if (view.complete && !seen.has('launch:all')) {

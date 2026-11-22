@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, STATUS_COLOR, errMsg, fmtDate, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Review { id: string; code: string; title: string; meetingDate: string; chairName: string; status: string; approvedByName: string | null; outputs: { status: string }[]; openOutputs: number }

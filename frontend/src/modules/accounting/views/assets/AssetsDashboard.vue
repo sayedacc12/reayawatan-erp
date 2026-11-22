@@ -3,10 +3,10 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../../api';
 import { useSession } from '../../../../stores/session';
-import CountUp from '../../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../../shared/CountUp.vue';
 import { AF, type Alert, type Group, type Move, type Recon, type Run } from '../../assets';
 import { P, sar, shortMonth } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 
@@ -36,7 +36,7 @@ onMounted(async () => {
 });
 const top = computed(() => Math.max(1, ...(d.value?.monthly ?? []).map((m) => m.amount)));
 const totalCost = computed(() => Math.max(1, d.value?.kpis.cost ?? 1));
-const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6', '#6366f1', '#e11d48'];
+const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#2f7a57', '#6366f1', '#e11d48'];
 const badAccounts = computed(() => d.value?.reconciliation.accounts.filter((a) => !a.ok) ?? []);
 </script>
 

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { ISO_CLAUSES, P, STATUS_COLOR, errMsg, fmtDate, loadSettings, thisYear, todayStr, type QSettings } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Audit {

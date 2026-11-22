@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import EmployeeForm from '../components/EmployeeForm.vue';
 import { P, STATUS_COLOR, fmtDate, sar, type EmpRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const session = useSession();

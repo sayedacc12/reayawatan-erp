@@ -1,38 +1,55 @@
-export const WP = {
-  read: 'website.dashboard.read', edit: 'website.content.edit', publish: 'website.content.publish', pages: 'website.pages.manage',
-  donations: 'website.donations.read', messages: 'website.messages.manage', reports: 'website.reports.read', settings: 'website.settings.manage',
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const P = {
+  read: 'website.dashboard.read',
+  leadsRead: 'website.leads.read',
+  leadsManage: 'website.leads.manage',
+  bookings: 'website.bookings.manage',
+  content: 'website.content.manage',
+  guides: 'website.guides.manage',
+  settings: 'website.settings.manage',
 } as const;
-export const ICONS = [
-  'heart', 'hands', 'users', 'home', 'book', 'grad', 'medal', 'shield', 'chart', 'handshake', 'eye', 'target', 'clip', 'phone', 'mail',
-  'globe', 'pin', 'star', 'check', 'building', 'search', 'clock', 'megaphone', 'gift', 'food', 'water', 'health', 'bus', 'leaf', 'kaaba',
-];
-export const STATUS_COLOR: Record<string, string> = {
-  draft: '#94a3b8', pending: '#f59e0b', returned: '#f97316', published: '#10b981', approved: '#10b981', rejected: '#ef4444',
-  paid: '#10b981', failed: '#ef4444', cancelled: '#94a3b8', active: '#10b981', paused: '#f59e0b', new: '#0ea5e9', in_progress: '#f59e0b', closed: '#64748b',
+
+export const SOURCES: Record<string, { l: string; c: string }> = {
+  consultation: { l: 'طلب استشارة', c: '#164e38' },
+  calculator: { l: 'حاسبة مضاعف الأثر', c: '#8f6a45' },
+  assessment: { l: 'تقييم الجاهزية', c: '#2563eb' },
+  guide: { l: 'تنزيل دليل', c: '#7c3aed' },
+  booking: { l: 'حجز جلسة تشخيص', c: '#c2410c' },
 };
-export const num = (n: number | null | undefined) => (n ?? 0).toLocaleString('ar-SA', { maximumFractionDigits: 2 });
-export const sar = (n: number | null | undefined) => `${num(n)} ر.س`;
-export const fmtDate = (d: string | null | undefined) =>
-  d ? new Date(`${String(d).slice(0, 10)}T00:00:00`).toLocaleDateString('ar-SA-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-export const fmtDateTime = (d: string | Date | null | undefined) =>
-  d ? new Date(d).toLocaleString('ar-SA-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
-export const todayStr = () => new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
-export const siteUrl = (slug: string | null | undefined, path = '', preview?: string | null) =>
-  `${window.location.origin}/w/${slug ?? ''}${path}${preview ? `${path.includes('?') ? '&' : '?'}preview=${preview}` : ''}`;
-export async function copy(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    return false;
-  }
+export const STATUSES: Record<string, { l: string; c: string }> = {
+  new: { l: 'جديد', c: '#c2410c' },
+  contacted: { l: 'تم التواصل', c: '#2563eb' },
+  qualified: { l: 'مؤهل', c: '#7c3aed' },
+  proposal: { l: 'عرض مقدم', c: '#8f6a45' },
+  won: { l: 'تم التعاقد', c: '#067647' },
+  lost: { l: 'لم يتم', c: '#64748b' },
+  spam: { l: 'غير جاد', c: '#94a3b8' },
+};
+export const BOOKING_STATUSES: Record<string, { l: string; c: string }> = {
+  booked: { l: 'محجوز', c: '#c2410c' },
+  confirmed: { l: 'مؤكد', c: '#067647' },
+  done: { l: 'تمت', c: '#164e38' },
+  cancelled: { l: 'ملغى', c: '#94a3b8' },
+  no_show: { l: 'لم يحضر', c: '#b42318' },
+};
+export const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+/** وقت بتوقيت الرياض للعرض */
+export function riyadh(iso: string | Date | null | undefined, withDate = true) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', {
+    timeZone: 'Asia/Riyadh', ...(withDate ? { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' } : {}), hour: '2-digit', minute: '2-digit',
+  }).format(d);
 }
-/** رابط واتساب لإرسال رسالة لرقم سعودي */
-export const waLink = (phone: string | null | undefined, text: string) =>
-  `https://wa.me/${String(phone ?? '').replace(/^0/, '966')}?text=${encodeURIComponent(text)}`;
-/** صفحات الموقع التي يمكن ربط الأزرار والإعلانات بها */
-export const LINK_TARGETS: Record<string, string> = {
-  donate: 'صفحة التبرع', programs: 'البرامج', news: 'الأخبار', about: 'من نحن', governance: 'الحوكمة والشفافية', partners: 'الشركاء',
-  contact: 'تواصل معنا', volunteer: 'التطوع', membership: 'العضوية', portal: 'بوابة المستفيدين', staff: 'بوابة الموظفين',
-};
-export const errMsg = (e: unknown) => (e as Error).message;
+export function dateOnly(iso: string | Date | null | undefined) {
+  if (!iso) return '—';
+  return new Intl.DateTimeFormat('ar-SA-u-nu-latn-ca-gregory', { timeZone: 'Asia/Riyadh', year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(iso));
+}
+export const num = (n: number | null | undefined) => (n === null || n === undefined ? '—' : Math.round(n).toLocaleString('en-US'));
+
+export interface LeadRow {
+  id: string; leadNo: number; source: string; status: string; name: string; orgName: string | null; email: string; phone: string | null;
+  serviceSlug: string | null; score: number | null; nextActionOn: string | null; createdAt: string; assignedName: string | null; bookingAt: string | null;
+}
+export type Any = any;

@@ -7,7 +7,7 @@ import { useToast } from '../../../../stores/toast';
 import DepReport from '../../components/DepReport.vue';
 import { AF, prevMonth, useLookups, ym, type AssetRow, type DepReport as Report } from '../../assets';
 import { P, monthName, sar } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

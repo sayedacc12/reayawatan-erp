@@ -3,7 +3,7 @@ import { computed } from 'vue';
 /** حلقة نسبة الأداء (من 100) */
 const props = defineProps<{ value: number | null; size?: number; label?: string }>();
 const C = 2 * Math.PI * 42;
-const color = computed(() => (props.value === null ? '#94a3b8' : props.value >= 90 ? '#10b981' : props.value >= 70 ? '#14b8a6' : props.value >= 60 ? '#e8b04b' : '#ef4444'));
+const color = computed(() => (props.value === null ? '#94a3b8' : props.value >= 90 ? '#10b981' : props.value >= 70 ? '#2f7a57' : props.value >= 60 ? '#c7a27a' : '#ef4444'));
 const dash = computed(() => `${((props.value ?? 0) / 100) * C} ${C}`);
 </script>
 

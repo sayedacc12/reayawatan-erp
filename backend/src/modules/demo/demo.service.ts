@@ -9,13 +9,11 @@ import { DEMO_EMAIL, DEMO_SLUG, SeedTarget } from './demo-context';
 import { AccountingSeed } from './seed-accounting';
 import { AssetsSeed } from './seed-assets';
 import { AuditSeed } from './seed-audit';
-import { BeneficiariesSeed } from './seed-beneficiaries';
-import { FinanceSeed } from './seed-finance';
 import { GovernanceSeed } from './seed-governance';
 import { HrSeed } from './seed-hr';
 import { MembersSeed } from './seed-members';
 import { PlatformSeed } from './seed-platform';
-import { ProjectsSeed } from './seed-projects';
+import { TeamSeed } from './seed-team';
 import { RiskSeed } from './seed-risk';
 import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
@@ -44,9 +42,7 @@ export class DemoService {
   constructor(
     private readonly db: DataSource,
     private readonly files: FileStore,
-    private readonly beneficiaries: BeneficiariesSeed,
-    private readonly projects: ProjectsSeed,
-    private readonly finance: FinanceSeed,
+    private readonly teamSeed: TeamSeed,
     private readonly platform: PlatformSeed,
     private readonly accounting: AccountingSeed,
     private readonly assets: AssetsSeed,
@@ -78,7 +74,7 @@ export class DemoService {
     }
     const staffPassword = `Demo-${randomBytes(4).toString('hex')}`;
     const portalPassword = `Portal-${randomBytes(3).toString('hex')}`;
-    const org = await this.db.getRepository(Organization).save({ name: 'جمعية سنابل الخير (تجريبية)', slug: DEMO_SLUG });
+    const org = await this.db.getRepository(Organization).save({ name: 'منشأة تجريبية', slug: DEMO_SLUG });
     try {
       const built = await this.build(org.id, { slug: DEMO_SLUG, email: DEMO_EMAIL }, staffPassword, portalPassword, origin);
       await this.platform.run(org, platformUser, origin);
@@ -105,10 +101,7 @@ export class DemoService {
    * ولزر «إضافة بيانات تجريبية» في جمعية مشتركة خلال فترة التجربة (بلا بيانات المنصة والدعم الفني).
    */
   async build(orgId: string, target: SeedTarget, staffPassword: string, portalPassword: string, origin: string) {
-    const { team, tree, accounts } = await this.db.transaction((em) => this.beneficiaries.setup(em, orgId, staffPassword, target));
-    const extra = await this.projects.run(team, tree);
-    const cases = await this.beneficiaries.cases(orgId, team, tree, portalPassword);
-    await this.finance.run(team, tree, extra, cases);
+    const { team, accounts } = await this.db.transaction((em) => this.teamSeed.setup(em, orgId, staffPassword, target));
     await this.accounting.run(team);
     await this.hr.run(team);
     await this.assets.run(team);
@@ -128,7 +121,7 @@ export class DemoService {
     await this.comms.run(commsTeam);
     await this.meetings.run(commsTeam, staffPassword, origin, target.admin ? [target.admin.id] : []);
     // الهوية وأرشيف المعرفة والموقع الإلكتروني (التبرعات تُنشئ سندات قبض في النظام المالي)
-    await this.website.run(team, tree, origin);
+    await this.website.run(team);
     // التخطيط بعد الأنظمة التي يربط بها (الهيكل التنظيمي والمشاريع والموازنة الرأسمالية)
     const planning = await this.planning.run(team);
     await this.budget.run(team, planning.strategic);
@@ -144,7 +137,7 @@ export class DemoService {
     await this.billingSeed.run(team);
     // الحوكمة أخيراً: تقرأ إشاراتها من كل الأنظمة السابقة
     await this.governance.run(team);
-    return { team, staff: [...accounts, auditor], portalUsers: cases.portalUsers, supplierPortal };
+    return { team, staff: [...accounts, auditor], portalUsers: [] as { fullName: string; nationalId: string }[], supplierPortal };
   }
 
   /** حذف الجمعية التجريبية وكل بياناتها وطلبات الاشتراك التجريبية، لإعادة إنشائها بأحدث بيانات */

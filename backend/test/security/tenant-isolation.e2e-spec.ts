@@ -67,6 +67,20 @@ describe('Security gate: tenant isolation on every read endpoint', () => {
     victim = await login('owner@victim.sa', 'Admin12345', 'victim');
     attacker = await login('owner@attacker.sa', 'Admin12345', 'attacker');
     await http.post('/api/sample-data').set(as(victim)).expect(201);
+    // رعاية وطن: إضافة إلى البيانات التجريبية، بيانات الموقع كما تصل من نماذجه العامة (الضحية هي منشأة الموقع مؤقتًا).
+    const role = await http.post('/api/roles').set(as(victim)).send({ name: 'دور الضحية', permissions: ['website.leads.read'] }).expect(201);
+    await http.post('/api/users').set(as(victim)).send({ fullName: 'موظف الضحية', email: 'staff@victim.sa', password: 'Staff12345', roleIds: [role.body.id] }).expect(201);
+    process.env.COMPANY_SLUG = 'victim';
+    const visitor = { name: 'زائر الضحية', email: 'v@victim.sa', orgName: 'جهة' };
+    await http.post('/api/public/web/leads').send({ ...visitor, source: 'consultation', message: 'طلب' }).expect(201);
+    await http.post('/api/public/web/leads').send({ ...visitor, source: 'assessment', assessment: { answers: [2, 1, 0, 2, 1, 0, 2] } }).expect(201);
+    await http.put('/api/website/content/booking').set(as(victim))
+      .send({ data: { weekly: [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, from: '08:00', to: '20:00' })), minNoticeHours: 1 } }).expect(200);
+    const slots = (await http.get('/api/public/web/booking/slots').expect(200)).body.days;
+    await http.post('/api/public/web/booking').send({ ...visitor, startsAt: slots[1].slots[0] }).expect(201);
+    await http.post('/api/website/guides').set(as(victim)).send({ slug: 'g', title: 'دليل الضحية', summary: '', published: false }).expect(201);
+    await http.get('/api/website/services').set(as(victim)).expect(200);
+    delete process.env.COMPANY_SLUG;
 
     // كل معرف تملكه الضحية، من القاعدة مباشرة
     const tables: { table_name: string }[] = await db.query(`

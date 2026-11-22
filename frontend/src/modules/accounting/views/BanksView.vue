@@ -4,9 +4,9 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import SearchSelect from '../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../shared/SearchSelect.vue';
 import { P, sar, useAccounts, type CashAccount } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 const session = useSession();
@@ -108,7 +108,7 @@ const ledger = (c: CashAccount) => c.glAccount && router.push({ path: '/accounti
 <style scoped>
 .bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .bcard { position: relative; overflow: hidden; border-radius: 20px; padding: 18px 20px; color: #fff; min-height: 220px; display: flex; flex-direction: column; gap: 4px;
-  background: linear-gradient(135deg, #0f766e, #134e4a 60%, #1e293b); box-shadow: 0 16px 34px rgba(15,118,110,.25); animation: pm-rise .5s var(--ease) both; transition: transform .25s var(--ease); }
+  background: linear-gradient(135deg, #164e38, #134e4a 60%, #1e293b); box-shadow: 0 16px 34px rgba(15,118,110,.25); animation: pm-rise .5s var(--ease) both; transition: transform .25s var(--ease); }
 .bcard:hover { transform: translateY(-4px) rotate(-.3deg); }
 .bcard.cash { background: linear-gradient(135deg, #b45309, #78350f 60%, #292524); box-shadow: 0 16px 34px rgba(180,83,9,.25); }
 .bcard::before { content: ''; position: absolute; width: 220px; height: 220px; border-radius: 50%; inset-inline-end: -70px; top: -90px; background: radial-gradient(circle, rgba(255,255,255,.22), transparent 70%); }

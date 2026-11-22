@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { fmtDate, sar } from '../lib';
 import MemShell from './MemShell.vue';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface Info {
@@ -160,7 +160,7 @@ async function sendTransfer() {
 <style scoped>
 .bill { margin-top: 18px; padding: 22px; border-radius: 20px; animation: pm-rise .5s var(--ease) both; }
 .head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.head h1 { margin: 2px 0; font-size: 2.1rem; background: linear-gradient(90deg, #0f766e, #1e3a8a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.head h1 { margin: 2px 0; font-size: 2.1rem; background: linear-gradient(90deg, #164e38, #1e3a8a); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .st { border-radius: 999px; padding: 3px 12px; font-size: .8rem; font-weight: 700; background: #fef3c7; color: #92400e; white-space: nowrap; }
 .st.paid { background: #d1fae5; color: #065f46; }
 .st.review { background: #dbeafe; color: #1e40af; }
@@ -170,17 +170,17 @@ async function sendTransfer() {
 .ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 14px 0; }
 .ways button { font: inherit; font-weight: 700; padding: 12px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface); cursor: pointer; transition: all .2s; }
 .ways button small { display: block; font-weight: 500; color: var(--muted); font-size: .74rem; margin-top: 2px; }
-.ways button.on { border-color: #0f766e; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(15,118,110,.15); }
+.ways button.on { border-color: #164e38; background: #f0fdfa; box-shadow: 0 0 0 3px rgba(15,118,110,.15); }
 .go { width: 100%; margin-top: 10px; min-height: 48px; font-size: 1.05rem; }
 .bank { background: var(--surface-2); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; }
 .bank p { display: flex; justify-content: space-between; gap: 10px; margin: 6px 0; }
 .bank span { color: var(--muted); }
 .done { text-align: center; padding: 18px 0 4px; }
-.check { width: 74px; height: 74px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; font-size: 2.2rem; color: #fff; background: linear-gradient(135deg, #10b981, #0f766e); animation: pop .6s var(--ease) both; box-shadow: 0 0 0 10px rgba(16,185,129,.15); }
+.check { width: 74px; height: 74px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; font-size: 2.2rem; color: #fff; background: linear-gradient(135deg, #10b981, #164e38); animation: pop .6s var(--ease) both; box-shadow: 0 0 0 10px rgba(16,185,129,.15); }
 .check.wait { background: linear-gradient(135deg, #60a5fa, #1e3a8a); box-shadow: 0 0 0 10px rgba(59,130,246,.15); }
 .sandbox { margin-top: 12px; }
 .fake-card { margin: 12px auto; max-width: 340px; aspect-ratio: 1.586; border-radius: 16px; padding: 18px; color: #fff; display: flex; flex-direction: column; justify-content: space-between;
-  background: linear-gradient(135deg, #1e3a8a, #0f766e); box-shadow: 0 14px 30px rgba(30,58,138,.3); direction: ltr; font-family: ui-monospace, monospace; font-size: 1.1rem; letter-spacing: 2px; }
+  background: linear-gradient(135deg, #1e3a8a, #164e38); box-shadow: 0 14px 30px rgba(30,58,138,.3); direction: ltr; font-family: ui-monospace, monospace; font-size: 1.1rem; letter-spacing: 2px; }
 .fake-card small { display: block; font-size: .65rem; opacity: .7; letter-spacing: 0; }
 .fake-card b { letter-spacing: 0; font-size: .9rem; }
 @keyframes pop { from { transform: scale(.4); opacity: 0; } }

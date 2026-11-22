@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import PersonPicker from '../components/PersonPicker.vue';
 import { CONF, CONF_COLOR, PRIORITIES, PURPOSES, addDays, loadLookups, todayStr, unitOptions, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 const props = defineProps<{ id?: string }>();

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { OUTPUT_TYPES, P, STATUS_COLOR, errMsg, fmtDate, label, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Output { id?: string; type: string; decision: string; ownerName: string; dueDate: string | null; status: 'open' | 'done'; overdue?: boolean }

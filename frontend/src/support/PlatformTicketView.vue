@@ -184,7 +184,7 @@ const isOpen = () => t.value && !['resolved', 'closed'].includes(t.value.status)
 .block { display: block; margin-top: 4px; }
 .btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .mt { margin-top: 8px; }
-.gold { color: #e8b04b; }
+.gold { color: #c7a27a; }
 .small { font-size: .85rem; }
 .assignee { margin: 0; font-weight: 600; }
 .add { margin-inline-start: auto; }

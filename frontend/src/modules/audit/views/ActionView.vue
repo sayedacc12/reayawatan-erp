@@ -4,7 +4,7 @@ import { api, openProtectedFile } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { LEVEL_COLOR, P, STATUS_COLOR, fmtDate, fmtDateTime, loadLookups, todayStr, type ActionRow, type Lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 interface Detail extends ActionRow {

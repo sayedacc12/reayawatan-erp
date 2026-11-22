@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, dt } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Seq { voucherType: string; label: string; continuous: boolean; startSerial: number; endSerial: number | null; nextSerial: number }

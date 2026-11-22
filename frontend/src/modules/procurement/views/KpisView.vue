@@ -4,7 +4,7 @@ import { onMounted, ref, watch } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { today } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 /** مؤشرات أداء المشتريات والمستودعات لفترة، مقارنة بمستهدفاتها */

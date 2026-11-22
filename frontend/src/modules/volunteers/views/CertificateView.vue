@@ -5,7 +5,7 @@ import BrandMark from '../../../components/BrandMark.vue';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, fmtDate, hijri, publicUrl } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -61,7 +61,7 @@ header b { font-size: 1.15rem; }
 header small { color: #6b7280; font-family: ui-monospace, monospace; direction: ltr; }
 h1 { font-size: 2rem; color: #92400e; margin: 6px 0 18px; letter-spacing: .5px; }
 .thanks h1 { color: #065f46; }
-.name { font-size: 1.6rem; font-weight: 800; color: #0f766e; margin-bottom: 14px; border-bottom: 1px dashed #d1d5db; display: inline-block; padding: 0 30px 6px; }
+.name { font-size: 1.6rem; font-weight: 800; color: #164e38; margin-bottom: 14px; border-bottom: 1px dashed #d1d5db; display: inline-block; padding: 0 30px 6px; }
 .body { font-size: 1.08rem; line-height: 2.1; max-width: 680px; margin: 0 auto 18px; }
 .hours { display: inline-flex; flex-direction: column; align-items: center; padding: 10px 24px; border-radius: 14px; background: linear-gradient(135deg, #fef3c7, #d1fae5); margin-bottom: 18px; }
 .hours b { font-size: 2rem; color: #92400e; }

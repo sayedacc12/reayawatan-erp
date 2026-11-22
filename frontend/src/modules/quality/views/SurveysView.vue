@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, PARTIES, errMsg, fmtDate, num, uid } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Survey { id: string; title: string; audience: string; audienceLabel: string; status: 'draft' | 'open' | 'closed'; formCode: string | null; questions: number; responses: number; targetResponses: number; index: number | null; publicToken: string; createdAt: string }

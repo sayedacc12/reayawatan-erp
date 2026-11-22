@@ -115,7 +115,7 @@ const MARK: Record<string, string> = { cleared: '✔', blocked: '✖', pending: 
 </template>
 
 <style scoped>
-.sep-print h3 { font-size: 1rem; color: #0f766e; margin: 22px 0 8px; }
+.sep-print h3 { font-size: 1rem; color: #164e38; margin: 22px 0 8px; }
 .sep-print h3 small { color: #b45309; font-weight: 500; }
 .sp-grid, .sp-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .sp-grid th, .sp-grid td, .sp-table th, .sp-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: start; vertical-align: top; }

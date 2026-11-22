@@ -45,7 +45,7 @@ async function submit() {
   <div class="sv">
     <div class="glow" aria-hidden="true"><span /><span /></div>
     <main class="wrap">
-      <header class="top"><BrandMark :size="30" /><b>{{ s?.organizationName || 'سنابل' }}</b></header>
+      <header class="top"><BrandMark :size="30" /><b>{{ s?.organizationName || 'رعاية وطن' }}</b></header>
       <div v-if="error && !s" class="card box">{{ error }}</div>
       <div v-else-if="sent" class="card box done">
         <span class="big">✓</span>
@@ -83,8 +83,8 @@ async function submit() {
 .sv { min-height: 100vh; background: var(--grad-dark); position: relative; overflow-x: hidden; padding: 24px 14px 60px; }
 .glow { position: fixed; inset: 0; pointer-events: none; }
 .glow span { position: absolute; width: 50vmax; height: 50vmax; border-radius: 50%; filter: blur(90px); opacity: .3; animation: drift 16s ease-in-out infinite alternate; }
-.glow span:first-child { background: #14b8a6; top: -20vmax; right: -15vmax; }
-.glow span:last-child { background: #e8b04b; bottom: -25vmax; left: -15vmax; opacity: .2; animation-delay: -8s; }
+.glow span:first-child { background: #2f7a57; top: -20vmax; right: -15vmax; }
+.glow span:last-child { background: #c7a27a; bottom: -25vmax; left: -15vmax; opacity: .2; animation-delay: -8s; }
 @keyframes drift { to { transform: translate(5vmax, 4vmax) scale(1.08); } }
 .wrap { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; }
 .top { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 1.1rem; margin-bottom: 16px; }
@@ -107,7 +107,7 @@ async function submit() {
 .opts label.on { border-color: var(--primary); background: var(--primary-soft); }
 .send { width: 100%; margin-top: 12px; padding: 12px; font-size: 1rem; }
 .done { text-align: center; }
-.done .big { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #14b8a6); color: #fff; font-size: 2rem; animation: pop .6s ease both; }
+.done .big { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #2f7a57); color: #fff; font-size: 2rem; animation: pop .6s ease both; }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes pop { 0% { transform: scale(.3); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
 @media (max-width: 480px) { .faces button small { display: none; } }

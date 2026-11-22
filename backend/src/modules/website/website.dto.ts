@@ -1,120 +1,217 @@
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested,
+  ArrayMaxSize, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsObject, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested,
 } from 'class-validator';
-import { ICONS } from './website-defaults';
+import { BOOKING_STATUSES, LEAD_STATUSES } from './entities/website.entity';
+import { SERVICE_ICONS } from './website-defaults';
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() : value));
+const PHONE = /^[0-9+\s()-]{7,20}$/;
+/** نص سطر واحد بلا محارف تحكم (يظهر في عناوين البريد وجداول التصدير) */
+const LINE = /^[^\x00-\x1F\x7F]*$/;
+const LINE_MSG = { message: 'النص يحتوي محارف غير مسموحة' };
 
-// ---------------- الأخبار ----------------
+/** حقول التواصل المشتركة في كل نماذج الموقع */
+class VisitorDto {
+  @IsString() @MinLength(2, { message: 'اكتبوا الاسم' }) @MaxLength(160) @Matches(LINE, LINE_MSG)
+  name!: string;
 
-export class NewsDto {
-  @trim() @IsString() @MinLength(5, { message: 'اكتب عنوان الخبر (5 أحرف على الأقل)' }) @MaxLength(250) title!: string;
-  @trim() @IsString() @MinLength(10, { message: 'اكتب ملخصًا قصيرًا للخبر' }) @MaxLength(600) summary!: string;
-  @trim() @IsString() @MinLength(20, { message: 'اكتب نص الخبر' }) @MaxLength(30000) body!: string;
-  @IsOptional() @IsUUID() imageId?: string | null;
-  @Matches(DATE, { message: 'تاريخ الخبر غير صحيح' }) newsDate!: string;
-  @IsBoolean() ticker!: boolean;
-  /** draft: حفظ كمسودة، submit: إرسال للاعتماد، publish: نشر مباشر (لمن يملك صلاحية الاعتماد) */
-  @IsIn(['draft', 'submit', 'publish']) action!: 'draft' | 'submit' | 'publish';
+  @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' }) @MaxLength(200)
+  email!: string;
+
+  @IsOptional() @IsString() @MaxLength(200) @Matches(LINE, LINE_MSG)
+  orgName?: string;
+
+  @IsOptional() @IsString() @Matches(PHONE, { message: 'رقم الجوال غير صحيح' })
+  phone?: string;
+
+  @IsOptional() @IsString() @MaxLength(60) @Matches(LINE, LINE_MSG)
+  orgType?: string;
+
+  /** حقل مخفي لاصطياد البرامج الآلية: الإنسان لا يراه فيتركه فارغًا */
+  @IsOptional() @IsString() @MaxLength(200)
+  website?: string;
+
+  /** الصفحة ومصدر الزيارة */
+  @IsOptional() @IsString() @MaxLength(300)
+  page?: string;
+
+  @IsOptional() @IsString() @MaxLength(120)
+  utm?: string;
 }
 
-export class DecisionDto {
-  @IsIn(['approve', 'return', 'reject', 'unpublish']) decision!: 'approve' | 'return' | 'reject' | 'unpublish';
-  @IsOptional() @trim() @IsString() @MaxLength(1000) note?: string;
+export class CalculatorInputDto {
+  @Type(() => Number) @IsInt() @Min(10_000) @Max(1_000_000_000)
+  budget!: number;
+
+  @Type(() => Number) @IsInt() @Min(10) @Max(1_000_000)
+  cost!: number;
+
+  @Type(() => Number) @IsInt() @Min(1) @Max(50)
+  efficiency!: number;
 }
 
-// ---------------- البرامج ----------------
+export class AssessmentInputDto {
+  @IsArray() @ArrayMaxSize(20) @IsInt({ each: true }) @Min(0, { each: true }) @Max(2, { each: true })
+  answers!: number[];
+}
+
+/** نموذج عام: طلب استشارة، أو إرسال نتيجة الحاسبة أو التقييم */
+export class LeadSubmitDto extends VisitorDto {
+  @IsIn(['consultation', 'calculator', 'assessment'])
+  source!: 'consultation' | 'calculator' | 'assessment';
+
+  @IsOptional() @IsString() @MaxLength(60)
+  serviceSlug?: string;
+
+  @IsOptional() @IsString() @MaxLength(4000)
+  message?: string;
+
+  @IsOptional() @ValidateNested() @Type(() => CalculatorInputDto)
+  calculator?: CalculatorInputDto;
+
+  @IsOptional() @ValidateNested() @Type(() => AssessmentInputDto)
+  assessment?: AssessmentInputDto;
+}
+
+export class GuideRequestDto extends VisitorDto {}
+
+export class BookingRequestDto extends VisitorDto {
+  @IsISO8601({ strict: true }, { message: 'اختاروا موعدًا' })
+  startsAt!: string;
+
+  @IsOptional() @IsString() @MaxLength(300) @Matches(LINE, LINE_MSG)
+  topic?: string;
+
+  @IsOptional() @ValidateNested() @Type(() => CalculatorInputDto)
+  calculator?: CalculatorInputDto;
+
+  @IsOptional() @ValidateNested() @Type(() => AssessmentInputDto)
+  assessment?: AssessmentInputDto;
+}
+
+export class CancelBookingDto {
+  @IsOptional() @IsString() @MaxLength(500)
+  reason?: string;
+}
+
+// ---------------- لوحة التحكم ----------------
+
+export class LeadQueryDto {
+  @IsOptional() @IsIn([...LEAD_STATUSES, 'open'])
+  status?: string;
+
+  @IsOptional() @IsIn(['consultation', 'calculator', 'assessment', 'guide', 'booking'])
+  source?: string;
+
+  @IsOptional() @IsString() @MaxLength(100)
+  q?: string;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(1000)
+  page?: number;
+}
+
+export class LeadUpdateDto {
+  @IsOptional() @IsIn(LEAD_STATUSES)
+  status?: string;
+
+  @IsOptional() @IsUUID('all', { message: 'الموظف غير صحيح' })
+  assignedTo?: string | null;
+
+  @IsOptional() @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  nextActionOn?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(4000)
+  note?: string;
+}
+
+export class BookingQueryDto {
+  @IsOptional() @IsIn(['upcoming', 'past', 'all'])
+  when?: string;
+
+  @IsOptional() @IsIn(BOOKING_STATUSES)
+  status?: string;
+}
+
+export class BookingUpdateDto {
+  @IsOptional() @IsIn(BOOKING_STATUSES)
+  status?: string;
+
+  @IsOptional() @Matches(/^https:\/\/[^\s]{4,490}$/, { message: 'رابط الاجتماع يبدأ بـ https://' })
+  meetingUrl?: string | null;
+
+  @IsOptional() @IsUUID('all')
+  consultantId?: string | null;
+
+  @IsOptional() @IsString() @MaxLength(500)
+  reason?: string;
+
+  /** إبلاغ العميل بالتأكيد أو الإلغاء على بريده */
+  @IsOptional() @IsBoolean()
+  notifyVisitor?: boolean;
+}
+
+/** قسم محتوى كامل. التحقق من شكل كل قسم في الخدمة (قائمة الحقول المسموحة لكل قسم) */
+export class SectionDto {
+  @IsObject()
+  data!: Record<string, unknown>;
+}
+
+class ItemDto {
+  @IsString() @MaxLength(200) title!: string;
+  @IsString() @MaxLength(1000) desc!: string;
+}
+class ShiftDto {
+  @IsString() @MaxLength(300) from!: string;
+  @IsString() @MaxLength(300) to!: string;
+}
 
 export class ServiceDto {
-  @IsIn(ICONS) icon!: string;
-  @trim() @IsString() @MinLength(2) @MaxLength(80) title!: string;
-  @trim() @IsString() @MaxLength(300) text!: string;
-}
+  @Matches(/^[a-z0-9](?:[a-z0-9-]{0,58}[a-z0-9])?$/, { message: 'المعرف بحروف إنجليزية صغيرة وأرقام وشرطة فقط' })
+  slug!: string;
 
-export class ProgramDto {
-  @Matches(/^[a-z0-9][a-z0-9-]{1,58}$/, { message: 'رمز البرنامج حروف إنجليزية صغيرة وأرقام وشرطات فقط، مثل: orphans-care' }) slug!: string;
-  @trim() @IsString() @MinLength(3, { message: 'اكتب اسم البرنامج' }) @MaxLength(200) name!: string;
-  @IsOptional() @trim() @IsString() @MaxLength(300) tagline?: string | null;
-  @trim() @IsString() @MinLength(10, { message: 'اكتب نبذة مختصرة عن البرنامج' }) @MaxLength(800) summary!: string;
-  @IsOptional() @IsString() @MaxLength(8000) about?: string | null;
-  @IsOptional() @IsString() @MaxLength(800) audience?: string | null;
-  @IsOptional() @IsString() @MaxLength(200) timing?: string | null;
-  @IsArray() @ArrayMaxSize(12) @ValidateNested({ each: true }) @Type(() => ServiceDto) services!: ServiceDto[];
-  @IsArray() @ArrayMaxSize(12) @IsString({ each: true }) @MaxLength(200, { each: true }) points!: string[];
-  @IsIn(ICONS) icon!: string;
-  @IsOptional() @IsUUID() imageId?: string | null;
-  @IsOptional() @IsUUID() kitDocId?: string | null;
-  @IsOptional() @IsUUID() activityId?: string | null;
-  @IsIn(['draft', 'submit']) action!: 'draft' | 'submit';
-}
+  @IsString() @MinLength(2) @MaxLength(160) title!: string;
+  @IsString() @MaxLength(60) stage!: string;
+  @IsIn(SERVICE_ICONS) icon!: string;
+  @IsString() @MaxLength(600) short!: string;
+  @IsString() @MaxLength(3000) intro!: string;
+  @IsString() @MaxLength(600) value!: string;
 
-export class ProgramStoreDto {
-  @IsBoolean() on!: boolean;
-  @IsIn(['project', 'waqf']) kind!: 'project' | 'waqf';
-  @Type(() => Number) @IsInt() @Min(0) @Max(1_000_000_000) goal!: number;
-  @IsOptional() @Matches(DATE, { message: 'تاريخ انتهاء الحملة غير صحيح' }) endDate?: string | null;
-  @Type(() => Number) @IsInt() @Min(0) @Max(1_000_000) min!: number;
-  @Type(() => Number) @IsInt() @Min(0) @Max(1_000_000) max!: number;
-  @IsArray() @ArrayMaxSize(6) @Type(() => Number) @IsInt({ each: true }) @Min(1, { each: true }) @Max(1_000_000, { each: true }) presets!: number[];
-  @IsBoolean() stop!: boolean;
-  @IsBoolean() monthly!: boolean;
-  @IsBoolean() gift!: boolean;
-  @IsOptional() @IsUUID() revenueAccountId?: string | null;
-}
+  @IsArray() @ArrayMaxSize(12) @ValidateNested({ each: true }) @Type(() => ItemDto)
+  deliverables!: ItemDto[];
 
-export class ProgramDecisionDto extends DecisionDto {
-  @IsOptional() @IsBoolean() showOnSite?: boolean;
-  @IsOptional() @IsBoolean() featured?: boolean;
-  @IsOptional() @ValidateNested() @Type(() => ProgramStoreDto) store?: ProgramStoreDto;
+  @IsArray() @ArrayMaxSize(12) @IsString({ each: true }) @MaxLength(120, { each: true })
+  audience!: string[];
+
+  @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => ItemDto)
+  steps!: ItemDto[];
+
+  @IsArray() @ArrayMaxSize(8) @ValidateNested({ each: true }) @Type(() => ShiftDto)
+  shifts!: ShiftDto[];
+
+  @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) @MaxLength(200, { each: true })
+  kpis!: string[];
+
+  @IsBoolean() featured!: boolean;
+  @IsBoolean() published!: boolean;
 }
 
 export class OrderDto {
-  @IsArray() @ArrayMaxSize(500) @IsUUID('all', { each: true }) ids!: string[];
+  @IsArray() @ArrayMaxSize(100) @IsUUID('all', { each: true })
+  ids!: string[];
 }
 
-// ---------------- الإعدادات والصفحات ----------------
+export class GuideDto {
+  @Matches(/^[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?$/, { message: 'المعرف بحروف إنجليزية صغيرة وأرقام وشرطة فقط' })
+  slug!: string;
 
-export class SectionDto {
-  @IsObject() data!: Record<string, unknown>;
-}
+  @IsString() @MinLength(2) @MaxLength(200) title!: string;
+  @IsString() @MaxLength(1500) summary!: string;
 
-// ---------------- العامة ----------------
+  @IsOptional() @IsString() @MaxLength(60)
+  serviceSlug?: string | null;
 
-export class GiftDto {
-  @trim() @IsString() @MinLength(2, { message: 'اكتب اسم المُهدى إليه' }) @MaxLength(80) to!: string;
-  @IsOptional() @trim() @IsString() @MaxLength(20) phone?: string;
-  @IsOptional() @trim() @IsString() @MaxLength(200) message?: string;
-}
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(2000)
+  pages?: number | null;
 
-export class DonateDto {
-  @IsOptional() @IsUUID() programId?: string | null;
-  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 0 }, { message: 'المبلغ رقم صحيح بالريال' }) @Min(1) @Max(1_000_000) amount!: number;
-  @IsOptional() @trim() @IsString() @MaxLength(200) name?: string;
-  @trim() @IsString() @MaxLength(20) phone!: string;
-  @IsOptional() @trim() @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' }) @MaxLength(200) email?: string;
-  @IsOptional() @ValidateNested() @Type(() => GiftDto) gift?: GiftDto | null;
-  @IsOptional() @IsBoolean() monthly?: boolean;
-}
-
-export class SandboxPayDto {
-  @IsString() @MaxLength(40) ref!: string;
-}
-
-export class ContactDto {
-  @trim() @IsString() @MinLength(2, { message: 'اكتب اسمك' }) @MaxLength(200) name!: string;
-  @IsOptional() @trim() @IsString() @MaxLength(20) phone?: string;
-  @IsOptional() @trim() @IsEmail({}, { message: 'البريد الإلكتروني غير صحيح' }) @MaxLength(200) email?: string;
-  @IsIn(['inquiry', 'suggestion', 'complaint', 'partnership', 'other']) topic!: string;
-  @trim() @IsString() @MinLength(10, { message: 'اكتب رسالتك (10 أحرف على الأقل)' }) @MaxLength(4000) body!: string;
-}
-
-export class MessageUpdateDto {
-  @IsIn(['new', 'in_progress', 'closed']) status!: string;
-  @IsOptional() @trim() @IsString() @MaxLength(2000) replyNote?: string | null;
-}
-
-export class SubscriptionStatusDto {
-  @IsIn(['active', 'paused', 'cancelled']) status!: string;
+  @IsBoolean() published!: boolean;
 }

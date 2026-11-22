@@ -8,7 +8,7 @@
 .pl-hero .pm-kicker { color: #7dd3fc; }
 .pl-glow { background: linear-gradient(135deg, #38bdf8, #34d399); color: #04121f; border: 0; font-weight: 700; box-shadow: 0 6px 24px rgba(56,189,248,.4); }
 .pl-glow:hover { filter: brightness(1.07); }
-.pl-tabs .rk-tab.on, .rk-tabs.pl-tabs .rk-tab.on { background: linear-gradient(135deg, #0369a1, #0f766e); box-shadow: 0 6px 18px rgba(3,105,161,.25); }
+.pl-tabs .rk-tab.on, .rk-tabs.pl-tabs .rk-tab.on { background: linear-gradient(135deg, #0369a1, #164e38); box-shadow: 0 6px 18px rgba(3,105,161,.25); }
 
 .pl-vision { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
 .pl-vm { position: relative; overflow: hidden; border-radius: 16px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); }

@@ -37,7 +37,7 @@ function hide() {
     <span class="count" aria-hidden="true"><b>{{ days }}</b><small>{{ days === 1 ? 'يوم' : 'أيام' }}</small></span>
     <div class="msg">
       <strong>{{ days === 0 ? 'اليوم آخر يوم في الفترة التجريبية' : `متبقٍ ${daysLabel(days)} على نهاية الفترة التجريبية` }}</strong>
-      <span>تنتهي في {{ fmtDate(notice.trialEndsOn) }}، وبعدها يتوقف الدخول. وإن لم يتم التعاقد تُحذف الجمعية وكل بياناتها نهائيًا في {{ fmtDate(notice.deleteOn) }} ({{ inDays(notice.daysToDelete) }}). للاشتراك تواصلوا مع فريق سنابل.</span>
+      <span>تنتهي في {{ fmtDate(notice.trialEndsOn) }}، وبعدها يتوقف الدخول. وإن لم يتم التعاقد تُحذف الجمعية وكل بياناتها نهائيًا في {{ fmtDate(notice.deleteOn) }} ({{ inDays(notice.daysToDelete) }}). للاشتراك تواصلوا مع الدعم الفني.</span>
     </div>
     <button v-if="!urgent" class="close" title="إخفاء اليوم" @click="hide">×</button>
   </div>

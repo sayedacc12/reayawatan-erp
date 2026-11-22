@@ -2,9 +2,9 @@
 import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { LEVEL_COLOR, P, STATUS_COLOR, fmtDate, num } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Dash {
@@ -55,7 +55,7 @@ const heatColor = (l: number, i: number) => LEVEL_COLOR[l * i >= 15 ? 'high' : l
         <div class="pm-kpi" style="--a: #10b981; --i: 0"><span>نسبة تغطية متطلبات المواصفة</span><strong><CountUp :value="data.kpis.compliance" />%</strong><small>من أدلة النظام الفعلية</small></div>
         <div class="pm-kpi" style="--a: #0ea5e9; --i: 1"><span>الوثائق المضبوطة</span><strong><CountUp :value="data.kpis.documents" /></strong><small>{{ data.kpis.approvedDocs }} معتمدة سارية</small></div>
         <div class="pm-kpi" style="--a: #ef4444; --i: 2"><span>حالات عدم مطابقة مفتوحة</span><strong><CountUp :value="data.kpis.openNcr" /></strong><small>نسبة الإغلاق {{ num(data.kpis.closureRate) }}%</small></div>
-        <div class="pm-kpi" style="--a: #e8b04b; --i: 3"><span>مؤشر رضا المستفيدين</span><strong>{{ data.kpis.satisfaction === null ? '—' : '' }}<CountUp v-if="data.kpis.satisfaction !== null" :value="data.kpis.satisfaction" :decimals="1" />{{ data.kpis.satisfaction === null ? '' : '%' }}</strong><small>من استبانات {{ data.year }}</small></div>
+        <div class="pm-kpi" style="--a: #c7a27a; --i: 3"><span>مؤشر رضا المستفيدين</span><strong>{{ data.kpis.satisfaction === null ? '—' : '' }}<CountUp v-if="data.kpis.satisfaction !== null" :value="data.kpis.satisfaction" :decimals="1" />{{ data.kpis.satisfaction === null ? '' : '%' }}</strong><small>من استبانات {{ data.year }}</small></div>
         <div class="pm-kpi" style="--a: #f97316; --i: 4"><span>شكاوى قيد المعالجة</span><strong><CountUp :value="data.kpis.complaintsOpen" /></strong><small>من كل القنوات</small></div>
         <div class="pm-kpi" style="--a: #8b5cf6; --i: 5"><span>أهداف الجودة المحققة</span><strong><CountUp :value="data.kpis.objectivesAchieved" /> / {{ data.kpis.objectivesTotal }}</strong><small>المراجعات المنفذة {{ data.kpis.auditsDone }} من {{ data.kpis.auditsPlanned }}</small></div>
       </div>

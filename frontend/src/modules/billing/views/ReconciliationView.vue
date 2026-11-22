@@ -4,7 +4,7 @@ import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { fmtDate, sar, today } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
 

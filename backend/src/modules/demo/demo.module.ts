@@ -2,11 +2,8 @@ import { Module } from '@nestjs/common';
 import { CoreModule } from '../../core/core.module';
 import { AccountingModule } from '../accounting/accounting.module';
 import { AuditModule } from '../audit/audit.module';
-import { BeneficiariesModule } from '../beneficiaries/beneficiaries.module';
-import { FundraisingModule } from '../fundraising/fundraising.module';
 import { HrModule } from '../hr/hr.module';
 import { MembersModule } from '../members/members.module';
-import { ProjectsModule } from '../projects/projects.module';
 import { RiskModule } from '../risk/risk.module';
 import { VolunteersModule } from '../volunteers/volunteers.module';
 import { QualityModule } from '../quality/quality.module';
@@ -20,13 +17,11 @@ import { DemoService } from './demo.service';
 import { AccountingSeed } from './seed-accounting';
 import { AssetsSeed } from './seed-assets';
 import { AuditSeed } from './seed-audit';
-import { BeneficiariesSeed } from './seed-beneficiaries';
-import { FinanceSeed } from './seed-finance';
 import { GovernanceSeed } from './seed-governance';
 import { HrSeed } from './seed-hr';
 import { MembersSeed } from './seed-members';
 import { PlatformSeed } from './seed-platform';
-import { ProjectsSeed } from './seed-projects';
+import { TeamSeed } from './seed-team';
 import { RiskSeed } from './seed-risk';
 import { QualitySeed } from './seed-quality';
 import { SupportSeed } from './seed-support';
@@ -52,10 +47,10 @@ import { BillingSeed } from './seed-billing';
 import { BillingModule } from '../billing/billing.module';
 import { StockSeed } from './seed-stock';
 
-/** الجمعية التجريبية: تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
+/** المنشأة التجريبية (لاختبارات العزل والعرض): تعتمد على كل الوحدات لتنشئ بيانات مترابطة عبرها */
 @Module({
-  imports: [CoreModule, BeneficiariesModule, FundraisingModule, ProjectsModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, BillingModule, TypeOrmModule.forFeature([OrganizationSampleData])],
+  imports: [CoreModule, AccountingModule, HrModule, RiskModule, VolunteersModule, QualityModule, AuditModule, MembersModule, KnowledgeModule, WebsiteModule, GovernanceModule, CommsModule, MeetingsModule, PartnershipsModule, PlanningModule, ProcurementModule, BillingModule, TypeOrmModule.forFeature([OrganizationSampleData])],
   controllers: [DemoController, SampleDataController, PlatformSampleDataController],
-  providers: [DemoService, SampleDataService, AssetsSeed, BeneficiariesSeed, ProjectsSeed, FinanceSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed, StockSeed, InvoicesSeed, ContractsSeed, BillingSeed],
+  providers: [DemoService, SampleDataService, AssetsSeed, TeamSeed, PlatformSeed, AccountingSeed, SupportSeed, HrSeed, RiskSeed, VolunteersSeed, QualitySeed, AuditSeed, MembersSeed, WebsiteSeed, GovernanceSeed, CommsSeed, MeetingsSeed, PartnershipsSeed, PlanningSeed, BudgetSeed, ProcurementSeed, SourcingSeed, StockSeed, InvoicesSeed, ContractsSeed, BillingSeed],
 })
 export class DemoModule {}

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, STATUS_COLOR, fmtDate } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 interface Obj { title: string; weight: number; target: string; achievement: number | null; note: string | null }
@@ -75,7 +75,7 @@ function pushComp() {
   addComp.value = '';
 }
 const shownScore = computed(() => (c.value?.finalScore ?? c.value?.preview.finalScore ?? 0) as number);
-const color = computed(() => (shownScore.value >= 90 ? '#10b981' : shownScore.value >= 80 ? '#14b8a6' : shownScore.value >= 70 ? '#6366f1' : shownScore.value >= 60 ? '#f59e0b' : '#ef4444'));
+const color = computed(() => (shownScore.value >= 90 ? '#10b981' : shownScore.value >= 80 ? '#2f7a57' : shownScore.value >= 70 ? '#6366f1' : shownScore.value >= 60 ? '#f59e0b' : '#ef4444'));
 </script>
 
 <template>

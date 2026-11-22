@@ -1,4 +1,4 @@
-# النسخ الاحتياطي لسنابل
+# النسخ الاحتياطي لرعاية وطن
 
 ## كيف يعمل
 
@@ -24,20 +24,20 @@
 1. ادخل على لوحة Oracle Cloud.
 2. من القائمة: **Storage ← Buckets**.
 3. اختر الـ Compartment الرئيسي (root)، ثم **Create Bucket**.
-4. الاسم: `sanabel-backups`، واترك باقي الخيارات كما هي (Standard، وخاص Private)، ثم **Create**.
+4. الاسم: `reayawatan-backups`، واترك باقي الخيارات كما هي (Standard، وخاص Private)، ثم **Create**.
 5. افتح الـ Bucket، وانسخ قيمة **Namespace** الظاهرة في صفحته.
 
 ### 2. إنشاء مفتاح الدخول
 1. من أيقونة الحساب أعلى اليمين: **My profile**.
 2. من القائمة الجانبية: **Customer secret keys ← Generate secret key**.
-3. الاسم: `sanabel-backup`، ثم **Generate**.
+3. الاسم: `reayawatan-backup`، ثم **Generate**.
 4. يظهر **Secret** مرة واحدة فقط. انسخه واحتفظ به مؤقتًا في مكان آمن على جهازك.
 5. بعد الإغلاق يظهر المفتاح في القائمة، وبجانبه **Access Key**. انسخه أيضًا.
 
 ### 3. الربط على السيرفر
 ادخل السيرفر، ثم:
 ```bash
-cd charity-erp
+cd reayawatan-erp
 bash deploy/backup.sh setup-oracle
 ```
 سيطلب: Namespace، واسم الـ Bucket (اضغط Enter للقيمة الافتراضية)، والمنطقة (Enter)، ثم Access Key، ثم Secret Key (لا يظهر أثناء اللصق، وهذا طبيعي).
@@ -53,12 +53,12 @@ bash deploy/backup.sh setup-oracle
    ```
 2. ثم:
    ```bash
-   cd charity-erp
+   cd reayawatan-erp
    bash deploy/backup.sh setup-drive
    ```
 3. يظهر رابط يبدأ بـ `http://127.0.0.1:53682/auth`. انسخه وافتحه في متصفح جهازك.
-4. اختر حساب Google، ووافق. الصلاحية محدودة: يرى سنابل الملفات التي ينشئها هو فقط، ولا يرى بقية ملفاتك.
-5. ترجع للسيرفر فتجده كتب «الربط يعمل». النسخ تُحفظ في Drive في مجلد `sanabel-backups`.
+4. اختر حساب Google، ووافق. الصلاحية محدودة: يرى رعاية وطن الملفات التي ينشئها هو فقط، ولا يرى بقية ملفاتك.
+5. ترجع للسيرفر فتجده كتب «الربط يعمل». النسخ تُحفظ في Drive في مجلد `reayawatan-backups`.
 
 ---
 
@@ -97,8 +97,8 @@ bash deploy/backup.sh restore oracle 2026-11-20_0300
 
 ## ملاحظات فنية
 - الأداة المستخدمة: `rclone` (من مستودعات Ubuntu)، والتشفير بطبقة `crypt` فيها. أسماء الملفات ظاهرة (التاريخ فقط)، والمحتوى مشفّر.
-- الإعدادات والمفاتيح في `/etc/sanabel-backup/` على السيرفر فقط، ولا يقرؤها إلا root، ولا تُرفع إلى GitHub.
+- الإعدادات والمفاتيح في `/etc/reayawatan-backup/` على السيرفر فقط، ولا يقرؤها إلا root، ولا تُرفع إلى GitHub.
 - قاعدة البيانات تُنسخ بصيغة `pg_dump -Fc` (مضغوطة)، والملفات المرفوعة بصيغة `tar.gz`.
-- المؤقت: `systemctl list-timers sanabel-backup.timer`، وسجل آخر تشغيل: `journalctl -u sanabel-backup -n 50`.
+- المؤقت: `systemctl list-timers rw-backup.timer`، وسجل آخر تشغيل: `journalctl -u rw-backup -n 50`.
 - تجربة الاستعادة الأسبوعية تستخدم مساحة مؤقتة بحجم القاعدة لدقائق ثم تُحذف.
 - عند فشل نسخة أو تأخرها أو فشل تجربة الاسترجاع تصل رسالة واحدة لعناوين الإدارة في إعدادات البريد (يمكن إيقافها من «البريد الإلكتروني» ← الأحداث).

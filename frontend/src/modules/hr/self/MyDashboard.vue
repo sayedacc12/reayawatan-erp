@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api } from '../../../api';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import LaunchCard from '../../../onboarding/LaunchCard.vue';
 import { fmtDate, hijri, num, sar } from '../lib';
 import { DAY_AR, DAY_COLOR, KIND_ICON, REQ_COLOR, rel, type ReqRow, type ReqType } from './ess';
@@ -83,7 +83,7 @@ const annualPct = computed(() => {
 });
 
 
-const ACT_COLOR: Record<string, string> = { leave: '#14b8a6', permission: '#f59e0b', letter: '#8b5cf6', advance: '#ec4899', performance: '#6366f1', attendance: '#10b981', general: '#64748b', exit_reentry: '#0ea5e9' };
+const ACT_COLOR: Record<string, string> = { leave: '#2f7a57', permission: '#f59e0b', letter: '#8b5cf6', advance: '#ec4899', performance: '#6366f1', attendance: '#10b981', general: '#64748b', exit_reentry: '#0ea5e9' };
 const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
 </script>
 

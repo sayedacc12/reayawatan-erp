@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
+import { FundingSources } from './funding-sources.service';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CoreModule } from '../../core/core.module';
 import { AccountingModule } from '../accounting/accounting.module';
-import { FundraisingModule } from '../fundraising/fundraising.module';
 import { PlanningModule } from '../planning/planning.module';
 import { CatalogService } from './catalog.service';
 import { PROCUREMENT_ENTITIES } from './entities/procurement.entity';
@@ -50,7 +50,7 @@ import { jwtOptionsFor } from '../../core/auth/token-keys';
  * وينشئ الشريك المقابل للمورد المعتمد عبر MastersService المصدّر من النظام المالي.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([...PROCUREMENT_ENTITIES, ...SOURCING_ENTITIES, ...STOCK_ENTITIES, ...INVOICE_ENTITIES, ...CONTRACT_ENTITIES]), CoreModule, AccountingModule, PlanningModule, FundraisingModule,
+  imports: [TypeOrmModule.forFeature([...PROCUREMENT_ENTITIES, ...SOURCING_ENTITIES, ...STOCK_ENTITIES, ...INVOICE_ENTITIES, ...CONTRACT_ENTITIES]), CoreModule, AccountingModule, PlanningModule,
     // رموز بوابة الموردين بمفتاح مستقل مشتق من سر النظام، فلا تصلح لغير بوابتها، وحارس الموظفين يرفضها
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -58,7 +58,7 @@ import { jwtOptionsFor } from '../../core/auth/token-keys';
     }),
   ],
   controllers: [ProcurementController, SourcingController, StockController, InvoicesController, ContractsController, SupplierPortalController],
-  providers: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SupplierPortalGuard, ProcurementTasks, ProcurementReports, ProcurementContractsReports,
+  providers: [FundingSources, ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SupplierPortalGuard, ProcurementTasks, ProcurementReports, ProcurementContractsReports,
     SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService,
     StockCore, ReceiptsService, IssueRequestsService, StockDocsService, CountsService, StockService, InvoicesService, ContractsService, EvaluationsService, InsightsService],
   exports: [ProcurementCore, CatalogService, WarehousesService, SuppliersService, SupplierPortalService, SourcingCore, RequestsService, RfqsService, OrdersService, SourcingPortalService,

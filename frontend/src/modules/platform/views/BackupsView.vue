@@ -142,7 +142,7 @@ const banner = computed(() => {
 .b-bad { background: var(--danger-soft); color: var(--danger); }
 .b-target { border-top: 4px solid var(--border); }
 .b-ok-edge { border-top-color: var(--success); }
-.b-warn-edge { border-top-color: #e8b04b; }
+.b-warn-edge { border-top-color: #c7a27a; }
 .b-bad-edge { border-top-color: var(--danger); }
 .b-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .b-head h2 { margin: 0; }

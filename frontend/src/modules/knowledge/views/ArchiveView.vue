@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import DocForm from '../components/DocForm.vue';
 import { DocRow, KP, STATUS_COLOR, TYPE_ICON, fmtDate } from '../lib';
-import '../../website/website.css';
+import '../../../shared/ws.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const session = useSession();

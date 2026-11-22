@@ -7,7 +7,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import PartnerForm from '../components/PartnerForm.vue';
 import { PARTNER_COLOR, PT, fmtDate, lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const route = useRoute();

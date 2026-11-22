@@ -2,12 +2,12 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, fmtDate, sar, todayStr, type EmpRow } from '../lib';
 import { SEP_COLOR, type SepRow } from '../separation';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 /** إخلاء الطرف ونهاية الخدمة: ملف لكل موظف تنتهي خدمته، يمر بإخلاء الطرف ثم بيان المستحقات واعتماده ثم الصرف */

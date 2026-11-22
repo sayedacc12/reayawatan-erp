@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { companySlug } from '../company';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import { DataSource, EntityManager, In, IsNull, Not } from 'typeorm';
@@ -67,6 +68,7 @@ export class PasswordResetService {
 
   /** «نسيت كلمة المرور» من صفحة دخول جمعية (orgSlug) أو من صفحة دخول المنصة */
   async requestStaff(login: string, orgSlug: string | undefined, ip: string | null) {
+    orgSlug = orgSlug || companySlug() || undefined;
     const reply = { message: orgSlug ? STAFF_FORGOT_REPLY : PLATFORM_FORGOT_REPLY };
     const id = login.trim().toLowerCase();
     if (!id) return reply;

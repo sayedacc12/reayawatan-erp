@@ -1,8 +1,15 @@
-# CLAUDE.md — Sanabel ERP (charity-erp)
+# CLAUDE.md — رعاية وطن (reayawatan-erp)
 
-Multi-tenant SaaS ERP for Saudi charities: financial accounting, restricted donations, procurement,
-inventory, HR/payroll, budgeting, supplier and beneficiary portals. Treat every change as touching
-money, personal data, or another organization's data, because it usually does.
+Single-company system for رعاية وطن (National Care), forked from the Sanabel ERP (charity-erp):
+the public website at reayawatan.com with its forms, bookings and guides library (module `website`),
+plus accounting, procurement, inventory, HR/payroll, budgeting, quality, risk and the employee portal.
+The beneficiaries, fundraising, projects and beneficiary-portal modules were removed.
+`COMPANY_SLUG` selects the one company; the multi-tenant internals and their gates stay in place as
+defense in depth. Treat every change as touching money or personal data, because it usually does.
+
+Deployment: Docker project `rw` (services `rw-db`, `rw-backend`, `rw-frontend`) on the same server as
+Sanabel, behind Sanabel's Caddy via the `caddy-edge` network (`deploy/README.md`). Never name a service
+`sanabel-frontend`, never put `rw-db` on `caddy-edge`, and never touch Sanabel's own deployment.
 
 Stack: NestJS 10 + TypeORM 0.3 + PostgreSQL 16 (backend/), Vue 3 + Vite RTL (frontend/),
 Docker Compose + Caddy (deploy/). One database, one `organization_id` per tenant row.
@@ -18,7 +25,7 @@ Security reference: `docs/security/` (threat model, ASVS matrix, incident respon
   SMTP/app passwords, JWT secrets, deploy keys, rclone configs. Never put a secret in code, tests,
   logs, commit messages, PR text, or chat.
 - Never run anything against production: `ssh`, `scp`, `deploy/*.sh`, `docker compose` with
-  `deploy/compose.prod.yml`, anything targeting `sanabelerp.com` or `81.208.167.28`.
+  `deploy/compose.prod.yml`, anything targeting `reayawatan.com`, `sanabelerp.com` or `81.208.167.28`.
 - Never run migrations or raw SQL against any non-test database (`migration:run*`, `typeorm migration:*`,
   `psql` on anything but the local `charity_erp_test`).
 - Never push to `main`, force-push, merge PRs, or change branch protection. The owner merges.

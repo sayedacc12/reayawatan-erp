@@ -125,13 +125,13 @@ const reopen = () => act('reopen', { note: reopenNote.value }, 'تمت إعاد�
 .layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
 .block { display: block; margin-top: 4px; }
-.gold { color: #e8b04b; }
+.gold { color: #c7a27a; }
 .small { font-size: .85rem; }
 .steps { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; }
 .resolved { border: 1.5px solid var(--success); }
 .stars { display: flex; gap: 4px; margin: 6px 0 10px; }
 .stars button { font-size: 1.8rem; border: 0; background: none; cursor: pointer; color: var(--border); transition: transform .15s; }
-.stars button.on { color: #e8b04b; }
+.stars button.on { color: #c7a27a; }
 .stars button:hover { transform: scale(1.15); }
 .actions { margin-top: 10px; }
 .inline { display: flex; gap: 8px; }

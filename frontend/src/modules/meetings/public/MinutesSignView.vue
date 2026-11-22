@@ -40,7 +40,7 @@ async function submit() {
   <div class="ms">
     <div class="glow" aria-hidden="true"><span /><span /></div>
     <main class="wrap">
-      <header class="top"><BrandMark :size="30" /><b>{{ v?.minutes.organization || 'سنابل' }}</b></header>
+      <header class="top"><BrandMark :size="30" /><b>{{ v?.minutes.organization || 'رعاية وطن' }}</b></header>
       <div v-if="!v && error" class="card box">{{ error }}</div>
       <div v-else-if="done" class="card box" style="text-align: center">
         <span class="big">{{ done === 'sign' ? '✓' : '!' }}</span>
@@ -77,7 +77,7 @@ async function submit() {
 .glow { position: fixed; inset: 0; pointer-events: none; }
 .glow span { position: absolute; width: 50vmax; height: 50vmax; border-radius: 50%; filter: blur(90px); opacity: .3; animation: drift 16s ease-in-out infinite alternate; }
 .glow span:first-child { background: #6366f1; top: -20vmax; right: -15vmax; }
-.glow span:last-child { background: #e8b04b; bottom: -25vmax; left: -15vmax; opacity: .2; animation-delay: -8s; }
+.glow span:last-child { background: #c7a27a; bottom: -25vmax; left: -15vmax; opacity: .2; animation-delay: -8s; }
 @keyframes drift { to { transform: translate(5vmax, 4vmax) scale(1.08); } }
 .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; }
 .top { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 1.1rem; margin-bottom: 16px; }

@@ -14,7 +14,7 @@ const today = new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'nu
 
 // ألوان متدرجة لكل تطبيق حسب ترتيبه
 const palettes = [
-  ['#14b8a6', '#0f766e'], ['#6366f1', '#4338ca'], ['#f59e0b', '#d97706'],
+  ['#2f7a57', '#164e38'], ['#6366f1', '#4338ca'], ['#f59e0b', '#d97706'],
   ['#ec4899', '#be185d'], ['#0ea5e9', '#0369a1'], ['#22c55e', '#15803d'],
 ];
 const tint = (i: number) => {
@@ -96,7 +96,7 @@ function spotlight(e: PointerEvent) {
   animation: breathe 8s ease-in-out infinite; }
 @keyframes breathe { 50% { opacity: .6; transform: scale(1.05); } }
 .welcome-text { position: relative; animation: rise .6s var(--ease) both; }
-.date { margin: 0 0 6px; color: #5eead4; font-size: .9rem; font-weight: 500; }
+.date { margin: 0 0 6px; color: #a9c9b5; font-size: .9rem; font-weight: 500; }
 .welcome h1 { font-size: 1.7rem; }
 .sub { margin: 8px 0 0; color: rgba(255,255,255,.75); }
 

@@ -6,7 +6,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import FinancePicker from '../components/FinancePicker.vue';
 import { lookups, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id?: string }>();

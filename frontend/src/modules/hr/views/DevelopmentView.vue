@@ -4,9 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { P, STATUS_COLOR, thisYear } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 /** التطوير والتدريب: خطط التطوير، فجوة الجدارات، والصف الثاني (البدلاء) */

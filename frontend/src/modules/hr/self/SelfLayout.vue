@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { ess, loadSummary, setMode } from './ess';
 import OrgHome from './OrgHome.vue';
 import { launchView } from '../../../onboarding/onboarding';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 import './ess.css';
 
@@ -55,7 +55,7 @@ const nav = computed(() => (!linked.value
     ...launchLink.value,
   ]));
 const active = (n: { to: string; exact?: boolean }) => (n.exact ? route.path === n.to : route.path === n.to || route.path.startsWith(`${n.to}/`));
-const PALETTE = ['#14b8a6', '#6366f1', '#f59e0b', '#ec4899', '#0ea5e9', '#22c55e', '#a855f7', '#ef4444'];
+const PALETTE = ['#2f7a57', '#6366f1', '#f59e0b', '#ec4899', '#0ea5e9', '#22c55e', '#a855f7', '#ef4444'];
 const appTint = (i: number) => ({ '--c': PALETTE[i % PALETTE.length], '--i': i });
 const initials = computed(() => ess.summary?.employee?.fullName.split(' ').slice(0, 2).map((w) => w.charAt(0)).join(' ') ?? '');
 </script>

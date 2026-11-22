@@ -10,7 +10,7 @@ import RiskPicker from '../components/RiskPicker.vue';
 import {
   ENG_STEPS, LEVEL_COLOR, LEVELS, OPINIONS, P, STATUS_COLOR, addDays, fmtDate, fmtDateTime, loadLookups, todayStr, unitOptions, type Lookups, type RiskRef,
 } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 interface Finding {

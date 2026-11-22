@@ -7,10 +7,10 @@
 @keyframes p-breathe { 50% { opacity: .6; transform: scale(1.04); } }
 .p-hero > * { position: relative; }
 .p-hero h1 { font-size: 1.45rem; }
-.p-kicker { margin: 0 0 4px; color: #5eead4; font-weight: 600; font-size: .86rem; }
+.p-kicker { margin: 0 0 4px; color: #a9c9b5; font-weight: 600; font-size: .86rem; }
 .p-sub { margin: 6px 0 0; color: rgba(255,255,255,.75); max-width: 620px; }
 .p-hero .btn { border-color: rgba(255,255,255,.25); }
-.btn-gold { background: linear-gradient(135deg, #f5c66b, #e8b04b); color: #3b2a06; border: 0; font-weight: 700; }
+.btn-gold { background: linear-gradient(135deg, #d9bc98, #c7a27a); color: #3b2a06; border: 0; font-weight: 700; }
 .btn-gold:hover { background: linear-gradient(135deg, #f8d48a, #eab558); }
 .btn-ghost-light { background: rgba(255,255,255,.08); color: #fff; }
 .btn-ghost-light:hover { background: rgba(255,255,255,.16); }

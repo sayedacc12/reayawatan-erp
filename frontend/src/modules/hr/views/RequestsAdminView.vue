@@ -2,11 +2,11 @@
 import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { useSession } from '../../../stores/session';
 import { P, fmtDate, sar } from '../lib';
 import { KIND_ICON, REQ_COLOR, type ReqRow } from '../self/ess';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 /** شؤون الموظفين: كل طلبات الخدمة الذاتية وسلف الموظفين */

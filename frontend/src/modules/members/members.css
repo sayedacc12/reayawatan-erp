@@ -32,7 +32,7 @@ button.mb-chip { cursor: pointer; font: inherit; font-size: .8rem; }
 .mb-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .mb-tab { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; cursor: pointer; font: inherit; color: var(--muted); transition: all .2s; }
 .mb-tab:hover { color: var(--text); }
-.mb-tab.on { background: linear-gradient(135deg, #1e3a8a, #0f766e); border-color: transparent; color: #fff; box-shadow: 0 6px 16px rgba(30,58,138,.3); }
+.mb-tab.on { background: linear-gradient(135deg, #1e3a8a, #164e38); border-color: transparent; color: #fff; box-shadow: 0 6px 16px rgba(30,58,138,.3); }
 .mb-kind { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: .74rem; font-weight: 600; }
 .mb-kind.field { background: #fef3c7; color: #92400e; }
 .mb-kind.online { background: #e0e7ff; color: #3730a3; }
@@ -60,7 +60,7 @@ button.mb-chip { cursor: pointer; font: inherit; font-size: .8rem; }
 .mb-bars .r { display: grid; grid-template-columns: 130px 1fr 44px; gap: 8px; align-items: center; font-size: .82rem; }
 .mb-cols { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 10px; }
 .mb-cols div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; font-size: .68rem; color: var(--muted); }
-.mb-cols i { width: 100%; max-width: 26px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #34d399, #0f766e); animation: mb-grow .8s var(--ease) both; transform-origin: bottom; min-height: 2px; }
+.mb-cols i { width: 100%; max-width: 26px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #34d399, #164e38); animation: mb-grow .8s var(--ease) both; transform-origin: bottom; min-height: 2px; }
 .mb-gauge { width: 118px; height: 118px; border-radius: 50%; margin: 4px auto; display: grid; place-items: center; position: relative;
   background: conic-gradient(var(--c, #10b981) calc(var(--v) * 1%), var(--surface-2) 0); animation: mb-spin .9s var(--ease) both; }
 .mb-gauge::after { content: ''; position: absolute; inset: 14px; background: var(--surface); border-radius: 50%; }
@@ -97,7 +97,7 @@ button.mb-chip { cursor: pointer; font: inherit; font-size: .8rem; }
 
 /* بطاقة العضوية */
 .mb-card { position: relative; width: 100%; max-width: 420px; aspect-ratio: 1.586; border-radius: 18px; overflow: hidden; color: #fff; padding: 18px 20px;
-  background: linear-gradient(135deg, var(--c, #0f766e), #0b1b3f 70%); box-shadow: 0 18px 40px rgba(11,27,63,.35); display: flex; flex-direction: column; justify-content: space-between; }
+  background: linear-gradient(135deg, var(--c, #164e38), #0b1b3f 70%); box-shadow: 0 18px 40px rgba(11,27,63,.35); display: flex; flex-direction: column; justify-content: space-between; }
 .mb-card::before { content: ''; position: absolute; inset: -40% -20% auto auto; width: 70%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(251,191,36,.45), transparent 65%); }
 .mb-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.18) 45%, transparent 60%); transform: translateX(-100%); animation: mb-shine 5s ease-in-out infinite; }
 .mb-card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; position: relative; z-index: 1; }
@@ -116,8 +116,8 @@ button.mb-chip { cursor: pointer; font: inherit; font-size: .8rem; }
 .mb-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .mb-type { position: relative; border: 1.5px solid var(--border); border-radius: 16px; padding: 14px; background: var(--surface); cursor: pointer; transition: all .2s var(--ease); text-align: start; font: inherit; color: inherit; }
 .mb-type:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.mb-type.on { border-color: var(--c, #0f766e); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, #0f766e) 22%, transparent); }
-.mb-type h3 { margin: 0 0 4px; font-size: 1rem; color: var(--c, #0f766e); }
+.mb-type.on { border-color: var(--c, #164e38); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c, #164e38) 22%, transparent); }
+.mb-type h3 { margin: 0 0 4px; font-size: 1rem; color: var(--c, #164e38); }
 .mb-type .fee { font-size: 1.4rem; font-weight: 800; }
 .mb-type .fee small { font-size: .75rem; font-weight: 500; color: var(--muted); }
 .mb-type ul { margin: 8px 0 0; padding-inline-start: 18px; font-size: .8rem; color: var(--muted); }

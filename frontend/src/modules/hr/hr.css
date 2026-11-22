@@ -95,7 +95,7 @@
 .hr-steps div.done::after { background: #a78bfa; }
 
 .hr-donut { width: 120px; height: 120px; border-radius: 50%; margin: 6px auto; display: grid; place-items: center; position: relative;
-  background: conic-gradient(#14b8a6 calc(var(--v) * 1%), #f472b6 0); animation: hr-spin-in .9s var(--ease) both; }
+  background: conic-gradient(#2f7a57 calc(var(--v) * 1%), #f472b6 0); animation: hr-spin-in .9s var(--ease) both; }
 .hr-donut::after { content: ''; position: absolute; inset: 16px; background: var(--surface); border-radius: 50%; }
 .hr-donut b { position: relative; z-index: 1; font-size: 1.3rem; }
 .hr-bars { display: grid; gap: 8px; }

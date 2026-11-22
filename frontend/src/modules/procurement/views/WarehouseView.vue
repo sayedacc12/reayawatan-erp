@@ -6,7 +6,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import WarehouseForm from '../components/WarehouseForm.vue';
 import { PR, accLabel, fmtDateTime, lookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const props = defineProps<{ id: string }>();
@@ -57,7 +57,7 @@ async function removeLoc(l: any) {
     toast.error((e as Error).message);
   }
 }
-const PURPOSE_C: Record<string, string> = { storage: '#0f766e', receiving: '#0369a1', quarantine: '#d97706', damaged: '#dc2626', returns: '#7c3aed' };
+const PURPOSE_C: Record<string, string> = { storage: '#164e38', receiving: '#0369a1', quarantine: '#d97706', damaged: '#dc2626', returns: '#7c3aed' };
 </script>
 
 <template>

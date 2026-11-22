@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { BL, DOC_COLOR, fmtDate, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
 

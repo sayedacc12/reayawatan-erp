@@ -4,9 +4,9 @@ import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import AssetSettingsPane from '../components/AssetSettingsPane.vue';
 import { useToast } from '../../../stores/toast';
-import SearchSelect from '../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../shared/SearchSelect.vue';
 import { docTypes, dt, loadDocTypes, useAccounts, type DocType } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Category { id: string; name: string; behavior: 'customer' | 'supplier' | 'other'; behaviorLabel: string; partners: number }

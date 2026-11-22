@@ -1,64 +1,56 @@
-# تشغيل سنابل على سيرفر
+# تشغيل رعاية وطن على السيرفر
 
-الخطوات دي لسيرفر Ubuntu 24.04 (مثلاً Oracle Cloud Always Free).
+رعاية وطن نسخة مستقلة تعمل على نفس سيرفر سنابل (Oracle، Ubuntu 24.04)، خلف Caddy الخاص بسنابل.
+لا تفتح منافذ جديدة، ولا تعدّل ملفات سنابل إلا بإضافة ملف موقع واحد في `deploy/sites/`.
 
-## 1. افتح المنافذ في لوحة المزوّد
-في Oracle: VCN ← Security Lists ← Default Security List ← Add Ingress Rules:
-- Source CIDR: `0.0.0.0/0`، IP Protocol: TCP، Destination Port: `80`
-- نفس القاعدة للمنفذ `443`
+| العنصر | القيمة |
+|---|---|
+| مجلد الكود | `~/reayawatan-erp` |
+| مشروع Docker | `rw` (الخدمات: `rw-db`، `rw-backend`، `rw-frontend`) |
+| الوصول من الإنترنت | Caddy سنابل ← الشبكة `caddy-edge` ← `reayawatan-frontend:80` |
+| قاعدة البيانات | `rw-db` على الشبكة الداخلية للمشروع فقط (ليست على `caddy-edge`) |
+| الدومين | `reayawatan.com` (و`www` و`erp` يحوّلان إليه) |
 
-## 2. ادخل على السيرفر
+## 1. مفتاح قراءة للمستودع
+مفاتيح النشر في GitHub لا تتكرر بين مستودعين، فيُنشأ مفتاح خاص لرعاية وطن باسم مختلف:
 ```bash
-ssh -i path/to/private.key ubuntu@SERVER_IP
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/reayawatan_deploy
+cat ~/.ssh/reayawatan_deploy.pub
+```
+أضيفوه في GitHub: مستودع reayawatan-erp ← Settings ← Deploy keys ← Add deploy key (قراءة فقط). ثم:
+```bash
+cat >> ~/.ssh/config <<'CFG'
+Host github-reayawatan
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/reayawatan_deploy
+  IdentitiesOnly yes
+CFG
+git clone github-reayawatan:sayedacc12/reayawatan-erp.git ~/reayawatan-erp
 ```
 
-## 3. اسحب الكود (المستودع خاص، فنستخدم Deploy key)
+## 2. التشغيل
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
-cat ~/.ssh/id_ed25519.pub
+cd ~/reayawatan-erp && DIRECTOR_EMAIL=name@example.com bash deploy/setup.sh
 ```
-انسخ الناتج وضيفه في GitHub: المستودع ← Settings ← Deploy keys ← Add deploy key (قراءة فقط).
+يتحقق من وجود شبكة `caddy-edge`، ويكتب `.env` بأسرار عشوائية، ويبني النظام ويشغّله،
+ويطبع مرة واحدة اسم دخول المدير وكلمة مرور مؤقتة (صالحة 24 ساعة، ويُطلب تغييرها عند أول دخول).
+كلمة المرور المؤقتة تمر عبر متغيرات بيئة الخادم الخلفي في التشغيل الأول فقط، ثم يُعاد إنشاء الحاوية بدونها فورًا ولا تُحفظ في `.env`.
+
+## 3. ربط الدومين في Caddy سنابل
 ```bash
-git clone git@github.com:sayedacc12/charity-erp.git
-cd charity-erp
+cp ~/reayawatan-erp/deploy/reayawatan.caddy ~/charity-erp/deploy/sites/reayawatan.caddy
+cd ~/charity-erp
+docker compose -f docker-compose.yml -f deploy/compose.prod.yml exec caddy caddy validate --config /etc/caddy/Caddyfile
+docker compose -f docker-compose.yml -f deploy/compose.prod.yml exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
+نفّذوا `reload` فقط إذا نجح `validate`. تصدر شهادة HTTPS تلقائيًا لأن سجلات `A` تشير إلى السيرفر.
 
-## 4. شغّل
+## 4. التحديث لاحقًا
 ```bash
-bash deploy/setup.sh
-```
-السكريبت بيثبّت Docker، ويفتح 80 و443 في الجدار الناري للسيرفر، ويعمل ملف `.env` بأسرار عشوائية، ويشغّل النظام.
-في أول تشغيل بيطبع إيميل وكلمة سر مدير المنصة. احفظهم في مكان آمن.
-
-افتح `http://SERVER_IP`.
-
-## 5. اربط الدومين
-عند مسجّل الدومين (Namecheap) ضيف سجل `A` للـ Host `@` بقيمة `SERVER_IP`.
-بعد ما يشتغل الـ DNS:
-```bash
-DOMAIN=sanabelerp.com bash deploy/setup.sh
-```
-شهادة HTTPS بتطلع تلقائيًا من Let's Encrypt عن طريق Caddy.
-
-## التحديث
-```bash
-git pull && bash deploy/setup.sh
+cd ~/reayawatan-erp && git pull origin main && bash deploy/setup.sh
 ```
 
-## النسخ الاحتياطي
-`setup.sh` يجهّز نسخة يومية تلقائية. بقي ربط وجهتي التخزين مرة واحدة: اتبع [BACKUP.md](BACKUP.md).
-
-## البريد الإلكتروني (Gmail الآن، وأي مزود SMTP لاحقًا)
-
-1. في حساب Google للبريد المرسل: فعّل «التحقق بخطوتين»، ثم أنشئ «كلمة مرور للتطبيقات» من https://myaccount.google.com/apppasswords
-2. على السيرفر: `bash deploy/mail-setup.sh` والصق كلمة مرور التطبيق (لا تظهر على الشاشة، وتُحفظ في `.env` فقط).
-3. من لوحة مدير المنصة ← «البريد الإلكتروني» ← «إرسال رسالة تجريبية».
-
-للتحويل لاحقًا إلى Google Workspace أو مزود آخر: غيّر `SMTP_HOST` و`SMTP_PORT` و`SMTP_USER` و`SMTP_PASS` و`MAIL_FROM` في `.env` ثم أعد تشغيل الخادم. حد Gmail العادي نحو 500 رسالة يوميًا.
-
-## نسيت كلمة مرور مدير المنصة (admin)
-لا يوجد حساب أعلى من مدير المنصة ليسلّمه كلمة مرور مؤقتة، لذلك تُستعاد من السيرفر نفسه. ادخل على السيرفر ثم:
-```bash
-cd ~/charity-erp && docker compose exec backend node dist/cli/reset-platform-admin.js
-```
-تظهر كلمة مرور مؤقتة صالحة 24 ساعة. ادخل بها على `/login`، وسيطلب منك النظام اختيار كلمة مرور جديدة فورًا.
+## 5. البريد والنسخ الاحتياطي
+- البريد الصادر: `bash deploy/mail-setup.sh` (Zoho Mail: الخادم `smtp.zoho.com` المنفذ 465، بصندوق مثل `no-reply@reayawatan.com` وكلمة مرور تطبيق من إعدادات أمان Zoho)
+- النسخ الاحتياطي: `deploy/BACKUP.md` (المؤقت `rw-backup.timer` يُجهَّز تلقائيًا، ويبقى ربط الوجهات مرة واحدة)

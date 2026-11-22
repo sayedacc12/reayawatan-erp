@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import EngagementForm from '../components/EngagementForm.vue';
 import { ENG_STEPS, LEVEL_COLOR, P, STATUS_COLOR, fmtDate, thisYear, type EngRow, type Plan } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 const session = useSession();

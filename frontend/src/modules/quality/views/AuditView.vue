@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { AUDIT_RESULTS, P, RESULT_COLOR, STATUS_COLOR, errMsg, fmtDate, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Item { clause: string; question: string; result: string | null; evidence: string | null }

@@ -7,7 +7,7 @@ import { nextCelebration, onboarding } from './onboarding';
 const router = useRouter();
 const c = computed(() => onboarding.celebration);
 const big = computed(() => !!c.value && c.value.kind !== 'step');
-const COLORS = ['#5eead4', '#f5c66b', '#14b8a6', '#ec4899', '#a78bfa', '#38bdf8', '#fde68a'];
+const COLORS = ['#a9c9b5', '#d9bc98', '#2f7a57', '#ec4899', '#a78bfa', '#38bdf8', '#fde68a'];
 // قصاصات بمواضع وسرعات ثابتة لكل احتفال
 const bits = computed(() => Array.from({ length: big.value ? 90 : 26 }, (_, i) => ({
   '--x': `${(i * 37) % 100}%`, '--d': `${(i % 9) * 0.12}s`, '--t': `${2.4 + (i % 7) * 0.35}s`, '--r': `${(i * 47) % 360}deg`,
@@ -70,12 +70,12 @@ function go(to: string) {
 .big .burst { opacity: 1; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .cel-body h2 { margin: 0; font-size: 1.05rem; }
-.big .cel-body h2 { font-size: 1.6rem; margin-top: 10px; background: linear-gradient(90deg, #fff, #99f6e4, #f5c66b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.big .cel-body h2 { font-size: 1.6rem; margin-top: 10px; background: linear-gradient(90deg, #fff, #99f6e4, #d9bc98); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .cel-body p { margin: 4px 0 0; color: rgba(255,255,255,.8); font-size: .9rem; line-height: 1.8; }
 .big .cel-body p { font-size: 1rem; margin-top: 8px; }
 .cel-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
 .cel-btn { font: inherit; font-weight: 700; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; border-radius: 12px; padding: 10px 20px; cursor: pointer; }
-.cel-btn.gold { border: 0; color: #06141a; background: linear-gradient(135deg, #f5c66b, #e8b04b); box-shadow: 0 10px 26px rgba(232,176,75,.4); }
+.cel-btn.gold { border: 0; color: #06141a; background: linear-gradient(135deg, #d9bc98, #c7a27a); box-shadow: 0 10px 26px rgba(232,176,75,.4); }
 .cel-x { position: absolute; top: 6px; inset-inline-end: 10px; background: none; border: 0; color: rgba(255,255,255,.6); font-size: 1.2rem; cursor: pointer; }
 .cel-enter-active, .cel-leave-active { transition: opacity .35s, transform .35s cubic-bezier(.2,.8,.2,1); }
 .cel-enter-from, .cel-leave-to { opacity: 0; }

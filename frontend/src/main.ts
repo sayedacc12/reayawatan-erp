@@ -12,8 +12,10 @@ app.use(router);
 
 setUnauthorizedHandler(() => {
   useSession().logout();
-  const path = router.currentRoute.value.path;
-  if (path !== '/login' && !path.startsWith('/o/')) router.push(loginPath());
+  const cur = router.currentRoute.value;
+  // زائر الموقع العام بجلسة منتهية يبقى في الموقع؛ التحويل للدخول لشاشات النظام فقط
+  if (cur.meta.open || cur.path === '/login') return;
+  router.push(loginPath());
 });
 
 app.mount('#app');

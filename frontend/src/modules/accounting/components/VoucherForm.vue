@@ -3,7 +3,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import SearchSelect from '../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../shared/SearchSelect.vue';
 import { METHODS, loadAnalytic, todayStr, useAccounts, type Analytic, type CashAccount, type Partner } from '../lib';
 import { tafqeet } from '../tafqeet';
 import AnalyticPicker, { type Share } from './AnalyticPicker.vue';
@@ -148,7 +148,7 @@ async function save() {
 </template>
 
 <style scoped>
-.vform { --c: #0f766e; position: relative; border-radius: 18px; padding: 22px; background: var(--surface);
+.vform { --c: #164e38; position: relative; border-radius: 18px; padding: 22px; background: var(--surface);
   background-image: radial-gradient(circle at 100% 0, color-mix(in srgb, var(--c) 10%, transparent), transparent 40%); border: 2px solid color-mix(in srgb, var(--c) 35%, transparent); }
 .vform.payment { --c: #b45309; }
 .vhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--c); padding-bottom: 10px; margin-bottom: 14px; }

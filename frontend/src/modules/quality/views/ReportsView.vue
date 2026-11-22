@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { STATUS_COLOR, LEVEL_COLOR, fmtDate, num, thisYear, type DocRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 type G = { label: string; count: number }[];

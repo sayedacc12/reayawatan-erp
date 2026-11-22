@@ -11,7 +11,7 @@ import PlanWorkflow from '../components/PlanWorkflow.vue';
 import ScenarioLevers from '../components/ScenarioLevers.vue';
 import ScenariosPanel from '../components/ScenariosPanel.vue';
 import { errMsg, fmtDateTime, FUNDING, IMPORTS, LINE_KIND, money, MONTHS, num, P, SECTIONS, short, WF_STATUS } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../risk/risk.css';
 import '../planning.css';
 

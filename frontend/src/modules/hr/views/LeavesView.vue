@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, STATUS_COLOR, fmtDate, hijri, num, type EmpRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 interface Req { id: string; employeeId: string; employeeName: string; employeeNo: number | null; leaveType: string; leaveTypeName: string; startDate: string; endDate: string; days: number; note: string | null; status: string; statusLabel: string; decisionNote: string | null; decidedByName: string | null; createdByName: string }

@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { exportCsv, fmtDate, num, sar, todayStr } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -54,7 +54,7 @@ function exportTab() {
     </section>
     <template v-if="r">
       <div class="pm-kpis no-print">
-        <div class="pm-kpi" style="--a: #0f766e; --i: 0"><span>الأعضاء الساريون</span><strong>{{ r.members.current }}</strong><small>{{ r.members.joinedInPeriod }} انضموا في الفترة</small></div>
+        <div class="pm-kpi" style="--a: #164e38; --i: 0"><span>الأعضاء الساريون</span><strong>{{ r.members.current }}</strong><small>{{ r.members.joinedInPeriod }} انضموا في الفترة</small></div>
         <div class="pm-kpi" style="--a: #fbbf24; --i: 1"><span>إيرادات الاشتراكات</span><strong>{{ num(r.revenue.total) }}</strong><small>ريال · {{ r.revenue.count }} سداد</small></div>
         <div class="pm-kpi" style="--a: #1e3a8a; --i: 2"><span>نسبة التجديد</span><strong>{{ r.renewal.rate !== null ? `${num(r.renewal.rate)}%` : '—' }}</strong><small>{{ r.renewal.renewed }} جددوا · {{ r.renewal.lapsed }} لم يجددوا</small></div>
         <div class="pm-kpi" style="--a: #ef4444; --i: 3"><span>مطالبات غير مسددة</span><strong>{{ sar(r.outstanding.amount) }}</strong><small>{{ r.outstanding.count }} مطالبة · {{ r.outstanding.overdue }} متأخرة</small></div>

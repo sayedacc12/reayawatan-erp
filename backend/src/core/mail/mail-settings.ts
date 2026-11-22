@@ -28,7 +28,7 @@ export interface MailSettings {
 
 export const DEFAULT_MAIL_SETTINGS: MailSettings = {
   enabled: true,
-  senderName: 'سنابل',
+  senderName: 'رعاية وطن',
   replyTo: null,
   adminEmails: [],
   dailyLimit: 450,

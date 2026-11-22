@@ -7,7 +7,7 @@ import { useToast } from '../../../stores/toast';
 import PersonForm from '../components/PersonForm.vue';
 import StatusPill from '../components/StatusPill.vue';
 import { APP_STATUS, P, exportCsv, fmtDate, loadLookups, lookups, toFormData } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface Row {

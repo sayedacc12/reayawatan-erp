@@ -5,7 +5,7 @@ import { useToast } from '../../../stores/toast';
 import { useSession } from '../../../stores/session';
 import PersonPicker from '../components/PersonPicker.vue';
 import { P, PRIORITY_COLOR, STATUS_COLOR, TASK_LOG_AR, dueText, fmtDate, fmtDateTime, loadLookups, todayStr, type Lookups, type TaskRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 interface Task extends TaskRow { log: { at: string; by: string; kind: string; text?: string | null; progress?: number | null; dueDate?: string | null }[] }
@@ -61,7 +61,7 @@ async function addNote() {
   await act('note', {}, 'أُضيفت الملاحظة');
   f.text = '';
 }
-const logColor = (k: string) => ({ complete: '#10b981', cancel: '#dc2626', extend: '#f59e0b', reassign: '#0ea5e9', progress: '#6366f1', support: '#8b5cf6', reopen: '#f97316' })[k] ?? '#14b8a6';
+const logColor = (k: string) => ({ complete: '#10b981', cancel: '#dc2626', extend: '#f59e0b', reassign: '#0ea5e9', progress: '#6366f1', support: '#8b5cf6', reopen: '#f97316' })[k] ?? '#2f7a57';
 const TITLES = { progress: 'تحديث نسبة الإنجاز', complete: 'إنجاز المهمة', extend: 'تمديد موعد الإغلاق', reassign: 'إعادة الإسناد', supporters: 'المساندون', cancel: 'إلغاء المهمة', reopen: 'إعادة فتح المهمة' } as const;
 </script>
 
@@ -76,7 +76,7 @@ const TITLES = { progress: 'تحديث نسبة الإنجاز', complete: 'إن
           <span class="pm-pill" :style="{ '--c': t.overdue ? '#fda4af' : STATUS_COLOR[t.status] }">{{ t.overdue ? 'متأخرة' : t.statusLabel }}</span>
           <span class="pm-pill" :style="{ '--c': PRIORITY_COLOR[t.priority] }">{{ t.priorityLabel }}</span>
           <span v-if="t.isConfidential" class="pm-pill" style="--c: #fbbf24">سرية</span>
-          <RouterLink v-if="t.sourceLink" :to="t.sourceLink" class="pm-pill" style="--c: #5eead4">{{ t.sourceLabel }}: {{ t.sourceRef }}</RouterLink>
+          <RouterLink v-if="t.sourceLink" :to="t.sourceLink" class="pm-pill" style="--c: #a9c9b5">{{ t.sourceLabel }}: {{ t.sourceRef }}</RouterLink>
         </div>
       </section>
 

@@ -1,305 +1,86 @@
-import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn, ValueTransformer } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-/** PostgreSQL يرجّع numeric كنص؛ نحوله لرقم */
-const num: ValueTransformer = {
-  to: (v?: number | null) => v,
-  from: (v?: string | null) => (v === null || v === undefined ? null : Number(v)),
-};
-
-// ---------------- أنواع مشتركة ----------------
-
-/** أقسام الموقع التي تفعّلها الجمعية أو تخفيها */
-export interface SiteSections {
-  about: boolean; programs: boolean; news: boolean; governance: boolean; partners: boolean; contact: boolean; store: boolean;
-  volunteer: boolean; membership: boolean; portal: boolean;
-  /** زر «بوابة الموظفين» (صفحة دخول موظفي الجمعية) */
-  staff: boolean;
-}
-export interface HeroCta { label: string; target: string }
-export interface HomeStat { value: string; label: string }
-export interface HomeContent {
-  kicker: string; title: string; text: string; imageId: string | null;
-  primaryCta: HeroCta; secondaryCta: HeroCta; stats: HomeStat[];
-  showTicker: boolean; showGoals: boolean; showValues: boolean;
-  announcement: { on: boolean; text: string; link: string };
-}
-export interface AboutContent { story: string; imageId: string | null; showStructure: boolean }
-export interface Leader { name: string; role: string; photoId: string | null }
-export interface BoardRow { k: string; v: string }
-export interface Disclosure { title: string; text: string; status: string; docId: string | null }
-export interface GovernanceContent {
-  intro: string; leaders: Leader[]; boardRows: BoardRow[]; assembly: string; committees: string[]; ceo: string; units: string[];
-  structureImageId: string | null; disclosures: Disclosure[]; showDocuments: boolean; showStructure: boolean; showBoard: boolean;
-}
-export interface Partner { name: string; url: string; kind: string; logoId: string | null }
-export interface SeoContent { title: string; description: string; keywords: string }
-export interface StoreConfig {
-  /** استقبال التبرعات من الموقع */
-  enabled: boolean;
-  /** التبرع العام غير المقيد (بدون مشروع محدد) */
-  general: boolean;
-  generalTitle: string;
-  /** الحد الأدنى العام للتبرع الواحد (ريال) */
-  min: number;
-  /** الحد الأعلى العام للتبرع الواحد (ريال) */
-  max: number;
-  presets: number[];
-  gift: boolean;
-  monthly: boolean;
-  /** تنبيه يظهر في الإيصال، مثل رقم الترخيص */
-  receiptNote: string;
-  thanks: string;
-}
-export const SITE_GATEWAYS = ['sandbox', 'moyasar'] as const;
-export interface SitePayment { provider: (typeof SITE_GATEWAYS)[number]; publishableKey: string | null; secretKey: string | null }
-export interface SiteAccounting { generalRevenueAccountId: string | null; waqfRevenueAccountId: string | null; onlineCashAccountId: string | null }
-export interface LogEntry { action: string; note: string | null; byName: string; at: string }
-
-// ---------------- الإعدادات والمحتوى الثابت ----------------
-
-/** إعدادات الموقع ومحتوى صفحاته الثابتة لكل جمعية */
-@Entity('web_settings')
-export class WebSettings {
+/** أقسام محتوى الموقع (الرئيسية، من نحن، التواصل، أسئلة التقييم...) وإعداداته، كل قسم JSON */
+@Entity('rw_site_content')
+export class SiteContent {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  /** الموقع منشور للزوار */
-  @Column({ default: false })
-  published!: boolean;
+  @PrimaryColumn({ length: 40 })
+  key!: string;
 
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  sections!: SiteSections;
+  @Column({ type: 'jsonb' })
+  data!: Record<string, unknown>;
 
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  home!: HomeContent;
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  about!: AboutContent;
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  governance!: GovernanceContent;
-
-  @Column({ type: 'jsonb', default: () => `'[]'` })
-  partners!: Partner[];
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  seo!: SeoContent;
-
-  @Column({ name: 'footer_text', type: 'varchar', length: 600, nullable: true })
-  footerText!: string | null;
-
-  /** النطاق الخاص بالجمعية (للعرض والتوثيق، ويُربط من الخادم) */
-  @Column({ name: 'custom_domain', type: 'varchar', length: 200, nullable: true })
-  customDomain!: string | null;
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  store!: StoreConfig;
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  payment!: SitePayment;
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  accounting!: SiteAccounting;
-
-  /** مفتاح معاينة الموقع قبل نشره (يُضاف للرابط ?preview=) */
-  @Column({ name: 'preview_key', type: 'varchar', length: 40, nullable: true })
-  previewKey!: string | null;
-
-  @Column({ default: false })
-  initialized!: boolean;
-
-  @Column({ name: 'next_receipt_no', type: 'int', default: 1 })
-  nextReceiptNo!: number;
+  @Column({ name: 'updated_by', type: 'uuid', nullable: true })
+  updatedBy!: string | null;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }
 
-/** مكتبة الصور: كل صورة في الموقع تُرفع هنا وتُعرض للزوار برابط عام */
-@Entity('web_media')
-@Index('IDX_web_media_org', ['organizationId'])
-export class WebMedia {
+export interface ServiceItem { title: string; desc: string }
+export interface ServiceShift { from: string; to: string }
+
+/** خدمات الشركة كما تظهر في الموقع (المجالات السبعة) */
+@Entity('rw_services')
+@Index('UQ_rw_services_slug', ['organizationId', 'slug'], { unique: true })
+export class SiteService {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index()
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  @Column({ name: 'file_key', length: 200 })
-  fileKey!: string;
-
-  @Column({ length: 40 })
-  mime!: string;
-
-  @Column({ length: 200 })
-  name!: string;
-
-  @Column({ type: 'int' })
-  size!: number;
-
-  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
-  createdByName!: string;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-}
-
-// ---------------- الأخبار ----------------
-
-export type NewsStatus = 'draft' | 'pending' | 'returned' | 'published';
-
-@Entity('web_news')
-@Index('IDX_web_news_org', ['organizationId', 'status', 'newsDate'])
-export class WebNews {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
-
-  @Column({ length: 250 })
-  title!: string;
-
-  @Column({ type: 'varchar', length: 600 })
-  summary!: string;
-
-  @Column({ type: 'text' })
-  body!: string;
-
-  @Column({ name: 'image_id', type: 'uuid', nullable: true })
-  imageId!: string | null;
-
-  @Column({ name: 'news_date', type: 'date' })
-  newsDate!: string;
-
-  /** يظهر في الشريط الإخباري المتحرك */
-  @Column({ default: true })
-  ticker!: boolean;
-
-  @Column({ type: 'varchar', length: 12, default: 'draft' })
-  status!: NewsStatus;
-
-  @Column({ name: 'review_note', type: 'varchar', length: 1000, nullable: true })
-  reviewNote!: string | null;
-
-  @Column({ type: 'int', default: 0 })
-  views!: number;
-
-  @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
-  createdById!: string | null;
-
-  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
-  createdByName!: string;
-
-  @Column({ name: 'published_by_name', type: 'varchar', length: 200, nullable: true })
-  publishedByName!: string | null;
-
-  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
-  publishedAt!: Date | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-}
-
-// ---------------- البرامج والمشاريع (ومتجر التبرعات) ----------------
-
-export type ProgramStatus = 'draft' | 'pending' | 'returned' | 'approved' | 'rejected';
-export interface ProgramService { icon: string; title: string; text: string }
-/** بيانات المتجر التي يحددها المعتمد: هل يُنشر في المتجر، ونوع التبرع، والمستهدف وحدود التبرع */
-export interface ProgramStore {
-  on: boolean; kind: 'project' | 'waqf'; goal: number; endDate: string | null; min: number; max: number; presets: number[];
-  stop: boolean; monthly: boolean; gift: boolean; revenueAccountId: string | null;
-}
-
-@Entity('web_programs')
-@Index('UQ_web_programs_org_slug', ['organizationId', 'slug'], { unique: true })
-export class WebProgram {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
-
-  /** رمز البرنامج في الرابط (حروف إنجليزية) */
   @Column({ length: 60 })
   slug!: string;
 
-  @Column({ length: 200 })
-  name!: string;
+  @Column({ length: 160 })
+  title!: string;
 
-  @Column({ type: 'varchar', length: 300, nullable: true })
-  tagline!: string | null;
+  /** مرحلة دورة العمل: التوجيه، التنظيم... */
+  @Column({ length: 60, default: '' })
+  stage!: string;
 
-  @Column({ type: 'varchar', length: 800 })
-  summary!: string;
-
-  @Column({ type: 'text', nullable: true })
-  about!: string | null;
-
-  @Column({ type: 'varchar', length: 800, nullable: true })
-  audience!: string | null;
-
-  @Column({ type: 'varchar', length: 200, nullable: true })
-  timing!: string | null;
-
-  @Column({ type: 'jsonb', default: () => `'[]'` })
-  services!: ProgramService[];
-
-  @Column({ type: 'jsonb', default: () => `'[]'` })
-  points!: string[];
-
-  @Column({ type: 'varchar', length: 20, default: 'heart' })
+  /** مفتاح الأيقونة */
+  @Column({ length: 30, default: 'strategy' })
   icon!: string;
 
-  @Column({ name: 'image_id', type: 'uuid', nullable: true })
-  imageId!: string | null;
+  @Column({ type: 'text', default: '' })
+  short!: string;
 
-  /** الحقيبة التعريفية: وثيقة من أرشيف المعرفة */
-  @Column({ name: 'kit_doc_id', type: 'uuid', nullable: true })
-  kitDocId!: string | null;
+  @Column({ type: 'text', default: '' })
+  intro!: string;
 
-  /** المشروع المرتبط في إدارة المشاريع (يُذكر في سند القبض) */
-  @Column({ name: 'activity_id', type: 'uuid', nullable: true })
-  activityId!: string | null;
+  /** الأثر المستهدف */
+  @Column({ type: 'text', default: '' })
+  value!: string;
 
-  /** يظهر في صفحة البرامج بالموقع */
-  @Column({ name: 'show_on_site', default: true })
-  showOnSite!: boolean;
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  deliverables!: ServiceItem[];
 
-  /** مميز في الصفحة الرئيسية */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  audience!: string[];
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  steps!: ServiceItem[];
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  shifts!: ServiceShift[];
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  kpis!: string[];
+
   @Column({ default: false })
   featured!: boolean;
 
-  @Column({ type: 'varchar', length: 12, default: 'draft' })
-  status!: ProgramStatus;
-
-  @Column({ name: 'review_note', type: 'varchar', length: 1000, nullable: true })
-  reviewNote!: string | null;
-
-  @Column({ type: 'jsonb', default: () => `'{}'` })
-  store!: ProgramStore;
-
-  @Column({ type: 'numeric', precision: 14, scale: 2, default: 0, transformer: num })
-  raised!: number;
-
-  @Column({ name: 'donations_count', type: 'int', default: 0 })
-  donationsCount!: number;
+  @Column({ default: true })
+  published!: boolean;
 
   @Column({ name: 'sort_order', type: 'int', default: 0 })
   sortOrder!: number;
 
-  @Column({ type: 'jsonb', default: () => `'[]'` })
-  log!: LogEntry[];
-
-  @Column({ name: 'created_by_name', type: 'varchar', length: 200 })
-  createdByName!: string;
-
-  @Column({ name: 'approved_by_name', type: 'varchar', length: 200, nullable: true })
-  approvedByName!: string | null;
-
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 
@@ -307,173 +88,70 @@ export class WebProgram {
   updatedAt!: Date;
 }
 
-// ---------------- التبرعات ----------------
+export const LEAD_SOURCES = ['consultation', 'calculator', 'assessment', 'guide', 'booking'] as const;
+export type LeadSource = (typeof LEAD_SOURCES)[number];
+export const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost', 'spam'] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
-export type DonationStatus = 'pending' | 'paid' | 'failed' | 'cancelled';
-export type DonationKind = 'project' | 'waqf' | 'general';
-export interface Gift { to: string; phone: string; message: string }
-
-@Entity('web_donations')
-@Index('IDX_web_donations_org', ['organizationId', 'status', 'createdAt'])
-@Index('UQ_web_donations_token', ['payToken'], { unique: true })
-@Index('UQ_web_donations_org_receipt', ['organizationId', 'receiptNo'], { unique: true, where: 'receipt_no IS NOT NULL' })
-export class WebDonation {
+/** عميل محتمل: كل نموذج يرسله زائر الموقع (طلب استشارة، الحاسبة، التقييم، تنزيل دليل، حجز جلسة) */
+@Entity('rw_leads')
+@Index('IDX_rw_leads_org_created', ['organizationId', 'createdAt'])
+export class Lead {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Index()
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  /** رقم الإيصال: يُعطى عند اكتمال الدفع فقط */
-  @Column({ name: 'receipt_no', type: 'int', nullable: true })
-  receiptNo!: number | null;
+  /** رقم متسلسل داخل المنشأة للعرض */
+  @Column({ name: 'lead_no', type: 'int' })
+  leadNo!: number;
 
-  @Column({ name: 'program_id', type: 'uuid', nullable: true })
-  programId!: string | null;
+  @Column({ length: 20 })
+  source!: LeadSource;
 
-  @Column({ name: 'program_name', length: 200 })
-  programName!: string;
+  @Column({ length: 20, default: 'new' })
+  status!: LeadStatus;
 
-  @Column({ type: 'varchar', length: 10 })
-  kind!: DonationKind;
-
-  @Column({ type: 'numeric', precision: 12, scale: 2, transformer: num })
-  amount!: number;
-
-  @Column({ name: 'donor_name', type: 'varchar', length: 200, nullable: true })
-  donorName!: string | null;
-
-  @Column({ name: 'donor_phone', type: 'varchar', length: 20, nullable: true })
-  donorPhone!: string | null;
-
-  @Column({ name: 'donor_email', type: 'varchar', length: 200, nullable: true })
-  donorEmail!: string | null;
-
-  @Column({ type: 'jsonb', nullable: true })
-  gift!: Gift | null;
-
-  @Column({ default: false })
-  monthly!: boolean;
-
-  @Column({ name: 'subscription_id', type: 'uuid', nullable: true })
-  subscriptionId!: string | null;
-
-  @Column({ type: 'varchar', length: 12, default: 'pending' })
-  status!: DonationStatus;
-
-  @Column({ name: 'pay_token', length: 40 })
-  payToken!: string;
-
-  /** رمز التحقق المطبوع على الإيصال */
-  @Column({ name: 'verify_code', length: 12 })
-  verifyCode!: string;
-
-  @Column({ name: 'gateway_id', type: 'varchar', length: 120, nullable: true })
-  gatewayId!: string | null;
-
-  @Column({ name: 'gateway_url', type: 'varchar', length: 500, nullable: true })
-  gatewayUrl!: string | null;
-
-  @Column({ name: 'payment_ref', type: 'varchar', length: 120, nullable: true })
-  paymentRef!: string | null;
-
-  @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
-  paidAt!: Date | null;
-
-  @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
-  voucherId!: string | null;
-
-  @Column({ name: 'voucher_error', type: 'varchar', length: 500, nullable: true })
-  voucherError!: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-}
-
-export type SubscriptionStatus = 'active' | 'paused' | 'cancelled';
-
-/** التبرع الشهري: يُصدر له رابط سداد كل شهر في موعد استحقاقه */
-@Entity('web_subscriptions')
-@Index('IDX_web_subscriptions_org', ['organizationId', 'status', 'nextDue'])
-export class WebSubscription {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
-
-  @Column({ name: 'program_id', type: 'uuid', nullable: true })
-  programId!: string | null;
-
-  @Column({ name: 'program_name', length: 200 })
-  programName!: string;
-
-  @Column({ type: 'numeric', precision: 12, scale: 2, transformer: num })
-  amount!: number;
-
-  @Column({ name: 'donor_name', type: 'varchar', length: 200, nullable: true })
-  donorName!: string | null;
-
-  @Column({ name: 'donor_phone', type: 'varchar', length: 20 })
-  donorPhone!: string;
-
-  @Column({ type: 'varchar', length: 12, default: 'active' })
-  status!: SubscriptionStatus;
-
-  /** تاريخ الاستحقاق القادم */
-  @Column({ name: 'next_due', type: 'date' })
-  nextDue!: string;
-
-  @Column({ type: 'int', default: 0 })
-  charges!: number;
-
-  @Column({ name: 'last_paid_at', type: 'timestamptz', nullable: true })
-  lastPaidAt!: Date | null;
-
-  /** آخر تبرع (رابط سداد) أُصدر لهذا الاشتراك */
-  @Column({ name: 'open_donation_id', type: 'uuid', nullable: true })
-  openDonationId!: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-}
-
-// ---------------- رسائل الزوار وسجل النشاط ----------------
-
-export type MessageStatus = 'new' | 'in_progress' | 'closed';
-
-@Entity('web_messages')
-@Index('IDX_web_messages_org', ['organizationId', 'status'])
-export class WebMessage {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
-
-  @Column({ name: 'organization_id', type: 'uuid' })
-  organizationId!: string;
-
-  @Column({ length: 200 })
+  @Column({ length: 160 })
   name!: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ name: 'org_name', type: 'varchar', length: 200, nullable: true })
+  orgName!: string | null;
+
+  @Column({ length: 200 })
+  email!: string;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
   phone!: string | null;
 
-  @Column({ type: 'varchar', length: 200, nullable: true })
-  email!: string | null;
+  @Column({ name: 'org_type', type: 'varchar', length: 60, nullable: true })
+  orgType!: string | null;
 
-  @Column({ length: 40 })
-  topic!: string;
+  @Column({ name: 'service_slug', type: 'varchar', length: 60, nullable: true })
+  serviceSlug!: string | null;
 
-  @Column({ type: 'varchar', length: 4000 })
-  body!: string;
+  @Column({ type: 'text', nullable: true })
+  message!: string | null;
 
-  @Column({ type: 'varchar', length: 12, default: 'new' })
-  status!: MessageStatus;
+  /** نتيجة الأداة: مدخلات الحاسبة ونتائجها، أو إجابات التقييم ودرجته ومجالاته الأضعف، أو الدليل، أو موعد الجلسة */
+  @Column({ type: 'jsonb', nullable: true })
+  result!: Record<string, unknown> | null;
 
-  @Column({ name: 'reply_note', type: 'varchar', length: 2000, nullable: true })
-  replyNote!: string | null;
+  /** درجة التقييم (0-100) للفرز السريع */
+  @Column({ type: 'int', nullable: true })
+  score!: number | null;
 
-  @Column({ name: 'handled_by_name', type: 'varchar', length: 200, nullable: true })
-  handledByName!: string | null;
+  @Column({ name: 'assigned_to', type: 'uuid', nullable: true })
+  assignedTo!: string | null;
+
+  @Column({ name: 'next_action_on', type: 'date', nullable: true })
+  nextActionOn!: string | null;
+
+  /** صفحة الإرسال ومصدر الزيارة (utm) إن وُجدت */
+  @Column({ type: 'jsonb', nullable: true })
+  meta!: Record<string, unknown> | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
@@ -482,26 +160,223 @@ export class WebMessage {
   updatedAt!: Date;
 }
 
-@Entity('web_activity')
-@Index('IDX_web_activity_org', ['organizationId', 'at'])
-export class WebActivity {
+/** سجل متابعة العميل المحتمل: من غيّر الحالة أو أضاف ملاحظة ومتى (قبل وبعد) */
+@Entity('rw_lead_events')
+export class LeadEvent {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Index()
+  @Column({ name: 'lead_id', type: 'uuid' })
+  leadId!: string;
+
+  /** created | status | assign | note | booking | guide | email */
+  @Column({ length: 20 })
+  kind!: string;
+
+  @Column({ type: 'text', nullable: true })
+  text!: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  before!: Record<string, unknown> | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  after!: Record<string, unknown> | null;
+
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId!: string | null;
+
+  @Column({ name: 'user_name', type: 'varchar', length: 200, nullable: true })
+  userName!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+export const BOOKING_STATUSES = ['booked', 'confirmed', 'done', 'cancelled', 'no_show'] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+export const ACTIVE_BOOKING = ['booked', 'confirmed'] as const;
+
+/** حجز جلسة تشخيص مجانية من الموقع. لا يتكرر نفس الموعد لحجزين نشطين (فهرس فريد جزئي في القاعدة) */
+@Entity('rw_bookings')
+@Index('UQ_rw_bookings_active_slot', ['organizationId', 'startsAt'], { unique: true, where: `"status" IN ('booked','confirmed')` })
+export class Booking {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Index()
+  @Column({ name: 'lead_id', type: 'uuid' })
+  leadId!: string;
+
+  @Column({ name: 'starts_at', type: 'timestamptz' })
+  startsAt!: Date;
+
+  @Column({ name: 'ends_at', type: 'timestamptz' })
+  endsAt!: Date;
+
+  @Column({ length: 20, default: 'booked' })
+  status!: BookingStatus;
+
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  topic!: string | null;
+
+  /** رابط الاجتماع المرئي (يضيفه الفريق عند التأكيد) */
+  @Column({ name: 'meeting_url', type: 'varchar', length: 500, nullable: true })
+  meetingUrl!: string | null;
+
+  @Column({ name: 'consultant_id', type: 'uuid', nullable: true })
+  consultantId!: string | null;
+
+  /** بصمة رمز الإلغاء الذي يصل للعميل في بريده (الرمز نفسه لا يُحفظ) */
+  @Index('UQ_rw_bookings_token', { unique: true })
+  @Column({ name: 'manage_token_hash', type: 'varchar', length: 64 })
+  manageTokenHash!: string;
+
+  @Column({ name: 'cancel_reason', type: 'varchar', length: 500, nullable: true })
+  cancelReason!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+/** دليل مجاني في المكتبة: يُنزَّل مقابل البريد الإلكتروني */
+@Entity('rw_guides')
+@Index('UQ_rw_guides_slug', ['organizationId', 'slug'], { unique: true })
+export class Guide {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ length: 80 })
+  slug!: string;
+
+  @Column({ length: 200 })
+  title!: string;
+
+  @Column({ type: 'text', default: '' })
+  summary!: string;
+
+  /** مفتاح الخدمة المرتبطة (اختياري) */
+  @Column({ name: 'service_slug', type: 'varchar', length: 60, nullable: true })
+  serviceSlug!: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  pages!: number | null;
+
+  @Column({ name: 'file_key', type: 'varchar', length: 200, nullable: true })
+  fileKey!: string | null;
+
+  @Column({ name: 'file_name', type: 'varchar', length: 200, nullable: true })
+  fileName!: string | null;
+
+  @Column({ name: 'file_mime', type: 'varchar', length: 60, nullable: true })
+  fileMime!: string | null;
+
+  @Column({ name: 'file_size', type: 'int', nullable: true })
+  fileSize!: number | null;
+
+  @Column({ name: 'cover_key', type: 'varchar', length: 200, nullable: true })
+  coverKey!: string | null;
+
+  @Column({ name: 'cover_mime', type: 'varchar', length: 60, nullable: true })
+  coverMime!: string | null;
+
+  @Column({ default: false })
+  published!: boolean;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
+  @Column({ type: 'int', default: 0 })
+  downloads!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+/** رابط تنزيل مؤقت يصدر بعد إدخال البريد (الرمز نفسه لا يُحفظ، فقط بصمته) */
+@Entity('rw_guide_downloads')
+export class GuideDownload {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Index()
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'guide_id', type: 'uuid' })
+  guideId!: string;
+
+  @Column({ name: 'lead_id', type: 'uuid' })
+  leadId!: string;
+
+  @Index('UQ_rw_guide_downloads_token', { unique: true })
+  @Column({ name: 'token_hash', length: 64 })
+  tokenHash!: string;
+
+  @Column({ name: 'expires_at', type: 'timestamptz' })
+  expiresAt!: Date;
+
+  @Column({ name: 'used_count', type: 'int', default: 0 })
+  usedCount!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+/** سجل تعديلات محتوى الموقع وخدماته وأدلته وإعداداته: من عدّل ومتى، وما قبل التعديل وما بعده */
+@Entity('rw_content_events')
+@Index(['organizationId', 'createdAt'])
+export class ContentEvent {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
 
-  @Column({ name: 'by_name', length: 200 })
-  byName!: string;
+  /** content | service | guide */
+  @Column({ length: 20 })
+  area!: string;
 
-  @Column({ length: 120 })
+  /** save | reset | create | update | delete | hide | upload | order */
+  @Column({ length: 20 })
   action!: string;
 
-  @Column({ type: 'varchar', length: 300, nullable: true })
+  /** مفتاح القسم أو معرف الخدمة أو الدليل */
+  @Column({ type: 'varchar', length: 200, nullable: true })
   target!: string | null;
 
-  @CreateDateColumn({ type: 'timestamptz' })
-  at!: Date;
+  @Column({ type: 'jsonb', nullable: true })
+  before!: unknown;
+
+  @Column({ type: 'jsonb', nullable: true })
+  after!: unknown;
+
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId!: string | null;
+
+  @Column({ name: 'user_name', type: 'varchar', length: 200, nullable: true })
+  userName!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
 }
 
-export const WEBSITE_ENTITIES = [WebSettings, WebMedia, WebNews, WebProgram, WebDonation, WebSubscription, WebMessage, WebActivity];
+export const WEBSITE_ENTITIES = [SiteContent, SiteService, Lead, LeadEvent, Booking, Guide, GuideDownload, ContentEvent];

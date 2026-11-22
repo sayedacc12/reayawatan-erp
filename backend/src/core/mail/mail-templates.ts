@@ -1,5 +1,5 @@
 /**
- * قوالب البريد: تصميم عربي من اليمين لليسار بألوان سنابل، يعمل في Gmail وOutlook والجوال
+ * قوالب البريد: تصميم عربي من اليمين لليسار بألوان رعاية وطن، يعمل في Gmail وOutlook والجوال
  * (جداول وأنماط مضمّنة فقط، بلا ملفات CSS خارجية).
  */
 
@@ -43,23 +43,23 @@ export function mailLayout(m: MailLayout): MailContent {
         .join('')}</table>`
     : '';
   const button = m.button
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px"><tr><td style="border-radius:10px;background:#1f7a4d"><a href="${esc(m.button.url)}" target="_blank" style="display:inline-block;padding:13px 26px;font-family:${font};font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">${esc(m.button.label)}</a></td></tr></table>
-       <p style="margin:0 0 16px;font-size:12px;color:#6b7280;line-height:1.7">إذا لم يعمل الزر، انسخ هذا الرابط في المتصفح:<br><span dir="ltr" style="word-break:break-all;color:#1f7a4d">${esc(m.button.url)}</span></p>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px"><tr><td style="border-radius:10px;background:#164e38"><a href="${esc(m.button.url)}" target="_blank" style="display:inline-block;padding:13px 26px;font-family:${font};font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px">${esc(m.button.label)}</a></td></tr></table>
+       <p style="margin:0 0 16px;font-size:12px;color:#6b7280;line-height:1.7">إذا لم يعمل الزر، انسخ هذا الرابط في المتصفح:<br><span dir="ltr" style="word-break:break-all;color:#164e38">${esc(m.button.url)}</span></p>`
     : '';
   const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(m.subject ?? m.title)}</title></head>
 <body style="margin:0;padding:0;background:#eef2ec;font-family:${font}" dir="rtl">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2ec;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)" dir="rtl">
-<tr><td style="background:linear-gradient(135deg,#14532d,#1f7a4d 60%,#c9a227);background-color:#1f7a4d;padding:22px 28px;text-align:right">
-<span style="font-size:22px;font-weight:800;color:#ffffff;font-family:${font}">🌾 سنابل</span>
-<span style="display:block;font-size:12px;color:#e7f2ea;margin-top:4px;font-family:${font}">منصة إدارة الجمعيات</span>
+<tr><td style="background:linear-gradient(135deg,#10291e,#164e38 60%,#c7a27a);background-color:#164e38;padding:22px 28px;text-align:right">
+<span style="font-size:22px;font-weight:800;color:#ffffff;font-family:${font}">رعاية وطن</span>
+<span style="display:block;font-size:12px;color:#e7f2ea;margin-top:4px;font-family:${font}">National Care</span>
 </td></tr>
 <tr><td style="padding:28px;text-align:right;font-family:${font}">
-<h1 style="margin:0 0 16px;font-size:20px;color:#14532d;line-height:1.6">${esc(m.title)}</h1>
+<h1 style="margin:0 0 16px;font-size:20px;color:#164e38;line-height:1.6">${esc(m.title)}</h1>
 ${m.greeting ? p(m.greeting) : ''}${(m.paragraphs ?? []).map(p).join('')}${facts}${button}
 ${m.note ? `<p style="margin:0;font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #eef2ec;padding-top:14px">${esc(m.note)}</p>` : ''}
 </td></tr>
-<tr><td style="background:#f6f8f5;padding:14px 28px;text-align:center;font-size:11px;color:#9ca3af;font-family:${font}">رسالة آلية من منصة سنابل. يُرجى عدم مشاركة بيانات الدخول مع أي شخص.</td></tr>
+<tr><td style="background:#f6f8f5;padding:14px 28px;text-align:center;font-size:11px;color:#9ca3af;font-family:${font}">رسالة آلية من نظام رعاية وطن. يُرجى عدم مشاركة بيانات الدخول مع أي شخص.</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [
     m.title, '',
@@ -68,7 +68,7 @@ ${m.note ? `<p style="margin:0;font-size:12px;color:#6b7280;line-height:1.8;bord
     ...(m.facts ?? []).map((f) => `${f.label}: ${f.value}`),
     ...(m.button ? ['', `${m.button.label}: ${m.button.url}`] : []),
     ...(m.note ? ['', m.note] : []),
-    '', '— منصة سنابل',
+    '', '— رعاية وطن',
   ].join('\n');
   return { subject: m.subject ?? m.title, html, text };
 }
@@ -84,8 +84,8 @@ const btn = (label: string, path: string, origin?: string | null) => {
 
 export const templates = {
   test: (by: string) => mailLayout({
-    title: 'رسالة تجريبية من سنابل',
-    paragraphs: ['وصلتك هذه الرسالة لأن إعدادات البريد في منصة سنابل تعمل بشكل صحيح.', `أرسلها: ${by}`],
+    title: 'رسالة تجريبية من رعاية وطن',
+    paragraphs: ['وصلتك هذه الرسالة لأن إعدادات البريد في نظام رعاية وطن تعمل بشكل صحيح.', `أرسلها: ${by}`],
     note: 'لا يلزم أي إجراء.',
   }),
 

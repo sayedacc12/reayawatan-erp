@@ -7,7 +7,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import CustomerForm from '../components/CustomerForm.vue';
 import { BL, billingLookups, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
 

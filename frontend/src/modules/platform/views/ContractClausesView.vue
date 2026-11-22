@@ -191,7 +191,7 @@ const highlight = (s: string) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<
 .icon.danger:hover { color: var(--danger); border-color: var(--danger); }
 ol { list-style: none; margin: 0; padding: 0; line-height: 1.9; }
 .pn { color: #a08a5a; font-size: .82rem; }
-:deep(mark) { background: #e6f4f2; color: var(--primary); padding: 0 5px; border-radius: 5px; font-weight: 600; }
+:deep(mark) { background: #e9f1ec; color: var(--primary); padding: 0 5px; border-radius: 5px; font-weight: 600; }
 .vars { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .var { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: .8rem; cursor: pointer; }
 .var:hover { border-color: var(--primary); color: var(--primary); }

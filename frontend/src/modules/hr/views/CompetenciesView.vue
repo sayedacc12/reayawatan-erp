@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { COMP_KINDS, P, type Competency } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const session = useSession();
@@ -21,7 +21,7 @@ async function load() {
 }
 onMounted(load);
 const shown = computed(() => rows.value.filter((r) => kind.value === 'all' || r.kind === kind.value));
-const KIND_C: Record<string, string> = { core: '#14b8a6', leadership: '#a78bfa', technical: '#f59e0b' };
+const KIND_C: Record<string, string> = { core: '#2f7a57', leadership: '#a78bfa', technical: '#f59e0b' };
 const editing = ref<Competency | null>(null);
 const form = reactive({ show: false, name: '', kind: 'core', description: '', levels: [] as { level: number; description: string }[], isActive: true });
 const blank = () => [1, 2, 3, 4, 5].map((level) => ({ level, description: '' }));

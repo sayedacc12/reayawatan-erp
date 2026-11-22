@@ -4,12 +4,12 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../../api';
 import { useSession } from '../../../../stores/session';
 import { useToast } from '../../../../stores/toast';
-import SearchSelect from '../../../fundraising/components/SearchSelect.vue';
+import SearchSelect from '../../../../shared/SearchSelect.vue';
 import AssetForm from '../../components/AssetForm.vue';
 import MaintenanceForm from '../../components/MaintenanceForm.vue';
 import { AF, CONDITIONS, STATUS_COLOR, imageUrl, useLookups, type AssetDetail } from '../../assets';
 import { P, dt, sar, todayStr } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

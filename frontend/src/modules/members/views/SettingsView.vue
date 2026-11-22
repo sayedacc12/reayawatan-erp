@@ -6,7 +6,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import { useToast } from '../../../stores/toast';
 import FieldsEditor from '../components/FieldsEditor.vue';
 import { copy, durationLabel, fmtDate, loadLookups, publicUrl, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -50,7 +50,7 @@ function move(list: unknown[], i: number, d: number) {
   if (j < 0 || j >= list.length) return;
   [list[i], list[j]] = [list[j], list[i]];
 }
-const COLORS = ['#0f766e', '#1e3a8a', '#b45309', '#7c3aed', '#be123c', '#0369a1', '#4d7c0f'];
+const COLORS = ['#164e38', '#1e3a8a', '#b45309', '#7c3aed', '#be123c', '#0369a1', '#4d7c0f'];
 function addType() {
   s.value.types.push({ name: '', description: '', fee: 0, joiningFee: 0, durationMonths: 12, votingRights: false, votingAfterDays: 0, minAge: 18, saudiOnly: false,
     publicApply: true, benefits: '', revenueAccountId: null, color: COLORS[s.value.types.length % COLORS.length], isActive: true });

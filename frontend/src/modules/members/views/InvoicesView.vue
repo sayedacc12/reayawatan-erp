@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { api } from '../../../api';
 import StatusPill from '../components/StatusPill.vue';
 import { INVOICE_STATUS, VOUCHER_STATUS, exportCsv, fmtDate, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 interface Row {

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import MeetingCard from '../components/MeetingCard.vue';
 import { addDays, kindOf, todayStr, type Body, type MeetingRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../comms/comms.css';
 import '../meetings.css';
 

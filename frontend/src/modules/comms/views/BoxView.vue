@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import ConfBadge from '../components/ConfBadge.vue';
 import { CONF, PRIORITY_COLOR, STATUS_COLOR, fmtDate, fmtDateTime, money, type TxnRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../comms.css';
 
 /** صناديق المعاملات: عندي، المرسلة، شاركت فيها، أتابعها، المسودات، والسجل العام، والقرارات والتعاميم */

@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { ACTION_STATUS, addDays, EFFORT, fmtDate, num, P, PRIORITIES, type Opportunity } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../gov.css';
 
 interface Action {

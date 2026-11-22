@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { loadCatalog, METHOD, type Catalog } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../gov.css';
 
 interface Band { from: number | null; to: number | null; rule: string }

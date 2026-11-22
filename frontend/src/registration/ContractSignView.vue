@@ -110,7 +110,7 @@ async function requestChanges() {
 
 <style scoped>
 .head { color: #fff; text-align: center; padding: 22px 0 18px; }
-.kicker { color: #5eead4; margin: 0 0 4px; }
+.kicker { color: #a9c9b5; margin: 0 0 4px; }
 .layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
 .side { padding: 18px; position: sticky; top: 16px; animation: up .5s .2s var(--ease) both; }
 @keyframes up { from { opacity: 0; transform: translateY(12px); } }

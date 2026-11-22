@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import DynFields from '../components/DynFields.vue';
 import { AVAILABILITY, fmtDateTime, type FormField, type LookupItem } from '../lib';
 import VolShell from './VolShell.vue';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 interface Info { name: string; slug: string; publicRegistration: boolean; volunteerTypes: LookupItem[]; volunteerFields: LookupItem[]; registrationFields: FormField[]; charter: { title: string; sections: { title: string; body: string }[] } }

@@ -51,16 +51,16 @@ const steps = [
 
 <style scoped>
 .hero { color: #fff; text-align: center; padding: 26px 0 30px; }
-.kicker { color: #5eead4; font-weight: 600; margin: 0 0 6px; animation: up .6s var(--ease) both; }
+.kicker { color: #a9c9b5; font-weight: 600; margin: 0 0 6px; animation: up .6s var(--ease) both; }
 .hero h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.35; animation: up .6s .1s var(--ease) both; }
-.shine { background: linear-gradient(90deg, #5eead4, #f5c66b, #5eead4); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 5s linear infinite; }
+.shine { background: linear-gradient(90deg, #a9c9b5, #d9bc98, #a9c9b5); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 5s linear infinite; }
 @keyframes shine { to { background-position: 200% center; } }
 .lead { color: rgba(255,255,255,.75); max-width: 600px; margin: 12px auto 0; animation: up .6s .2s var(--ease) both; }
 @keyframes up { from { opacity: 0; transform: translateY(14px); } }
 .steps { list-style: none; padding: 0; margin: 26px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .steps li { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 2px; backdrop-filter: blur(8px);
   animation: up .5s var(--ease) both; animation-delay: calc(.3s + var(--i) * .1s); }
-.steps .n { width: 26px; height: 26px; margin: 0 auto 4px; border-radius: 50%; background: linear-gradient(135deg, #f5c66b, #e8b04b); color: #3b2a06; font-weight: 700; display: grid; place-items: center; font-size: .85rem; }
+.steps .n { width: 26px; height: 26px; margin: 0 auto 4px; border-radius: 50%; background: linear-gradient(135deg, #d9bc98, #c7a27a); color: #3b2a06; font-weight: 700; display: grid; place-items: center; font-size: .85rem; }
 .steps small { color: rgba(255,255,255,.6); font-size: .8rem; }
 .form-card { padding: 24px; animation: up .6s .35s var(--ease) both; }
 .form-card h2 { margin-bottom: 4px; }

@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../acc.css';
 

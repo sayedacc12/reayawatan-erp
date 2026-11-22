@@ -7,7 +7,7 @@ import { useToast } from '../../../stores/toast';
 import FieldsEditor from '../components/FieldsEditor.vue';
 import LookupEditor from '../components/LookupEditor.vue';
 import { copy, loadLookups, publicUrl } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../volunteers.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

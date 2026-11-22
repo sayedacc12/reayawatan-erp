@@ -6,7 +6,7 @@ import { useToast } from '../../../stores/toast';
 import { fmtDate, hijri, num, sar, todayStr } from '../lib';
 import { ITEM_COLOR, SEP_COLOR, type SepDetail, type SepItem, type Settlement } from '../separation';
 import { loadSummary, rel } from '../self/ess';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 import '../self/ess.css';
 

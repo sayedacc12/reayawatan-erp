@@ -91,14 +91,14 @@ const accumAfter = (a: AssetReportRow) => a.accumOpening + a.depreciation + a.ot
 <style scoped>
 .dep-report { display: flex; flex-direction: column; gap: 18px; }
 .sheet { background: #fff; color: #0f172a; border-radius: 14px; padding: 22px 26px; border: 1px solid var(--border); box-shadow: 0 14px 34px rgba(15,23,42,.07); overflow-x: auto; }
-.rh { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; border-bottom: 3px double #0f766e; padding-bottom: 10px; margin-bottom: 14px; }
+.rh { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; border-bottom: 3px double #164e38; padding-bottom: 10px; margin-bottom: 14px; }
 .rh > div { display: flex; flex-direction: column; }
 .rh .t { text-align: center; }
 .rh .t h2 { font-size: 1.1rem; margin: 0; }
 .rh .s { align-items: flex-end; }
 .rh small { color: #64748b; }
 .code { font-family: ui-monospace, monospace; direction: ltr; }
-.stamp { border: 2px solid #0f766e; color: #0f766e; border-radius: 6px; padding: 0 10px; font-weight: 800; transform: rotate(-4deg); }
+.stamp { border: 2px solid #164e38; color: #164e38; border-radius: 6px; padding: 0 10px; font-weight: 800; transform: rotate(-4deg); }
 .rt { width: 100%; border-collapse: collapse; font-size: .82rem; font-variant-numeric: tabular-nums; min-width: 900px; }
 .rt th, .rt td { border: 1px solid #cbd5e1; padding: 6px 7px; text-align: center; white-space: nowrap; }
 .rt td:first-child { text-align: start; }
@@ -106,7 +106,7 @@ const accumAfter = (a: AssetReportRow) => a.accumOpening + a.depreciation + a.ot
 .rt th.cost { background: #e0f2fe; }
 .rt th.acc { background: #fef3c7; }
 .rt .hl { background: #fff7ed; font-weight: 700; color: #9a3412; }
-.rt tfoot td { background: #0f766e; color: #fff; font-weight: 800; }
+.rt tfoot td { background: #164e38; color: #fff; font-weight: 800; }
 .rt tfoot td.hl { background: #b45309; color: #fff; }
 .note { font-size: .78rem; color: #64748b; margin-top: 10px; }
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 18px; }
@@ -116,7 +116,7 @@ dd { margin: 0; font-weight: 600; }
 .mini { width: 100%; border-collapse: collapse; font-size: .86rem; font-variant-numeric: tabular-nums; }
 .mini th, .mini td { border-bottom: 1px solid #e2e8f0; padding: 5px 8px; text-align: start; }
 .mini td { text-align: end; }
-.mini .sum th, .mini .sum td { font-weight: 800; border-bottom: 2px solid #0f766e; }
+.mini .sum th, .mini .sum td { font-weight: 800; border-bottom: 2px solid #164e38; }
 .mini .hl th, .mini .hl td { color: #9a3412; font-weight: 700; }
 .months { min-width: 0; margin-top: 12px; }
 .warn { margin-top: 10px; font-size: .84rem; color: #9a3412; background: #fff7ed; border-radius: 8px; padding: 6px 10px; }

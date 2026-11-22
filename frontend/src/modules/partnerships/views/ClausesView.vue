@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { highlight, lookups, setLookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const toast = useToast();
@@ -198,7 +198,7 @@ async function saveCats() {
           <button class="btn btn-sm btn-danger" @click="catEdit.splice(i, 1)">حذف</button>
         </div>
         <div class="modal-actions" style="justify-content: space-between">
-          <button class="btn" @click="catEdit.push({ name: '', color: '#0f766e' })">+ تبويب</button>
+          <button class="btn" @click="catEdit.push({ name: '', color: '#164e38' })">+ تبويب</button>
           <span><button class="btn btn-primary" @click="saveCats">حفظ</button> <button class="btn" @click="catEdit = null">إلغاء</button></span>
         </div>
       </div>

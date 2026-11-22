@@ -131,17 +131,17 @@ const holeStyle = computed(() => (rect.value
 <style scoped>
 .ct { position: fixed; inset: 0; z-index: 390; }
 /* الظل الكبير حول الإطار يعتم بقية الشاشة ويترك العنصر المقصود مضيئًا */
-.ct-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(4, 16, 22, .72), 0 0 0 2px #5eead4, 0 0 30px 6px rgba(94,234,212,.55);
+.ct-hole { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(4, 16, 22, .72), 0 0 0 2px #a9c9b5, 0 0 30px 6px rgba(94,234,212,.55);
   transition: top .45s cubic-bezier(.2,.8,.2,1), left .45s cubic-bezier(.2,.8,.2,1), width .45s cubic-bezier(.2,.8,.2,1), height .45s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
-.ct-hole .pulse { position: absolute; inset: -2px; border-radius: inherit; border: 2px solid #f5c66b; animation: ct-pulse 1.8s ease-out infinite; }
+.ct-hole .pulse { position: absolute; inset: -2px; border-radius: inherit; border: 2px solid #d9bc98; animation: ct-pulse 1.8s ease-out infinite; }
 @keyframes ct-pulse { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.18); } }
-.ct-bubble { position: fixed; width: min(360px, calc(100vw - 24px)); background: linear-gradient(160deg, #0b2a2e, #06141a); color: #fff; border-radius: 18px; padding: 16px 18px 14px;
+.ct-bubble { position: fixed; width: min(360px, calc(100vw - 24px)); background: linear-gradient(160deg, #10291e, #06141a); color: #fff; border-radius: 18px; padding: 16px 18px 14px;
   border: 1px solid rgba(94,234,212,.35); box-shadow: 0 24px 60px rgba(0,0,0,.45); animation: ct-in .4s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes ct-in { from { opacity: 0; transform: translateY(10px) scale(.96); } }
 .ct-bubble.above { animation-name: ct-in-up; }
 @keyframes ct-in-up { from { opacity: 0; transform: translateY(-10px) scale(.96); } }
 /* السهم يشير إلى منتصف العنصر المضيء */
-.ct-bubble::before { content: ''; position: absolute; width: 16px; height: 16px; background: #0b2a2e; border: 1px solid rgba(94,234,212,.35); left: calc(var(--arrow) - 8px); transform: rotate(45deg); }
+.ct-bubble::before { content: ''; position: absolute; width: 16px; height: 16px; background: #10291e; border: 1px solid rgba(94,234,212,.35); left: calc(var(--arrow) - 8px); transform: rotate(45deg); }
 .ct-bubble.below::before { top: -9px; border-bottom: 0; border-right: 0; }
 .ct-bubble.above::before { bottom: -9px; border-top: 0; border-left: 0; background: #06141a; }
 .ct-bubble.center::before { display: none; }
@@ -150,16 +150,16 @@ const holeStyle = computed(() => (rect.value
 .ct-bubble.start::before { left: -9px; border-right: 0; border-top: 0; }
 .ct-head { display: flex; gap: 12px; align-items: center; }
 .ct-ic { width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; background: linear-gradient(135deg, rgba(94,234,212,.25), rgba(245,198,107,.25)); }
-.ct-head small { color: #5eead4; font-weight: 600; }
+.ct-head small { color: #a9c9b5; font-weight: 600; }
 .ct-head h3 { margin: 2px 0 0; font-size: 1.08rem; }
 .ct-bubble p { margin: 10px 0 12px; color: rgba(255,255,255,.82); line-height: 1.8; font-size: .94rem; }
 .ct-bar { height: 4px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; margin-bottom: 12px; }
-.ct-bar i { display: block; height: 100%; background: linear-gradient(90deg, #5eead4, #f5c66b); transition: width .4s; }
+.ct-bar i { display: block; height: 100%; background: linear-gradient(90deg, #a9c9b5, #d9bc98); transition: width .4s; }
 .ct-actions { display: flex; align-items: center; gap: 8px; }
 .ct-actions .sp { flex: 1; }
 .ct-link { background: none; border: 0; color: rgba(255,255,255,.55); font: inherit; font-size: .85rem; cursor: pointer; padding: 0; }
 .ct-link:hover { color: #fff; }
-.ct-btn { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 8px 16px; cursor: pointer; color: #06141a; background: #5eead4; }
+.ct-btn { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 8px 16px; cursor: pointer; color: #06141a; background: #a9c9b5; }
 .ct-btn.ghost { background: rgba(255,255,255,.1); color: #fff; }
 @media (prefers-reduced-motion: reduce) { .ct-hole, .ct-hole .pulse, .ct-bubble { transition: none; animation: none; } }
 </style>

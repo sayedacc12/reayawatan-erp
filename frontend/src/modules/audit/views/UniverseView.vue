@@ -6,7 +6,7 @@ import { useToast } from '../../../stores/toast';
 import RiskChips from '../components/RiskChips.vue';
 import RiskPicker from '../components/RiskPicker.vue';
 import { CATEGORIES, CONTROLS, LEVEL_COLOR, LEVELS, P, fmtDate, levelOf, loadLookups, unitOptions, type Area, type Lookups, type RiskRef } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../audit.css';
 
 const session = useSession();

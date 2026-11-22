@@ -32,7 +32,7 @@
 .pc-chip { display: inline-flex; gap: 5px; align-items: center; border-radius: 999px; padding: 1px 9px; font-size: .74rem; font-weight: 600; white-space: nowrap;
   color: var(--c, var(--muted)); background: color-mix(in srgb, var(--c, #64748b) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c, #64748b) 28%, transparent); }
 button.pc-chip { cursor: pointer; font: inherit; font-size: .78rem; }
-button.pc-chip.on { background: var(--c, #0f766e); color: #fff; }
+button.pc-chip.on { background: var(--c, #164e38); color: #fff; }
 .pc-empty { text-align: center; padding: 26px 0; color: var(--muted); }
 .pc-flag { display: inline-flex; gap: 4px; align-items: center; font-size: .74rem; font-weight: 700; color: #b91c1c; background: #fee2e2; border-radius: 999px; padding: 1px 9px; }
 .pc-okflag { display: inline-flex; gap: 4px; align-items: center; font-size: .74rem; font-weight: 700; color: #047857; background: #d1fae5; border-radius: 999px; padding: 1px 9px; }

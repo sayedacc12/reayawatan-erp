@@ -152,8 +152,8 @@
 
 /* الخطاب للطباعة */
 .ess-letter { max-width: 800px; margin: 0 auto; background: #fff; color: #111; padding: 48px 56px; border-radius: 6px; box-shadow: 0 20px 50px rgba(15,23,42,.15); min-height: 1000px; position: relative; }
-.ess-letter header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px double #0f766e; padding-bottom: 14px; margin-bottom: 26px; }
-.ess-letter header h2 { margin: 0; color: #0f766e; font-size: 1.3rem; }
+.ess-letter header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px double #164e38; padding-bottom: 14px; margin-bottom: 26px; }
+.ess-letter header h2 { margin: 0; color: #164e38; font-size: 1.3rem; }
 .ess-letter .meta { font-size: .9rem; line-height: 1.9; }
 .ess-letter .body { white-space: pre-line; font-size: 1.05rem; line-height: 2.1; }
 .ess-letter footer { margin-top: 60px; display: flex; justify-content: flex-start; }
@@ -190,7 +190,7 @@
 .ess-filters { display: flex; gap: 6px; flex-wrap: wrap; }
 .ess-filters button { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; color: var(--text); display: inline-flex; gap: 6px; align-items: center; transition: all .2s var(--ease); }
 .ess-filters button b { font-size: .75rem; background: var(--surface-2); border-radius: 99px; padding: 0 7px; }
-.ess-filters button.on { background: var(--c, var(--primary)); border-color: transparent; color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--c, #0d9488) 35%, transparent); }
+.ess-filters button.on { background: var(--c, var(--primary)); border-color: transparent; color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--c, #1f6446) 35%, transparent); }
 .ess-filters button.on b { background: rgba(255,255,255,.25); }
 .ess-banner { position: relative; overflow: hidden; border-radius: 20px; padding: 22px 24px; color: #fff; margin-bottom: 16px;
   background: linear-gradient(125deg, var(--c, #6366f1), color-mix(in srgb, var(--c, #6366f1) 45%, #0f172a)); box-shadow: 0 16px 40px color-mix(in srgb, var(--c, #6366f1) 30%, transparent); }

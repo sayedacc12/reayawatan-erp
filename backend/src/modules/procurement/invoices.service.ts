@@ -9,7 +9,7 @@ import { AssetOpsService } from '../accounting/asset-ops.service';
 import { EntriesService } from '../accounting/entries.service';
 import { CashAccount, Partner, Voucher } from '../accounting/entities/accounting.entity';
 import { VouchersService } from '../accounting/vouchers.service';
-import { FundraisingService } from '../fundraising/fundraising.service';
+import { FundingSources } from './funding-sources.service';
 import { BudgetAvailability } from '../planning/budget/budget-availability.service';
 import { BudgetCommitment } from '../planning/budget/budget.entity';
 import {
@@ -55,7 +55,7 @@ export class InvoicesService implements OnModuleInit {
   constructor(
     private readonly db: DataSource, private readonly core: ProcurementCore, private readonly sc: SourcingCore, private readonly receipts: ReceiptsService,
     private readonly entries: EntriesService, private readonly vouchers: VouchersService, private readonly files: FileStore,
-    private readonly avail: BudgetAvailability, private readonly fundraising: FundraisingService, private readonly assetOps: AssetOpsService,
+    private readonly avail: BudgetAvailability, private readonly fundraising: FundingSources, private readonly assetOps: AssetOpsService,
   ) {}
 
   onModuleInit() {

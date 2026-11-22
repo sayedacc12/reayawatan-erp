@@ -43,7 +43,7 @@ function goToOrg() {
 }
 
 // عبارات متبدلة في العنوان
-const words = ['التبرعات', 'المساعدات', 'الأعضاء', 'المحاسبة', 'المتطوعين'];
+const words = ['العملاء', 'المشاريع', 'الموارد البشرية', 'المحاسبة', 'الموقع'];
 const wordIndex = ref(0);
 let timer = 0;
 onMounted(() => {
@@ -101,7 +101,7 @@ async function submit() {
   try {
     await session.login(email.value, password.value, slug.value || undefined);
     success.value = true;
-    const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') ? route.query.next : '/';
+    const next = typeof route.query.next === 'string' && route.query.next.startsWith('/') && !route.query.next.startsWith('//') ? route.query.next : '/home';
     setTimeout(() => router.replace(next), 650);
   } catch (e) {
     error.value = (e as Error).message;
@@ -122,23 +122,14 @@ async function submit() {
     <div class="layout">
       <section class="hero">
         <div class="brand-row">
-          <div class="hero-mark"><BrandMark :size="64" /></div>
+          <div class="hero-mark"><BrandMark light :size="64" /></div>
           <div>
-            <div class="wordmark">{{ slug ? orgName || '…' : 'سنابل' }}</div>
-            <p class="eyebrow">{{ slug ? 'بوابة موظفي الجمعية · على منصة سنابل' : 'منصة إدارة الجمعيات الخيرية' }}</p>
+            <div class="wordmark">رعاية وطن</div>
+            <p class="eyebrow">بوابة الموظفين · National Care</p>
           </div>
         </div>
-        <h1 v-if="slug">
-          مساحة عمل<br />
-          فريق
-          <span class="word-wrap">
-            <Transition name="word" mode="out-in">
-              <span :key="wordIndex" class="word">{{ words[wordIndex] }}</span>
-            </Transition>
-          </span>
-        </h1>
-        <h1 v-else>
-          منصة واحدة<br />
+        <h1>
+          نظام واحد<br />
           لإدارة
           <span class="word-wrap">
             <Transition name="word" mode="out-in">
@@ -146,9 +137,9 @@ async function submit() {
             </Transition>
           </span>
         </h1>
-        <p class="lead">دخول موحد لكل أنظمة جمعيتك: الأعضاء والتبرعات والمساعدات الاجتماعية والمحاسبة، بصلاحيات دقيقة لكل موظف.</p>
+        <p class="lead">دخول موحد لأنظمة رعاية وطن: العملاء المحتملون والموقع، والمحاسبة، والموارد البشرية، والمشتريات، بصلاحيات دقيقة لكل موظف.</p>
         <ul class="chips">
-          <li style="--d: 0.5s"><span class="dot" />بيانات معزولة وآمنة لكل جمعية</li>
+          <li style="--d: 0.5s"><span class="dot" />كل طلبات الموقع تصل هنا</li>
           <li style="--d: 0.65s"><span class="dot" />صلاحيات لكل وحدة ولكل موظف</li>
           <li style="--d: 0.8s"><span class="dot" />وحدات تتكامل في قاعدة واحدة</li>
         </ul>
@@ -158,11 +149,11 @@ async function submit() {
         <div class="glass-border" aria-hidden="true" />
         <div class="glass-inner">
           <div class="form-head">
-            <BrandMark :size="40" />
+            <BrandMark light :size="40" />
             <div>
-              <h2>{{ mode === 'forgot' ? 'استعادة كلمة المرور' : slug ? 'دخول الموظفين' : 'مرحبًا بك في سنابل' }}</h2>
-              <p v-if="mode === 'forgot'">اكتب اسم الدخول، ويصل طلبك إلى {{ slug ? 'مدير النظام في جمعيتك' : 'مالك المنصة' }}</p>
-              <p v-else>{{ slug ? orgName : 'دخول إدارة المنصة. موظفو الجمعيات يدخلون من رابط جمعيتهم' }}</p>
+              <h2>{{ mode === 'forgot' ? 'استعادة كلمة المرور' : 'دخول الموظفين' }}</h2>
+              <p v-if="mode === 'forgot'">اكتب اسم الدخول، ويصل طلبك إلى مدير النظام</p>
+              <p v-else>بحسابك في نظام رعاية وطن</p>
             </div>
           </div>
 
@@ -183,9 +174,8 @@ async function submit() {
           <template v-if="mode === 'forgot'">
             <div v-if="forgotDone" class="done" role="status">✓ {{ forgotDone }}</div>
             <ul v-else class="rules">
-              <li>يصلك من {{ slug ? 'مدير النظام' : 'مالك المنصة' }} كلمة مرور مؤقتة، صالحة 24 ساعة.</li>
+              <li>يصلك من مدير النظام كلمة مرور مؤقتة، صالحة 24 ساعة.</li>
               <li>عند أول دخول بها يطلب منك النظام اختيار كلمة مرور جديدة.</li>
-              <li v-if="!slug">إن كنت مالك المنصة نفسه فاستعد حسابك من الخادم بأمر الاستعادة المذكور في دليل التشغيل.</li>
             </ul>
             <button v-if="!forgotDone" class="submit" :disabled="busy">
               <span class="shine" aria-hidden="true" />
@@ -222,7 +212,7 @@ async function submit() {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /></svg>
             اتصال آمن ومشفّر
           </p>
-          <p v-if="!slug" class="register">جمعيتك غير مسجلة بعد؟ <RouterLink to="/register">قدّم طلب اشتراك ←</RouterLink></p>
+          <p class="register"><RouterLink to="/">← العودة إلى موقع رعاية وطن</RouterLink></p>
         </div>
       </form>
     </div>
@@ -232,15 +222,15 @@ async function submit() {
 <style scoped>
 .link-btn { display: block; margin: 12px auto 0; background: none; border: 0; color: var(--gold); font: inherit; font-size: .92rem; font-weight: 600; cursor: pointer; }
 .link-btn:hover { text-decoration: underline; }
-.done { background: rgba(45, 212, 191, .12); border: 1px solid rgba(45, 212, 191, .4); color: #ccfbf1; padding: 12px 14px; border-radius: 12px; font-size: .93rem; line-height: 1.7; }
+.done { background: rgba(127,179,148, .12); border: 1px solid rgba(127,179,148, .4); color: #e3efe7; padding: 12px 14px; border-radius: 12px; font-size: .93rem; line-height: 1.7; }
 .rules { margin: 0 0 14px; padding-inline-start: 18px; color: var(--ink-2); font-size: .88rem; line-height: 1.8; }
 .register { text-align: center; margin: 10px 0 0; font-size: .9rem; color: var(--ink-2); }
 .register a { color: var(--gold); font-weight: 600; }
 .login {
   --ink: #e7fffb;
   --ink-2: rgba(231, 255, 251, 0.68);
-  --teal: #2dd4bf;
-  --gold: #f5c66b;
+  --teal: #7fb394;
+  --gold: #d9bc98;
   position: relative; min-height: 100vh; overflow: hidden; color: var(--ink);
   background: radial-gradient(1200px 800px at 80% -10%, #0f3d3a 0%, transparent 60%),
               radial-gradient(900px 700px at 0% 110%, #1a2b4a 0%, transparent 60%), #06141a;
@@ -251,8 +241,8 @@ async function submit() {
 
 /* أضواء الشفق المتحركة */
 .aurora span { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.55; mix-blend-mode: screen; }
-.aurora span:nth-child(1) { width: 520px; height: 520px; background: #0d9488; top: -140px; right: -80px; animation: drift1 18s ease-in-out infinite; }
-.aurora span:nth-child(2) { width: 460px; height: 460px; background: #6366f1; bottom: -160px; left: -100px; opacity: 0.35; animation: drift2 22s ease-in-out infinite; }
+.aurora span:nth-child(1) { width: 520px; height: 520px; background: #1f6446; top: -140px; right: -80px; animation: drift1 18s ease-in-out infinite; }
+.aurora span:nth-child(2) { width: 460px; height: 460px; background: #c7a27a; bottom: -160px; left: -100px; opacity: 0.35; animation: drift2 22s ease-in-out infinite; }
 .aurora span:nth-child(3) { width: 340px; height: 340px; background: #f59e0b; top: 40%; left: 35%; opacity: 0.18; animation: drift3 26s ease-in-out infinite; }
 @keyframes drift1 { 50% { transform: translate(-120px, 120px) scale(1.15); } }
 @keyframes drift2 { 50% { transform: translate(140px, -90px) scale(1.1); } }
@@ -270,14 +260,14 @@ async function submit() {
 /* الجانب التعريفي */
 .hero { animation: rise 0.9s cubic-bezier(.2,.8,.2,1) both; }
 .brand-row { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
-.wordmark { font-size: 2.3rem; font-weight: 700; line-height: 1.1; background: linear-gradient(90deg, #ffffff, #a7f3e9 50%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.wordmark { font-size: 2.3rem; font-weight: 700; line-height: 1.1; background: linear-gradient(90deg, #ffffff, #cfe3d6 50%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero-mark { width: 84px; height: 84px; border-radius: 22px; display: grid; place-items: center; flex-shrink: 0;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 0 60px rgba(45,212,191,0.35); animation: float 6s ease-in-out infinite; }
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 0 60px rgba(127,179,148,0.35); animation: float 6s ease-in-out infinite; }
 @keyframes float { 50% { transform: translateY(-8px); } }
 .eyebrow { color: var(--teal); font-weight: 600; letter-spacing: 0.02em; margin: 4px 0 0; }
 .hero h1 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.25; font-weight: 700; }
 .word-wrap { display: inline-block; min-width: 4.5em; }
-.word { display: inline-block; background: linear-gradient(90deg, #5eead4, #a5f3fc 40%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent;
+.word { display: inline-block; background: linear-gradient(90deg, #a9c9b5, #a5f3fc 40%, var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent;
   background-size: 200% auto; animation: shimmer 4s linear infinite; }
 @keyframes shimmer { to { background-position: 200% center; } }
 .word-enter-active, .word-leave-active { transition: all 0.45s cubic-bezier(.2,.8,.2,1); }
@@ -292,10 +282,10 @@ async function submit() {
 .glass { position: relative; border-radius: 24px; padding: 1.5px; animation: rise 0.9s 0.15s cubic-bezier(.2,.8,.2,1) both; }
 .glass-border { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
 .glass-border::before { content: ''; position: absolute; inset: -60%;
-  background: conic-gradient(from 0deg, transparent 0 60%, #2dd4bf 72%, #f5c66b 80%, transparent 90%); animation: spin 6s linear infinite; }
+  background: conic-gradient(from 0deg, transparent 0 60%, #7fb394 72%, #d9bc98 80%, transparent 90%); animation: spin 6s linear infinite; }
 @keyframes spin { to { transform: rotate(1turn); } }
 .glass-inner { position: relative; border-radius: 23px; padding: 34px 30px 26px;
-  background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 0%), rgba(94,234,212,0.13), transparent 45%), rgba(8, 26, 32, 0.78);
+  background: radial-gradient(400px circle at var(--mx, 50%) var(--my, 0%), rgba(127,179,148,0.13), transparent 45%), rgba(8, 26, 32, 0.78);
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 30px 80px rgba(0,0,0,0.45); }
 .form-head { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
 .form-head h2 { font-size: 1.4rem; }
@@ -313,7 +303,7 @@ async function submit() {
 .float { position: relative; display: block; margin-bottom: 18px; }
 .float input { width: 100%; font: inherit; color: var(--ink); background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.14);
   border-radius: 14px; padding: 22px 46px 8px 16px; text-align: right; transition: border-color .2s, box-shadow .2s, background .2s; }
-.float input:focus { outline: none; border-color: var(--teal); background: rgba(45,212,191,0.06); box-shadow: 0 0 0 4px rgba(45,212,191,0.15), 0 0 24px rgba(45,212,191,0.25); }
+.float input:focus { outline: none; border-color: var(--teal); background: rgba(127,179,148,0.06); box-shadow: 0 0 0 4px rgba(127,179,148,0.15), 0 0 24px rgba(127,179,148,0.25); }
 .float span { position: absolute; right: 46px; top: 15px; color: var(--ink-2); pointer-events: none; transition: all .2s ease; }
 .float input:focus + span, .float input:not(:placeholder-shown) + span { top: 5px; font-size: 0.75rem; color: var(--teal); }
 .float svg { position: absolute; right: 15px; top: 16px; width: 20px; height: 20px; fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-linejoin: round; }
@@ -322,14 +312,14 @@ async function submit() {
 .eye:hover { color: var(--ink); background: rgba(255,255,255,0.06); }
 
 .submit { position: relative; overflow: hidden; width: 100%; height: 52px; border: 0; border-radius: 14px; cursor: pointer; font: inherit; font-weight: 700; font-size: 1.05rem;
-  color: #04201d; background: linear-gradient(135deg, #5eead4, #14b8a6 55%, #0d9488); box-shadow: 0 10px 30px rgba(20,184,166,0.45); transition: transform .15s, box-shadow .2s; margin-top: 6px; }
+  color: #0c1f16; background: linear-gradient(135deg, #a9c9b5, #2f7a57 55%, #1f6446); box-shadow: 0 10px 30px rgba(20,184,166,0.45); transition: transform .15s, box-shadow .2s; margin-top: 6px; }
 .submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(20,184,166,0.6); }
 .submit:active:not(:disabled) { transform: translateY(0); }
 .submit:disabled { cursor: default; }
 .shine { position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%); transform: translateX(120%); animation: sweep 3.2s ease-in-out infinite; }
 @keyframes sweep { 60%, 100% { transform: translateX(-120%); } }
 .loading { display: inline-flex; gap: 6px; }
-.loading i { width: 8px; height: 8px; border-radius: 50%; background: #04201d; animation: bounce 0.9s infinite; }
+.loading i { width: 8px; height: 8px; border-radius: 50%; background: #0c1f16; animation: bounce 0.9s infinite; }
 .loading i:nth-child(2) { animation-delay: .15s; }
 .loading i:nth-child(3) { animation-delay: .3s; }
 @keyframes bounce { 50% { transform: translateY(-6px); opacity: .5; } }

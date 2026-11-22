@@ -10,7 +10,7 @@ import WorkflowBar from '../components/WorkflowBar.vue';
 import {
   ACTION_STATUS, EFFECTIVENESS, fmtDate, levelOf, loadConfig, loadLookups, P, RESULTS, RISK_STATES, SOURCES, todayStr, TREATMENTS, type Lookups, type RiskConfig,
 } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

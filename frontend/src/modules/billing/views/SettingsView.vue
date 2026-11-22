@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue';
 import { useToast } from '../../../stores/toast';
 import { addressPayload, billingLookups, emptyAddress, fmtDateTime } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
 

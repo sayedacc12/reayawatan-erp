@@ -118,5 +118,5 @@ const shown = computed(() => rows.value.filter((t) => {
 .esc { margin-inline-start: 6px; }
 .slas { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .center { text-align: center; }
-.gold { color: #e8b04b; }
+.gold { color: #c7a27a; }
 </style>

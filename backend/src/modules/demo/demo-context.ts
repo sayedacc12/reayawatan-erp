@@ -1,11 +1,8 @@
 import { OrgUser } from '../../core/auth/decorators';
 import { ACC_PERMISSIONS } from '../accounting/accounting.manifest';
 import { AUDIT_PERMISSIONS } from '../audit/audit.manifest';
-import { BENEFICIARY_PERMISSIONS } from '../beneficiaries/beneficiaries.manifest';
-import { FUNDRAISING_PERMISSIONS } from '../fundraising/fundraising.manifest';
 import { HR_PERMISSIONS } from '../hr/hr.manifest';
 import { MEMBER_PERMISSIONS } from '../members/members.manifest';
-import { PROJECT_PERMISSIONS } from '../projects/projects.manifest';
 import { RISK_PERMISSIONS } from '../risk/risk.manifest';
 import { VOL_PERMISSIONS } from '../volunteers/volunteers.manifest';
 import { QUALITY_PERMISSIONS } from '../quality/quality.manifest';
@@ -27,7 +24,6 @@ export const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOS
 export const daysAhead = (n: number) => daysAgo(-n);
 
 export const ALL_PERMISSIONS = [
-  ...Object.values(BENEFICIARY_PERMISSIONS), ...Object.values(FUNDRAISING_PERMISSIONS), ...Object.values(PROJECT_PERMISSIONS),
   ...Object.values(ACC_PERMISSIONS), ...Object.values(HR_PERMISSIONS), ...Object.values(RISK_PERMISSIONS), ...Object.values(VOL_PERMISSIONS), ...Object.values(QUALITY_PERMISSIONS), ...Object.values(AUDIT_PERMISSIONS), ...Object.values(MEMBER_PERMISSIONS),
   ...Object.values(GOV_PERMISSIONS),
   ...Object.values(KNOWLEDGE_PERMISSIONS), ...Object.values(WEBSITE_PERMISSIONS), ...Object.values(COMMS_PERMISSIONS), ...Object.values(MEETINGS_PERMISSIONS), ...Object.values(PARTNERSHIP_PERMISSIONS),
@@ -58,13 +54,6 @@ export interface DemoTeam {
   finance: OrgUser;
   projectsManager: OrgUser;
   roles: { researcher: string; caseManager: string; quality: string; fundraiser: string; finance: string; projectsManager: string };
-}
-
-/** مشاريع الشجرة التي تنشئها مرحلة الإعداد */
-export interface DemoTree {
-  axes: { social: string; health: string; education: string };
-  programs: { sponsorship: string; food: string; treatment: string; students: string };
-  projects: { orphans: string; widows: string; ramadan: string; surgery: string; school: string };
 }
 
 /** بريد الموظفين التجريبيين داخل جمعية حقيقية في فترة التجربة: فريد لكل جمعية */

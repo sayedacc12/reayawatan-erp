@@ -1,322 +1,301 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, ParseUUIDPipe, Post, Put, Query, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { CurrentOrgUser, OrgUser, Public, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
-import { originOf } from '../../core/subscriptions/subscriptions.controller';
+import { MAX_UPLOAD_BYTES } from '../../core/files/file-store.service';
 import { sendFile } from '../knowledge/knowledge.controller';
+import { BookingService } from './booking.service';
 import { ContentService } from './content.service';
-import { ContactDto, DecisionDto, DonateDto, MessageUpdateDto, NewsDto, OrderDto, ProgramDecisionDto, ProgramDto, SandboxPayDto, SectionDto, SubscriptionStatusDto } from './website.dto';
+import { FormsService } from './forms.service';
+import { GuidesService } from './guides.service';
+import { LeadsService } from './leads.service';
+import {
+  BookingQueryDto, BookingRequestDto, BookingUpdateDto, CancelBookingDto, GuideDto, GuideRequestDto, LeadQueryDto, LeadSubmitDto, LeadUpdateDto, OrderDto, SectionDto, ServiceDto,
+} from './website.dto';
 import { WEBSITE_PERMISSIONS as P } from './website.manifest';
-import { PAGE_SECTIONS, PageSection, SETTINGS_SECTIONS, SettingsSection, SiteService } from './site.service';
-import { StoreService } from './store.service';
-import { WebCore } from './web-core.service';
 
+const upload = FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 } });
+const UUID = new ParseUUIDPipe({ version: undefined, errorHttpStatusCode: 404 });
 
-/** لوحة تحكم الموقع الإلكتروني داخل الجمعية */
+/** لوحة تحكم الموقع داخل النظام */
 @Controller('website')
 export class WebsiteController {
-  constructor(private readonly core: WebCore, private readonly content: ContentService, private readonly site: SiteService, private readonly store: StoreService) {}
+  constructor(
+    private readonly content: ContentService, private readonly leads: LeadsService, private readonly booking: BookingService, private readonly guides: GuidesService,
+  ) {}
 
   @Get('dashboard')
   @RequirePermissions(P.read)
   dashboard(@CurrentOrgUser() u: OrgUser) {
-    return this.site.dashboard(u);
+    return this.leads.dashboard(u);
   }
 
-  // ---------------- الأخبار ----------------
+  // ---------------- العملاء المحتملون ----------------
 
-  @Get('news')
-  @RequirePermissions(P.read)
-  news(@CurrentOrgUser() u: OrgUser, @Query('status') status?: string) {
-    return this.content.newsList(u, status);
+  @Get('leads')
+  @RequirePermissions(P.leadsRead)
+  leadList(@CurrentOrgUser() u: OrgUser, @Query() q: LeadQueryDto) {
+    return this.leads.list(u, q);
   }
 
-  @Post('news')
-  @RequireAnyPermission(P.edit, P.publish)
-  createNews(@CurrentOrgUser() u: OrgUser, @Body() dto: NewsDto) {
-    return this.content.newsCreate(u, dto);
+  @Get('leads/export')
+  @RequirePermissions(P.leadsRead)
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="leads.csv"')
+  @Header('Cache-Control', 'private, no-store')
+  leadExport(@CurrentOrgUser() u: OrgUser) {
+    return this.leads.csv(u);
   }
 
-  @Get('news/:id')
-  @RequirePermissions(P.read)
-  newsItem(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.content.newsGet(u, id);
+  @Get('assignees')
+  @RequireAnyPermission(P.leadsManage, P.bookings)
+  assignees(@CurrentOrgUser() u: OrgUser) {
+    return this.leads.assignees(u);
   }
 
-  @Put('news/:id')
-  @RequireAnyPermission(P.edit, P.publish)
-  updateNews(@CurrentOrgUser() u: OrgUser, @Param('id') id: string, @Body() dto: NewsDto) {
-    return this.content.newsUpdate(u, id, dto);
+  @Get('leads/:id')
+  @RequirePermissions(P.leadsRead)
+  lead(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string) {
+    return this.leads.get(u, id);
   }
 
-  @Post('news/:id/decision')
-  @RequirePermissions(P.publish)
-  decideNews(@CurrentOrgUser() u: OrgUser, @Param('id') id: string, @Body() dto: DecisionDto) {
-    return this.content.newsDecide(u, id, dto);
+  @Put('leads/:id')
+  @RequirePermissions(P.leadsManage)
+  updateLead(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @Body() dto: LeadUpdateDto) {
+    return this.leads.update(u, id, dto);
   }
 
-  @Delete('news/:id')
-  @RequireAnyPermission(P.edit, P.publish)
-  removeNews(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.content.newsRemove(u, id);
+  // ---------------- الحجوزات ----------------
+
+  @Get('bookings')
+  @RequirePermissions(P.leadsRead)
+  bookings(@CurrentOrgUser() u: OrgUser, @Query() q: BookingQueryDto) {
+    return this.booking.list(u, q);
   }
 
-  // ---------------- البرامج ----------------
-
-  @Get('programs')
-  @RequirePermissions(P.read)
-  programs(@CurrentOrgUser() u: OrgUser) {
-    return this.content.programs(u);
+  @Get('bookings/preview')
+  @RequirePermissions(P.bookings)
+  preview(@CurrentOrgUser() u: OrgUser) {
+    return this.booking.preview(u);
   }
 
-  @Get('programs/lookups')
-  @RequirePermissions(P.read)
-  programLookups(@CurrentOrgUser() u: OrgUser) {
-    return this.content.programLookups(u);
+  @Put('bookings/:id')
+  @RequirePermissions(P.bookings)
+  updateBooking(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @Body() dto: BookingUpdateDto) {
+    return this.booking.update(u, id, dto);
   }
 
-  @Put('programs/order')
-  @RequirePermissions(P.publish)
-  order(@CurrentOrgUser() u: OrgUser, @Body() dto: OrderDto) {
-    return this.content.programOrder(u, dto);
+  // ---------------- المحتوى والخدمات ----------------
+
+  @Get('content')
+  @RequireAnyPermission(P.content, P.bookings, P.settings)
+  sections(@CurrentOrgUser() u: OrgUser) {
+    return this.content.sections(u.organizationId);
   }
 
-  @Post('programs')
-  @RequireAnyPermission(P.edit, P.publish)
-  createProgram(@CurrentOrgUser() u: OrgUser, @Body() dto: ProgramDto) {
-    return this.content.programCreate(u, dto);
+  @Put('content/booking')
+  @RequirePermissions(P.bookings)
+  saveBooking(@CurrentOrgUser() u: OrgUser, @Body() dto: SectionDto) {
+    return this.content.saveSection(u, 'booking', dto.data);
   }
 
-  @Get('programs/:id')
-  @RequirePermissions(P.read)
-  program(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.content.program(u, id);
-  }
-
-  @Put('programs/:id')
-  @RequireAnyPermission(P.edit, P.publish)
-  updateProgram(@CurrentOrgUser() u: OrgUser, @Param('id') id: string, @Body() dto: ProgramDto) {
-    return this.content.programUpdate(u, id, dto);
-  }
-
-  @Post('programs/:id/decision')
-  @RequirePermissions(P.publish)
-  decideProgram(@CurrentOrgUser() u: OrgUser, @Param('id') id: string, @Body() dto: ProgramDecisionDto) {
-    return this.content.programDecide(u, id, dto);
-  }
-
-  @Delete('programs/:id')
-  @RequireAnyPermission(P.edit, P.publish)
-  removeProgram(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.content.programRemove(u, id);
-  }
-
-  // ---------------- الصفحات والصور ----------------
-
-  @Get('pages')
-  @RequirePermissions(P.pages)
-  pages(@CurrentOrgUser() u: OrgUser) {
-    return this.site.getPages(u);
-  }
-
-  @Put('pages/:section')
-  @RequirePermissions(P.pages)
-  savePage(@CurrentOrgUser() u: OrgUser, @Param('section') section: string, @Body() dto: SectionDto) {
-    if (!PAGE_SECTIONS.includes(section as PageSection)) throw new BadRequestException('الصفحة غير معروفة');
-    return this.site.savePage(u, section as PageSection, dto.data);
-  }
-
-  @Get('media')
-  @RequireAnyPermission(P.edit, P.publish, P.pages)
-  media(@CurrentOrgUser() u: OrgUser) {
-    return this.core.media(u);
-  }
-
-  @Post('media')
-  @RequireAnyPermission(P.edit, P.publish, P.pages)
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
-  upload(@CurrentOrgUser() u: OrgUser, @UploadedFile() file: Express.Multer.File) {
-    return this.core.upload(u, file);
-  }
-
-  @Delete('media/:id')
-  @RequireAnyPermission(P.publish, P.pages)
-  removeMedia(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.core.removeMedia(u, id);
-  }
-
-  // ---------------- المتجر ----------------
-
-  @Get('donations')
-  @RequirePermissions(P.donations)
-  donations(@CurrentOrgUser() u: OrgUser, @Query() q: Record<string, string>) {
-    return this.store.donations(u, q);
-  }
-
-  @Get('donations/:id')
-  @RequirePermissions(P.donations)
-  donation(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.store.donation(u, id);
-  }
-
-  @Post('donations/:id/voucher')
-  @RequirePermissions(P.donations)
-  retryVoucher(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.store.retryVoucher(u, id);
-  }
-
-  @Post('donations/:id/cancel')
-  @RequirePermissions(P.donations, P.settings)
-  cancel(@CurrentOrgUser() u: OrgUser, @Param('id') id: string) {
-    return this.store.cancelDonation(u, id);
-  }
-
-  @Get('subscriptions')
-  @RequirePermissions(P.donations)
-  subscriptions(@CurrentOrgUser() u: OrgUser, @Req() req: Request) {
-    return this.store.subscriptions(u, originOf(req));
-  }
-
-  @Post('subscriptions/:id/status')
-  @RequirePermissions(P.donations, P.settings)
-  subscriptionStatus(@CurrentOrgUser() u: OrgUser, @Param('id') id: string, @Body() dto: SubscriptionStatusDto) {
-    return this.store.setSubscription(u, id, dto.status);
-  }
-
-  // ---------------- الرسائل والسجل والإعدادات ----------------
-
-  @Get('messages')
-  @RequirePermissions(P.messages)
-  messages(@CurrentOrgUser() u: OrgUser, @Query('status') status?: string) {
-    return this.site.messages(u, status);
-  }
-
-  @Put('messages/:id')
-  @RequirePermissions(P.messages)
-  updateMessage(@CurrentOrgUser() u: OrgUser, @Param('id') id: string, @Body() dto: MessageUpdateDto) {
-    return this.site.updateMessage(u, id, dto);
-  }
-
-  @Get('activity')
+  @Put('content/notify')
   @RequirePermissions(P.settings)
-  activity(@CurrentOrgUser() u: OrgUser) {
-    return this.core.activity(u.organizationId);
+  saveNotify(@CurrentOrgUser() u: OrgUser, @Body() dto: SectionDto) {
+    return this.content.saveSection(u, 'notify', dto.data);
   }
 
-  @Get('settings')
-  @RequirePermissions(P.settings)
-  settings(@CurrentOrgUser() u: OrgUser) {
-    return this.site.getSettings(u);
+  @Put('content/:key')
+  @RequirePermissions(P.content)
+  saveSection(@CurrentOrgUser() u: OrgUser, @Param('key') key: string, @Body() dto: SectionDto) {
+    if (key === 'booking' || key === 'notify') return this.content.saveSection(u, '__denied__', dto.data);
+    return this.content.saveSection(u, key, dto.data);
   }
 
-  @Put('settings/:section')
+  @Delete('content/:key')
+  @RequirePermissions(P.content)
+  resetSection(@CurrentOrgUser() u: OrgUser, @Param('key') key: string) {
+    if (key === 'booking' || key === 'notify') return this.content.resetSection(u, '__denied__');
+    return this.content.resetSection(u, key);
+  }
+
+  @Get('content-history')
   @RequirePermissions(P.settings)
-  saveSettings(@CurrentOrgUser() u: OrgUser, @Param('section') section: string, @Body() dto: SectionDto) {
-    if (!SETTINGS_SECTIONS.includes(section as SettingsSection)) throw new BadRequestException('قسم الإعدادات غير معروف');
-    return this.site.saveSettings(u, section as SettingsSection, dto.data);
+  contentHistory(@CurrentOrgUser() u: OrgUser) {
+    return this.content.history(u.organizationId);
+  }
+
+  @Get('services')
+  @RequireAnyPermission(P.content, P.guides, P.leadsRead)
+  services(@CurrentOrgUser() u: OrgUser) {
+    return this.content.services(u.organizationId);
+  }
+
+  @Post('services')
+  @RequirePermissions(P.content)
+  createService(@CurrentOrgUser() u: OrgUser, @Body() dto: ServiceDto) {
+    return this.content.createService(u, dto);
+  }
+
+  @Put('services/order')
+  @RequirePermissions(P.content)
+  orderServices(@CurrentOrgUser() u: OrgUser, @Body() dto: OrderDto) {
+    return this.content.orderServices(u, dto.ids);
+  }
+
+  @Get('services/:id')
+  @RequirePermissions(P.content)
+  service(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string) {
+    return this.content.service(u.organizationId, id);
+  }
+
+  @Put('services/:id')
+  @RequirePermissions(P.content)
+  updateService(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @Body() dto: ServiceDto) {
+    return this.content.updateService(u, id, dto);
+  }
+
+  @Delete('services/:id')
+  @RequirePermissions(P.content)
+  removeService(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string) {
+    return this.content.removeService(u, id);
+  }
+
+  // ---------------- مكتبة الأدلة ----------------
+
+  @Get('guides')
+  @RequirePermissions(P.guides)
+  guideList(@CurrentOrgUser() u: OrgUser) {
+    return this.guides.list(u);
+  }
+
+  @Post('guides')
+  @RequirePermissions(P.guides)
+  createGuide(@CurrentOrgUser() u: OrgUser, @Body() dto: GuideDto) {
+    return this.guides.create(u, dto);
+  }
+
+  @Put('guides/order')
+  @RequirePermissions(P.guides)
+  orderGuides(@CurrentOrgUser() u: OrgUser, @Body() dto: OrderDto) {
+    return this.guides.order(u, dto.ids);
+  }
+
+  @Put('guides/:id')
+  @RequirePermissions(P.guides)
+  updateGuide(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @Body() dto: GuideDto) {
+    return this.guides.update(u, id, dto);
+  }
+
+  @Post('guides/:id/file')
+  @RequirePermissions(P.guides)
+  @UseInterceptors(upload)
+  guideFile(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.guides.upload(u, id, 'file', file);
+  }
+
+  @Post('guides/:id/cover')
+  @RequirePermissions(P.guides)
+  @UseInterceptors(upload)
+  guideCover(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @UploadedFile() file: Express.Multer.File) {
+    return this.guides.upload(u, id, 'cover', file);
+  }
+
+  @Get('guides/:id/file')
+  @RequirePermissions(P.guides)
+  async guideDownload(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string, @Res({ passthrough: true }) res: Response) {
+    return sendFile(res, await this.guides.staffFile(u, id), true);
+  }
+
+  @Delete('guides/:id')
+  @RequirePermissions(P.guides)
+  removeGuide(@CurrentOrgUser() u: OrgUser, @Param('id', UUID) id: string) {
+    return this.guides.remove(u, id);
   }
 }
 
-/** الموقع الإلكتروني العام للجمعية: بدون دخول */
-@Controller('public/website/:slug')
-export class PublicWebsiteController {
-  constructor(private readonly site: SiteService, private readonly store: StoreService) {}
+/**
+ * الموقع العام لرعاية وطن (بلا دخول). يخدم منشأة الشركة فقط (COMPANY_SLUG)، فلا يقبل معرف منشأة من الطلب.
+ * كل نموذج محدود العدد لكل عنوان (Throttle)، وفيه حقل مخفي لاصطياد البرامج الآلية.
+ */
+@Controller('public/web')
+export class PublicSiteController {
+  constructor(
+    private readonly content: ContentService, private readonly forms: FormsService, private readonly booking: BookingService, private readonly guides: GuidesService,
+  ) {}
+
+  private async org() {
+    return this.content.companyId();
+  }
 
   @Public()
   @Get()
-  get(@Param('slug') slug: string, @Query('preview') preview?: string) {
-    return this.site.publicSite(slug, preview);
+  @Header('Cache-Control', 'public, max-age=60')
+  site() {
+    return this.content.publicSite();
   }
 
   @Public()
-  @Get('governance')
-  governance(@Param('slug') slug: string, @Query('preview') preview?: string) {
-    return this.site.publicGovernance(slug, preview);
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @Post('leads')
+  async lead(@Body() dto: LeadSubmitDto) {
+    if (dto.website) return { ok: true };
+    return this.forms.submit(await this.org(), dto);
   }
 
   @Public()
-  @Get('news')
-  news(@Param('slug') slug: string, @Query('page') page?: string, @Query('preview') preview?: string) {
-    return this.site.publicNews(slug, Number(page) || 1, preview);
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Get('booking/slots')
+  @Header('Cache-Control', 'no-store')
+  async slots() {
+    return this.booking.slots(await this.org());
   }
 
   @Public()
-  @Get('news/:id')
-  newsItem(@Param('slug') slug: string, @Param('id') id: string, @Query('preview') preview?: string) {
-    return this.site.publicNewsItem(slug, id, preview);
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @Post('booking')
+  async book(@Body() dto: BookingRequestDto) {
+    if (dto.website) return { ok: true };
+    return this.booking.book(await this.org(), dto);
   }
 
   @Public()
-  @Get('programs/:pslug')
-  program(@Param('slug') slug: string, @Param('pslug') pslug: string, @Query('preview') preview?: string) {
-    return this.site.publicProgramPage(slug, pslug, preview);
-  }
-
-  @Public()
-  @Get('search')
-  search(@Param('slug') slug: string, @Query('q') q: string, @Query('preview') preview?: string) {
-    return this.site.search(slug, q, preview);
-  }
-
-  @Public()
-  @Get('documents/:id')
-  document(@Param('slug') slug: string, @Param('id') id: string, @Query('preview') preview?: string) {
-    return this.site.publicDocument(slug, id, preview);
-  }
-
-  @Public()
-  @Get('documents/:id/file')
-  async documentFile(@Param('slug') slug: string, @Param('id') id: string, @Res({ passthrough: true }) res: Response, @Query('preview') preview?: string) {
-    return sendFile(res, await this.site.publicDocumentFile(slug, id, preview));
-  }
-
-  @Public()
-  @Get('media/:id')
-  async media(@Param('slug') slug: string, @Param('id') id: string, @Res({ passthrough: true }) res: Response) {
-    const f = await this.site.media(slug, id);
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
-    return new StreamableFile(f.stream as never, { type: f.mime });
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Get('booking/manage/:token')
+  async manage(@Param('token') token: string) {
+    return this.booking.manageInfo(await this.org(), token);
   }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @Post('contact')
-  contact(@Param('slug') slug: string, @Body() dto: ContactDto) {
-    return this.site.contact(slug, dto);
+  @Post('booking/manage/:token/cancel')
+  async cancel(@Param('token') token: string, @Body() dto: CancelBookingDto) {
+    return this.booking.cancelByVisitor(await this.org(), token, dto.reason);
   }
 
   @Public()
-  @Throttle({ default: { limit: 15, ttl: 60_000 } })
-  @Post('donate')
-  donate(@Param('slug') slug: string, @Body() dto: DonateDto, @Req() req: Request) {
-    return this.store.donate(slug, dto, originOf(req));
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  @Post('guides/:slug')
+  async guide(@Param('slug') slug: string, @Body() dto: GuideRequestDto) {
+    if (dto.website) return { ok: true };
+    return this.guides.request(await this.org(), slug, dto);
   }
 
   @Public()
-  @Get('pay/:token')
-  pay(@Param('slug') slug: string, @Param('token') token: string) {
-    return this.store.payInfo(slug, token);
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get('guides/download/:token')
+  async download(@Param('token') token: string, @Res({ passthrough: true }) res: Response) {
+    return sendFile(res, await this.guides.download(await this.org(), token), true);
   }
 
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Post('pay/:token/sandbox')
-  sandbox(@Param('slug') slug: string, @Param('token') token: string, @Body() dto: SandboxPayDto) {
-    return this.store.sandboxPay(slug, token, dto.ref);
-  }
-
-  @Public()
-  @Get('receipt/:token')
-  receipt(@Param('slug') slug: string, @Param('token') token: string, @Query('gift') gift?: string) {
-    return this.store.receipt(slug, token, gift === '1');
-  }
-
-  @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @Get('verify')
-  verify(@Param('slug') slug: string, @Query('no') no: string, @Query('code') code: string) {
-    return this.store.verify(slug, no, code);
+  @Get('guides/:slug/cover')
+  async cover(@Param('slug') slug: string, @Res({ passthrough: true }) res: Response) {
+    const f = await this.guides.cover(await this.org(), slug);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return new StreamableFile(f.stream as never, { type: f.mime });
   }
 }

@@ -3,10 +3,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import VoucherForm from '../components/VoucherForm.vue';
 import { P, VOUCHER_STATUS, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Row { id: string; serial: number; voucherDate: string; partyName: string; amount: number; purpose: string; methodLabel: string; cashAccountName: string; counterAccount: string; status: string; stageName: string | null; requestKind: string | null; awaitingMe: boolean; createdByName: string }

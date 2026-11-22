@@ -133,6 +133,17 @@ export class StockSeed {
 
     // ---- 4) طلبات الصرف ----
     const basket = it('سلة غذائية متكاملة لأسرة');
+    // رعاية وطن: لا مصادر تمويل مقيدة، فقد لا تُورَّد السلال بتعميد. نستلمها تبرعًا عينيًا إن لم يكفِ الرصيد
+    if (basket) {
+      const [onHand] = await this.db.query('SELECT COALESCE(SUM(qty), 0)::numeric AS q FROM pr_stock_balances WHERE organization_id = $1 AND item_id = $2 AND warehouse_id = $3', [org, basket, main.id]).catch(() => [{ q: 0 }]);
+      if (Number(onHand?.q ?? 0) < 60) {
+        await this.receipts.create(admin, {
+          kind: 'donation', warehouseId: main.id, date: d(2), donorName: 'مؤسسة البر الخيرية', deliveryRef: 'خطاب تبرع 1447/240',
+          inspection: { committee: ['مدير المستودع', 'ممثل الإدارة المالية'], result: 'accepted', note: 'سلال مطابقة للمواصفات' },
+          lines: [{ itemId: basket, qty: 100, unitPrice: 130, lot: 'FB-2611', expiryDate: daysAhead(180) }],
+        } as never);
+      }
+    }
     const [project] = await this.db.query(
       `SELECT a.id FROM activities a JOIN project_profiles p ON p.activity_id = a.id WHERE a.organization_id = $1 ORDER BY p.project_no LIMIT 1`, [org]).catch(() => []);
     const isr = (by: OrgUser, dto: Record<string, unknown>, submit = true) =>

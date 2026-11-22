@@ -6,7 +6,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { loadConfig, loadLookups, type ConfigPayload, type RiskConfig } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../risk.css';
 
 type Tab = 'matrix' | 'lists' | 'workflows' | 'permissions';

@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import ScoreRing from '../components/ScoreRing.vue';
 import { fmtDate, fmtDateTime, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const toast = useToast();
@@ -101,7 +101,7 @@ async function decide(e: any, decision: 'approve' | 'reject' | 'return') {
 .srow:last-child { border-bottom: 0; }
 .srow.ko { color: #b91c1c; }
 .bar { height: 8px; background: var(--surface); border-radius: 8px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: linear-gradient(90deg, #f59e0b, #0f766e); border-radius: 8px; animation: pm-fill .8s var(--ease) both; transform-origin: right; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, #f59e0b, #164e38); border-radius: 8px; animation: pm-fill .8s var(--ease) both; transform-origin: right; }
 .srow.ko .bar i { background: #dc2626; }
 .rec { margin: 10px 0 4px; }
 .decide { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }

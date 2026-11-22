@@ -7,7 +7,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import WarehouseForm from '../components/WarehouseForm.vue';
 import { PR, accLabel, fmtDate, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const route = useRoute();
@@ -42,7 +42,7 @@ onMounted(() => {
   load();
   if (tab.value === 'reconcile') loadRec();
 });
-const KIND_C: Record<string, string> = { main: '#0f766e', sub: '#0369a1', field: '#b45309', temporary: '#7c3aed' };
+const KIND_C: Record<string, string> = { main: '#164e38', sub: '#0369a1', field: '#b45309', temporary: '#7c3aed' };
 </script>
 
 <template>

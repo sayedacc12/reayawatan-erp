@@ -10,10 +10,10 @@ defineProps<{ org?: string | null; wide?: boolean }>();
     <div class="aurora" aria-hidden="true"><span /><span /><span /></div>
     <ParticleField />
     <header class="bar">
-      <div class="brand"><BrandMark :size="34" /><span>{{ org ?? 'سنابل' }}</span><small>التطوع</small></div>
+      <div class="brand"><BrandMark :size="34" /><span>{{ org ?? 'رعاية وطن' }}</span><small>التطوع</small></div>
     </header>
     <main :class="['wrap', { wide }]"><slot /></main>
-    <footer class="foot">بدعم من منصة سنابل لإدارة الجمعيات</footer>
+    <footer class="foot">رعاية وطن · National Care</footer>
   </div>
 </template>
 

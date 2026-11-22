@@ -1,28 +1,35 @@
-# تشغيل النظام كاملًا: docker compose up -d --build  ثم افتح http://localhost:8080
+# نظام رعاية وطن (الموقع ولوحة التحكم ونظام الشركة) — التشغيل المحلي: docker compose up -d --build ثم افتح http://localhost:8080
+# أسماء الخدمات تبدأ بـ rw- لأن النظام يعمل على سيرفر مشترك مع أنظمة أخرى.
 services:
-  db:
+  rw-db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: charity_erp
+      POSTGRES_DB: reayawatan
       POSTGRES_USER: erp
       POSTGRES_PASSWORD: ${DB_PASSWORD:-erp}
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - rw-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp -d charity_erp"]
+      test: ["CMD-SHELL", "pg_isready -U erp -d reayawatan"]
       interval: 5s
       retries: 10
     restart: unless-stopped
 
-  backend:
+  rw-backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgres://erp:${DB_PASSWORD:-erp}@db:5432/charity_erp
+      DATABASE_URL: postgres://erp:${DB_PASSWORD:-erp}@rw-db:5432/reayawatan
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-      # تشفير مفتاح الجمعية وأسرار شهادتها في الربط مع «فاتورة» (يُنشئه deploy/setup.sh تلقائيًا)
       ZATCA_KEY_SECRET: ${ZATCA_KEY_SECRET:-}
-      PLATFORM_ADMIN_EMAIL: ${PLATFORM_ADMIN_EMAIL:-platform@example.org}
-      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-}
+      # نظام شركة واحدة: المنشأة ومديرها يُنشآن عند أول تشغيل
+      COMPANY_SLUG: ${COMPANY_SLUG:-reayawatan}
+      COMPANY_NAME: ${COMPANY_NAME:-رعاية وطن}
+      DIRECTOR_NAME: ${DIRECTOR_NAME:-مدير المنظمة}
+      DIRECTOR_EMAIL: ${DIRECTOR_EMAIL:-}
+      DIRECTOR_USERNAME: ${DIRECTOR_USERNAME:-director}
+      # تُمرَّر عند أول تشغيل فقط من deploy/setup.sh (لا تُحفظ في .env)
+      DIRECTOR_PASSWORD: ${DIRECTOR_PASSWORD:-}
+      DIRECTOR_PASSWORD_TEMPORARY: ${DIRECTOR_PASSWORD_TEMPORARY:-}
       # البريد الصادر (SMTP). تُضبط بالأمر: bash deploy/mail-setup.sh
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-465}
@@ -32,20 +39,20 @@ services:
       # لبناء الروابط في الرسائل: https://<DOMAIN>
       DOMAIN: ${DOMAIN:-}
     volumes:
-      - uploads:/app/uploads
+      - rw-uploads:/app/uploads
     depends_on:
-      db:
+      rw-db:
         condition: service_healthy
     restart: unless-stopped
 
-  frontend:
+  rw-frontend:
     build: ./frontend
     ports:
       - "${HTTP_PORT:-8080}:80"
     depends_on:
-      - backend
+      - rw-backend
     restart: unless-stopped
 
 volumes:
-  db-data:
-  uploads:
+  rw-db-data:
+  rw-uploads:

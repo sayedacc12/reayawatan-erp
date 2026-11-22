@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { BENEFICIARY_PERMISSIONS } from '../beneficiaries/beneficiaries.manifest';
 import { ChangeService } from '../risk/change.service';
 import { ComplianceService } from '../risk/compliance.service';
 import { ContinuityService } from '../risk/continuity.service';
@@ -287,7 +286,7 @@ export class RiskSeed {
         { authority: 'قبول طلبات الإغاثة العاجلة دون بحث ميداني مسبق', holder: 'مسؤول المستفيدين', limit: 'يُستكمل البحث خلال 7 أيام' },
         { authority: 'التصريح لوسائل الإعلام', holder: 'المتحدث الرسمي', limit: null },
       ],
-      systemPermissions: [BENEFICIARY_PERMISSIONS.manage, RISK_PERMISSIONS.compliance, RISK_PERMISSIONS.change],
+      systemPermissions: [RISK_PERMISSIONS.compliance, RISK_PERMISSIONS.change],
       playbook: [
         { title: 'تقييم الموقف وتحديد شدة الأزمة', ownerName: 'قائد الفريق', withinHours: 2 },
         { title: 'حصر المستفيدين المتأثرين', ownerName: 'مسؤول المستفيدين', withinHours: 12 },

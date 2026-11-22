@@ -30,7 +30,7 @@ const C = 2 * Math.PI * 52;
     <section class="lv-hero">
       <div class="lv-ring">
         <svg viewBox="0 0 120 120" width="132" height="132" aria-hidden="true">
-          <defs><linearGradient id="lv-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4" /><stop offset="1" stop-color="#f5c66b" /></linearGradient></defs>
+          <defs><linearGradient id="lv-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a9c9b5" /><stop offset="1" stop-color="#d9bc98" /></linearGradient></defs>
           <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10" />
           <circle cx="60" cy="60" r="52" fill="none" stroke="url(#lv-g)" stroke-width="10" stroke-linecap="round" :stroke-dasharray="C" :stroke-dashoffset="C * (1 - (v?.pct ?? 0) / 100)" transform="rotate(-90 60 60)" class="arc" />
         </svg>
@@ -38,7 +38,7 @@ const C = 2 * Math.PI * 52;
       </div>
       <div>
         <p class="kicker">🚀 خطوات الإطلاق</p>
-        <h1>جهّز {{ session.user?.organizationName }} للانطلاق على سنابل</h1>
+        <h1>جهّز {{ session.user?.organizationName }} للانطلاق</h1>
         <p class="sub">اتبع المراحل بالترتيب. كل خطوة تفتح لك الشاشة المطلوبة، ونعلّمها تلقائيًا عند إنجازها. ويمكنك تعليمها «تمت» بنفسك أو تخطيها إن لم تحتجها.</p>
         <div class="hero-actions">
           <RouterLink v-if="v?.next" :to="v.next.link" class="h-btn gold">التالي: {{ v.next.title }} ←</RouterLink>
@@ -97,34 +97,34 @@ const C = 2 * Math.PI * 52;
 .lv-ring svg { position: absolute; inset: 0; }
 .lv-ring b { font-size: 1.7rem; }
 .arc { transition: stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1); filter: drop-shadow(0 0 8px rgba(94,234,212,.6)); }
-.kicker { margin: 0; color: #5eead4; font-weight: 600; }
+.kicker { margin: 0; color: #a9c9b5; font-weight: 600; }
 .lv-hero h1 { margin: 4px 0 6px; font-size: 1.5rem; }
 .sub { margin: 0; color: rgba(255,255,255,.75); max-width: 640px; line-height: 1.8; }
 .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .h-btn { font: inherit; font-weight: 700; padding: 9px 18px; border-radius: 12px; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); cursor: pointer; }
-.h-btn.gold { color: #06141a; border: 0; background: linear-gradient(135deg, #f5c66b, #e8b04b); box-shadow: 0 8px 22px rgba(232,176,75,.4); }
+.h-btn.gold { color: #06141a; border: 0; background: linear-gradient(135deg, #d9bc98, #c7a27a); box-shadow: 0 8px 22px rgba(232,176,75,.4); }
 .lv-phases { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; position: relative; }
 .ph { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 16px 18px; box-shadow: var(--shadow); animation: rise .5s calc(var(--i) * 80ms) var(--ease) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-.ph.cur { border-color: color-mix(in srgb, #e8b04b 60%, var(--border)); box-shadow: 0 10px 30px rgba(232,176,75,.15); }
+.ph.cur { border-color: color-mix(in srgb, #c7a27a 60%, var(--border)); box-shadow: 0 10px 30px rgba(232,176,75,.15); }
 .ph.ok { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
 .ph-head { display: flex; gap: 12px; align-items: center; }
 .ph-ic { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; display: grid; place-items: center; font-size: 1.35rem; background: var(--surface-2); border: 1px solid var(--border); }
 .ph.ok .ph-ic { background: var(--primary); color: #fff; border: 0; font-weight: 800; }
-.ph.cur .ph-ic { background: linear-gradient(135deg, #fde68a, #f5c66b); border: 0; }
+.ph.cur .ph-ic { background: linear-gradient(135deg, #fde68a, #d9bc98); border: 0; }
 .ph-tx { flex: 1; }
 .ph-tx small { color: var(--muted); font-weight: 600; }
 .ph-tx h2 { margin: 0; font-size: 1.1rem; }
 .ph-count { font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 999px; padding: 2px 12px; }
 .steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
 .st { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); transition: border-color .2s, background .2s; }
-.st.next { border-color: #e8b04b; background: color-mix(in srgb, #fde68a 18%, var(--surface)); }
+.st.next { border-color: #c7a27a; background: color-mix(in srgb, #fde68a 18%, var(--surface)); }
 .st.done { background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
 .st.done b { color: var(--primary); }
 .st.skipped { opacity: .7; }
 .st-check { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; font-weight: 800; background: var(--surface); margin-top: 2px; }
 .st.done .st-check { background: var(--primary); border-color: var(--primary); color: #fff; animation: tick .4s var(--ease); }
-.st.next .st-check { border-color: #e8b04b; box-shadow: 0 0 0 4px rgba(232,176,75,.2); }
+.st.next .st-check { border-color: #c7a27a; box-shadow: 0 0 0 4px rgba(232,176,75,.2); }
 @keyframes tick { from { transform: scale(.4); } }
 .st-tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .st-tx .muted { font-size: .88rem; }

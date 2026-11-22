@@ -30,7 +30,7 @@ const canSubmit = computed(() => current.value && next.value && confirm.value &&
 
 function leave() {
   if (window.history.state?.back) router.back();
-  else router.push('/');
+  else router.push('/home');
 }
 
 async function submit() {

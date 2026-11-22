@@ -134,7 +134,7 @@ const copy = (s: string) => copyText(s);
 
 <style scoped>
 .head { color: #fff; text-align: center; padding: 22px 0 18px; }
-.kicker { color: #5eead4; margin: 0 0 4px; }
+.kicker { color: #a9c9b5; margin: 0 0 4px; }
 .head h1 { font-size: clamp(1.4rem, 3.5vw, 2rem); }
 .card { padding: 22px; margin-bottom: 16px; animation: up .5s var(--ease) both; }
 @keyframes up { from { opacity: 0; transform: translateY(12px); } }
@@ -148,7 +148,7 @@ const copy = (s: string) => copyText(s);
 .dot { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 2px solid var(--border); font-weight: 700; position: relative; z-index: 1; }
 .done .dot { background: var(--grad); color: #fff; border-color: transparent; }
 .done { color: var(--primary); }
-.now .dot { border-color: #e8b04b; color: #9a5b00; box-shadow: 0 0 0 0 rgba(232,176,75,.5); animation: ring 2s infinite; }
+.now .dot { border-color: #c7a27a; color: #9a5b00; box-shadow: 0 0 0 0 rgba(232,176,75,.5); animation: ring 2s infinite; }
 .now { color: #9a5b00; font-weight: 600; }
 .bad .dot { border-color: var(--danger); color: var(--danger); }
 @keyframes ring { 70% { box-shadow: 0 0 0 10px rgba(232,176,75,0); } 100% { box-shadow: 0 0 0 0 rgba(232,176,75,0); } }

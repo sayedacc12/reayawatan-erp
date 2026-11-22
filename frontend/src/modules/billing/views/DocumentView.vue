@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 import { api, downloadProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { CAT_COLOR, DOC_COLOR, addressText, billingLookups, fmtDate, fmtDateTime, money, sar, today } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
 

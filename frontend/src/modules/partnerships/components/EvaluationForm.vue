@@ -117,6 +117,6 @@ async function save(submit: boolean) {
 .scale { display: flex; gap: 4px; }
 .scale button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font: inherit; font-weight: 700; cursor: pointer; color: var(--muted); transition: all .15s; }
 .scale button:hover { border-color: #f59e0b; color: #b45309; }
-.scale button.on { background: linear-gradient(135deg, #f59e0b, #0f766e); color: #fff; border-color: transparent; transform: scale(1.08); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
+.scale button.on { background: linear-gradient(135deg, #f59e0b, #164e38); color: #fff; border-color: transparent; transform: scale(1.08); box-shadow: 0 4px 12px rgba(245,158,11,.35); }
 .note { margin-top: 6px; font-size: .85rem; padding: 6px 10px; }
 </style>

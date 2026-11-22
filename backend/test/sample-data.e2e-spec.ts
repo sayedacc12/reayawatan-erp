@@ -53,7 +53,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     admin = await login('owner@trial-one.sa', 'Owner12345', 'trial-one');
     // قبل البيانات التجريبية: دور أنشأته الجمعية، وفتح بعض الشاشات (تُنشئ إعداداتها الافتراضية)
     baselineRoleId = (await http.post('/api/roles').set(as(admin)).send({ name: 'منسق البرامج', permissions: [] }).expect(201)).body.id;
-    await http.get('/api/beneficiaries/settings').set(as(admin));
+    await http.get('/api/website/content').set(as(admin));
     await http.get('/api/accounting/settings').set(as(admin));
   }, 240000);
 
@@ -75,14 +75,14 @@ describe('Sample data in a trial organization and conversion to a real one', () 
   it('loads connected sample data across all systems into the trial organization', async () => {
     const demo = await demoId();
     demoBefore = {
-      beneficiaries: await count('beneficiaries', demo), entries: await count('acc_entries', demo), users: await count('users', demo),
+      leads: await count('rw_leads', demo), entries: await count('acc_entries', demo), users: await count('users', demo),
     };
     const res = (await http.post('/api/sample-data').set(as(admin)).expect(201)).body;
     expect(res.records).toBeGreaterThan(500);
     expect(res.staff.length).toBe(7);
     expect(res.staff.every((s: { email: string }) => s.email.endsWith('.trial-one@sanabelerp.com'))).toBe(true);
-    expect(res.systems.map((s: { system: string }) => s.system)).toEqual(expect.arrayContaining(['المساعدات الاجتماعية', 'النظام المالي', 'الموارد البشرية']));
-    expect(await count('beneficiaries', orgId)).toBeGreaterThan(3);
+    expect(res.systems.map((s: { system: string }) => s.system)).toEqual(expect.arrayContaining(['الموقع والعملاء المحتملون', 'النظام المالي', 'الموارد البشرية']));
+    expect(await count('rw_leads', orgId)).toBeGreaterThan(3);
     expect(await count('acc_entries', orgId)).toBeGreaterThan(5);
     // موظف تجريبي يدخل بكلمة المرور التي ظهرت مرة واحدة
     await login(res.staff[1].email, res.staffPassword, 'trial-one');
@@ -116,7 +116,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     expect(r.own).toBe(1);
     expect(r.keptUsers).toBe(1);
 
-    for (const t of ['beneficiaries', 'acc_entries', 'acc_vouchers', 'hr_employees', 'fundraising_donors', 'risk_register', 'web_news', 'mtg_meetings', 'kn_categories', 'quality_documents']) {
+    for (const t of ['rw_leads', 'rw_bookings', 'acc_entries', 'acc_vouchers', 'hr_employees', 'risk_register', 'mtg_meetings', 'kn_categories', 'quality_documents']) {
       expect([t, await count(t, orgId)]).toEqual([t, 0]);
     }
     // يبقى: مدير النظام والموظف الذي أضافته الجمعية والدور الذي أنشأته قبل التجربة، والعقد والاشتراك
@@ -126,7 +126,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     const org = (await db.query('SELECT subscription_status FROM organizations WHERE id = $1', [orgId]))[0];
     expect(org.subscription_status).toBe('trial');
     // الإعدادات التي كانت قبل البيانات التجريبية باقية
-    expect(await count('beneficiary_settings', orgId)).toBeLessThanOrEqual(1);
+    expect(await count('acc_settings', orgId)).toBeLessThanOrEqual(1);
 
     // الدخول ما زال يعمل، والأنظمة فارغة
     const again = await login('owner@trial-one.sa', 'Owner12345', 'trial-one');
@@ -139,7 +139,7 @@ describe('Sample data in a trial organization and conversion to a real one', () 
     // الجمعية التجريبية العامة لم تتأثر
     const demo = await demoId();
     expect({
-      beneficiaries: await count('beneficiaries', demo), entries: await count('acc_entries', demo), users: await count('users', demo),
+      leads: await count('rw_leads', demo), entries: await count('acc_entries', demo), users: await count('users', demo),
     }).toEqual(demoBefore);
   }, 120000);
 });

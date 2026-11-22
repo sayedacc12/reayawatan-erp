@@ -5,7 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { P, STATUS_COLOR, errMsg, fmtDate, type DocRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface MapRow {
@@ -63,7 +63,7 @@ function pickDoc() {
         <svg viewBox="0 0 120 40" width="100%" height="46" aria-hidden="true" style="margin-bottom: 6px">
           <rect x="2" y="14" width="22" height="12" rx="6" fill="#10b981" />
           <path d="M24 20 H36" stroke="#94a3b8" />
-          <rect x="36" y="12" width="22" height="16" rx="3" fill="none" stroke="#0f766e" />
+          <rect x="36" y="12" width="22" height="16" rx="3" fill="none" stroke="#164e38" />
           <path d="M58 20 H68" stroke="#94a3b8" />
           <polygon points="80,8 92,20 80,32 68,20" fill="#fff7ed" stroke="#f59e0b" />
           <path d="M92 20 H98" stroke="#94a3b8" />

@@ -7,7 +7,7 @@ import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import SupplierFields from '../components/SupplierFields.vue';
 import { PR, SUPPLIER_COLOR, lookups, supplierForm, supplierPayload } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const route = useRoute();

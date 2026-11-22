@@ -6,7 +6,7 @@ import ModulePermissionsPane from '../../../components/ModulePermissionsPane.vue
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { lookups, setLookups, stockLookups } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../procurement.css';
 
 const toast = useToast();
@@ -246,7 +246,7 @@ function addActivity() {
             <button class="btn btn-sm" @click="cats.splice(i, 1)">✕</button>
           </div>
           <div class="pc-inline" style="margin-top: 10px">
-            <button class="btn btn-sm" @click="cats.push({ name: '', description: '', color: '#0f766e', isActive: true })">+ تصنيف</button>
+            <button class="btn btn-sm" @click="cats.push({ name: '', description: '', color: '#164e38', isActive: true })">+ تصنيف</button>
             <button class="btn btn-primary" :disabled="busy" @click="saveCats">حفظ</button>
           </div>
         </section>

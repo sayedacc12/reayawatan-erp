@@ -10,9 +10,6 @@ import { TasksModule } from './core/tasks/tasks.module';
 import { PerformanceModule } from './core/performance/performance.module';
 import { BackupsModule } from './core/backups/backups.module';
 import { SecurityModule } from './core/security/security.module';
-import { BeneficiariesModule } from './modules/beneficiaries/beneficiaries.module';
-import { FundraisingModule } from './modules/fundraising/fundraising.module';
-import { ProjectsModule } from './modules/projects/projects.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
 import { HrModule } from './modules/hr/hr.module';
 import { RiskModule } from './modules/risk/risk.module';
@@ -22,13 +19,13 @@ import { QualityModule } from './modules/quality/quality.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { MembersModule } from './modules/members/members.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
-import { WebsiteModule } from './modules/website/website.module';
 import { PartnershipsModule } from './modules/partnerships/partnerships.module';
 import { CommsModule } from './modules/comms/comms.module';
 import { MeetingsModule } from './modules/meetings/meetings.module';
 import { PlanningModule } from './modules/planning/planning.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { WebsiteModule } from './modules/website/website.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { HealthController } from './health.controller';
 
@@ -45,9 +42,6 @@ import { HealthController } from './health.controller';
     PerformanceModule,
     BackupsModule,
     SecurityModule,
-    BeneficiariesModule,
-    FundraisingModule,
-    ProjectsModule,
     AccountingModule,
     HrModule,
     RiskModule,
@@ -58,12 +52,12 @@ import { HealthController } from './health.controller';
     MembersModule,
     KnowledgeModule,
     PartnershipsModule,
-    WebsiteModule,
     CommsModule,
     MeetingsModule,
     PlanningModule,
     ProcurementModule,
     BillingModule,
+    WebsiteModule,
     DemoModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],

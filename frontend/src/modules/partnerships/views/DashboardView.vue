@@ -3,11 +3,11 @@
 import { computed, onMounted, ref } from 'vue';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import PartnerForm from '../components/PartnerForm.vue';
 import NewContractForm from '../components/NewContractForm.vue';
 import { PARTNER_COLOR, PT, fmtDate, sar } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../partnerships.css';
 
 const session = useSession();

@@ -4,7 +4,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import { LEVEL_COLOR, P, STATUS_COLOR, TREATMENTS, errMsg, fmtDate, loadSettings, type ActionItem, type QSettings } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../quality.css';
 
 interface Risk {

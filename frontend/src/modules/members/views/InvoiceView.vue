@@ -4,7 +4,7 @@ import { api, openProtectedFile } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import StatusPill from '../components/StatusPill.vue';
 import { VOUCHER_STATUS, copy, fmtDate, fmtDateTime, publicUrl, sar, todayStr, whatsappLink } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../members.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

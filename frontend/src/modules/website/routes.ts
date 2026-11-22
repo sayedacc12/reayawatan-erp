@@ -1,22 +1,16 @@
 import type { RouteRecordRaw } from 'vue-router';
-import { WP } from './lib';
+import { P } from './lib';
 
-const meta = (title: string, permission: string = WP.read) => ({ permission, title, app: 'website' });
+const meta = (title: string, permission: string = P.read) => ({ permission, title, app: 'website' });
 
 export const websiteRoutes: RouteRecordRaw[] = [
-  { path: '/website', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة الموقع الإلكتروني') },
-  { path: '/website/news', component: () => import('./views/NewsView.vue'), meta: meta('الأخبار') },
-  { path: '/website/news/new', component: () => import('./views/NewsEditView.vue'), meta: meta('خبر جديد') },
-  { path: '/website/news/:id', component: () => import('./views/NewsEditView.vue'), props: true, meta: meta('خبر') },
-  { path: '/website/programs', component: () => import('./views/ProgramsView.vue'), meta: meta('البرامج') },
-  { path: '/website/programs/new', component: () => import('./views/ProgramEditView.vue'), meta: meta('برنامج جديد') },
-  { path: '/website/programs/:id', component: () => import('./views/ProgramEditView.vue'), props: true, meta: meta('برنامج') },
-  { path: '/website/pages', component: () => import('./views/PagesView.vue'), meta: meta('صفحات الموقع', WP.pages) },
-  { path: '/website/media', component: () => import('./views/MediaView.vue'), meta: meta('مكتبة الصور', WP.edit) },
-  { path: '/website/donations', component: () => import('./views/DonationsView.vue'), meta: meta('تبرعات المتجر', WP.donations) },
-  { path: '/website/subscriptions', component: () => import('./views/SubscriptionsView.vue'), meta: meta('التبرعات الشهرية', WP.donations) },
-  { path: '/website/messages', component: () => import('./views/MessagesView.vue'), meta: meta('رسائل الزوار', WP.messages) },
-  { path: '/website/activity', component: () => import('./views/ActivityView.vue'), meta: meta('سجل النشاط', WP.settings) },
-  { path: '/website/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'website', system: 'الموقع الإلكتروني' }, meta: meta('تقارير الموقع', WP.reports) },
-  { path: '/website/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الموقع', WP.settings) },
+  { path: '/website', component: () => import('./views/DashboardView.vue'), meta: meta('لوحة الموقع') },
+  { path: '/website/leads', component: () => import('./views/LeadsView.vue'), meta: meta('العملاء المحتملون', P.leadsRead) },
+  { path: '/website/leads/:id', component: () => import('./views/LeadView.vue'), props: true, meta: meta('عميل محتمل', P.leadsRead) },
+  { path: '/website/bookings', component: () => import('./views/BookingsView.vue'), meta: meta('حجوزات التشخيص', P.leadsRead) },
+  { path: '/website/availability', component: () => import('./views/AvailabilityView.vue'), meta: meta('أوقات الإتاحة', P.bookings) },
+  { path: '/website/pages', component: () => import('./views/PagesView.vue'), meta: meta('صفحات الموقع', P.content) },
+  { path: '/website/services', component: () => import('./views/ServicesView.vue'), meta: meta('خدمات الموقع', P.content) },
+  { path: '/website/guides', component: () => import('./views/GuidesView.vue'), meta: meta('مكتبة الأدلة', P.guides) },
+  { path: '/website/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات الموقع', P.settings) },
 ];

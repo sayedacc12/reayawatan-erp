@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { ASSET_TYPES, ENTRY_STATUS, SOURCE_TYPES, P, allTypes, loadDocTypes, sar, typeLabel as labelOf } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Row { id: string; entryNo: number; voucherLabel: string; voucherNo: string; entryDate: string; documentDate: string; description: string; counterparty: string | null; status: string; source: string; total: number; createdByName: string; cancelReason: string | null }

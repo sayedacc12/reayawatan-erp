@@ -3,9 +3,9 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
-import CountUp from '../../beneficiaries/components/CountUp.vue';
+import CountUp from '../../../shared/CountUp.vue';
 import { ENTRY_STATUS, P, sar, shortMonth } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../acc.css';
 
 interface Mismatch { fromYear: number; toYear: number; rows: { accountCode: string; accountName: string; partnerName: string | null; expected: number; actual: number }[] }
@@ -158,7 +158,7 @@ const ready = computed(() => data.value?.setup.chartInstalled && data.value?.set
 .cashrow .ic { font-size: 1.3rem; }
 .cashrow .grow { flex: 1; display: flex; flex-direction: column; }
 .vbox { border-radius: 14px; padding: 14px; margin-bottom: 10px; display: flex; flex-direction: column; color: #fff; position: relative; overflow: hidden; }
-.vbox.r { background: linear-gradient(135deg, #059669, #0f766e); }
+.vbox.r { background: linear-gradient(135deg, #059669, #164e38); }
 .vbox.p { background: linear-gradient(135deg, #b45309, #92400e); }
 .vbox::after { content: ''; position: absolute; width: 120px; height: 120px; border-radius: 50%; inset-inline-end: -40px; top: -50px; background: rgba(255,255,255,.12); }
 .vbox strong { font-size: 1.3rem; }

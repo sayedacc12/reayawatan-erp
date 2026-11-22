@@ -55,7 +55,7 @@ onMounted(() => {
     }
     for (const p of pts) {
       ctx.fillStyle = 'rgba(190, 255, 245, 0.85)';
-      ctx.shadowColor = 'rgba(94, 234, 212, 0.9)';
+      ctx.shadowColor = 'rgba(127,179,148, 0.9)';
       ctx.shadowBlur = 8;
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;

@@ -6,7 +6,7 @@ import { useSession } from '../../../../stores/session';
 import { useToast } from '../../../../stores/toast';
 import { AF, useLookups } from '../../assets';
 import { P, todayStr } from '../../lib';
-import '../../../projects/projects.css';
+import '../../../../shared/module.css';
 import '../../acc.css';
 import './assets.css';
 

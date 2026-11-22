@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { P, STATUS_COLOR, type JobRow } from '../lib';
-import '../../projects/projects.css';
+import '../../../shared/module.css';
 import '../hr.css';
 
 const session = useSession();
@@ -34,7 +34,7 @@ const totals = computed(() => ({ headcount: rows.value.reduce((s, r) => s + r.he
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div class="pm-kpis">
       <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>الوظائف</span><strong>{{ rows.length }}</strong><small>{{ rows.filter((r) => r.status === 'approved').length }} معتمدة</small></div>
-      <div class="pm-kpi" style="--a: #14b8a6; --i: 1"><span>الشواغر المعتمدة</span><strong>{{ totals.headcount }}</strong><small>{{ totals.filled }} مشغولة</small></div>
+      <div class="pm-kpi" style="--a: #2f7a57; --i: 1"><span>الشواغر المعتمدة</span><strong>{{ totals.headcount }}</strong><small>{{ totals.filled }} مشغولة</small></div>
       <div class="pm-kpi" style="--a: #f472b6; --i: 2"><span>الشواغر المتاحة</span><strong>{{ Math.max(totals.headcount - totals.filled, 0) }}</strong><small>تُخطط من خطط التعيين</small></div>
     </div>
     <section class="card pm-panel">

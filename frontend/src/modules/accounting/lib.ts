@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 import { api } from '../../api';
-import type { SelectOption } from '../fundraising/components/SearchSelect.vue';
+import type { SelectOption } from '../../shared/SearchSelect.vue';
 
 export const P = {
   read: 'accounting.dashboard.read', setup: 'accounting.setup.manage', accounts: 'accounting.accounts.manage', partners: 'accounting.partners.manage',
