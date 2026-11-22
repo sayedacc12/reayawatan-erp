@@ -1,6 +1,7 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { Organization } from '../entities';
 import { addDays, todayRiyadh } from '../organizations/org-access';
+import { companySlug } from '../company';
 
 /** إعدادات دورة حياة الجمعيات في platform_settings (المفتاح lifecycle) */
 export interface LifecycleSettings {
@@ -34,6 +35,8 @@ type Org = Pick<Organization, 'id' | 'slug' | 'subscriptionStatus' | 'trialEndsO
  * الشركة التجريبية العامة (demo) لا تُحذف تلقائيًا.
  */
 export async function deletionNotice(db: DataSource | EntityManager, org: Org, today = todayRiyadh()): Promise<DeletionNotice | null> {
+  // منشأة الشركة الواحدة لا تُحذف تلقائيًا ولا يظهر لها تنبيه تجربة أو حذف
+  if (companySlug() && org.slug === companySlug()) return null;
   const [closure] = await db.query(
     `SELECT delete_on::text AS delete_on FROM organization_closures WHERE organization_id = $1 AND status = 'scheduled' ORDER BY created_at DESC LIMIT 1`, [org.id]);
   if (closure) {

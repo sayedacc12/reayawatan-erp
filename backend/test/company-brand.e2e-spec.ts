@@ -6,6 +6,9 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 import { FileStore } from '../src/core/files/file-store.service';
 import { COMPANY_BRAND, seedCompanyBrand } from '../src/core/identity/company-brand';
+import { BootstrapService } from '../src/core/bootstrap.service';
+import { deletionNotice } from '../src/core/lifecycle/lifecycle-rules';
+import { Organization } from '../src/core/entities';
 
 /**
  * هوية رعاية وطن الافتراضية: تُملأ عند أول تشغيل (الشعار والألوان والبيانات النظامية والرقم الضريبي)،
@@ -74,5 +77,19 @@ describe('Reaya Watan default brand identity', () => {
     const after = (await http.get('/api/public/identity/reayawatan').expect(200)).body;
     expect(after.name).toBe('اسم معدّل');
     expect(after.colors.primary).toBe('#123456');
+  });
+  it('keeps the company subscription permanent: no trial expiry, notice or automatic deletion', async () => {
+    const db = app.get(DataSource);
+    // حالة موروثة من منصة سنابل: فترة تجربة انتهت أمس
+    await db.query(`UPDATE organizations SET subscription_status = 'trial', trial_ends_on = CURRENT_DATE - 1 WHERE slug = 'reayawatan'`);
+    const stale = await db.getRepository(Organization).findOneByOrFail({ slug: 'reayawatan' });
+    expect(await deletionNotice(db, stale)).toBeNull();
+    await (app.get(BootstrapService) as unknown as { ensureCompany(): Promise<void> }).ensureCompany();
+    const org = await db.getRepository(Organization).findOneByOrFail({ slug: 'reayawatan' });
+    expect(org.subscriptionStatus).toBe('active');
+    expect(org.trialEndsOn).toBeNull();
+    expect(org.subscriptionEndsOn).toBeNull();
+    expect(org.isActive).toBe(true);
+    await http.post('/api/auth/login').send({ login: 'director', password: 'RwAdmin2026' }).expect(200);
   });
 });
