@@ -198,6 +198,8 @@ export class SampleDataService {
       const current = await snapshot(em, orgId, tables);
       const plan = this.plan(current, r.baseline, r.sample);
       const deleted = await purgeExcept(em, orgId, plan.keep, r.baseline.settings, tables);
+      // الإعدادات الافتراضية المضافة بعد البيانات التجريبية حُذفت معها، فيعود زرها متاحًا للبدء الفعلي
+      await em.query('DELETE FROM organization_starters WHERE organization_id = $1 AND applied_at >= $2', [orgId, r.loadedAt]);
       // المحذوف = التجريبي + ما أضيف بعده (بعض السجلات تُحذف تبعًا لسجلاتها الأصلية فلا تظهر في عدّ كل جدول)
       const counts = { sample: countOf(plan.sample), own: countOf(plan.own), deleted: countOf(plan.sample) + countOf(plan.own) };
       const event: SampleDataEvent = {

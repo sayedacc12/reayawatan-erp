@@ -7,6 +7,7 @@ import { useToast } from '../../../stores/toast';
 import { LEVEL_COLOR, LEVELS, levelOf } from '../lib';
 import '../../../shared/module.css';
 import '../audit.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 interface Settings { riskBands: { medium: number; high: number; critical: number }; frequency: Record<string, number>; dueDays: Record<string, number>; reminderDays: number }
 const toast = useToast();
@@ -29,6 +30,7 @@ async function save() {
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات المراجعة الداخلية</h1><p class="muted">مستويات الخطر وتكرار المراجعة ومهل التوصيات، وصلاحيات الوحدة على أدوار الشركة.</p></div></div>
+    <StarterSettings module="audit" />
     <div class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'risk' }]" @click="tab = 'risk'">المخاطر والمهل</button>
       <button :class="['pm-tab', { on: tab === 'permissions' }]" @click="tab = 'permissions'">الصلاحيات</button>

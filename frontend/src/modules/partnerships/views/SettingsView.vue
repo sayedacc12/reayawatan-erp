@@ -7,6 +7,7 @@ import { useToast } from '../../../stores/toast';
 import { lookups, setLookups } from '../lib';
 import '../../../shared/module.css';
 import '../partnerships.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 const toast = useToast();
 const tab = ref<'types' | 'classes' | 'criteria' | 'general' | 'permissions'>('criteria');
@@ -76,6 +77,7 @@ const newKey = () => `tier_${Date.now().toString(36).slice(-5)}`;
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات الشراكات</h1><p class="muted">معايير اختيار الشركاء وأوزانها، وأنواع الشراكة وتصنيفات الشركاء، والتنبيهات وبيانات الشركة في العقود. تبويب بنود العقود من <RouterLink to="/partnerships/clauses" class="pm-link">مكتبة البنود</RouterLink>.</p></div></div>
+    <StarterSettings module="partnerships" />
     <nav class="pm-tabs">
       <button :class="['pm-tab', { on: tab === 'criteria' }]" @click="tab = 'criteria'">معايير الاختيار والمستويات</button>
       <button :class="['pm-tab', { on: tab === 'types' }]" @click="tab = 'types'">أنواع الشراكة</button>

@@ -8,6 +8,7 @@ import FieldsEditor from '../components/FieldsEditor.vue';
 import { copy, durationLabel, fmtDate, loadLookups, publicUrl, sar } from '../lib';
 import '../../../shared/module.css';
 import '../members.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABS = [
@@ -78,6 +79,7 @@ const accLabel = (a: any) => `${a.code} · ${a.name}`;
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات العضوية</h1><p class="muted">كل ما يخص العضوية مرن من هنا: الأنواع واشتراكاتها، الشروط وأحكام اللائحة الأساسية، النموذج والمستندات، مراحل الاعتماد، السداد والربط المالي، والتجديد.</p></div></div>
+    <StarterSettings module="members" />
     <div class="mb-tabs"><button v-for="t in TABS" :key="t.k" :class="['mb-tab', { on: tab === t.k }]" @click="tab = t.k; t.k === 'renewal' && syncReminders()">{{ t.l }}</button></div>
     <template v-if="s">
       <Transition name="page" mode="out-in">

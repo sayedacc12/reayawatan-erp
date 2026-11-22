@@ -27,6 +27,7 @@ import { ProcurementModule } from './modules/procurement/procurement.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { WebsiteModule } from './modules/website/website.module';
 import { DemoModule } from './modules/demo/demo.module';
+import { StarterModule } from './modules/starter/starter.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -59,6 +60,7 @@ import { HealthController } from './health.controller';
     BillingModule,
     WebsiteModule,
     DemoModule,
+    StarterModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...
   ],
   controllers: [HealthController],

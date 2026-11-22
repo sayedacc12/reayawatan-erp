@@ -8,6 +8,7 @@ import { useToast } from '../../../stores/toast';
 import { loadConfig, loadLookups, type ConfigPayload, type RiskConfig } from '../lib';
 import '../../../shared/module.css';
 import '../risk.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 type Tab = 'matrix' | 'lists' | 'workflows' | 'permissions';
 const toast = useToast();
@@ -54,6 +55,7 @@ const slug = (s: string, i: number) => s.trim().toLowerCase().replace(/[^a-z0-9]
         <p class="muted">مقاييس المصفوفة ومستويات الخطر وحد القابلية، والقوائم، ومراحل اعتماد كل إجراء، والصلاحيات. نصوص السياسة في <RouterLink to="/risk/policy" class="pm-link">السياسة</RouterLink> والمنهجيات في <RouterLink to="/risk/methodologies" class="pm-link">سجل المنهجيات</RouterLink>.</p></div>
       <button v-if="tab !== 'permissions'" class="btn btn-primary" :disabled="!dirty" @click="save">حفظ الإعدادات</button>
     </div>
+    <StarterSettings module="risk" />
     <div class="rk-tabs">
       <button :class="['rk-tab', { on: tab === 'matrix' }]" @click="tab = 'matrix'">مصفوفة المخاطر</button>
       <button :class="['rk-tab', { on: tab === 'lists' }]" @click="tab = 'lists'">التصنيفات والقوائم</button>

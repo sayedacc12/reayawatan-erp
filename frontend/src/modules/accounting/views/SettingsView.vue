@@ -8,6 +8,7 @@ import SearchSelect from '../../../shared/SearchSelect.vue';
 import { docTypes, dt, loadDocTypes, useAccounts, type DocType } from '../lib';
 import '../../../shared/module.css';
 import '../acc.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 interface Category { id: string; name: string; behavior: 'customer' | 'supplier' | 'other'; behaviorLabel: string; partners: number }
 interface Settings { analyticLevels: number; warehouseTypes: string[]; chartInstalledAt: string | null; closingAccount: { id: string; code: string; name: string } | null; categories: Category[] }
@@ -154,6 +155,7 @@ const kindStages = computed(() => (tab.value === 'receipt' || tab.value === 'pay
         <p class="pm-sub">الدليل الموحد، مستويات التحليلي، حساب إقفال النتائج، مراحل اعتماد السندات، التصنيفات، والصلاحيات.</p>
       </div>
     </section>
+    <StarterSettings module="accounting" />
     <div class="pm-tabs">
       <button v-for="t in tabs" :key="t.key" :class="['pm-tab', { on: tab === t.key }]" @click="tab = t.key">{{ t.label }}</button>
     </div>

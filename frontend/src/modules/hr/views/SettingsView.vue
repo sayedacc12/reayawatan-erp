@@ -13,6 +13,7 @@ import SeparationConfigPane from '../components/SeparationConfigPane.vue';
 import { useToast } from '../../../stores/toast';
 import '../../../shared/module.css';
 import '../hr.css';
+import StarterSettings from '../../../components/StarterSettings.vue';
 
 const toast = useToast();
 type Tab = 'structure' | 'services' | 'allowances' | 'profiles' | 'accounting' | 'attendance' | 'development' | 'separation' | 'permissions';
@@ -40,6 +41,7 @@ function move(i: number, d: number) {
 <template>
   <div>
     <div class="page-head"><div><h1>إعدادات الموارد البشرية</h1><p class="muted">مستويات الهيكل، البدلات، حسابات المصروف حسب الوظيفة، الربط المحاسبي للرواتب، الحضور وأجهزة البصمة، التطوير والتدريب، والصلاحيات. النسب والمدد والإجازات في <RouterLink to="/hr/policy" class="pm-link">لائحة الموارد البشرية</RouterLink>.</p></div></div>
+    <StarterSettings module="hr" />
     <div class="hr-tabs">
       <button :class="['hr-tab', { on: tab === 'structure' }]" @click="tab = 'structure'">مستويات الهيكل</button>
       <button :class="['hr-tab', { on: tab === 'services' }]" @click="tab = 'services'">خدمات الموظفين ومسارات الطلبات</button>
