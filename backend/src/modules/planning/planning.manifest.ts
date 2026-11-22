@@ -49,6 +49,7 @@ export const planningManifest: ErpModuleManifest = {
     { label: 'المعادلات والافتراضات', path: '/planning/formulas', permission: P.read, group: 'الموازنات' },
     { label: 'مؤشرات الأداء', path: '/planning/kpis', permission: P.read },
     { label: 'متابعة التنفيذ', path: '/planning/execution', permission: P.read },
+    { label: 'تقارير المجلس', path: '/planning/board-reports', permission: P.reports },
     { label: 'التقارير', path: '/planning/reports', permission: P.reports },
     { label: 'الإعدادات', path: '/planning/settings', permission: P.settings },
   ],

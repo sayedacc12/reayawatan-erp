@@ -26,11 +26,13 @@ import { PlansService } from './plans.service';
  */
 import { PlanImportService } from './plan-import.service';
 import { BudgetImportService } from './budget/budget-import.service';
+import { BoardReportsController } from './board/board-reports.controller';
+import { BoardReportsService } from './board/board-reports.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature(PLANNING_ENTITIES), CoreModule],
-  controllers: [PlanningController, BudgetController],
-  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks],
+  controllers: [PlanningController, BudgetController, BoardReportsController],
+  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks, BoardReportsService],
   exports: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
 })
 export class PlanningModule {}
