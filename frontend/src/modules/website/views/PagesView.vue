@@ -45,7 +45,7 @@ const PAGE_URL: Record<string, string> = { home: '/', about: '/about', contact: 
 <template>
   <div>
     <div class="page-head">
-      <div><h1>صفحات الموقع</h1><p class="muted" style="margin: 4px 0 0">عدّلوا نصوص الموقع هنا وتظهر فورًا. النص بين <code v-pre>{{ }}</code> يظهر مظللًا كبيان «يُستكمل» أو «ينتظر الاعتماد».</p></div>
+      <div><h1>صفحات الموقع</h1><p class="muted" style="margin: 4px 0 0">عدّلوا نصوص الموقع هنا وتظهر فورًا. النص بين <code v-pre>{{ }}</code> بيان معلق لا يظهر للزوار حتى تستبدلوه بالقيمة الفعلية.</p></div>
       <div style="display: flex; gap: 8px">
         <a :href="PAGE_URL[tab]" target="_blank" class="btn">معاينة ↗</a>
         <button class="btn" @click="reset">النص الأصلي</button>

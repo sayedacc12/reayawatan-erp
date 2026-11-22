@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { segments } from './site';
+import { publicText } from './site';
 
-/** نص من لوحة التحكم: يُعرض نصًا عاديًا (بلا HTML)، وما بين {{ }} يظهر مظللًا كبيان ينتظر الاستكمال */
+/**
+ * نص من لوحة التحكم يُعرض نصًا عاديًا (بلا HTML).
+ * البيانات المعلقة بين {{ }} لا تظهر للزوار بعد إطلاق الموقع؛ تبقى ظاهرة في لوحة التحكم حتى تُستكمل.
+ */
 const props = defineProps<{ text?: string | null }>();
-const parts = computed(() => segments(props.text));
+const shown = computed(() => publicText(props.text));
 </script>
 
-<template><template v-for="(p, i) in parts" :key="i"><span v-if="p.ph" class="ph">{{ p.t }}</span><template v-else>{{ p.t }}</template></template></template>
+<template>{{ shown }}</template>

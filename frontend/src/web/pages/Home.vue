@@ -6,7 +6,7 @@ import Shift from '../Shift.vue';
 import StageTag from '../StageTag.vue';
 import VisitorFields from '../VisitorFields.vue';
 import { blankVisitor, leafRing, LEAFP, setTitle, visitorBody } from '../parts';
-import { AR, bySlug, C, fmt, handoff, post, services, visitMeta } from '../site';
+import { AR, bySlug, C, filled, fmt, handoff, post, services, visitMeta } from '../site';
 
 /** الصفحة الرئيسية: المحتوى من لوحة التحكم، والحاسبة ترسل نتيجتها للنظام كعميل محتمل */
 const router = useRouter();
@@ -160,7 +160,7 @@ const cur = computed(() => svcs.value[sel.value] ?? svcs.value[0]);
       <p class="eyebrow">{{ h.logoEyebrow }}</p>
       <h2>{{ h.logoTitle }}</h2>
       <p><Rich :text="h.logoText" /></p>
-      <p v-if="h.logoNote" class="note"><Rich :text="h.logoNote" /></p>
+      <p v-if="filled(h.logoNote)" class="note"><Rich :text="h.logoNote" /></p>
     </div>
   </div></section>
 
@@ -171,7 +171,7 @@ const cur = computed(() => svcs.value[sel.value] ?? svcs.value[0]);
 
   <section class="band"><div class="wrap">
     <div class="sec-head"><p class="eyebrow">{{ h.kpiEyebrow }}</p><h2>{{ h.kpiTitle }}</h2><p class="lead"><Rich :text="h.kpiLead" /></p></div>
-    <div class="kpis"><div v-for="(k, i) in h.kpis" :key="i"><span class="kv-num"><Rich :text="k.value" /></span><span class="kv-lbl">{{ k.label }}</span></div></div>
+    <div class="kpis"><div v-for="(k, i) in h.kpis" :key="i"><span class="kv-num"><Rich v-if="filled(k.value)" :text="k.value" /><template v-else>—</template></span><span class="kv-lbl">{{ k.label }}</span></div></div>
   </div></section>
 
   <section class="final-cta"><div class="wrap">
@@ -181,7 +181,7 @@ const cur = computed(() => svcs.value[sel.value] ?? svcs.value[0]);
       <RouterLink to="/assess"><b>قيّموا جاهزيتكم</b><span>سبعة أسئلة تكشف أين تضيف لكم القيمة أكثر.</span><i>ابدأ التقييم ←</i></RouterLink>
       <RouterLink to="/book"><b>جلسة تشخيص مجانية</b><span>اختاروا موعدًا مناسبًا مع أحد مستشارينا.</span><i>احجز الجلسة ←</i></RouterLink>
       <RouterLink to="/guides"><b>أدلة مجانية</b><span>أدلة عملية مختصرة في مجالات عمل المنظمة.</span><i>تصفح الأدلة ←</i></RouterLink>
-      <RouterLink to="/contact"><b>تحدثوا معنا مباشرة</b><span>واتساب الأعمال: <Rich :text="C().contact?.whatsapp" /></span><i>تواصل معنا ←</i></RouterLink>
+      <RouterLink to="/contact"><b>تحدثوا معنا مباشرة</b><span v-if="filled(C().contact?.whatsapp)">واتساب الأعمال: <Rich :text="C().contact?.whatsapp" /></span><span v-else>اكتبوا لنا وسيرد عليكم فريقنا خلال يومي عمل.</span><i>تواصل معنا ←</i></RouterLink>
     </div>
   </div></section>
 </template>

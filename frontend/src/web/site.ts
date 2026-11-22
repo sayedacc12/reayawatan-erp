@@ -55,6 +55,24 @@ export function segments(text: string | null | undefined): { t: string; ph: bool
   return out;
 }
 
+/** هل في النص بيان منشور (غير معلق)؟ يُخفى السطر في الموقع العام إن كان كله معلقًا */
+export const filled = (text: string | null | undefined) => segments(text).some((p) => !p.ph && p.t.trim() !== '');
+
+/**
+ * النص كما يراه الزائر: تُحذف البيانات المعلقة {{...}} من الموقع العام،
+ * ومعها أي عنوان فرعي بقي بلا قيمة في آخر النص (مثل «الاعتماد المهني:») والفواصل المتدلية.
+ */
+export function publicText(text: string | null | undefined): string {
+  return segments(text)
+    .filter((p) => !p.ph)
+    .map((p) => p.t)
+    .join('')
+    .replace(/[^.،:؛]*:\s*$/u, '')
+    .replace(/[\s،,:؛·\-–]+$/u, '')
+    .replace(/^[\s،,:؛·\-–]+/u, '')
+    .replace(/\s{2,}/g, ' ');
+}
+
 /** إرسال نموذج للنظام */
 export async function post<T = any>(path: string, body: unknown): Promise<T> {
   const r = await fetch(`/api/public/web${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
