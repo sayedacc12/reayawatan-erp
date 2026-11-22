@@ -9,6 +9,7 @@ import { PlatformSetting } from '../subscriptions/entities';
 import { ClosureEvent, OrganizationClosure } from './closure.entity';
 import { DEFAULT_LIFECYCLE, DeletionNotice, LifecycleSettings, deletionNotice, lifecycleSettings } from './lifecycle-rules';
 import { deleteOrganization, exportOrganization } from './org-data';
+import { companySlug } from '../company';
 
 /** فحص الحذف المجدول كل ساعة (يتوقف في الاختبارات) */
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
@@ -90,6 +91,7 @@ export class LifecycleService implements OnApplicationBootstrap, OnApplicationSh
     const org = await this.org(orgId);
     this.assertConfirm(org, dto.confirm);
     if (org.slug === 'demo') throw new BadRequestException('الشركة التجريبية العامة تُحذف من شاشة الجمعيات');
+    if (companySlug() && org.slug === companySlug()) throw new BadRequestException('منشأة الشركة لا يُجدول إنهاؤها أو حذفها من النظام');
     const grace = Math.round(Number(dto.graceDays));
     if (!Number.isFinite(grace) || grace < 0 || grace > 365) throw new BadRequestException('مهلة الحذف بين 0 و365 يومًا');
     if (!dto.charityRep?.trim()) throw new BadRequestException('اكتب اسم ممثل الشركة في الاتفاق');

@@ -42,7 +42,7 @@ const STEPS: StepDef[] = [
   { key: 'banks', phase: 'finance', app: 'accounting', title: 'أضف البنوك والصناديق', hint: 'سجّل حسابات الشركة البنكية والصناديق النقدية لتستخدمها في السندات.', link: '/accounting/banks', sql: exists('acc_cash_accounts') },
   { key: 'programs', phase: 'services', app: 'beneficiaries', title: 'عرّف برامج المساعدات', hint: 'أضف البرامج والمساعدات التي تقدمها الشركة ومسارات اعتماد طلباتها.', link: '/beneficiaries/settings', sql: exists('activities') },
   { key: 'donors', phase: 'services', app: 'fundraising', title: 'سجّل الداعمين', hint: 'أضف الداعمين والمانحين لتتابع فرص الدعم والتعهدات.', link: '/fundraising/donors', sql: exists('fundraising_donors') },
-  { key: 'website', phase: 'launch', app: 'website', title: 'انشر موقع الشركة', hint: 'راجع صفحات الموقع ثم فعّل النشر ليصل إليه الزوار والمتبرعون.', link: '/website/settings', sql: `SELECT EXISTS (SELECT 1 FROM web_settings WHERE organization_id = $1 AND published) AS done` },
+  { key: 'website', phase: 'launch', app: 'website', title: 'انشر موقع الشركة', hint: 'الموقع يعمل على reayawatan.com. أكمل بيانات التواصل في «صفحات الموقع»، وتأكد أن الخدمات منشورة، وأن الحجز مفعّل ومستلمي الإشعارات محددون.', link: '/website/pages', sql: `SELECT EXISTS (SELECT 1 FROM rw_services WHERE organization_id = $1 AND published) AS done` },
 ];
 
 @Injectable()

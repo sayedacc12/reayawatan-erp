@@ -185,6 +185,10 @@ export class BootstrapService implements OnApplicationBootstrap {
       if (!org) {
         org = await em.save(em.create(Organization, { name: this.config.get<string>('COMPANY_NAME') || 'رعاية وطن', slug, subscriptionStatus: 'active' }));
         this.logger.log(`Created company organization "${slug}"`);
+      } else if (org.subscriptionStatus !== 'active' || org.trialEndsOn || org.subscriptionEndsOn) {
+        // منشأة الشركة الواحدة اشتراكها دائم: لا فترة تجربة ولا انتهاء (موروثات منصة سنابل). الإيقاف المتعمد (isActive) لا يُلغى هنا
+        this.logger.warn(`Company "${slug}" had subscription ${org.subscriptionStatus} (trial ends ${org.trialEndsOn ?? '-'}, ends ${org.subscriptionEndsOn ?? '-'}); set to permanent active`);
+        await em.update(Organization, { id: org.id }, { subscriptionStatus: 'active', trialEndsOn: null, subscriptionEndsOn: null });
       }
       if (await em.exists(User, { where: { organizationId: org.id, isSuperadmin: true } })) return;
       const password = this.config.get<string>('DIRECTOR_PASSWORD');
