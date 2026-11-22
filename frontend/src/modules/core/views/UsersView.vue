@@ -49,9 +49,64 @@ async function loadResets() {
   if (canManage.value) resets.value = await api('/users/password-resets');
 }
 
+// ---- التكليفات: دور مؤقت بتاريخ بداية ونهاية (أو مفتوح حتى يُنهى) يسقط تلقائيًا ----
+interface AssignmentRow {
+  id: string; userId: string; userName: string | null; roleId: string; roleName: string | null;
+  startDate: string; endDate: string | null; note: string | null;
+  state: 'upcoming' | 'active' | 'expired' | 'ended'; stateLabel: string;
+  createdByName: string; createdAt: string; endedAt: string | null; endedByName: string | null;
+}
+const STATE_CLASS: Record<AssignmentRow['state'], string> = { upcoming: 'badge-amber', active: 'badge-success', expired: 'badge-muted', ended: 'badge-muted' };
+const assignments = ref<AssignmentRow[]>([]);
+const showPast = ref(false);
+const current = computed(() => assignments.value.filter((a) => a.state === 'active' || a.state === 'upcoming'));
+const past = computed(() => assignments.value.filter((a) => a.state === 'expired' || a.state === 'ended'));
+const currentOf = (userId: string) => current.value.filter((a) => a.userId === userId);
+const todayStr = () => new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+const assignFor = ref<UserRow | null>(null);
+const assignError = ref('');
+const assignForm = reactive({ roleId: '', startDate: '', endDate: '', note: '' });
+function openAssign(u: UserRow) {
+  assignFor.value = u;
+  assignError.value = '';
+  Object.assign(assignForm, { roleId: '', startDate: todayStr(), endDate: '', note: '' });
+}
+async function saveAssign() {
+  if (!assignFor.value) return;
+  assignError.value = '';
+  saving.value = true;
+  try {
+    await api(`/users/${assignFor.value.id}/assignments`, {
+      method: 'POST',
+      json: { roleId: assignForm.roleId, startDate: assignForm.startDate, ...(assignForm.endDate ? { endDate: assignForm.endDate } : {}), ...(assignForm.note.trim() ? { note: assignForm.note.trim() } : {}) },
+    });
+    toast.success('تم التكليف');
+    assignFor.value = null;
+    await loadAssignments();
+  } catch (e) {
+    assignError.value = (e as Error).message;
+  } finally {
+    saving.value = false;
+  }
+}
+async function endAssign(a: AssignmentRow) {
+  if (!confirm(`إنهاء تكليف "${a.userName}" بدور "${a.roleName}" الآن؟ تسقط صلاحيات الدور فورًا.`)) return;
+  try {
+    await api(`/users/assignments/${a.id}/end`, { method: 'POST' });
+    toast.success('أُنهي التكليف');
+    await loadAssignments();
+  } catch (e) {
+    toast.error((e as Error).message);
+  }
+}
+async function loadAssignments() {
+  assignments.value = await api<AssignmentRow[]>('/users/assignments');
+}
+
 async function load() {
   try {
     users.value = await api<UserRow[]>('/users');
+    await loadAssignments();
     await loadResets();
     if (session.can('core.roles.read')) roles.value = await api<RoleRow[]>('/roles');
   } catch (e) {
@@ -148,18 +203,70 @@ function formatDate(d: string | null) {
             <td>
               <span v-if="u.isSuperadmin" class="badge badge-primary">مدير نظام الشركة</span>
               <span v-for="r in u.roles" :key="r.id" class="badge">{{ r.name }}</span>
-              <span v-if="!u.isSuperadmin && !u.roles.length" class="muted">بدون دور</span>
+              <span v-for="a in currentOf(u.id)" :key="a.id" :class="['badge', STATE_CLASS[a.state]]" :title="a.note ?? ''">
+                تكليف: {{ a.roleName }} {{ a.state === 'upcoming' ? `من ${a.startDate}` : '' }} {{ a.endDate ? `حتى ${a.endDate}` : '(مفتوح)' }}
+              </span>
+              <span v-if="!u.isSuperadmin && !u.roles.length && !currentOf(u.id).length" class="muted">بدون دور</span>
             </td>
             <td><span :class="['badge', u.isActive ? 'badge-success' : 'badge-muted']">{{ u.isActive ? 'نشط' : 'موقوف' }}</span></td>
             <td class="muted">{{ formatDate(u.lastLoginAt) }}</td>
             <td v-if="canManage" class="row-actions">
               <button class="btn btn-sm" @click="openForm(u)">تعديل</button>
+              <button v-if="!u.isSuperadmin && u.isActive && roles.length" class="btn btn-sm" title="إسناد دور لمدة محددة أو حتى يُنهى" @click="openAssign(u)">تكليف</button>
               <button v-if="u.id !== session.user?.id && u.isActive && (!u.isSuperadmin || session.user?.isSuperadmin)" class="btn btn-sm" title="كلمة مرور مؤقتة يغيّرها عند أول دخول" @click="issueTemp(u.id, u.fullName)">كلمة مؤقتة</button>
             </td>
           </tr>
           <tr v-if="!filtered.length"><td colspan="6" class="muted" style="text-align: center">لا يوجد مستخدمون</td></tr>
         </tbody>
       </table>
+    </div>
+
+    <section class="card table-wrap assign-box">
+      <h2>التكليفات</h2>
+      <p class="muted">التكليف دور يُسند لمستخدم من تاريخ إلى تاريخ، أو مفتوح حتى يُنهى. صلاحياته تعمل في مدته فقط وتسقط تلقائيًا بعدها.</p>
+      <table v-if="current.length" class="table">
+        <thead><tr><th>المستخدم</th><th>الدور</th><th>من</th><th>إلى</th><th>ملاحظة</th><th>الحالة</th><th v-if="canManage"></th></tr></thead>
+        <tbody>
+          <tr v-for="a in current" :key="a.id">
+            <td>{{ a.userName }}</td><td>{{ a.roleName }}</td><td>{{ a.startDate }}</td><td>{{ a.endDate ?? 'مفتوح' }}</td>
+            <td class="muted">{{ a.note ?? '—' }}<div class="small">أسنده {{ a.createdByName }}</div></td>
+            <td><span :class="['badge', STATE_CLASS[a.state]]">{{ a.stateLabel }}</span></td>
+            <td v-if="canManage"><button class="btn btn-sm" @click="endAssign(a)">إنهاء</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="muted">لا توجد تكليفات سارية.</p>
+      <button v-if="past.length" class="btn btn-sm" @click="showPast = !showPast">{{ showPast ? 'إخفاء' : 'عرض' }} التكليفات المنتهية ({{ past.length }})</button>
+      <table v-if="showPast && past.length" class="table" style="margin-top: 10px">
+        <thead><tr><th>المستخدم</th><th>الدور</th><th>من</th><th>إلى</th><th>الحالة</th></tr></thead>
+        <tbody>
+          <tr v-for="a in past" :key="a.id">
+            <td>{{ a.userName }}</td><td>{{ a.roleName }}</td><td>{{ a.startDate }}</td><td>{{ a.endDate ?? 'مفتوح' }}</td>
+            <td><span class="badge badge-muted">{{ a.stateLabel }}</span><div v-if="a.endedByName" class="muted small">أنهاه {{ a.endedByName }} {{ formatDate(a.endedAt) }}</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div v-if="assignFor" class="modal-backdrop" @click.self="assignFor = null" @keydown.esc="assignFor = null">
+      <form class="card modal" @submit.prevent="saveAssign">
+        <h2 style="margin-bottom: 16px">تكليف {{ assignFor.fullName }}</h2>
+        <div v-if="assignError" class="alert alert-error">{{ assignError }}</div>
+        <div class="field">
+          <label>الدور</label>
+          <select v-model="assignForm.roleId" class="input" required>
+            <option value="" disabled>اختر الدور</option>
+            <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
+          </select>
+        </div>
+        <div class="field"><label>من تاريخ</label><input v-model="assignForm.startDate" class="input" type="date" required /></div>
+        <div class="field"><label>إلى تاريخ (اتركه فارغًا ليبقى التكليف مفتوحًا حتى يُنهى)</label><input v-model="assignForm.endDate" class="input" type="date" :min="assignForm.startDate" /></div>
+        <div class="field"><label>سبب التكليف أو رقم قراره (اختياري)</label><input v-model="assignForm.note" class="input" maxlength="500" /></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" :disabled="saving">حفظ التكليف</button>
+          <button type="button" class="btn" @click="assignFor = null">إلغاء</button>
+        </div>
+      </form>
     </div>
 
     <section v-if="canManage && resets.log.length" class="pr-log">
@@ -220,6 +327,8 @@ function formatDate(d: string | null) {
 .pr-box h2 { font-size: 1.05rem; margin: 0 0 4px; }
 .pr-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
 .pr-log { margin-top: 14px; }
+.assign-box { padding: 16px 18px; margin-top: 14px; }
+.assign-box h2 { font-size: 1.05rem; margin: 0 0 4px; }
 .badge-amber { background: #fef3c7; color: #92400e; border-color: transparent; }
 .small { font-size: .82rem; }
 .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }

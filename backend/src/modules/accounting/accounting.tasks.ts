@@ -19,7 +19,7 @@ export class AccountingTasks implements OnModuleInit {
       `SELECT v.id, v.kind, v.serial, v.party_name AS party, v.amount, s.name AS stage, s.role_id, v.updated_at AS at
          FROM acc_vouchers v LEFT JOIN acc_voucher_stages s ON s.id = v.current_stage_id
         WHERE v.organization_id = $1 AND v.status = 'pending'
-          AND (s.role_id IS NULL OR $2 OR s.role_id IN (SELECT role_id FROM user_roles WHERE user_id = $3))
+          AND (s.role_id IS NULL OR $2 OR s.role_id IN (SELECT role_id FROM effective_user_roles WHERE user_id = $3))
         ORDER BY v.updated_at`, [u.organizationId, u.isSuperadmin, u.id],
     );
     return rows.map((r) => ({

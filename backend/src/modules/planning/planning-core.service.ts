@@ -74,7 +74,7 @@ export class PlanningCore {
   }
 
   async decider(actor: OrgUser, permission: string = P.approve): Promise<Decider> {
-    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM user_roles WHERE user_id = $1', [actor.id]);
+    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM effective_user_roles WHERE user_id = $1', [actor.id]);
     return { name: actor.fullName, isSuperadmin: actor.isSuperadmin, hasPermission: actor.permissions.includes(permission), roleIds: new Set(rows.map((r) => r.role_id)) };
   }
 

@@ -279,7 +279,7 @@ export class MemCore {
   async canDecide(actor: OrgUser, stage: ApprovalStage | undefined) {
     if (!actor.isSuperadmin && !actor.permissions.includes(P.approve)) return false;
     if (!stage?.roleId || actor.isSuperadmin) return true;
-    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM user_roles WHERE user_id = $1', [actor.id]);
+    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM effective_user_roles WHERE user_id = $1', [actor.id]);
     return rows.some((r) => r.role_id === stage.roleId);
   }
 }

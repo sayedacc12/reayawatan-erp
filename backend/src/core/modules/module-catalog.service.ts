@@ -23,8 +23,16 @@ export class ModuleCatalogService implements OnApplicationBootstrap {
     );
   }
 
+  private syncing?: Promise<void>;
+
   async onApplicationBootstrap() {
-    await this.sync();
+    await this.synced();
+  }
+
+  /** مزامنة الوحدات والصلاحيات مرة واحدة عند التشغيل (يستخدمها من يحتاج الصلاحيات في القاعدة قبل أن يعمل) */
+  synced() {
+    this.syncing ??= this.sync();
+    return this.syncing;
   }
 
   async sync() {

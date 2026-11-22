@@ -3,8 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PASSWORD_CHARS } from './validation';
-import { DataSource } from 'typeorm';
-import { Organization, User } from './entities';
+import { DataSource, In } from 'typeorm';
+import { Organization, Permission, Role, User } from './entities';
+import { ModuleCatalogService } from './modules/module-catalog.service';
+import { DEFAULT_ROLES } from './roles/default-roles';
+import { OrganizationStarter } from '../modules/starter/starter.entity';
 import { companySlug } from './company';
 import { FileStore } from './files/file-store.service';
 import { seedCompanyBrand } from './identity/company-brand';
@@ -17,11 +20,17 @@ import { seedCompanyBrand } from './identity/company-brand';
 export class BootstrapService implements OnApplicationBootstrap {
   private readonly logger = new Logger('Bootstrap');
 
-  constructor(private readonly db: DataSource, private readonly config: ConfigService, private readonly files: FileStore) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly config: ConfigService,
+    private readonly files: FileStore,
+    private readonly catalog: ModuleCatalogService,
+  ) {}
 
   async onApplicationBootstrap() {
     await this.ensureCompany();
     await this.ensureBrand();
+    await this.ensureDefaultRoles();
     // وضع الشركة الواحدة: لا حساب لمدير منصة إلا إذا طُلب صراحة بكلمة مرور
     if (companySlug() && !this.config.get<string>('PLATFORM_ADMIN_PASSWORD')) return;
     await this.db.transaction(async (em) => {
@@ -59,6 +68,42 @@ export class BootstrapService implements OnApplicationBootstrap {
       if (org) await seedCompanyBrand(this.db, this.files, org, this.logger);
     } catch (e) {
       this.logger.error(`Company identity defaults not applied: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * الأدوار الافتراضية للشركة (default-roles.ts): تُضاف مرة واحدة فقط بعد إنشاء المدير، ويُسجَّل ذلك في organization_starters
+   * (النظام «core») فلا تعود لو عدّلها المدير أو حذفها. دور موجود بالاسم نفسه لا يُمس. خطؤها لا يوقف التشغيل.
+   */
+  private async ensureDefaultRoles() {
+    const slug = companySlug();
+    if (!slug) return;
+    try {
+      await this.catalog.synced();
+      await this.db.transaction(async (em) => {
+        await em.query('SELECT pg_advisory_xact_lock(424244)');
+        const org = await em.findOne(Organization, { where: { slug } });
+        if (!org) return;
+        if (await em.exists(OrganizationStarter, { where: { organizationId: org.id, moduleCode: 'core' } })) return;
+        const director = await em.findOne(User, { where: { organizationId: org.id, isSuperadmin: true }, order: { createdAt: 'ASC' } });
+        if (!director) return;
+        const known = new Map((await em.find(Permission)).map((p) => [p.code, p]));
+        const existing = new Set((await em.find(Role, { where: { organizationId: org.id, name: In(DEFAULT_ROLES.map((r) => r.name)) } })).map((r) => r.name));
+        let added = 0;
+        for (const r of DEFAULT_ROLES) {
+          if (existing.has(r.name)) continue;
+          const permissions = [...new Set(r.permissions)].map((c) => known.get(c)).filter((p): p is Permission => !!p);
+          await em.save(em.create(Role, { organizationId: org.id, name: r.name, description: r.description, permissions }));
+          added++;
+        }
+        await em.save(em.create(OrganizationStarter, {
+          organizationId: org.id, moduleCode: 'core', status: 'applied', appliedBy: 'النظام (الأدوار الافتراضية)', appliedById: director.id,
+          results: [{ key: 'roles', label: 'الأدوار الافتراضية', added, ...(added < DEFAULT_ROLES.length ? { note: 'أدوار بالاسم نفسه موجودة مسبقًا فلم تتغير' } : {}) }],
+        }));
+        this.logger.log(`Default company roles added: ${added}`);
+      });
+    } catch (e) {
+      this.logger.error(`Default company roles not applied: ${(e as Error).message}`);
     }
   }
 

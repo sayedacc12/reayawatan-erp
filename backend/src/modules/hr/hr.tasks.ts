@@ -27,7 +27,7 @@ export class HrTasks implements OnModuleInit {
   }
 
   private async roles(u: OrgUser) {
-    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM user_roles WHERE user_id = $1', [u.id]);
+    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM effective_user_roles WHERE user_id = $1', [u.id]);
     return new Set(rows.map((r) => r.role_id));
   }
 
