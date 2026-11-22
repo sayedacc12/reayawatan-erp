@@ -51,7 +51,7 @@ export class BillingSeed {
     const clerk = await this.grant(team.roles.finance, team.finance, [BP.read, BP.invoices, BP.customers, BP.items, BP.reports, ACC.receipts]);
     await this.ops.saveSettings(admin, {
       mode: 'registered', sellerName: o?.name ?? 'الشركة التجريبية', sellerNameEn: 'Sanabel Demo Charity', vatNumber: '310000000000003', idType: 'OTH', idNumber: '1234',
-      address: ADDRESS, vatRate: 15, receivablesAccountId: ar, vatOutputAccountId: vat, revenueAccountId: revenue, customerCategoryId: cat?.id ?? null,
+      address: ADDRESS, vatRate: 15, vatEffectiveFrom: '2020-01-01', paymentCashAccountId: bank?.id ?? null, receivablesAccountId: ar, vatOutputAccountId: vat, revenueAccountId: revenue, customerCategoryId: cat?.id ?? null,
       analyticId: null, paymentDays: 30, terms: 'السداد خلال 30 يومًا من تاريخ الفاتورة بتحويل إلى حساب الشركة.',
     });
 
