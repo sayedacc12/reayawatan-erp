@@ -9,7 +9,7 @@ import '../hr.css';
 
 interface Alert { kind: string; level: 'danger' | 'warning' | 'info'; text: string; employeeId?: string; date?: string | null }
 interface Dash {
-  headcount: number; saudi: number; nonSaudi: number; saudization: number; female: number; male: number; byUnit: { unit: string; n: number }[];
+  headcount: number; contractors?: number; saudi: number; nonSaudi: number; saudization: number; female: number; male: number; byUnit: { unit: string; n: number }[];
   vacancies: number; pendingLeaves: number; onLeave: number; draftJobs: number; pendingPlans: number; newHires: number;
   performance: { year: number; cards: number; approved: number; awaitingApproval: number; average: number | null };
   payroll: { gross: number; gosiEmployer: number; employerCost: number } | null; alerts: Alert[]; alertsTotal: number;
@@ -46,7 +46,7 @@ const ICON: Record<string, string> = { contract: 'العقد', probation: 'ال�
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <template v-if="data">
       <div class="pm-kpis">
-        <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>الموظفون</span><strong><CountUp :value="data.headcount" /></strong><small>{{ data.newHires }} تعيين خلال 90 يومًا</small></div>
+        <div class="pm-kpi" style="--a: #a78bfa; --i: 0"><span>الموظفون</span><strong><CountUp :value="data.headcount" /></strong><small>{{ data.newHires }} تعيين خلال 90 يومًا<template v-if="data.contractors"> · {{ data.contractors }} متعاونون</template></small></div>
         <div class="pm-kpi" style="--a: #2f7a57; --i: 1"><span>نسبة التوطين (تقريبية)</span><strong><CountUp :value="data.saudization" :decimals="1" />%</strong><small>{{ data.saudi }} سعودي · {{ data.nonSaudi }} غير سعودي</small></div>
         <div class="pm-kpi" style="--a: #f472b6; --i: 2"><span>الشواغر المعتمدة</span><strong><CountUp :value="data.vacancies" /></strong><small>حسب الأوصاف الوظيفية</small></div>
         <div class="pm-kpi" style="--a: #f59e0b; --i: 3"><span>إجازات بانتظار الاعتماد</span><strong><CountUp :value="data.pendingLeaves" /></strong><small>{{ data.onLeave }} في إجازة اليوم</small></div>

@@ -31,13 +31,41 @@ interface Dash {
   manager: { isManager: boolean; direct: number; team: number; awaiting: number };
   separation: { id: string; separationNo: number; status: string; lastWorkingDay: string; items: number; cleared: number } | null;
 }
+interface Clock { date: string; allowed: boolean; reason: string | null; workStart: string; workEnd: string; sites: { name: string }[]; maxAccuracy: number; punches: { time: string; sourceLabel: string }[]; next: 'in' | 'out' }
 const data = ref<Dash | null>(null);
+const clock = ref<Clock | null>(null);
+const clockBusy = ref(false);
+const clockMsg = ref<{ ok: boolean; text: string } | null>(null);
+/** التسجيل من الجوال: يقرأ الموقع من المتصفح (مجانًا) ويرسله، والخادم يتحقق من النطاق ويسجل بوقته هو */
+function punch() {
+  if (!navigator.geolocation) {
+    clockMsg.value = { ok: false, text: 'المتصفح لا يدعم تحديد الموقع' };
+    return;
+  }
+  clockBusy.value = true;
+  clockMsg.value = null;
+  navigator.geolocation.getCurrentPosition(async (p) => {
+    try {
+      clock.value = await api<Clock>('/hr/me/attendance', { method: 'POST', json: { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy } });
+      const last = clock.value.punches.at(-1);
+      clockMsg.value = { ok: true, text: `سُجلت بصمتك الساعة ${last?.time.slice(0, 5) ?? ''}` };
+    } catch (e) {
+      clockMsg.value = { ok: false, text: (e as Error).message };
+    } finally {
+      clockBusy.value = false;
+    }
+  }, (err) => {
+    clockBusy.value = false;
+    clockMsg.value = { ok: false, text: err.code === err.PERMISSION_DENIED ? 'اسمح للمتصفح باستخدام موقعك ثم حاول مرة أخرى' : 'تعذر تحديد موقعك. فعّل الموقع في الجوال وحاول مرة أخرى' };
+  }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+}
 const error = ref('');
 const now = ref(Date.now());
 let timer = 0;
 onMounted(async () => {
   try {
     data.value = await api<Dash>('/hr/me');
+    api<Clock>('/hr/me/attendance').then((c) => (clock.value = c)).catch(() => undefined);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -113,6 +141,20 @@ const quick = computed(() => data.value?.types.slice(0, 6) ?? []);
       </section>
 
       <LaunchCard />
+
+      <section v-if="clock?.allowed" class="card ess-card" style="margin-bottom: 14px">
+        <div class="ess-clock">
+          <button class="btn btn-primary ess-clock-btn" :disabled="clockBusy" @click="punch">
+            {{ clockBusy ? 'جارٍ تحديد موقعك…' : clock.next === 'in' ? '📍 تسجيل الحضور' : '📍 تسجيل الانصراف' }}
+          </button>
+          <div style="flex: 1; min-width: 200px">
+            <b>الحضور من الجوال</b>
+            <p class="pm-muted" style="margin: 2px 0">الدوام {{ clock.workStart }} - {{ clock.workEnd }} · يُقبل التسجيل داخل: {{ clock.sites.map((x) => x.name).join('، ') }}</p>
+            <div class="ess-clock-times"><span v-for="(p, i) in clock.punches" :key="i" class="pm-tag">{{ p.time.slice(0, 5) }} · {{ p.sourceLabel }}</span><span v-if="!clock.punches.length" class="pm-muted">لم تسجل اليوم بعد</span></div>
+          </div>
+        </div>
+        <div v-if="clockMsg" :class="['alert', clockMsg.ok ? '' : 'alert-error']" :style="clockMsg.ok ? { background: '#10b98115', marginTop: '10px' } : { marginTop: '10px' }">{{ clockMsg.text }}</div>
+      </section>
 
       <div v-for="(a, i) in data.alerts" :key="i" :class="['alert', a.level === 'danger' ? 'alert-error' : '']" :style="a.level !== 'danger' ? { background: '#fff7ed', color: '#9a3412' } : {}">{{ a.text }}</div>
       <RouterLink v-if="data.separation && data.separation.status !== 'paid'" :to="`/hr/separations/${data.separation.id}`" class="btn btn-sm" style="margin-bottom: 12px">🚪 متابعة ملف إنهاء خدمتي (إخلاء الطرف {{ data.separation.cleared }} / {{ data.separation.items }}) ←</RouterLink>

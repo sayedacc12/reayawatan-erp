@@ -58,7 +58,8 @@ export class PeopleService {
       unitName: units.get(e.unitId)?.name ?? '', jobTitle: jobs.get(e.jobId)?.title ?? '', gradeName: e.gradeId ? grades.get(e.gradeId)?.code ?? null : null,
       hireDate: e.hireDate, contractType: e.contractType, contractTypeLabel: CONTRACT_AR[e.contractType], contractEnd: e.contractEnd,
       qiwaStatus: e.qiwaStatus, status: e.status, terminationDate: e.terminationDate, userId: e.userId,
-      gross: salaries ? round2(e.basicSalary + e.allowances.reduce((s, a) => s + a.amount, 0)) : null,
+      employmentKind: e.employmentKind,
+      gross: salaries ? (e.employmentKind === 'contractor' ? null : round2(e.basicSalary + e.allowances.reduce((s, a) => s + a.amount, 0))) : null,
     }));
   }
 
@@ -90,7 +91,7 @@ export class PeopleService {
     const grade = e.gradeId ? grades.get(e.gradeId) : null;
     const base = {
       ...e,
-      basicSalary: salaries ? e.basicSalary : null, allowances: salaries ? e.allowances : [], iban: salaries ? e.iban : null, eosAmount: salaries ? e.eosAmount : null,
+      basicSalary: salaries ? e.basicSalary : null, payRate: salaries ? e.payRate : null, allowances: salaries ? e.allowances : [], iban: salaries ? e.iban : null, eosAmount: salaries ? e.eosAmount : null,
       unitName: units.get(e.unitId)?.name ?? '', jobTitle: jobs.get(e.jobId)?.title ?? '', jobCode: jobs.get(e.jobId)?.code ?? '',
       gradeName: grade ? `${grade.code} ${grade.name}` : null, salaryRange: grade && salaries ? { min: grade.minSalary, max: grade.maxSalary } : null,
       managerName: manager?.fullName ?? null,
@@ -101,7 +102,8 @@ export class PeopleService {
       balances: await this.balances(org, e, policy, asOf),
       leaves: (await this.leaves.find({ where: { organizationId: org, employeeId: id }, order: { startDate: 'DESC' }, take: 30 })).map((l) => this.leaveRow(l, policy)),
     };
-    if (!salaries) return { ...base, breakdown: null, eos: null };
+    // المتعاون بعقد تعاون: لا راتب ولا تأمينات ولا مكافأة نهاية خدمة، وأتعابه في كشف المتعاونين
+    if (!salaries || e.employmentKind === 'contractor') return { ...base, breakdown: null, eos: null };
     const wage = wageFor(policy.eos.wageBase, partsOf(e.basicSalary, e.allowances));
     return {
       ...base,
@@ -160,6 +162,18 @@ export class PeopleService {
         throw new BadRequestException(`فترة التجربة لا تتجاوز ${policy.work.maxProbationDays} يومًا حسب اللائحة`);
       }
     }
+    if (dto.employmentKind === 'contractor') {
+      // المتعاون: أجره من أساس العقد وقيمته، فلا راتب أساسي ولا بدلات ولا تأمينات ولا مرتبة
+      if (!dto.payBasis) throw new BadRequestException('اختر طريقة احتساب أجر المتعاون (شهري، يومي، بالساعة، بالمهمة)');
+      if (!dto.payRate) throw new BadRequestException('اكتب قيمة أجر المتعاون');
+      dto.basicSalary = 0;
+      dto.allowances = [];
+      dto.salaryException = null;
+    } else {
+      dto.employmentKind = 'staff';
+      dto.payBasis = null;
+      dto.payRate = null;
+    }
     const codes = dto.allowances.map((a) => a.code);
     if (new Set(codes).size !== codes.length) throw new BadRequestException('بند مكرر في البدلات');
     const types = await this.core.checkCodes(org, codes);
@@ -173,7 +187,7 @@ export class PeopleService {
       );
       if (others.length) throw new ConflictException(`رقم البصمة ${dto.attendanceCode} مستخدم للموظف ${others[0].full_name}`);
     }
-    let gradeId = job.gradeId;
+    let gradeId = dto.employmentKind === 'contractor' ? null : job.gradeId;
     if (gradeId) {
       const grade = await this.db.getRepository(HrGrade).findOneOrFail({ where: { id: gradeId } });
       if ((dto.step ?? 1) > grade.steps) throw new BadRequestException(`المرتبة ${grade.code} فيها ${grade.steps} درجات فقط`);
@@ -213,6 +227,26 @@ export class PeopleService {
     const e = await this.employee(org, id);
     if (e.status === 'terminated') throw new BadRequestException('لا يمكن تعديل موظف انتهت خدمته');
     const policy = await this.core.policy(org);
+    // تصنيف المتعاون وأجره لا يغيّره إلا من يملك صلاحية الرواتب
+    const salaries = actor.permissions.includes(P.salaries) || actor.isSuperadmin;
+    if (!salaries) {
+      dto.employmentKind = e.employmentKind;
+      dto.payBasis = e.payBasis;
+      dto.payRate = e.payRate;
+    }
+    if ((dto.employmentKind ?? 'staff') !== e.employmentKind) {
+      // لا يتغير التصنيف وهو في كشف قائم لم يُلغَ، حتى لا يُصرف له في كشفين للشهر نفسه
+      const [open] = await this.db.query(
+        `SELECT r.month FROM hr_payroll_runs r WHERE r.organization_id = $1 AND r.status IN ('draft', 'returned', 'pending')
+            AND EXISTS (SELECT 1 FROM jsonb_array_elements(r.lines) x WHERE x->>'employeeId' = $2) LIMIT 1`, [org, id]);
+      if (open) throw new ConflictException(`لا يتغير التصنيف وهو في كشف شهر ${open.month} قيد الإعداد أو الاعتماد. اعتمد الكشف أو ألغه أولًا`);
+      if (e.employmentKind === 'staff') {
+        const [adv] = await this.db.query(
+          `SELECT 1 FROM hr_advances a WHERE a.organization_id = $1 AND a.employee_id = $2 AND a.status = 'active'
+              AND a.amount > COALESCE((SELECT SUM(p.amount) FROM hr_advance_repayments p WHERE p.organization_id = $1 AND p.advance_id = a.id), 0) LIMIT 1`, [org, id]);
+        if (adv) throw new ConflictException('لدى الموظف سلفة لم تُسدد بالكامل، فلا يُحوّل متعاونًا قبل سدادها');
+      }
+    }
     const v = await this.validate(org, dto, policy, id);
     Object.assign(e, {
       ...dto, unitId: v.unitId, gradeId: v.gradeId, probationEnd: v.probationEnd, leaveOpening: v.opening, step: dto.step ?? e.step,
@@ -466,14 +500,17 @@ export class PeopleService {
     const org = actor.organizationId;
     const policy = await this.core.policy(org);
     const now = today();
-    const active = await this.employees.find({ where: { organizationId: org, status: 'active' } });
+    // العدد والتوطين وتكلفة الرواتب للموظفين فقط؛ المتعاونون يُعدّون منفصلين وتشملهم تنبيهات العقود والهويات
+    const everyone = await this.employees.find({ where: { organizationId: org, status: 'active' } });
+    const active = everyone.filter((e) => e.employmentKind !== 'contractor');
+    const contractors = everyone.length - active.length;
     const { units } = await this.lookups(org);
     const saudi = active.filter((e) => e.isSaudi).length;
     const byUnit = new Map<string, number>();
     active.forEach((e) => byUnit.set(units.get(e.unitId)?.name ?? '-', (byUnit.get(units.get(e.unitId)?.name ?? '-') ?? 0) + 1));
     const within = (d: string | null, days: number) => !!d && d >= now && d <= addDays(now, days);
     const alerts: { kind: string; level: 'danger' | 'warning' | 'info'; text: string; employeeId?: string; date?: string | null }[] = [];
-    for (const e of active) {
+    for (const e of everyone) {
       if (e.contractEnd && e.contractEnd < now) alerts.push({ kind: 'contract', level: 'danger', text: `عقد ${e.fullName} منتهٍ ولم يُجدَّد`, employeeId: e.id, date: e.contractEnd });
       else if (within(e.contractEnd, 60)) alerts.push({ kind: 'contract', level: 'warning', text: `عقد ${e.fullName} ينتهي قريبًا`, employeeId: e.id, date: e.contractEnd });
       if (within(e.probationEnd, 30)) alerts.push({ kind: 'probation', level: 'info', text: `فترة تجربة ${e.fullName} تنتهي، قرّر التثبيت`, employeeId: e.id, date: e.probationEnd });
@@ -481,7 +518,7 @@ export class PeopleService {
       else if (within(e.idExpiry, 90)) alerts.push({ kind: 'id', level: 'warning', text: `${e.isSaudi ? 'هوية' : 'إقامة'} ${e.fullName} تنتهي خلال 90 يومًا`, employeeId: e.id, date: e.idExpiry });
       if (!e.isSaudi && within(e.passportExpiry, 90)) alerts.push({ kind: 'passport', level: 'warning', text: `جواز ${e.fullName} ينتهي خلال 90 يومًا`, employeeId: e.id, date: e.passportExpiry });
       if (e.qiwaStatus !== 'documented') alerts.push({ kind: 'qiwa', level: 'warning', text: `عقد ${e.fullName} غير موثّق في قوى`, employeeId: e.id });
-      if (e.isSaudi && !e.gosiNumber) alerts.push({ kind: 'gosi', level: 'info', text: `لم يُسجَّل رقم التأمينات للموظف ${e.fullName}`, employeeId: e.id });
+      if (e.isSaudi && !e.gosiNumber && e.employmentKind !== 'contractor') alerts.push({ kind: 'gosi', level: 'info', text: `لم يُسجَّل رقم التأمينات للموظف ${e.fullName}`, employeeId: e.id });
     }
     const order = { danger: 0, warning: 1, info: 2 };
     alerts.sort((a, b) => order[a.level] - order[b.level] || (a.date ?? '9').localeCompare(b.date ?? '9'));
@@ -498,7 +535,7 @@ export class PeopleService {
       payroll = { gross: round2(bs.reduce((s, b) => s + b.gross, 0)), gosiEmployer: round2(bs.reduce((s, b) => s + b.gosi.employer.total, 0)), employerCost: round2(bs.reduce((s, b) => s + b.employerCost, 0)) };
     }
     return {
-      headcount: active.length, saudi, nonSaudi: active.length - saudi, saudization: active.length ? round2((saudi / active.length) * 100) : 0,
+      headcount: active.length, contractors, saudi, nonSaudi: active.length - saudi, saudization: active.length ? round2((saudi / active.length) * 100) : 0,
       female: active.filter((e) => e.gender === 'female').length, male: active.filter((e) => e.gender === 'male').length,
       byUnit: [...byUnit.entries()].map(([unit, n]) => ({ unit, n })).sort((a, b) => b.n - a.n),
       vacancies, pendingLeaves, onLeave, draftJobs, pendingPlans,

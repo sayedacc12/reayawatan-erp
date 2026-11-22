@@ -68,7 +68,7 @@ export interface JobRow {
 }
 export interface EmpRow {
   id: string; employeeNo: number; fullName: string; nationalId: string; nationality: string; isSaudi: boolean; gender: string; unitName: string; jobTitle: string; gradeName: string | null;
-  hireDate: string; contractType: string; contractTypeLabel: string; contractEnd: string | null; qiwaStatus: string; status: string; terminationDate: string | null; gross: number | null;
+  hireDate: string; contractType: string; contractTypeLabel: string; contractEnd: string | null; qiwaStatus: string; status: string; terminationDate: string | null; gross: number | null; employmentKind?: 'staff' | 'contractor';
 }
 
 /** قوائم مشتركة تُحمَّل مرة لكل شاشة */

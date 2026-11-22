@@ -44,7 +44,7 @@ export class BudgetSources {
          LEFT JOIN hr_jobs j ON j.id = e.job_id
          LEFT JOIN hr_grades g ON g.id = e.grade_id
          LEFT JOIN LATERAL (SELECT rating, final_score FROM hr_performance_cards p WHERE p.employee_id = e.id AND p.status = 'approved' ORDER BY p.year DESC LIMIT 1) pc ON true
-        WHERE e.organization_id = $1 AND e.status = 'active' ORDER BY e.employee_no`, [org]));
+        WHERE e.organization_id = $1 AND e.status = 'active' AND e.employment_kind = 'staff' ORDER BY e.employee_no`, [org]));
   }
 
   /** خطط التعيين المعتمدة للسنة مع راتب أدنى درجة الوظيفة وبدلاتها */

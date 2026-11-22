@@ -1,9 +1,9 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req, UploadedFile, UseInterceptors,
+  BadRequestException, Body, Controller, Delete, Get, Header, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req, Res, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
 import { CurrentOrgUser, OrgUser, Public, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { AttendanceService } from './attendance.service';
@@ -97,7 +97,7 @@ export class PayrollController {
   @Post('payroll-runs')
   @RequirePermissions(P.salaries, P.payroll)
   createRun(@CurrentOrgUser() actor: OrgUser, @Body() dto: RunCreateDto) {
-    return this.payroll.create(actor, dto.month);
+    return this.payroll.create(actor, dto.month, dto.kind ?? 'staff');
   }
 
   @Get('payroll-runs/:id')
@@ -196,6 +196,40 @@ export class PayrollController {
   @RequirePermissions(P.read)
   imports(@CurrentOrgUser() actor: OrgUser) {
     return this.attendance.imports(actor);
+  }
+
+  @Get('attendance/sheet/template')
+  @RequirePermissions(P.attendance)
+  async sheetTemplate(@CurrentOrgUser() actor: OrgUser, @Res() res: Response, @Query('month') month?: string, @Query('unitId') unitId?: string) {
+    if (unitId) uuid.transform(unitId, { type: 'query' });
+    const m = month ?? today().slice(0, 7);
+    const { buffer, fileName } = await this.attendance.sheetTemplate(actor, m, unitId || undefined);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(`كشف الحضور ${m}.xlsx`)}`);
+    res.send(buffer);
+  }
+
+  @Post('attendance/sheet/preview')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @RequirePermissions(P.attendance)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_FILE, files: 1 } }))
+  sheetPreview(@CurrentOrgUser() actor: OrgUser, @UploadedFile() file: Express.Multer.File) {
+    return this.attendance.sheetPreview(actor, file);
+  }
+
+  @Post('attendance/sheet')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @RequirePermissions(P.attendance)
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_FILE, files: 1 } }))
+  sheetCommit(@CurrentOrgUser() actor: OrgUser, @UploadedFile() file: Express.Multer.File) {
+    return this.attendance.sheetCommit(actor, file);
+  }
+
+  @Delete('attendance/imports/:id')
+  @RequirePermissions(P.attendance)
+  revertImport(@CurrentOrgUser() actor: OrgUser, @Param('id', uuid) id: string) {
+    return this.attendance.revertImport(actor, id);
   }
 
   @Post('attendance/import')

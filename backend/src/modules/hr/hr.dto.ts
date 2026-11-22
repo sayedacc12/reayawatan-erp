@@ -3,7 +3,7 @@ import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, IsUUID,
   Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
 } from 'class-validator';
-import { COMPETENCY_KINDS, CONTRACT_TYPES, QIWA_STATUSES } from './entities/hr.entity';
+import { COMPETENCY_KINDS, CONTRACT_TYPES, EMPLOYMENT_KINDS, PAY_BASES, QIWA_STATUSES } from './entities/hr.entity';
 import { EOS_REASONS } from './hr-policy';
 
 const trim = () => Transform(({ value }) => (typeof value === 'string' ? value.trim() || null : value));
@@ -334,6 +334,19 @@ export class EmployeeDto {
   @IsOptional() @IsBoolean()
   attendanceExempt?: boolean;
 
+  @IsOptional() @IsBoolean()
+  mobileAttendance?: boolean;
+
+  /** staff = موظف على الرواتب، contractor = متعاون بعقد تعاون */
+  @IsOptional() @IsIn(EMPLOYMENT_KINDS)
+  employmentKind?: (typeof EMPLOYMENT_KINDS)[number];
+
+  @Nullable() @IsIn(PAY_BASES, { message: 'اختر طريقة احتساب أجر المتعاون' })
+  payBasis?: (typeof PAY_BASES)[number] | null;
+
+  @Nullable() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }, { message: 'قيمة الأجر رقم' }) @Min(0.01, { message: 'قيمة الأجر أكبر من صفر' }) @Max(10000000)
+  payRate?: number | null;
+
   @Nullable() @trim() @Matches(/^\d{6,15}$/, { message: 'رقم المشترك في التأمينات أرقام فقط' })
   gosiNumber?: string | null;
 
@@ -509,6 +522,15 @@ export class PayrollConfigDto {
   @Nullable() @IsUUID()
   defaultCashAccountId?: string | null;
 
+  @Nullable() @IsUUID()
+  contractorExpenseAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  contractorPayableAccountId?: string | null;
+
+  @Nullable() @IsUUID()
+  contractorCashAccountId?: string | null;
+
   @IsArray() @ArrayMaxSize(8, { message: 'ثماني مراحل على الأكثر' }) @ValidateNested({ each: true }) @Type(() => PayrollStageDto)
   stages!: PayrollStageDto[];
 }
@@ -518,13 +540,17 @@ export class PayrollConfigDto {
 export class RunCreateDto {
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'اختر الشهر' })
   month!: string;
+
+  /** staff = كشف الموظفين (الافتراضي)، contractors = كشف المتعاونين */
+  @IsOptional() @IsIn(['staff', 'contractors'])
+  kind?: 'staff' | 'contractors';
 }
 
 export class RunAdditionDto {
   @trim() @IsString()
   code!: string;
 
-  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }, { message: 'مبلغ الإضافة رقم' }) @Min(0.01, { message: 'مبلغ الإضافة أكبر من صفر' })
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }, { message: 'مبلغ الإضافة رقم' }) @Min(0.01, { message: 'مبلغ الإضافة أكبر من صفر' }) @Max(10000000)
   amount!: number;
 
   @Nullable() @trim() @IsString() @MaxLength(300)
@@ -550,6 +576,20 @@ export class RunLineDto {
 
   @Nullable() @trim() @IsString() @MaxLength(300)
   otherDeductionNote?: string | null;
+
+  /** سبب التعديل اليدوي: إلزامي في كشف الموظفين، واختياري في كشف المتعاونين */
+  @Nullable() @trim() @IsString() @MaxLength(500)
+  reason?: string | null;
+
+  /** سطر المتعاون: عدد الوحدات (أيام أو ساعات أو مهام) وقيمة الوحدة وملاحظة اختيارية */
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(100000)
+  units?: number;
+
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(10000000)
+  rate?: number;
+
+  @Nullable() @trim() @IsString() @MaxLength(300)
+  note?: string | null;
 }
 
 export class RunDecisionDto {
@@ -595,6 +635,39 @@ export class AttendanceConfigDto {
 
   @IsArray() @ArrayMaxSize(60) @ValidateNested({ each: true }) @Type(() => HolidayDto)
   holidays!: HolidayDto[];
+
+  /** مواقع العمل للتسجيل من الجوال (إن لم تُرسل تبقى المحفوظة) */
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @ValidateNested({ each: true }) @Type(() => AttendanceSiteDto)
+  sites?: AttendanceSiteDto[];
+}
+
+export class AttendanceSiteDto {
+  @IsOptional() @IsUUID()
+  id?: string;
+
+  @trim() @IsString({ message: 'اكتب اسم الموقع' }) @MinLength(2, { message: 'اكتب اسم الموقع' }) @MaxLength(100)
+  name!: string;
+
+  @Type(() => Number) @IsNumber({}, { message: 'خط العرض غير صحيح' }) @Min(-90, { message: 'خط العرض غير صحيح' }) @Max(90, { message: 'خط العرض غير صحيح' })
+  lat!: number;
+
+  @Type(() => Number) @IsNumber({}, { message: 'خط الطول غير صحيح' }) @Min(-180, { message: 'خط الطول غير صحيح' }) @Max(180, { message: 'خط الطول غير صحيح' })
+  lng!: number;
+
+  @Type(() => Number) @IsInt({ message: 'نصف القطر بالمتر رقم صحيح' }) @Min(20, { message: 'أقل نصف قطر 20 مترًا' }) @Max(5000, { message: 'أكبر نصف قطر 5000 متر' })
+  radius!: number;
+}
+
+/** بصمة من الجوال: الموقع كما يقرؤه المتصفح ودقته بالمتر */
+export class MobilePunchDto {
+  @Type(() => Number) @IsNumber({}, { message: 'الموقع غير صحيح' }) @Min(-90) @Max(90)
+  latitude!: number;
+
+  @Type(() => Number) @IsNumber({}, { message: 'الموقع غير صحيح' }) @Min(-180) @Max(180)
+  longitude!: number;
+
+  @Type(() => Number) @IsNumber({}, { message: 'دقة الموقع غير صحيحة' }) @Min(0) @Max(100000)
+  accuracy!: number;
 }
 
 export class DeviceDto {

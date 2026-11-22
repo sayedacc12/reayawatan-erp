@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import ExcelJS from 'exceljs';
 import { DataSource } from 'typeorm';
 import { AccountsService } from '../accounting/accounts.service';
 import { AttendanceService } from '../hr/attendance.service';
@@ -90,9 +91,11 @@ export class HrSeed {
       name: 'جمع الأموال', description: 'موظفو تنمية الموارد',
       accounts: profileAccounts({ basic: frAcc, housing: frAcc, transport: frAcc, phone: frAcc, gosi: frAcc }),
     })).find((x) => x.name === 'جمع الأموال')!.id;
+    const contractorAcc = await this.contractorAccounts(admin);
     await this.payroll.saveConfig(admin, {
       payableAccountId: accId('2140100101'), gosiPayableAccountId: accId('2140100108'),
       deductionsAccountId: accId('1140100401'), defaultCashAccountId: bankId('مصرف الراجحي'),
+      contractorExpenseAccountId: contractorAcc.expense, contractorPayableAccountId: contractorAcc.payable, contractorCashAccountId: null,
       stages: [{ name: 'مراجعة الشؤون المالية', roleId: team.roles.finance }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
     });
 
@@ -264,6 +267,22 @@ export class HrSeed {
 
     await this.seedSelfService(team, { ceoE, programsE, researcherE, projectsE, fundraiserE, financeE, qualityE });
 
+    // المتعاونون بعقود تعاون: مدرب باليوم يخضع للحضور، ومستشار بالساعة ومصمم بالمهمة بلا حضور
+    const trainerJob = await job('مدرب برامج (متعاون)', programs, g1, 2, 'تقديم البرامج التدريبية لعملاء الشركة', ['تنفيذ الدورات', 'إعداد المادة التدريبية'], [], core3(1), programsMgr, true, programProfile);
+    const advisorJob = await job('مستشار (متعاون)', exec, g1, 2, 'تقديم الاستشارات المتخصصة للإدارة', ['الاستشارات القانونية والإدارية', 'مراجعة العقود واللوائح'], [], core3(1), ceo);
+    const contractor = async (fullName: string, jobId: string, payBasis: 'monthly' | 'daily' | 'hourly' | 'task', payRate: number, hiredDaysAgo: number, attendanceExempt: boolean) => {
+      n++;
+      return (await this.people.create(admin, {
+        fullName, nationalId: `10${String(50000000 + n * 913).padStart(8, '0')}`, nationality: 'سعودي', isSaudi: true, gender: 'male', jobId,
+        hireDate: daysAgo(hiredDaysAgo), contractType: 'fixed', contractStart: daysAgo(hiredDaysAgo), contractEnd: daysAhead(200), qiwaStatus: 'documented',
+        employmentKind: 'contractor', payBasis, payRate, basicSalary: 0, allowances: [], attendanceExempt, probationEnd: null,
+        iban: `SA03800000006080101675${String(n).padStart(2, '0')}`, idExpiry: daysAhead(900),
+      } as never)).id;
+    };
+    await contractor('فهد عبدالله القحطاني', trainerJob, 'daily', 450, 120, false);
+    await contractor('سلمان ناصر العتيبي', advisorJob, 'hourly', 300, 200, true);
+    await contractor('ماجد علي الزهراني', advisorJob, 'task', 1500, 90, true);
+
     await this.seedAttendanceAndPayroll(team, year);
 
     await this.seedSeparation(team, accountantE, accId);
@@ -346,6 +365,8 @@ export class HrSeed {
     await this.attendance.saveConfig(admin, {
       enabled: true, workStart: '08:00', workEnd: '15:00', weekend: [5, 6],
       holidays: [{ date: `${year}-02-22`, name: 'يوم التأسيس' }, { date: `${year}-09-23`, name: 'اليوم الوطني' }],
+      // موقع العمل للتسجيل من الجوال (وسط الرياض تقريبًا)
+      sites: [{ name: 'المقر الرئيسي', lat: 24.7136, lng: 46.6753, radius: 150 }],
     });
     await this.attendance.saveDevice(admin, { name: 'جهاز البصمة - المقر الرئيسي', brand: 'ZKTeco', serialNumber: `DEMO${org.replace(/-/g, '').slice(0, 10)}`, location: 'مدخل الموظفين' });
 
@@ -383,17 +404,81 @@ export class HrSeed {
       if (hind) {
         await this.payroll.updateLine(admin, run.id, hind.employeeId, {
           additions: [{ code: 'transport', amount: 250, note: 'فرق بدل نقل عن الشهر الأول' }], otherDeduction: 0, otherDeductionNote: null,
+          reason: 'بدل النقل عن الشهر الأول لم يُصرف كاملًا عند المباشرة',
         });
       }
       const acc = run.lines.find((l) => l.employeeNo === 8);
-      if (acc) await this.payroll.updateLine(admin, run.id, acc.employeeId, { additions: [], otherDeduction: 500, otherDeductionNote: 'قسط سلفة شخصية (3 من 6)' });
+      if (acc) await this.payroll.updateLine(admin, run.id, acc.employeeId, { additions: [], otherDeduction: 500, otherDeductionNote: 'قسط سلفة شخصية (3 من 6)', reason: 'قسط السلفة الشخصية المعتمدة قبل تشغيل النظام' });
       await this.payroll.submit(admin, run.id);
       await this.payroll.decide(admin, run.id, { decision: 'approve', note: 'روجعت البصمات والاستقطاعات' });
       await this.payroll.decide(admin, run.id, { decision: 'approve', note: 'معتمد' });
       await this.payroll.createVouchers(admin, run.id, { voucherDate: lastDay(prev) < t ? lastDay(prev) : t });
     }
+    // التسجيل من الجوال: موظفتان مفعّل لهما، وبصمة حضور اليوم لإحداهما من داخل المقر
+    const mobileNos = [3, 4];
+    const mobile = employees.filter((e) => mobileNos.includes(e.employeeNo));
+    if (mobile.length) await this.db.getRepository(HrEmployee).update(mobile.map((e) => e.id), { mobileAttendance: true });
+    const weekday = new Date(`${t}T00:00:00Z`).getUTCDay();
+    const first = mobile[0] && (await this.db.getRepository(HrEmployee).findOneBy({ id: mobile[0].id, organizationId: org }));
+    if (first && ![5, 6].includes(weekday)) {
+      await this.attendance.mobilePunch(org, first, { latitude: 24.7139, longitude: 46.6755, accuracy: 18 }).catch(() => undefined);
+    }
+
+    // كشف حضور شهري (نموذج Excel من المنصة) لإدارة واحدة في الشهر الحالي: غياب يوم وتأخير يوم
+    await this.seedAttendanceSheet(admin, cur, t);
+
     // كشف الشهر الحالي قيد الإعداد
     await this.payroll.create(admin, cur);
+
+    // كشف المتعاونين: الشهر السابق معتمد بسند صرف لكل متعاون، والحالي قيد الإعداد
+    const setUnits = async (runId: string, lines: { employeeId: string; employeeNo: number; fullName: string }[], name: string, units: number, note: string) => {
+      const l = lines.find((x) => x.fullName === name);
+      if (l) await this.payroll.updateLine(admin, runId, l.employeeId, { additions: [], otherDeduction: 0, otherDeductionNote: null, units, note });
+    };
+    if (prev.slice(0, 4) === String(year)) {
+      const run = await this.payroll.create(admin, prev, 'contractors');
+      await setUnits(run.id, run.lines, 'سلمان ناصر العتيبي', 12, 'استشارات قانونية لمراجعة عقود الشراكات');
+      await setUnits(run.id, run.lines, 'ماجد علي الزهراني', 2, 'تصميم هوية حملة رمضان والتقرير السنوي');
+      await this.payroll.submit(admin, run.id);
+      await this.payroll.decide(admin, run.id, { decision: 'approve', note: 'مطابق لعقود التعاون' });
+      await this.payroll.decide(admin, run.id, { decision: 'approve', note: 'معتمد' });
+      await this.payroll.createVouchers(admin, run.id, { voucherDate: lastDay(prev) < t ? lastDay(prev) : t });
+    }
+    const curC = await this.payroll.create(admin, cur, 'contractors');
+    await setUnits(curC.id, curC.lines, 'سلمان ناصر العتيبي', 6, 'استشارات لائحة الموارد البشرية');
+  }
+
+  /** يعبئ نموذج الكشف كما يفعل المستخدم ثم يرحّله عبر الخدمة نفسها (بنفس الفحص) */
+  private async seedAttendanceSheet(admin: DemoTeam['admin'], month: string, t: string) {
+    const employees = await this.db.getRepository(HrEmployee).find({ where: { organizationId: admin.organizationId, status: 'active' }, order: { employeeNo: 'ASC' } });
+    const past: number[] = [];
+    for (let d = new Date(`${month}-01T00:00:00Z`); d.toISOString().slice(0, 10) < t; d.setUTCDate(d.getUTCDate() + 1)) {
+      if (![5, 6].includes(d.getUTCDay())) past.push(d.getUTCDate());
+    }
+    const target = employees.find((e) => e.employeeNo === 9) ?? employees.find((e) => e.employeeNo > 1);
+    if (past.length < 2 || !target) return;
+    const tpl = await this.attendance.sheetTemplate(admin, month, target.unitId);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(tpl.buffer as unknown as ArrayBuffer);
+    const ws = wb.worksheets[0];
+    const col = (day: number) => 3 + day;
+    ws.eachRow((row, r) => {
+      if (r <= 4 || Number(row.getCell(1).value) !== target.employeeNo) return;
+      row.getCell(col(past[0])).value = 'غ';
+      row.getCell(col(past[1])).value = 25;
+    });
+    const buffer = Buffer.from(await wb.xlsx.writeBuffer());
+    await this.attendance.sheetCommit(admin, { originalname: Buffer.from(`كشف حضور ${month}.xlsx`).toString('latin1'), buffer });
+  }
+
+  /** حسابات أتعاب المتعاونين: مصروف تحت التكاليف المهنية والاستشارات، ومستحق مستقل عن الرواتب */
+  private async contractorAccounts(admin: DemoTeam['admin']) {
+    const org = admin.organizationId;
+    const id = async (code: string) => ((await this.db.query('SELECT id FROM acc_accounts WHERE organization_id = $1 AND code = $2', [org, code])) as { id: string }[])[0].id;
+    const expense = (await this.accounts.create(admin, { code: '4120301004', name: 'أتعاب المتعاونين', kind: 'sub', nature: 'expenses', parentId: await id('41203010') })).id;
+    const group = await this.accounts.create(admin, { code: '21401006', name: 'التكاليف المهنية والاستشارات ــ المستحقة', kind: 'main', nature: 'liabilities', parentId: await id('21401') });
+    const payable = (await this.accounts.create(admin, { code: '2140100601', name: 'أتعاب المتعاونين ــ المستحقة', kind: 'sub', nature: 'liabilities', parentId: group.id })).id;
+    return { expense, payable };
   }
 
   /** حسابات مصروف رواتب العاملين على البرامج والأنشطة (لا يتضمنها الدليل الموحد، فتُفتح تحت مصاريف البرامج) */

@@ -268,6 +268,8 @@ export class RequestsService {
       data = { templateId: tp.id, templateName: tp.name, addressee: str(d.addressee, 200) ?? 'إلى من يهمه الأمر', note: str(d.note, 1000) };
       summary = `${tp.name}${d.addressee ? ` إلى ${String(data.addressee)}` : ''}`;
     } else if (type.kind === 'advance') {
+      // المتعاون بعقد تعاون لا يُسترد منه قسط في كشف المتعاونين، فلا تُقدم له سلفة
+      if (e.employmentKind === 'contractor') bad('السلف للموظفين فقط، ولا تُقدم للمتعاونين');
       const amount = round2(Number(d.amount));
       if (!Number.isFinite(amount) || amount <= 0) bad('اكتب مبلغ السلفة');
       const installments = Number(d.installments);

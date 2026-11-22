@@ -1,10 +1,13 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res, UploadedFiles, UseInterceptors,
+  BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res, UploadedFiles, UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
-import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
+import { Throttle } from '@nestjs/throttler';
+import { AuthenticatedOnly, CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
+import { AttendanceService } from './attendance.service';
+import { MobilePunchDto } from './hr.dto';
 import { MAX_UPLOAD_BYTES } from '../../core/files/file-store.service';
 import { HR_PERMISSIONS as P } from './hr.manifest';
 import { RequestInput, RequestsService, TypeInput } from './requests.service';
@@ -31,7 +34,25 @@ function payloadOf(body: { payload?: string } & Partial<RequestInput>): RequestI
  */
 @Controller('hr')
 export class SelfServiceController {
-  constructor(private readonly requests: RequestsService, private readonly self: SelfServiceService) {}
+  constructor(private readonly requests: RequestsService, private readonly self: SelfServiceService, private readonly attendance: AttendanceService) {}
+
+  // ---------------- الحضور من الجوال ----------------
+
+  @Get('me/attendance')
+  @AuthenticatedOnly('الموظف يرى حالة حضوره اليوم فقط؛ الخدمة تتحقق من ربط حسابه بملفه')
+  async myAttendance(@CurrentOrgUser() a: OrgUser) {
+    const me = await this.requests.requireEmployee(a);
+    return this.attendance.myAttendance(a.organizationId, me.employee);
+  }
+
+  @Post('me/attendance')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @AuthenticatedOnly('الموظف يسجل حضوره هو فقط من الجوال؛ الخدمة تتحقق من ربط حسابه بملفه وتفعيل الجوال له والموقع')
+  async mobilePunch(@CurrentOrgUser() a: OrgUser, @Body() dto: MobilePunchDto, @Req() req: Request) {
+    const me = await this.requests.requireEmployee(a);
+    return this.attendance.mobilePunch(a.organizationId, me.employee, dto, { ip: req.ip ?? null, userAgent: req.get('user-agent') ?? null });
+  }
 
   // ---------------- الموظف ----------------
 

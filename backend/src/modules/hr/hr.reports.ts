@@ -37,10 +37,10 @@ export class HrReports implements OnModuleInit {
     (await this.db.query('SELECT id AS value, name AS label FROM hr_units WHERE organization_id = $1 ORDER BY level, sort_order, name', [u.organizationId])) as { value: string; label: string }[];
 
   private runs = async (u: { organizationId: string }) => {
-    const rows: { id: string; month: string; status: string }[] = await this.db.query(
-      `SELECT id, month, status FROM hr_payroll_runs WHERE organization_id = $1 AND status <> 'cancelled' ORDER BY month DESC`, [u.organizationId]);
+    const rows: { id: string; month: string; status: string; kind: string }[] = await this.db.query(
+      `SELECT id, month, status, kind FROM hr_payroll_runs WHERE organization_id = $1 AND status <> 'cancelled' ORDER BY month DESC`, [u.organizationId]);
     const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-    return rows.map((r) => ({ value: r.id, label: `${MONTHS[Number(r.month.slice(5)) - 1]} ${r.month.slice(0, 4)}${r.status === 'approved' ? '' : ' (غير معتمد)'}` }));
+    return rows.map((r) => ({ value: r.id, label: `${r.kind === 'contractors' ? 'المتعاونون: ' : ''}${MONTHS[Number(r.month.slice(5)) - 1]} ${r.month.slice(0, 4)}${r.status === 'approved' ? '' : ' (غير معتمد)'}` }));
   };
 
   private runLines = async (u: Parameters<ReportDefinition['run']>[0], runId: string) => {

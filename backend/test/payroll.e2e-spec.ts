@@ -320,16 +320,35 @@ describe('Payroll', () => {
     expect(ali.gosiEmployee).toBe(0);
     expect(run.planError).toContain('حساب الرواتب المستحقة');
 
-    // تعديل يدوي: غياب يوم واحد بعذر، وإضافة على بدل السكن، وسلفة
-    const upd = await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({
-      overrideAttendance: true, absentDays: 1, lateMinutes: 40, additions: [{ code: 'housing', amount: 500, note: 'فرق بدل' }], otherDeduction: 300, otherDeductionNote: 'قسط سلفة',
-    }).expect(200);
+    // تعديل يدوي: غياب يوم واحد بعذر، وإضافة على بدل السكن، وسلفة (السبب إلزامي)
+    const edit = { overrideAttendance: true, absentDays: 1, lateMinutes: 40, additions: [{ code: 'housing', amount: 500, note: 'فرق بدل' }], otherDeduction: 300, otherDeductionNote: 'قسط سلفة' };
+    await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send(edit).expect(400);
+    await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({ ...edit, reason: '   ' }).expect(400);
+    const upd = await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({ ...edit, reason: 'غياب يوم بعذر طبي، وفرق بدل السكن' }).expect(200);
+    // التعديل يظهر للمعتمد بسببه وقيمه قبل وبعد
+    expect(upd.body.edits).toHaveLength(1);
+    expect(upd.body.edits[0]).toMatchObject({ employeeId: ids.sara, employeeName: 'سارة أحمد العتيبي', reason: 'غياب يوم بعذر طبي، وفرق بدل السكن', actorName: 'محاسب الرواتب' });
+    expect(upd.body.edits[0].changes).toEqual(expect.arrayContaining([
+      { field: 'absentDays', label: 'أيام الغياب', before: 2, after: 1 }, { field: 'additions', label: 'الإضافات', before: 0, after: 500 },
+      { field: 'otherDeduction', label: 'الاستقطاعات الأخرى', before: 0, after: 300 },
+    ]));
     const s2 = upd.body.lines.find((l: { employeeId: string }) => l.employeeId === ids.sara);
     expect(s2.net).toBe(10800 + 500 - 360 - 30 - 975 - 300);
-    await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({ additions: [], otherDeduction: 50000, otherDeductionNote: 'كبير' }).expect(400);
+    await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({ additions: [], otherDeduction: 50000, otherDeductionNote: 'كبير', reason: 'جزاء' }).expect(400);
     // إعادة الاحتساب تحافظ على التعديلات اليدوية
     const re = await http.post(`${H}/payroll-runs/${ids.run}/recalc`).set(as(clerk)).expect(201);
     expect(re.body.lines.find((l: { employeeId: string }) => l.employeeId === ids.sara).net).toBe(s2.net);
+    // إلغاء تعديل الحضور يعيد حضور سارة وحدها من البصمات، ويُسجل بقيمه قبل وبعد
+    const aliNet = re.body.lines.find((l: { employeeId: string }) => l.employeeId === ids.ali).net;
+    const back = (await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({
+      ...edit, overrideAttendance: false, additions: [{ code: 'transport', amount: 500, note: 'فرق بدل' }], reason: 'لم يُقدَّم العذر الطبي',
+    }).expect(200)).body;
+    expect(back.lines.find((l: { employeeId: string }) => l.employeeId === ids.sara).attendance).toMatchObject({ absentDays: 2, overridden: false });
+    expect(back.lines.find((l: { employeeId: string }) => l.employeeId === ids.ali).net).toBe(aliNet);
+    expect(back.edits).toHaveLength(2);
+    expect(back.edits[0].reason).toBe('لم يُقدَّم العذر الطبي');
+    expect(back.edits[0].changes.map((c: { field: string }) => c.field)).toEqual(expect.arrayContaining(['absentDays', 'additionItems', 'overridden']));
+    await http.put(`${H}/payroll-runs/${ids.run}/lines/${ids.sara}`).set(as(clerk)).send({ ...edit, reason: 'قُدّم العذر الطبي' }).expect(200);
 
     // لا يُرفع قبل اكتمال الربط المحاسبي
     await http.post(`${H}/payroll-runs/${ids.run}/submit`).set(as(clerk)).expect(400);

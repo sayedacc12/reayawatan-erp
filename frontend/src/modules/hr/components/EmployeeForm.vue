@@ -24,8 +24,9 @@ const form = reactive({
   birthDate: e?.birthDate ?? '', phone: e?.phone ?? '', email: e?.email ?? '', jobId: e?.jobId ?? '', unitId: e?.unitId ?? '', managerId: e?.managerId ?? '',
   step: e?.step ?? 1, hireDate: e?.hireDate ?? '', contractType: e?.contractType ?? 'fixed', contractStart: e?.contractStart ?? '', contractEnd: e?.contractEnd ?? '',
   probationEnd: e?.probationEnd ?? '', qiwaStatus: e?.qiwaStatus ?? 'pending', basicSalary: e?.basicSalary ?? 0,
+  employmentKind: (e?.employmentKind ?? 'staff') as 'staff' | 'contractor', payBasis: (e?.payBasis ?? 'monthly') as 'monthly' | 'daily' | 'hourly' | 'task', payRate: e?.payRate ?? 0,
   allowances: (e?.allowances ?? [{ code: 'housing', name: 'بدل السكن', amount: 0 }, { code: 'transport', name: 'بدل النقل', amount: 0 }]) as { code: string; name: string; amount: number }[],
-  attendanceCode: e?.attendanceCode ?? '', attendanceExempt: e?.attendanceExempt ?? false, userId: e?.userId ?? '',
+  attendanceCode: e?.attendanceCode ?? '', attendanceExempt: e?.attendanceExempt ?? false, mobileAttendance: e?.mobileAttendance ?? false, userId: e?.userId ?? '',
   salaryException: e?.salaryException ?? '', iban: e?.iban ?? '', gosiNumber: e?.gosiNumber ?? '', gosiFirstRegistration: e?.gosiFirstRegistration ?? '',
   idExpiry: e?.idExpiry ?? '', passportExpiry: e?.passportExpiry ?? '', leaveOpeningAnnual: e?.leaveOpening?.annual ?? '', leaveOpeningDate: e?.leaveOpeningDate ?? '',
 });
@@ -46,7 +47,8 @@ onMounted(async () => {
 });
 const job = computed(() => jobs.value.find((j) => j.id === form.jobId));
 const grade = computed(() => grades.value.find((g) => g.id === job.value?.gradeId));
-const outOfRange = computed(() => !!grade.value && (form.basicSalary < grade.value.minSalary || form.basicSalary > grade.value.maxSalary));
+const isC = computed(() => form.employmentKind === 'contractor');
+const outOfRange = computed(() => !isC.value && !!grade.value && (form.basicSalary < grade.value.minSalary || form.basicSalary > grade.value.maxSalary));
 const gross = computed(() => Number(form.basicSalary) + form.allowances.reduce((s, a) => s + Number(a.amount || 0), 0));
 watch(() => form.jobId, () => {
   if (!job.value) return;
@@ -76,8 +78,9 @@ async function save() {
       fullName: form.fullName, nationalId: form.nationalId, nationality: form.nationality, isSaudi: form.isSaudi, gender: form.gender, birthDate: nn(form.birthDate),
       phone: nn(form.phone), email: nn(form.email), jobId: form.jobId, unitId: nn(form.unitId), managerId: nn(form.managerId), step: Number(form.step), hireDate: form.hireDate,
       contractType: form.contractType, contractStart: form.contractStart || form.hireDate, contractEnd: nn(form.contractEnd), probationEnd: nn(form.probationEnd), qiwaStatus: form.qiwaStatus,
-      basicSalary: Number(form.basicSalary), allowances: form.allowances.filter((a) => a.code).map((a) => ({ code: a.code, amount: Number(a.amount) })),
-      attendanceCode: nn(String(form.attendanceCode).trim()), attendanceExempt: form.attendanceExempt, userId: form.userId || null,
+      employmentKind: form.employmentKind, payBasis: isC.value ? form.payBasis : null, payRate: isC.value ? Number(form.payRate) : null,
+      basicSalary: isC.value ? 0 : Number(form.basicSalary), allowances: isC.value ? [] : form.allowances.filter((a) => a.code).map((a) => ({ code: a.code, amount: Number(a.amount) })),
+      attendanceCode: nn(String(form.attendanceCode).trim()), attendanceExempt: form.attendanceExempt, mobileAttendance: form.mobileAttendance, userId: form.userId || null,
       salaryException: nn(form.salaryException), iban: nn(form.iban.replace(/\s/g, '').toUpperCase()), gosiNumber: nn(form.gosiNumber), gosiFirstRegistration: nn(form.gosiFirstRegistration),
       idExpiry: nn(form.idExpiry), passportExpiry: nn(form.passportExpiry),
       leaveOpening: form.leaveOpeningAnnual === '' ? {} : { annual: Number(form.leaveOpeningAnnual) }, leaveOpeningDate: nn(form.leaveOpeningDate),
@@ -120,6 +123,12 @@ async function save() {
 
       <div class="hr-sec">الوظيفة والعقد</div>
       <div class="hr-fields">
+        <label class="field" style="grid-column: span 2"><span>التصنيف</span>
+          <select v-model="form.employmentKind" class="input">
+            <option value="staff">موظف (راتب وتأمينات)</option>
+            <option value="contractor">متعاون (أتعاب بعقد تعاون، بلا تأمينات، في كشف مستقل)</option>
+          </select>
+        </label>
         <label class="field" style="grid-column: span 2"><span>الوظيفة</span>
           <select v-model="form.jobId" class="input" required>
             <option value="" disabled>اختر الوظيفة</option>
@@ -140,6 +149,20 @@ async function save() {
         <label class="field"><span>حالة التوثيق في قوى</span><select v-model="form.qiwaStatus" class="input"><option v-for="q in QIWA" :key="q.value" :value="q.value">{{ q.label }}</option></select></label>
       </div>
 
+      <template v-if="isC">
+        <div class="hr-sec">أتعاب التعاون</div>
+        <div class="hr-fields">
+          <label class="field"><span>طريقة احتساب الأجر</span>
+            <select v-model="form.payBasis" class="input">
+              <option value="monthly">مبلغ شهري ثابت</option><option value="daily">باليوم</option><option value="hourly">بالساعة</option><option value="task">بالمهمة</option>
+            </select></label>
+          <label class="field"><span>{{ form.payBasis === 'monthly' ? 'المبلغ الشهري' : form.payBasis === 'daily' ? 'أجر اليوم' : form.payBasis === 'hourly' ? 'أجر الساعة' : 'أجر المهمة' }}</span>
+            <input v-model.number="form.payRate" type="number" min="0.01" step="0.01" class="input" required /></label>
+        </div>
+        <p class="pm-muted">{{ form.payBasis === 'daily' ? 'إن كان يخضع للحضور تُحسب أيامه من الحضور تلقائيًا، وإلا يكتبها مسؤول الرواتب في كشف المتعاونين.' : form.payBasis === 'monthly' ? 'يُخصم غيابه إن كان يخضع للحضور.' : 'يكتب مسؤول الرواتب العدد كل شهر في كشف المتعاونين.' }}
+          ولإعفائه من الحضور اختر «معفى من البصمة» في الأسفل.</p>
+      </template>
+      <template v-else>
       <div class="hr-sec">الراتب</div>
       <div v-if="grade" class="pm-muted" style="margin-bottom: 8px">
         المرتبة <b>{{ grade.code }} {{ grade.name }}</b>: من {{ sar(grade.minSalary) }} إلى {{ sar(grade.maxSalary) }}، {{ grade.steps }} درجات
@@ -160,14 +183,16 @@ async function save() {
       </div>
       <p class="pm-muted">إجمالي الراتب الشهري: <b>{{ sar(gross) }}</b></p>
       <label v-if="outOfRange" class="field"><span style="color: var(--danger)">الراتب خارج حدود المرتبة، اكتب سبب الاستثناء</span><input v-model="form.salaryException" class="input" required /></label>
+      </template>
 
       <div class="hr-sec">البنك والتأمينات والمستندات</div>
       <div class="hr-fields">
         <label class="field"><span>رقم الآيبان</span><input v-model="form.iban" class="input hr-code" placeholder="SA..." /></label>
         <label class="field"><span>رقمه في جهاز البصمة</span><input v-model="form.attendanceCode" class="input hr-code" :placeholder="e ? `الرقم الوظيفي ${e.employeeNo}` : 'الرقم الوظيفي'" /></label>
-        <label class="field" style="flex-direction: row; gap: 8px; align-items: center; align-self: end"><input v-model="form.attendanceExempt" type="checkbox" /><span>معفى من البصمة</span></label>
-        <label class="field"><span>رقم المشترك في التأمينات</span><input v-model="form.gosiNumber" class="input hr-code" /></label>
-        <label class="field"><span>تاريخ أول تسجيل في التأمينات</span><input v-model="form.gosiFirstRegistration" type="date" class="input" />
+        <label class="field" style="flex-direction: row; gap: 8px; align-items: center; align-self: end"><input v-model="form.attendanceExempt" type="checkbox" /><span>{{ isC ? 'بدون حضور (معفى من البصمة)' : 'معفى من البصمة' }}</span></label>
+        <label class="field" style="flex-direction: row; gap: 8px; align-items: center; align-self: end"><input v-model="form.mobileAttendance" type="checkbox" :disabled="form.attendanceExempt" /><span>يسجل حضوره من الجوال (داخل مواقع العمل)</span></label>
+        <label v-if="!isC" class="field"><span>رقم المشترك في التأمينات</span><input v-model="form.gosiNumber" class="input hr-code" /></label>
+        <label v-if="!isC" class="field"><span>تاريخ أول تسجيل في التأمينات</span><input v-model="form.gosiFirstRegistration" type="date" class="input" />
           <small class="pm-muted">يحدد نسبة المعاشات (النظام الجديد لمن سُجّل بعد 3 يوليو 2024)</small></label>
         <label class="field"><span>انتهاء {{ form.isSaudi ? 'الهوية' : 'الإقامة' }}</span><input v-model="form.idExpiry" type="date" class="input" /></label>
         <label v-if="!form.isSaudi" class="field"><span>انتهاء الجواز</span><input v-model="form.passportExpiry" type="date" class="input" /></label>
