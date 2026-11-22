@@ -4,7 +4,8 @@ import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PASSWORD_CHARS } from './validation';
 import { DataSource, In } from 'typeorm';
-import { Organization, Permission, Role, User } from './entities';
+import { Organization, Permission, Role, RoleAssignment, User } from './entities';
+import { COMPANY_TEAM, TEAM_ASSIGNMENT_NOTE } from './company-team';
 import { ModuleCatalogService } from './modules/module-catalog.service';
 import { DEFAULT_ROLES } from './roles/default-roles';
 import { OrganizationStarter } from '../modules/starter/starter.entity';
@@ -31,6 +32,7 @@ export class BootstrapService implements OnApplicationBootstrap {
     await this.ensureCompany();
     await this.ensureBrand();
     await this.ensureDefaultRoles();
+    await this.ensureTeam();
     // وضع الشركة الواحدة: لا حساب لمدير منصة إلا إذا طُلب صراحة بكلمة مرور
     if (companySlug() && !this.config.get<string>('PLATFORM_ADMIN_PASSWORD')) return;
     await this.db.transaction(async (em) => {
@@ -104,6 +106,68 @@ export class BootstrapService implements OnApplicationBootstrap {
       });
     } catch (e) {
       this.logger.error(`Default company roles not applied: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * فريق الشركة (company-team.ts): حساباتهم وتكليفاتهم المفتوحة بأدوارهم، مرة واحدة بعد الأدوار الافتراضية،
+   * ويُسجَّل في organization_starters (core.team) فلا يعود ما حذفه المدير أو أنهاه. بريد موجود يُستخدم حسابه ولا يُعدَّل،
+   * ومدير النظام لا يُكلَّف (يملك كل الصلاحيات). الحسابات بلا كلمة مرور صالحة حتى يصدر المدير «كلمة مؤقتة».
+   */
+  private async ensureTeam() {
+    const slug = companySlug();
+    if (!slug) return;
+    try {
+      await this.db.transaction(async (em) => {
+        await em.query('SELECT pg_advisory_xact_lock(424245)');
+        const org = await em.findOne(Organization, { where: { slug } });
+        if (!org) return;
+        // بعد الأدوار الافتراضية فقط، ومرة واحدة
+        if (!(await em.exists(OrganizationStarter, { where: { organizationId: org.id, moduleCode: 'core' } }))) return;
+        if (await em.exists(OrganizationStarter, { where: { organizationId: org.id, moduleCode: 'core.team' } })) return;
+        const director = await em.findOne(User, { where: { organizationId: org.id, isSuperadmin: true }, order: { createdAt: 'ASC' } });
+        if (!director) return;
+        const roles = new Map((await em.find(Role, { where: { organizationId: org.id } })).map((r) => [r.name, r]));
+        const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+        let users = 0;
+        let assignments = 0;
+        const skipped: string[] = [];
+        for (const m of COMPANY_TEAM) {
+          const email = m.email.toLowerCase();
+          let user = await em.findOne(User, { where: { email } });
+          if (user && user.organizationId !== org.id) { skipped.push(`${m.fullName}: البريد لحساب خارج الشركة`); continue; }
+          if (!user) {
+            // كلمة مرور عشوائية لا يعرفها أحد: الدخول بكلمة مؤقتة يصدرها المدير
+            user = await em.save(em.create(User, {
+              organizationId: org.id, fullName: m.fullName, email,
+              passwordHash: await bcrypt.hash(randomBytes(24).toString('base64url'), 12), isActive: true, mustChangePassword: true,
+            }));
+            users++;
+          }
+          if (user.isSuperadmin) continue;
+          for (const name of m.roles) {
+            const role = roles.get(name);
+            if (!role) { skipped.push(`${m.fullName}: دور «${name}» غير موجود`); continue; }
+            const has = await em.exists(RoleAssignment, { where: { organizationId: org.id, userId: user.id, roleId: role.id } });
+            if (has) continue;
+            await em.save(em.create(RoleAssignment, {
+              organizationId: org.id, userId: user.id, roleId: role.id, startDate: today, endDate: null,
+              note: `${m.title}، ${TEAM_ASSIGNMENT_NOTE}`, createdByName: 'النظام (فريق الشركة)',
+            }));
+            assignments++;
+          }
+        }
+        await em.save(em.create(OrganizationStarter, {
+          organizationId: org.id, moduleCode: 'core.team', status: 'applied', appliedBy: 'النظام (فريق الشركة)', appliedById: director.id,
+          results: [
+            { key: 'users', label: 'حسابات فريق الشركة', added: users },
+            { key: 'assignments', label: 'تكليفات الفريق المفتوحة', added: assignments, ...(skipped.length ? { note: skipped.join('؛ ') } : {}) },
+          ],
+        }));
+        this.logger.log(`Company team: ${users} accounts, ${assignments} open assignments${skipped.length ? `, ${skipped.length} skipped` : ''}`);
+      });
+    } catch (e) {
+      this.logger.error(`Company team not applied: ${(e as Error).message}`);
     }
   }
 
