@@ -37,6 +37,9 @@ export async function loadXlsx(file: Express.Multer.File | undefined): Promise<E
   return wb;
 }
 
+/** حد أعمدة الورقة: النماذج كلها أقل من 40 عمودًا */
+const MAX_COLS = 80;
+
 export interface SheetCol { key: string; label: string; width?: number; required?: boolean; note?: string; list?: string[] }
 export interface SheetRow { row: number; v: Record<string, string>; extra: Record<string, string> }
 
@@ -45,6 +48,7 @@ export interface SheetRow { row: number; v: Record<string, string>; extra: Recor
  * الأعمدة غير المعروفة تُعاد في extra بعنوانها (مثل «مستهدف 2027»)، والصفوف الفارغة تُتجاهل.
  */
 export function readSheet(ws: ExcelJS.Worksheet, cols: SheetCol[], maxRows: number, sheetName: string): SheetRow[] {
+  if (ws.actualColumnCount > MAX_COLS || ws.getRow(1).cellCount > MAX_COLS) throw new BadRequestException(`ورقة «${sheetName}» فيها أعمدة أكثر من ${MAX_COLS}. نزّل النموذج من النظام واستخدم عناوينه`);
   const header = (ws.getRow(1).values as ExcelJS.CellValue[]).map(cellText);
   const at = new Map<string, number>();
   header.forEach((h, i) => { if (h) at.set(h.replace(/\s*\*\s*$/, ''), i); });
@@ -52,16 +56,21 @@ export function readSheet(ws: ExcelJS.Worksheet, cols: SheetCol[], maxRows: numb
   if (missing.length) throw new BadRequestException(`ورقة «${sheetName}» ينقصها العمود «${missing.slice(0, 3).join('»، «')}». نزّل النموذج من النظام واستخدم عناوينه`);
   const known = new Set(cols.map((c) => c.label));
   const out: SheetRow[] = [];
-  for (let r = 2; r <= ws.rowCount; r++) {
-    const vals = (ws.getRow(r).values as ExcelJS.CellValue[]).map(cellText);
-    if (!vals.some((x) => x)) continue;
+  // eachRow يمر على الصفوف الموجودة فعلًا فقط، فلا يُنشئ صفوفًا فارغة لملف فيه خلية بعيدة في آخر الورقة
+  let seen = 0;
+  ws.eachRow({ includeEmpty: false }, (row, r) => {
+    if (r < 2) return;
+    if (++seen > maxRows * 4) throw new BadRequestException(`ورقة «${sheetName}» تتجاوز ${maxRows} صف`);
+    if (row.cellCount > MAX_COLS) throw new BadRequestException(`ورقة «${sheetName}» فيها أعمدة أكثر من ${MAX_COLS}`);
+    const vals = (row.values as ExcelJS.CellValue[]).map(cellText);
+    if (!vals.some((x) => x)) return;
     if (out.length >= maxRows) throw new BadRequestException(`ورقة «${sheetName}» تتجاوز ${maxRows} صف`);
     const v: Record<string, string> = {};
     for (const c of cols) v[c.key] = at.has(c.label) ? vals[at.get(c.label)!] ?? '' : '';
     const extra: Record<string, string> = {};
     for (const [label, i] of at) if (!known.has(label)) extra[label] = vals[i] ?? '';
     out.push({ row: r, v, extra });
-  }
+  });
   return out;
 }
 

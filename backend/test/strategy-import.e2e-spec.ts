@@ -43,6 +43,7 @@ describe('Strategy, risk and budget import from Excel', () => {
   let admin: string;
   let clerk: string;
   let viewer: string;
+  let ops: string;
   let adminB: string;
   let orgA: string;
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
@@ -81,6 +82,9 @@ describe('Strategy, risk and budget import from Excel', () => {
     const reader = await role('مشاهد', ['risk.dashboard.read', 'planning.dashboard.read']);
     await http.post('/api/users').set(as(admin)).send({ fullName: 'المخطط', email: 'clerk@pack-a.sa', password: 'Clerk12345', roleIds: [planner] }).expect(201);
     await http.post('/api/users').set(as(admin)).send({ fullName: 'المشاهد', email: 'viewer@pack-a.sa', password: 'View12345', roleIds: [reader] }).expect(201);
+    const opsRole = await role('تشغيلي', ['planning.dashboard.read', 'planning.operational.manage', 'planning.budgets.manage']);
+    await http.post('/api/users').set(as(admin)).send({ fullName: 'التشغيلي', email: 'ops@pack-a.sa', password: 'Ops123456', roleIds: [opsRole] }).expect(201);
+    ops = await login('ops@pack-a.sa', 'Ops123456', 'pack-a');
     clerk = await login('clerk@pack-a.sa', 'Clerk12345', 'pack-a');
     viewer = await login('viewer@pack-a.sa', 'View12345', 'pack-a');
   }, 240000);
@@ -251,5 +255,38 @@ describe('Strategy, risk and budget import from Excel', () => {
     expect(await n('plan_budget_lines')).toBe(3);
     const badKind = await book({ البنود: [['القسم', 'نوع البند', 'اسم البند', 'المبلغ السنوي'], ['الإيرادات', 'وظيفة', 'خطأ', 1]] });
     expect((await up(LI(b.id), clerk, badKind, 'apply').expect(201)).body.ok).toBe(false);
+
+    // صلاحيات داخل الخدمة: بنود الموارد البشرية تحتاج صلاحية رواتب الموازنة، والخطة الاستراتيجية صلاحيتها
+    const hr = await book({ البنود: [['القسم', 'نوع البند', 'اسم البند', 'المبلغ السنوي'], ['الموارد البشرية', 'مبلغ', 'مكافآت', 1000]] });
+    await up(LI(b.id), ops, hr, 'check').expect(403);
+    await up(PI, ops, await planBook(), 'check').expect(403);
+
+    // مبلغ يتجاوز سعة العمود يظهر خطأ صف في الفحص ولا يصل إلى الحفظ
+    const huge = await book({ البنود: [['القسم', 'نوع البند', 'اسم البند', 'المبلغ السنوي'], ['الإيرادات', 'مبلغ', 'ضخم', 9e15]] });
+    const h = (await up(LI(b.id), clerk, huge, 'check').expect(201)).body;
+    expect(h.ok).toBe(false);
+    expect(h.errors[0].messages[0]).toContain('المبلغ السنوي');
+    expect(await n('plan_budget_lines')).toBe(3);
+  });
+
+  it('refuses sparse or very wide sheets without building empty rows', async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('البنود');
+    ws.addRow(['القسم', 'نوع البند', 'اسم البند', 'المبلغ السنوي']);
+    ws.getCell(1_048_000, 1).value = 'الإيرادات';
+    ws.getCell(1_048_000, 2).value = 'مبلغ';
+    ws.getCell(1_048_000, 3).value = 'بعيد';
+    ws.getCell(1_048_000, 4).value = 1;
+    const sparse = Buffer.from(await wb.xlsx.writeBuffer());
+    const b = (await http.get('/api/planning/budgets').set(as(clerk)).expect(200)).body;
+    const id = (Array.isArray(b) ? b : b.items)[0].id;
+    const before = process.memoryUsage().heapUsed;
+    const r = (await up(`/api/planning/budgets/${id}/lines/import`, clerk, sparse, 'check').expect(201)).body;
+    expect(r.lines.map((l: { row: number }) => l.row)).toEqual([1_048_000]);
+    expect(process.memoryUsage().heapUsed - before).toBeLessThan(150 * 1024 * 1024);
+
+    const wide = await book({ البنود: [['القسم', 'نوع البند', 'اسم البند', 'المبلغ السنوي', ...Array.from({ length: 200 }, (_, i) => `عمود ${i}`)]] });
+    const w = await up(`/api/planning/budgets/${id}/lines/import`, clerk, wide, 'check').expect(400);
+    expect(w.body.message).toContain('أعمدة');
   });
 });

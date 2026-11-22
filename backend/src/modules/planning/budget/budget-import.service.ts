@@ -7,6 +7,8 @@ import { BudgetsService, ExcelLine } from './budgets.service';
 
 const SHEET = 'البنود';
 const MAX_LINES = 400;
+/** حد المبلغ في الصف حتى لا يتجاوز سعة العمود numeric(16,2) */
+const MAX_AMOUNT = 1_000_000_000_000;
 const COLS: SheetCol[] = [
   { key: 'section', label: 'القسم', required: true, width: 20, list: ['الموارد البشرية', 'المصروفات التشغيلية', 'الأنشطة', 'الإيرادات'] },
   { key: 'kind', label: 'نوع البند', required: true, width: 12, list: ['مبلغ', 'وظيفة'], note: '«وظيفة» للموارد البشرية فقط: يُحتسب راتبها وتأميناتها بمعادلات النظام. «مبلغ» قيمة سنوية تكتبها' },
@@ -88,16 +90,20 @@ export class BudgetImportService {
       if (v.name.length < 2 || v.name.length > 300) m.push('اسم البند من 2 إلى 300 حرف');
       if (seen.has(`${section}|${v.name}`)) m.push('البند مكرر في الملف');
       seen.add(`${section}|${v.name}`);
-      const num = (label: string, s: string, min = 0) => { const n = parseNum(s); if (n !== null && (Number.isNaN(n) || n < min)) m.push(`«${label}» رقم لا يقل عن ${min}`); return n === null || Number.isNaN(n) ? null : n; };
+      const num = (label: string, s: string, min = 0, max = MAX_AMOUNT) => {
+        const n = parseNum(s);
+        if (n !== null && (Number.isNaN(n) || n < min || n > max)) m.push(`«${label}» رقم من ${min} إلى ${max.toLocaleString('en-US')}`);
+        return n === null || Number.isNaN(n) || n > max ? null : n;
+      };
       let params: Record<string, unknown> = {};
       if (isJob) {
-        const from = num('من شهر', v.from, 1) ?? 1, to = num('إلى شهر', v.to, 1) ?? 12;
+        const from = num('من شهر', v.from, 1, 12) ?? 1, to = num('إلى شهر', v.to, 1, 12) ?? 12;
         if (from > 12 || to > 12 || to < from) m.push('أشهر الوظيفة من 1 إلى 12، و«إلى شهر» لا يسبق «من شهر»');
         const basic = num('الراتب الأساسي', v.basic);
         if (!basic) m.push('اكتب الراتب الأساسي للوظيفة');
         params = {
           jobTitle: v.job || v.name, isSaudi: isYes(v.saudi), basic, housing: num('بدل السكن', v.housing) ?? 0, transport: num('بدل النقل', v.transport) ?? 0,
-          other: num('بدلات أخرى', v.other) ?? 0, count: num('العدد', v.count, 1) ?? 1, startMonth: from, endMonth: to,
+          other: num('بدلات أخرى', v.other) ?? 0, count: num('العدد', v.count, 1, 500) ?? 1, startMonth: from, endMonth: to,
         };
       } else {
         const amount = num('المبلغ السنوي', v.amount);

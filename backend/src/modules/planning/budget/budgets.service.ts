@@ -707,7 +707,7 @@ export class BudgetsService {
       const b = await this.budget(em, org, id, true);
       this.editable(b, actor);
       const repo = em.getRepository(BudgetLine);
-      const existing = await repo.find({ where: { budgetId: id }, select: ['id', 'section', 'name', 'sortOrder'] });
+      const existing = await repo.find({ where: { budgetId: id, organizationId: org }, select: ['id', 'section', 'name', 'sortOrder'] });
       const have = new Set(existing.map((l) => `${l.section}|${l.name}`));
       let order = existing.reduce((m, l) => Math.max(m, l.sortOrder), 0);
       const ctx = await this.ctx(org, em);

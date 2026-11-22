@@ -69,7 +69,7 @@ export class PlanningController {
   /** mode=check يفحص الملف دون حفظ، وmode=apply ينشئ الخطة كاملة أو لا شيء. صلاحية نوع الخطة تُفحص في الخدمة */
   @Post('plans/import') @RequireAnyPermission(...EDIT)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1, fields: 2, fieldSize: 64, parts: 3 } }))
   importPlan(@CurrentOrgUser() a: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
     return this.importer.import(a, file, mode ?? 'check');
   }

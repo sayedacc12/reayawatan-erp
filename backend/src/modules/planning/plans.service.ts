@@ -306,7 +306,7 @@ export class PlansService {
       }
       for (const r of data.refs) {
         const itemId = byKey.get(r.itemKey)!.id;
-        if (await em.getRepository(PlanRef).count({ where: { itemId, system: r.system, refId: r.src.id } })) continue;
+        if (await em.getRepository(PlanRef).count({ where: { organizationId: org, itemId, system: r.system, refId: r.src.id } })) continue;
         await em.getRepository(PlanRef).save(this.refRow(actor, itemId, r.system, r.src, r.contribution, r.note));
       }
       for (const l of data.parentLinks) {

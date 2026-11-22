@@ -175,7 +175,7 @@ export class RiskController {
   /** mode=check يفحص ويعرض التقرير دون حفظ، وmode=apply يحفظ الكل في معاملة واحدة أو لا شيء */
   @Post('analyses/import') @RequirePermissions(P.analysis, P.register)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1, fields: 2, fieldSize: 64, parts: 3 } }))
   importAnalyses(@CurrentOrgUser() a: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
     return this.importer.import(a, file, mode ?? 'check');
   }

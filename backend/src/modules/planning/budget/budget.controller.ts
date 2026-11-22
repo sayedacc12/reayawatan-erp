@@ -79,7 +79,7 @@ export class BudgetController {
   /** mode=check يحتسب البنود ويعرضها دون حفظ، وmode=apply يحفظها كلها أو لا شيء */
   @Post('budgets/:id/lines/import') @RequirePermissions(P.budgets)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1, fields: 2, fieldSize: 64, parts: 3 } }))
   importLinesFile(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
     return this.lineImport.import(a, id, file, mode ?? 'check');
   }
