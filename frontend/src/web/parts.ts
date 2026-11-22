@@ -28,4 +28,12 @@ export function visitorBody(v: ReturnType<typeof blankVisitor>) {
 
 export function setTitle(t?: string) {
   document.title = t ? `${t} · رعاية وطن` : 'رعاية وطن · National Care';
+  // الرابط المعتمد لكل صفحة (بلا معاملات الحملات) حتى لا تُعد الصفحات نسخًا مكررة في محركات البحث
+  let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.appendChild(link);
+  }
+  link.href = `${location.origin}${location.pathname}`;
 }

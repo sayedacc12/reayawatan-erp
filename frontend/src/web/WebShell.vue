@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSession } from '../stores/session';
 import Rich from './Rich.vue';
-import { C, loadSite, services, site } from './site';
+import { C, filled, loadSite, services, site } from './site';
 import './web.css';
 import './web-extra.css';
 
@@ -74,15 +74,14 @@ const staffLink = computed(() => (loggedIn.value ? '/me' : '/login'));
           </ul></div>
           <div><h4>خدماتنا</h4><ul><li v-for="s in services()" :key="s.slug"><RouterLink :to="`/services/${s.slug}`">{{ s.title }}</RouterLink></li></ul></div>
           <div><h4>تواصل</h4><ul>
-            <li>الهاتف: <Rich :text="contact.phone" /></li>
-            <li>البريد: <Rich :text="contact.email" /></li>
-            <li>العنوان: <Rich :text="contact.address" /></li>
-            <li>ساعات العمل: <Rich :text="contact.hours" /></li>
+            <li v-if="filled(contact.phone)">الهاتف: <Rich :text="contact.phone" /></li>
+            <li v-if="filled(contact.email)">البريد: <Rich :text="contact.email" /></li>
+            <li v-if="filled(contact.address)">العنوان: <Rich :text="contact.address" /></li>
+            <li v-if="filled(contact.hours)">ساعات العمل: <Rich :text="contact.hours" /></li>
           </ul></div>
         </div>
         <div class="legal">
           <span>© {{ year }} شركة رعاية وطن للاستثمار (National Care). جميع الحقوق محفوظة.</span>
-          <span>العناصر المظللة <span class="ph">يُستكمل</span> بيانات تنتظر الاعتماد.</span>
           <span>السجل التجاري: <Rich :text="cardValue('السجل التجاري')" /> · الرقم الضريبي: <Rich :text="cardValue('الرقم الضريبي')" /></span>
         </div>
       </div>

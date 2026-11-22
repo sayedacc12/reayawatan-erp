@@ -5,7 +5,7 @@ import PageHead from '../PageHead.vue';
 import Rich from '../Rich.vue';
 import VisitorFields from '../VisitorFields.vue';
 import { blankVisitor, setTitle, visitorBody } from '../parts';
-import { C, handoff, post, services, visitMeta } from '../site';
+import { C, filled, handoff, post, publicText, services, visitMeta } from '../site';
 
 /** طلب استشارة: يصل للنظام عميلًا محتملًا جديدًا ويُشعَر به الفريق */
 const route = useRoute();
@@ -66,14 +66,14 @@ async function submit() {
     </form>
     <aside style="display: grid; gap: 20px; align-content: start">
       <div class="side-box"><h3>بيانات التواصل</h3><dl class="kv">
-        <div><dt>الهاتف</dt><dd><Rich :text="c.phone" /></dd></div>
+        <div v-if="filled(c.phone)"><dt>الهاتف</dt><dd><Rich :text="c.phone" /></dd></div>
         <div><dt>البريد الإلكتروني</dt><dd dir="ltr"><Rich :text="c.email" /></dd></div>
-        <div><dt>واتساب الأعمال</dt><dd><Rich :text="c.whatsapp" /></dd></div>
-        <div><dt>العنوان</dt><dd><Rich :text="c.address" /></dd></div>
-        <div><dt>ساعات العمل</dt><dd><Rich :text="c.hours" /></dd></div>
+        <div v-if="filled(c.whatsapp)"><dt>واتساب الأعمال</dt><dd><Rich :text="c.whatsapp" /></dd></div>
+        <div v-if="filled(c.address)"><dt>العنوان</dt><dd><Rich :text="c.address" /></dd></div>
+        <div v-if="filled(c.hours)"><dt>ساعات العمل</dt><dd><Rich :text="c.hours" /></dd></div>
       </dl></div>
       <div class="side-box"><h3>جلسة تشخيص مجانية</h3><p class="note">تفضلون الحديث مباشرة؟ اختاروا موعدًا مناسبًا مع أحد مستشارينا.</p><RouterLink class="btn" to="/book">احجز موعدًا</RouterLink></div>
-      <div class="side-box"><h3>للتوظيف</h3><p class="note"><Rich :text="c.careers" /></p></div>
+      <div class="side-box"><h3>للتوظيف</h3><p class="note"><Rich v-if="!c.careers?.includes('{{')" :text="c.careers" /><template v-else>نرحب بالخبراء في مجالات خدماتنا. أرسلوا سيرتكم الذاتية إلى <span dir="ltr">{{ publicText(c.email) }}</span></template></p></div>
     </aside>
   </div></section>
 </template>

@@ -4,7 +4,7 @@ import CtaBand from '../CtaBand.vue';
 import PageHead from '../PageHead.vue';
 import Rich from '../Rich.vue';
 import { setTitle } from '../parts';
-import { C } from '../site';
+import { C, filled } from '../site';
 
 const a = computed(() => C().about ?? {});
 onMounted(() => setTitle('من نحن'));
@@ -41,7 +41,7 @@ onMounted(() => setTitle('من نحن'));
       <p class="eyebrow">الحوكمة</p>
       <h2>{{ a.govTitle }}</h2>
       <p><Rich :text="a.govText" /></p>
-      <p v-if="a.govNote" class="note"><Rich :text="a.govNote" /></p>
+      <p v-if="filled(a.govNote)" class="note"><Rich :text="a.govNote" /></p>
     </div>
     <aside class="side-box"><h3>اللوائح والسياسات</h3><ul class="checklist"><li v-for="(p, i) in a.policies" :key="i">{{ p }}</li></ul></aside>
   </div></section>
@@ -55,7 +55,7 @@ onMounted(() => setTitle('من نحن'));
       <h3 style="margin-bottom: 12px">{{ a.boardTitle }}</h3>
       <div class="grid g3"><div v-for="(m, i) in a.board" :key="i" class="svc-card"><h3>{{ m.name }}</h3><p>{{ m.role }}</p></div></div>
     </template>
-    <p v-if="a.teamNote" class="note" style="margin-top: 16px"><Rich :text="a.teamNote" /></p>
+    <p v-if="filled(a.teamNote)" class="note" style="margin-top: 16px"><Rich :text="a.teamNote" /></p>
   </div></section>
   <CtaBand />
 </template>
