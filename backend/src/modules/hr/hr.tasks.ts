@@ -66,13 +66,13 @@ export class HrTasks implements OnModuleInit {
       const roles = await this.roles(u);
       const [s] = await this.db.query('SELECT payroll_config AS cfg, development_config AS dev FROM hr_settings WHERE organization_id = $1', [org]);
       const stages: { name: string; roleId: string | null }[] = s?.cfg?.stages ?? [];
-      const runs: { id: string; month: string; stage_index: number; updated_at: Date }[] = await this.db.query(
-        `SELECT id, month, stage_index, updated_at FROM hr_payroll_runs WHERE organization_id = $1 AND status = 'pending'`, [org],
+      const runs: { id: string; month: string; kind: string; stage_index: number; updated_at: Date }[] = await this.db.query(
+        `SELECT id, month, kind, stage_index, updated_at FROM hr_payroll_runs WHERE organization_id = $1 AND status = 'pending'`, [org],
       );
       for (const r of runs) {
         const st = stages[r.stage_index];
         if (st?.roleId && !u.isSuperadmin && !roles.has(st.roleId)) continue;
-        out.push({ id: `run:${r.id}`, group: 'مسير الرواتب', link: `/hr/payroll/${r.id}`, at: r.updated_at, title: `كشف رواتب ${r.month}`, subtitle: st ? `مرحلة: ${st.name}` : null });
+        out.push({ id: `run:${r.id}`, group: 'مسير الرواتب', link: `/hr/payroll/${r.id}`, at: r.updated_at, title: `${r.kind === 'contractors' ? 'كشف المتعاونين' : 'كشف رواتب'} ${r.month}`, subtitle: st ? `مرحلة: ${st.name}` : null });
       }
     }
     // خطط التطوير في مرحلة اعتمادي

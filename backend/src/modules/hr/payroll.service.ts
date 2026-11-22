@@ -7,7 +7,7 @@ import { EntriesService } from '../accounting/entries.service';
 import { VouchersService, VOUCHER_STATUS_AR } from '../accounting/vouchers.service';
 import { AttendanceService } from './attendance.service';
 import {
-  HrAdvanceRepayment, HrAllowanceType, HrEmployee, HrExpenseProfile, HrJob, HrLeaveRequest, HrPayrollRun, HrSettings, HrUnit, PayrollConfig, PayrollRunStatus, RunHistory, RunLine,
+  HrAdvanceRepayment, HrAllowanceType, HrEmployee, PayBasis, HrExpenseProfile, HrJob, HrLeaveRequest, HrPayrollRun, HrSettings, HrUnit, PayrollConfig, PayrollRunStatus, RunChange, RunHistory, RunLine,
 } from './entities/hr.entity';
 import { AllowanceTypeDto, ExpenseProfileDto, PayrollConfigDto, RunDecisionDto, RunLineDto, RunVouchersDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
@@ -24,6 +24,10 @@ const ACTION_AR: Record<string, string> = {
   create: 'إصدار الكشف', recalc: 'إعادة الاحتساب', line: 'تعديل سطر', submit: 'رفع للاعتماد', approve: 'موافقة', final: 'اعتماد نهائي وإصدار القيد',
   return: 'إرجاع للتعديل', reopen: 'إلغاء الاعتماد وعكس القيد', cancel: 'إلغاء الكشف', vouchers: 'إنشاء سندات الصرف',
 };
+export const PAY_BASIS_AR: Record<PayBasis, string> = { monthly: 'مبلغ شهري', daily: 'باليوم', hourly: 'بالساعة', task: 'بالمهمة' };
+const UNIT_AR: Record<PayBasis, string> = { monthly: 'شهر', daily: 'يوم', hourly: 'ساعة', task: 'مهمة' };
+export type RunKind = 'staff' | 'contractors';
+const KIND_AR: Record<RunKind, string> = { staff: 'كشف رواتب الموظفين', contractors: 'كشف المتعاونين' };
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 export const monthLabel = (m: string) => `${MONTHS_AR[Number(m.slice(5, 7)) - 1]} ${m.slice(0, 4)}`;
 
@@ -96,7 +100,22 @@ function totalsOf(lines: RunLine[]) {
   };
 }
 
-interface PlanVoucher { cashAccountId: string; payableAccountId: string; amount: number; codes: string[]; employees: number }
+/** القيم قبل التعديل اليدوي للسطر وبعده (للسجل وشاشة الاعتماد) */
+export function lineChanges(a: RunLine, b: RunLine): RunChange[] {
+  const sumAdd = (l: RunLine) => round2(l.additions.reduce((s, x) => s + x.amount, 0));
+  // تفصيل الإضافات بنودها ومبالغها، لأن البند يحدد حساب القيد
+  const addList = (l: RunLine) => l.additions.map((x) => `${x.code}: ${x.amount}${x.note ? ` (${x.note})` : ''}`).sort().join('، ') || null;
+  const fields: [string, string, (l: RunLine) => number | string | null][] = [
+    ['rate', 'قيمة الوحدة', (l) => l.contract?.rate ?? null], ['units', 'العدد', (l) => l.contract?.units ?? null],
+    ['absentDays', 'أيام الغياب', (l) => l.attendance.absentDays], ['lateMinutes', 'دقائق التأخير', (l) => l.attendance.lateMinutes],
+    ['additions', 'الإضافات', sumAdd], ['additionItems', 'بنود الإضافات', addList],
+    ['overridden', 'تعديل الحضور يدويًا', (l) => (l.attendance.overridden ? 'نعم' : 'لا')], ['otherDeduction', 'الاستقطاعات الأخرى', (l) => l.otherDeduction],
+    ['otherDeductionNote', 'سبب الاستقطاع', (l) => l.otherDeductionNote], ['note', 'الملاحظة', (l) => l.contract?.note ?? null], ['net', 'الصافي', (l) => l.net],
+  ];
+  return fields.map(([field, label, f]) => ({ field, label, before: f(a), after: f(b) })).filter((c) => c.before !== c.after);
+}
+
+interface PlanVoucher { cashAccountId: string; payableAccountId: string; amount: number; codes: string[]; employees: number; partyName?: string; employeeId?: string }
 
 /**
  * مسير الرواتب: البنود (الأساسي والبدلات) وحساباتها، الربط المحاسبي ومراحل الاعتماد، وكشف رواتب كل شهر:
@@ -207,6 +226,11 @@ export class PayrollService {
       { id: dto.advancesAccountId, label: 'حساب سلف الموظفين' },
     ]);
     await this.assertCash(org, dto.defaultCashAccountId, 'البنك الافتراضي');
+    await this.assertAccounts(org, [
+      { id: dto.contractorExpenseAccountId, label: 'مصروف أتعاب المتعاونين', nature: ['expenses'] },
+      { id: dto.contractorPayableAccountId, label: 'أتعاب المتعاونين المستحقة', nature: ['liabilities'] },
+    ]);
+    await this.assertCash(org, dto.contractorCashAccountId, 'بنك صرف أتعاب المتعاونين');
     if (dto.stages.length) {
       const roleIds = dto.stages.map((s) => s.roleId).filter((x): x is string => !!x);
       const roles: { id: string }[] = roleIds.length ? await this.db.query('SELECT id FROM roles WHERE organization_id = $1 AND id = ANY($2)', [org, roleIds]) : [];
@@ -215,6 +239,8 @@ export class PayrollService {
     const config: PayrollConfig = {
       payableAccountId: dto.payableAccountId ?? null, gosiPayableAccountId: dto.gosiPayableAccountId ?? null,
       deductionsAccountId: dto.deductionsAccountId ?? null, advancesAccountId: dto.advancesAccountId ?? null, defaultCashAccountId: dto.defaultCashAccountId ?? null,
+      contractorExpenseAccountId: dto.contractorExpenseAccountId ?? null, contractorPayableAccountId: dto.contractorPayableAccountId ?? null,
+      contractorCashAccountId: dto.contractorCashAccountId ?? null,
       stages: dto.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? null })),
     };
     await this.core.settings(org);
@@ -291,13 +317,26 @@ export class PayrollService {
 
   // ---------------- إعداد الكشف ----------------
 
-  private async buildLines(org: string, month: string, prev: RunLine[] = []) {
+  /** من له سطر في كشف قائم (غير ملغى) من النوع الآخر للشهر نفسه، فلا يدخل هذا الكشف حتى لا يُصرف له مرتين */
+  private async inOtherRun(org: string, month: string, kind: RunKind): Promise<Set<string>> {
+    const rows: { id: string }[] = await this.db.query(
+      `SELECT DISTINCT x->>'employeeId' AS id FROM hr_payroll_runs r, jsonb_array_elements(r.lines) x
+        WHERE r.organization_id = $1 AND r.month = $2 AND r.kind <> $3 AND r.status <> 'cancelled'`, [org, month, kind]);
+    return new Set(rows.map((r) => r.id));
+  }
+
+  private async buildLines(org: string, month: string, prev: RunLine[] = [], kind: RunKind = 'staff') {
+    if (kind === 'contractors') return this.buildContractorLines(org, month, prev);
+    const skip = await this.inOtherRun(org, month, kind);
     const policy = await this.core.policy(org);
     const start = `${month}-01`;
     const end = lastDay(month);
-    const employees = await this.db.getRepository(HrEmployee).createQueryBuilder('e').where('e.organization_id = :org', { org })
+    const all = await this.db.getRepository(HrEmployee).createQueryBuilder('e').where('e.organization_id = :org', { org })
       .andWhere('e.hire_date <= :end', { end }).andWhere('(e.termination_date IS NULL OR e.termination_date >= :start)', { start })
+      .andWhere(`e.employment_kind = 'staff'`)
       .orderBy('e.employee_no').getMany();
+    const skippedStaff = all.filter((e) => skip.has(e.id));
+    const employees = all.filter((e) => !skip.has(e.id));
     const types = new Map((await this.core.allowanceTypes(org)).map((t) => [t.code, t]));
     const [units, jobs] = await Promise.all([
       this.db.getRepository(HrUnit).find({ where: { organizationId: org } }),
@@ -311,7 +350,7 @@ export class PayrollService {
       .andWhere('l.start_date <= :end AND l.end_date >= :start', { start, end }).getMany() : [];
     const att = await this.attendance.compute(org, month, employees);
     const due = await this.requests.dueInstallments(org, month);
-    const warnings: string[] = [];
+    const warnings: string[] = skippedStaff.map((e) => `${e.fullName}: له سطر في كشف المتعاونين لهذا الشهر فلم يُدرج هنا`);
     if (att.cfg.enabled && !att.coverageEnd) warnings.push('لا توجد بصمات حضور لهذا الشهر، فلم يُخصم غياب أو تأخير');
     else if (att.cfg.enabled && att.coverageEnd && att.coverageEnd < end) warnings.push(`بيانات الحضور واصلة حتى ${att.coverageEnd}، وما بعده لا يُحتسب غيابًا`);
     const monthDays = daysBetween(start, end) + 1;
@@ -348,8 +387,73 @@ export class PayrollService {
     return { lines, warnings };
   }
 
+  /**
+   * كشف المتعاونين: لكل متعاون أجره حسب أساس عقده. الشهري يُنسب لأيام التعاون ويُخصم غيابه إن كان يخضع للحضور،
+   * واليومي بعدد أيام حضوره (أو ما يدخله المسؤول إن كان بلا حضور)، وبالساعة وبالمهمة بما يدخله المسؤول.
+   * بلا تأمينات ولا سلف ولا إجازات بدون أجر.
+   */
+  private async buildContractorLines(org: string, month: string, prev: RunLine[] = []) {
+    const policy = await this.core.policy(org);
+    const start = `${month}-01`;
+    const end = lastDay(month);
+    const employees = await this.db.getRepository(HrEmployee).createQueryBuilder('e').where('e.organization_id = :org', { org })
+      .andWhere('e.hire_date <= :end', { end }).andWhere('(e.termination_date IS NULL OR e.termination_date >= :start)', { start })
+      .andWhere(`e.employment_kind = 'contractor'`)
+      .orderBy('e.employee_no').getMany();
+    const skip = await this.inOtherRun(org, month, 'contractors');
+    const skipped = employees.filter((e) => skip.has(e.id));
+    if (skipped.length) employees.splice(0, employees.length, ...employees.filter((e) => !skip.has(e.id)));
+    const [units, jobs] = await Promise.all([
+      this.db.getRepository(HrUnit).find({ where: { organizationId: org } }),
+      this.db.getRepository(HrJob).find({ where: { organizationId: org }, select: ['id', 'title'] }),
+    ]);
+    const att = await this.attendance.compute(org, month, employees);
+    const warnings: string[] = skipped.map((e) => `${e.fullName}: له سطر في كشف رواتب الموظفين لهذا الشهر فلم يُدرج هنا`);
+    const monthDays = daysBetween(start, end) + 1;
+    const lines = employees.map((e) => {
+      const old = prev.find((p) => p.employeeId === e.id);
+      const basis: PayBasis = e.payBasis ?? 'monthly';
+      if (old?.contract && e.payRate !== null && old.contract.rate !== e.payRate) warnings.push(`${e.fullName}: القيمة في الكشف ${old.contract.rate} تختلف عن المتعاقد عليها ${e.payRate}`);
+      const rate = old?.contract?.rate ?? e.payRate ?? 0;
+      const from = e.hireDate > start ? e.hireDate : start;
+      const to = e.terminationDate && e.terminationDate < end ? e.terminationDate : end;
+      const worked = daysBetween(from, to) + 1;
+      const ratio = worked >= monthDays ? 1 : round2(worked / policy.payroll.dayBasis);
+      const a = att.result.get(e.id)!;
+      let unitsN = old?.contract?.units ?? 0;
+      let manualUnits = old?.contract?.manualUnits ?? false;
+      if (basis === 'monthly') {
+        unitsN = 1;
+        manualUnits = false;
+      } else if (basis === 'daily' && a.tracked && !manualUnits) unitsN = a.presentDays;
+      const full = basis === 'monthly' ? rate : round2(rate * unitsN);
+      const earnedFee = basis === 'monthly' ? round2(Math.min(rate * ratio, rate)) : full;
+      // الحضور يُخصم فقط من المبلغ الشهري؛ اليومي يُحتسب بأيام الحضور نفسها
+      const deducts = basis === 'monthly' && a.tracked;
+      const attendance = old?.attendance.overridden && deducts
+        ? old.attendance
+        : { tracked: deducts, absentDays: deducts ? a.absentDays : 0, lateMinutes: deducts ? a.deductibleMinutes : 0, missingOut: a.tracked ? a.missingOut : 0, overridden: false };
+      if ((basis === 'hourly' || basis === 'task') && !unitsN) warnings.push(`${e.fullName}: اكتب عدد ${basis === 'hourly' ? 'الساعات' : 'المهام'} لهذا الشهر`);
+      if (basis === 'daily' && !a.tracked && !manualUnits) warnings.push(`${e.fullName}: لا يخضع للحضور، فاكتب عدد أيام التعاون`);
+      return computeLine({
+        employeeId: e.id, employeeNo: e.employeeNo, fullName: e.fullName, isSaudi: e.isSaudi, unitId: e.unitId,
+        unitName: units.find((u) => u.id === e.unitId)?.name ?? '', jobTitle: jobs.find((j) => j.id === e.jobId)?.title ?? '', iban: e.iban,
+        expenseProfileId: null,
+        items: [{ code: 'fee', name: `أتعاب التعاون (${PAY_BASIS_AR[basis]})`, full, earned: earnedFee }],
+        gross: full, workedDays: Math.min(worked, monthDays), ratio, dailyWage: basis === 'monthly' ? round2(rate / policy.payroll.dayBasis) : 0,
+        unpaidDays: 0, unpaidDeduction: 0, attendance, absenceDeduction: 0, lateDeduction: 0,
+        additions: old?.additions ?? [], otherDeduction: old?.otherDeduction ?? 0, otherDeductionNote: old?.otherDeductionNote ?? null,
+        advances: [], advanceDeduction: 0, earned: 0, gosiEmployee: 0, gosiEmployer: 0, totalDeductions: 0, net: 0, employerCost: 0,
+        contract: { basis, rate, units: unitsN, manualUnits, note: old?.contract?.note ?? null },
+      }, policy);
+    });
+    const noIban = lines.filter((l) => !l.iban && l.net > 0).length;
+    if (noIban) warnings.push(`${noIban} من المتعاونين بدون آيبان`);
+    return { lines, warnings };
+  }
+
   private history(actor: OrgUser, action: string, note: string | null = null, stageName: string | null = null): RunHistory {
-    return { action, stageName, note, actorName: actor.fullName, at: new Date().toISOString() };
+    return { action, stageName, note, actorName: actor.fullName, actorId: actor.id, at: new Date().toISOString() };
   }
 
   private async load(em: EntityManager, org: string, id: string) {
@@ -367,25 +471,25 @@ export class PayrollService {
     const rows = await this.db.getRepository(HrPayrollRun).find({ where: { organizationId: actor.organizationId }, order: { month: 'DESC', createdAt: 'DESC' } });
     const config = await this.config(actor.organizationId);
     return rows.map((r) => ({
-      id: r.id, month: r.month, monthLabel: monthLabel(r.month), status: r.status, statusLabel: RUN_STATUS_AR[r.status],
+      id: r.id, month: r.month, monthLabel: monthLabel(r.month), kind: r.kind, kindLabel: KIND_AR[r.kind], status: r.status, statusLabel: RUN_STATUS_AR[r.status],
       stageName: r.status === 'pending' && r.stageIndex !== null ? config.stages[r.stageIndex]?.name ?? null : null,
       employees: r.totals.employees ?? 0, net: r.totals.net ?? 0, employerCost: r.totals.employerCost ?? 0, vouchers: r.voucherIds.length,
       createdByName: r.createdByName, approvedAt: r.approvedAt,
     }));
   }
 
-  async create(actor: OrgUser, month: string) {
+  async create(actor: OrgUser, month: string, kind: RunKind = 'staff') {
     if (!MONTH.test(month)) throw new BadRequestException('الشهر غير صحيح');
     if (month > today().slice(0, 7)) throw new BadRequestException('لا يُصدر كشف لشهر لم يبدأ بعد');
     const org = actor.organizationId;
     const exists = await this.db.getRepository(HrPayrollRun).createQueryBuilder('r')
-      .where('r.organization_id = :org AND r.month = :month AND r.status <> :c', { org, month, c: 'cancelled' }).getOne();
-    if (exists) throw new ConflictException(`يوجد كشف رواتب لشهر ${monthLabel(month)}`);
-    const { lines, warnings } = await this.buildLines(org, month);
-    if (!lines.length) throw new BadRequestException('لا يوجد موظفون على رأس العمل في هذا الشهر');
+      .where('r.organization_id = :org AND r.month = :month AND r.kind = :kind AND r.status <> :c', { org, month, kind, c: 'cancelled' }).getOne();
+    if (exists) throw new ConflictException(`يوجد ${KIND_AR[kind]} لشهر ${monthLabel(month)}`);
+    const { lines, warnings } = await this.buildLines(org, month, [], kind);
+    if (!lines.length) throw new BadRequestException(kind === 'contractors' ? 'لا يوجد متعاونون على رأس العمل في هذا الشهر' : 'لا يوجد موظفون على رأس العمل في هذا الشهر');
     const repo = this.db.getRepository(HrPayrollRun);
     const run = await repo.save(repo.create({
-      organizationId: org, month, status: 'draft', lines, totals: totalsOf(lines), warnings, history: [this.history(actor, 'create')], createdByName: actor.fullName,
+      organizationId: org, month, kind, status: 'draft', lines, totals: totalsOf(lines), warnings, history: [this.history(actor, 'create')], createdByName: actor.fullName,
     }));
     return this.get(actor, run.id);
   }
@@ -395,7 +499,7 @@ export class PayrollService {
     await this.db.transaction(async (em) => {
       const r = await this.load(em, org, id);
       this.editable(r);
-      const { lines, warnings } = await this.buildLines(org, r.month, r.lines);
+      const { lines, warnings } = await this.buildLines(org, r.month, r.lines, r.kind);
       await em.getRepository(HrPayrollRun).update({ id }, { lines, totals: totalsOf(lines), warnings, history: [...r.history, this.history(actor, 'recalc')] });
     });
     return this.get(actor, id);
@@ -411,6 +515,20 @@ export class PayrollService {
       const idx = r.lines.findIndex((l) => l.employeeId === employeeId);
       if (idx < 0) throw new NotFoundException('الموظف ليس في هذا الكشف');
       const l = r.lines[idx];
+      if (r.kind === 'contractors') {
+        const next = this.contractorEdit(l, dto, policy);
+        const lines = r.lines.slice();
+        lines[idx] = next;
+        // تنبيه «اكتب العدد» يزول متى أُدخل
+        const warnings = next.contract?.units ? r.warnings.filter((w) => !(w.startsWith(`${l.fullName}: اكتب عدد`) || w.startsWith(`${l.fullName}: لا يخضع للحضور`))) : r.warnings;
+        const reason = dto.reason?.trim() || null;
+        await em.getRepository(HrPayrollRun).update({ id, organizationId: org }, {
+          lines, totals: totalsOf(lines), warnings, history: [...r.history, { ...this.history(actor, 'line', reason), employeeId: l.employeeId, reason, changes: lineChanges(l, next) }],
+        });
+        return;
+      }
+      // كشف الموظفين: كل تعديل يدوي بسبب مكتوب، ويُحفظ بقيمه قبل وبعد
+      if (!dto.reason?.trim()) throw new BadRequestException('اكتب سبب التعديل');
       for (const a of dto.additions) {
         const t = types.get(a.code);
         if (!t || !t.isActive) throw new BadRequestException(`بند الإضافة «${a.code}» غير معرّف أو موقوف`);
@@ -428,16 +546,44 @@ export class PayrollService {
       if (next.net < 0) throw new BadRequestException(`الاستقطاعات أكبر من مستحقات ${l.fullName} في هذا الشهر`);
       const lines = r.lines.slice();
       lines[idx] = next;
-      await em.getRepository(HrPayrollRun).update({ id }, { lines, totals: totalsOf(lines), history: [...r.history, this.history(actor, 'line', l.fullName)] });
+      const reason = dto.reason!.trim();
+      const entry = (after: RunLine) => ({ ...this.history(actor, 'line', reason), employeeId: l.employeeId, reason, changes: lineChanges(l, after) });
+      // إن أُلغي التعديل اليدوي على الحضور يُعاد احتساب حضور هذا الموظف وحده من البصمات، وتبقى بقية الأسطر كما هي
+      if (dto.overrideAttendance === false && l.attendance.overridden) {
+        const reset = lines.map((x) => (x.employeeId === employeeId ? { ...x, attendance: { ...x.attendance, overridden: false } } : x));
+        const built = await this.buildLines(org, r.month, reset, r.kind);
+        const after = built.lines.find((x) => x.employeeId === employeeId);
+        if (!after) throw new ConflictException(`${l.fullName} لم يعد ضمن هذا الكشف، فأعد احتساب الكشف كله`);
+        if (after.net < 0) throw new BadRequestException(`الاستقطاعات أكبر من مستحقات ${l.fullName} في هذا الشهر`);
+        lines[idx] = after;
+        await em.getRepository(HrPayrollRun).update({ id, organizationId: org }, { lines, totals: totalsOf(lines), history: [...r.history, entry(after)] });
+      } else {
+        await em.getRepository(HrPayrollRun).update({ id, organizationId: org }, { lines, totals: totalsOf(lines), history: [...r.history, entry(next)] });
+      }
     });
-    // إن أُلغي التعديل اليدوي على الحضور نعيد احتسابه من البصمات
-    if (dto.overrideAttendance === false) {
-      const r = await this.db.getRepository(HrPayrollRun).findOneByOrFail({ id });
-      const lines = r.lines.map((l) => (l.employeeId === employeeId ? { ...l, attendance: { ...l.attendance, overridden: false } } : l));
-      const built = await this.buildLines(org, r.month, lines);
-      await this.db.getRepository(HrPayrollRun).update({ id }, { lines: built.lines, totals: totalsOf(built.lines), warnings: built.warnings });
-    }
     return this.get(actor, id);
+  }
+
+  /** تعديل سطر المتعاون: مرن بالكامل بيد مسؤول الرواتب (الوحدات والقيمة والإضافات والاستقطاع والغياب)، دون سبب إلزامي */
+  private contractorEdit(l: RunLine, dto: RunLineDto, policy: HrPolicy): RunLine {
+    const c = l.contract!;
+    const rate = dto.rate ?? c.rate;
+    const units = c.basis === 'monthly' ? 1 : dto.units ?? c.units;
+    const manualUnits = c.basis !== 'monthly' && (dto.units !== undefined ? true : c.manualUnits);
+    const full = c.basis === 'monthly' ? rate : round2(rate * units);
+    const earned = c.basis === 'monthly' ? round2(Math.min(rate * l.ratio, rate)) : full;
+    let attendance = l.attendance;
+    if (dto.overrideAttendance && c.basis === 'monthly') {
+      attendance = { ...l.attendance, tracked: true, absentDays: dto.absentDays ?? l.attendance.absentDays, lateMinutes: dto.lateMinutes ?? l.attendance.lateMinutes, overridden: true };
+    }
+    const next = computeLine({
+      ...l, items: [{ ...l.items[0], full, earned }], gross: full, dailyWage: c.basis === 'monthly' ? round2(rate / policy.payroll.dayBasis) : 0, attendance,
+      additions: dto.additions.map((a) => ({ code: 'bonus', amount: a.amount, note: a.note ?? null })),
+      otherDeduction: dto.otherDeduction, otherDeductionNote: dto.otherDeduction > 0 ? dto.otherDeductionNote ?? null : null,
+      contract: { ...c, rate, units, manualUnits, note: dto.note !== undefined ? dto.note ?? null : c.note },
+    }, policy);
+    if (next.net < 0) throw new BadRequestException(`الاستقطاعات أكبر من مستحقات ${l.fullName} في هذا الشهر`);
+    return next;
   }
 
   async cancel(actor: OrgUser, id: string) {
@@ -463,6 +609,7 @@ export class PayrollService {
 
   /** يبني سطور قيد الاستحقاق وخطة سندات الصرف، ويجمع كل النواقص في رسالة واحدة */
   async plan(org: string, r: HrPayrollRun, em: EntityManager = this.db.manager) {
+    if (r.kind === 'contractors') return this.contractorPlan(org, r, em);
     const cfg = await this.config(org, em);
     const types = new Map((await this.core.allowanceTypes(org, em)).map((t) => [t.code, t]));
     const units = await em.getRepository(HrUnit).find({ where: { organizationId: org } });
@@ -546,10 +693,61 @@ export class PayrollService {
     };
   }
 
+  /**
+   * قيد كشف المتعاونين: مصروف أتعاب التعاون (حساب مستقل في حكم الاستشارات) محمّلًا على الحساب التحليلي للوحدة،
+   * مقابل الأتعاب المستحقة والاستقطاعات، ثم سند صرف مستقل لكل متعاون.
+   */
+  private async contractorPlan(org: string, r: HrPayrollRun, em: EntityManager) {
+    const cfg = await this.config(org, em);
+    const units = await em.getRepository(HrUnit).find({ where: { organizationId: org } });
+    const accounts: { id: string; requiresAnalytic: boolean }[] = await em.query(
+      'SELECT id, requires_analytic AS "requiresAnalytic" FROM acc_accounts WHERE organization_id = $1', [org],
+    );
+    const acc = new Map(accounts.map((a) => [a.id, a]));
+    const problems = new Set<string>();
+    const expenseId = cfg.contractorExpenseAccountId ?? null;
+    const payableId = cfg.contractorPayableAccountId ?? null;
+    const cashId = cfg.contractorCashAccountId ?? cfg.defaultCashAccountId ?? null;
+    if (!expenseId) problems.add('حساب مصروف أتعاب المتعاونين');
+    if (!payableId) problems.add('حساب أتعاب المتعاونين المستحقة');
+    if (!cashId) problems.add('بنك صرف أتعاب المتعاونين');
+    const totals = totalsOf(r.lines);
+    if (totals.otherDeduction > 0 && !cfg.deductionsAccountId) problems.add('حساب الاستقطاعات');
+    const lines = new Map<string, LineDto>();
+    const add = (side: 'debit' | 'credit', accountId: string, amount: number, analyticId: string | null, label: string) => {
+      if (amount <= 0) return;
+      const useAnalytic = side === 'debit' || acc.get(accountId)?.requiresAnalytic ? analyticId : null;
+      const key = `${side}|${accountId}|${useAnalytic ?? ''}`;
+      const cur = lines.get(key) ?? { accountId, debit: 0, credit: 0, label, analytic: useAnalytic ? [{ analyticId: useAnalytic, percent: 100 }] : [] };
+      cur[side] = round2(cur[side] + amount);
+      lines.set(key, cur);
+    };
+    const vouchers: PlanVoucher[] = [];
+    const rows: { employeeId: string; employeeNo: number; fullName: string; iban: string | null; amount: number }[] = [];
+    for (const l of r.lines) {
+      const analyticId = this.analyticOf(units, l.unitId);
+      const expense = round2(l.earned - l.unpaidDeduction - l.absenceDeduction - l.lateDeduction);
+      if (expenseId && acc.get(expenseId)?.requiresAnalytic && !analyticId) problems.add(`الحساب التحليلي للوحدة «${l.unitName}»`);
+      if (expenseId) add('debit', expenseId, expense, analyticId, 'أتعاب المتعاونين');
+      if (payableId) add('credit', payableId, l.net, analyticId, 'أتعاب المتعاونين المستحقة');
+      if (cfg.deductionsAccountId) add('credit', cfg.deductionsAccountId, l.otherDeduction, analyticId, 'استقطاعات من أتعاب المتعاونين');
+      if (l.net > 0 && cashId && payableId) {
+        vouchers.push({ cashAccountId: cashId, payableAccountId: payableId, amount: l.net, codes: ['fee'], employees: 1, partyName: l.fullName, employeeId: l.employeeId });
+        rows.push({ employeeId: l.employeeId, employeeNo: l.employeeNo, fullName: l.fullName, iban: l.iban, amount: l.net });
+      }
+    }
+    const entryLines: LineDto[] = [...lines.values()].sort((a, b) => (a.debit > 0 ? 0 : 1) - (b.debit > 0 ? 0 : 1));
+    return {
+      problems: [...problems], entryLines, vouchers,
+      banks: cashId && rows.length ? [{ cashAccountId: cashId, rows }] : [],
+      typeName: (code: string) => (code === 'fee' ? 'أتعاب التعاون' : code),
+    };
+  }
+
   private async readyPlan(org: string, r: HrPayrollRun, em: EntityManager) {
     const p = await this.plan(org, r, em);
     if (p.problems.length) {
-      throw new BadRequestException(`أكمل الربط المحاسبي قبل الاعتماد: ${p.problems.join('، ')}. من إعدادات الموارد البشرية (تبويب البدلات والربط المحاسبي) أو الهيكل التنظيمي`);
+      throw new BadRequestException(`أكمل الربط المحاسبي قبل الاعتماد: ${p.problems.join('، ')}. من إعدادات الموارد البشرية (تبويب ${r.kind === 'contractors' ? 'المسير والاعتماد: حسابات المتعاونين' : 'البدلات والربط المحاسبي'}) أو الهيكل التنظيمي`);
     }
     // تحقق مسبق بقواعد القيود نفسها في النظام المالي
     await this.entries.cleanLines(org, 'journal', p.entryLines, em);
@@ -619,7 +817,9 @@ export class PayrollService {
     await this.entries.assertNoApprovedInventory(em, year);
     const clean = await this.entries.cleanLines(org, 'journal', p.entryLines, em);
     const entry = await this.entries.createSystemEntry(em, actor, year, 'journal', {
-      documentDate: date, description: `استحقاق رواتب شهر ${monthLabel(r.month)} (${r.lines.length} موظفًا) من مسير الرواتب`,
+      documentDate: date, description: r.kind === 'contractors'
+        ? `استحقاق أتعاب المتعاونين لشهر ${monthLabel(r.month)} (${r.lines.length} متعاونًا) من كشف المتعاونين`
+        : `استحقاق رواتب شهر ${monthLabel(r.month)} (${r.lines.length} موظفًا) من مسير الرواتب`,
     }, clean);
     // أقساط السلف المستردة بهذا الكشف
     const reps = r.lines.flatMap((l) => (l.advances ?? []).filter((a) => a.amount > 0).map((a) => ({ organizationId: org, advanceId: a.advanceId, runId: r.id, month: r.month, amount: a.amount })));
@@ -675,8 +875,9 @@ export class PayrollService {
       for (const v of p.vouchers) {
         const names = v.codes.map(p.typeName).join(' و');
         const saved = await this.vouchers.insertDraft(em, actor, 'payment', {
-          voucherDate: dto.voucherDate, partyName: `موظفو الشركة (${v.employees} موظفًا)`, amount: v.amount,
-          purpose: `صرف ${names} لشهر ${label} حسب مسير الرواتب المعتمد`, sourceType: 'payroll', sourceRef: r.month, projectName: null,
+          voucherDate: dto.voucherDate, partyName: v.partyName ?? `موظفو الشركة (${v.employees} موظفًا)`, amount: v.amount,
+          purpose: v.partyName ? `صرف أتعاب التعاون لشهر ${label} حسب كشف المتعاونين المعتمد` : `صرف ${names} لشهر ${label} حسب مسير الرواتب المعتمد`,
+          sourceType: 'payroll', sourceRef: r.month, projectName: null,
           method: 'transfer', methodRef: null, cashAccountId: v.cashAccountId, counterAccountId: v.payableAccountId, partnerId: null, analytic: [],
         });
         ids.push(saved.id);
@@ -714,11 +915,17 @@ export class PayrollService {
     const manage = actor.permissions.includes(P.payroll) || actor.isSuperadmin;
     const editable = r.status === 'draft' || r.status === 'returned';
     return {
-      id: r.id, month: r.month, monthLabel: monthLabel(r.month), status: r.status, statusLabel: RUN_STATUS_AR[r.status],
+      id: r.id, month: r.month, monthLabel: monthLabel(r.month), kind: r.kind, kindLabel: KIND_AR[r.kind], status: r.status, statusLabel: RUN_STATUS_AR[r.status],
+      payBasisLabels: PAY_BASIS_AR, unitLabels: UNIT_AR,
       lines: r.lines, totals: r.totals, warnings: r.warnings,
       stages: cfg.stages.map((s, i) => ({ name: s.name, current: r.status === 'pending' && r.stageIndex === i, done: r.status === 'approved' || (r.status === 'pending' && (r.stageIndex ?? 0) > i) })),
       stageName: stage?.name ?? null,
-      history: r.history.map((h) => ({ ...h, label: ACTION_AR[h.action] ?? h.action })),
+      history: r.history.map((h) => ({ ...h, label: ACTION_AR[h.action] ?? h.action, employeeName: h.employeeId ? r.lines.find((l) => l.employeeId === h.employeeId)?.fullName ?? null : null })),
+      // التعديلات اليدوية على الأسطر (الأحدث أولًا) لمراجعة المعتمدين، وعدد التعديلات لكل سطر
+      edits: r.history.filter((h) => h.action === 'line').reverse().map((h) => ({
+        employeeId: h.employeeId ?? null, employeeName: h.employeeId ? r.lines.find((l) => l.employeeId === h.employeeId)?.fullName ?? null : h.note,
+        reason: h.reason ?? null, actorName: h.actorName, at: h.at, changes: h.changes ?? [],
+      })),
       entry: entry ?? null, vouchers, createdByName: r.createdByName, approvedAt: r.approvedAt, createdAt: r.createdAt,
       allowanceTypes: [...types.values()].filter((t) => t.isActive).map((t) => ({ code: t.code, name: t.name })),
       planError,
@@ -726,7 +933,7 @@ export class PayrollService {
         account: accName(l.accountId), debit: l.debit, credit: l.credit, label: l.label,
         analytic: l.analytic?.length ? (lookups?.analytics.find((a: { id: string }) => a.id === l.analytic![0].analyticId) as { code: string; name: string } | undefined)?.name ?? '' : '',
       })) : [],
-      voucherPlan: plan ? plan.vouchers.map((v) => ({ cashAccountName: cashName(v.cashAccountId), payableAccount: accName(v.payableAccountId), amount: v.amount, items: v.codes.map(plan!.typeName), employees: v.employees })) : [],
+      voucherPlan: plan ? plan.vouchers.map((v) => ({ partyName: v.partyName ?? null, cashAccountName: cashName(v.cashAccountId), payableAccount: accName(v.payableAccountId), amount: v.amount, items: v.codes.map(plan!.typeName), employees: v.employees })) : [],
       bankSheets: plan ? plan.banks.map((b) => ({
         cashAccountId: b.cashAccountId, cashAccountName: cashName(b.cashAccountId), total: round2(b.rows.reduce((s, x) => s + x.amount, 0)), rows: b.rows,
       })) : [],

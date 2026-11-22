@@ -11,7 +11,7 @@ import '../hr.css';
 
 /** كشوف الرواتب الشهرية: إصدار كشف الشهر ومتابعة اعتماده وصرفه */
 interface Run {
-  id: string; month: string; monthLabel: string; status: string; statusLabel: string; stageName: string | null; employees: number; net: number; employerCost: number;
+  id: string; month: string; monthLabel: string; kind: 'staff' | 'contractors'; kindLabel: string; status: string; statusLabel: string; stageName: string | null; employees: number; net: number; employerCost: number;
   vouchers: number; createdByName: string; approvedAt: string | null;
 }
 const session = useSession();
@@ -21,6 +21,10 @@ const runs = ref<Run[]>([]);
 const loaded = ref(false);
 const month = ref(todayStr().slice(0, 7));
 const busy = ref(false);
+const kind = ref<'staff' | 'contractors'>('staff');
+const tab = ref<'all' | 'staff' | 'contractors'>('all');
+const TABS = [['all', 'الكل'], ['staff', 'الموظفون'], ['contractors', 'المتعاونون']] as const;
+const shown = computed(() => (tab.value === 'all' ? runs.value : runs.value.filter((r) => r.kind === tab.value)));
 async function load() {
   try {
     runs.value = await api<Run[]>('/hr/payroll-runs');
@@ -34,7 +38,7 @@ onMounted(load);
 async function create() {
   busy.value = true;
   try {
-    const r = await api<{ id: string }>('/hr/payroll-runs', { method: 'POST', json: { month: month.value } });
+    const r = await api<{ id: string }>('/hr/payroll-runs', { method: 'POST', json: { month: month.value, kind: kind.value } });
     router.push(`/hr/payroll/${r.id}`);
   } catch (e) {
     toast.error((e as Error).message);
@@ -43,7 +47,7 @@ async function create() {
   }
 }
 const live = computed(() => runs.value.filter((r) => r.status !== 'cancelled'));
-const year = computed(() => live.value.filter((r) => r.status === 'approved' && r.month.startsWith(todayStr().slice(0, 4))));
+const year = computed(() => live.value.filter((r) => r.kind === 'staff' && r.status === 'approved' && r.month.startsWith(todayStr().slice(0, 4))));
 const pending = computed(() => live.value.filter((r) => r.status === 'pending').length);
 </script>
 
@@ -53,11 +57,12 @@ const pending = computed(() => live.value.filter((r) => r.status === 'pending').
       <div>
         <p class="pm-kicker">شؤون الموظفين</p>
         <h1>مسير الرواتب</h1>
-        <p class="pm-sub">يُصدر كشف كل شهر من بيانات الموظفين والإجازات والحضور، ثم يمر بمراحل الاعتماد. عند الاعتماد النهائي يصدر القيد في النظام المالي محمّلًا على الحساب التحليلي لكل وحدة، ثم تُنشأ سندات الصرف لكل بنك.</p>
+        <p class="pm-sub">يُصدر كشف كل شهر من بيانات الموظفين والإجازات والحضور، ثم يمر بمراحل الاعتماد. عند الاعتماد النهائي يصدر القيد في النظام المالي محمّلًا على الحساب التحليلي لكل وحدة، ثم تُنشأ سندات الصرف لكل بنك. وللمتعاونين كشف مستقل بلا تأمينات، بقيد مستقل وسند صرف لكل متعاون.</p>
       </div>
       <div v-if="session.can(P.payroll)" class="pm-actions">
+        <select v-model="kind" class="input" style="width: auto"><option value="staff">كشف الموظفين</option><option value="contractors">كشف المتعاونين</option></select>
         <input v-model="month" type="month" class="input" style="width: auto" :max="todayStr().slice(0, 7)" />
-        <button class="btn hr-glow" :disabled="busy" @click="create">{{ busy ? 'جارٍ الإعداد…' : 'إصدار كشف الشهر' }}</button>
+        <button class="btn hr-glow" :disabled="busy" @click="create">{{ busy ? 'جارٍ الإعداد…' : kind === 'contractors' ? 'إصدار كشف المتعاونين' : 'إصدار كشف الشهر' }}</button>
       </div>
     </section>
 
@@ -68,12 +73,16 @@ const pending = computed(() => live.value.filter((r) => r.status === 'pending').
     </div>
 
     <section class="card pm-panel">
+      <div class="hr-tabs">
+        <button v-for="t in TABS" :key="t[0]" :class="['hr-tab', { on: tab === t[0] }]" @click="tab = t[0]">{{ t[1] }}</button>
+      </div>
       <div class="table-wrap">
         <table class="table">
-          <thead><tr><th>الشهر</th><th>الحالة</th><th>الموظفون</th><th>صافي الرواتب</th><th>التكلفة الكاملة</th><th>سندات الصرف</th><th>أعده</th><th></th></tr></thead>
+          <thead><tr><th>الشهر</th><th>النوع</th><th>الحالة</th><th>العدد</th><th>صافي الرواتب</th><th>التكلفة الكاملة</th><th>سندات الصرف</th><th>أعده</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="r in runs" :key="r.id" :style="{ opacity: r.status === 'cancelled' ? 0.5 : 1 }">
+            <tr v-for="r in shown" :key="r.id" :style="{ opacity: r.status === 'cancelled' ? 0.5 : 1 }">
               <td><RouterLink :to="`/hr/payroll/${r.id}`" class="pm-link"><b>{{ r.monthLabel }}</b></RouterLink></td>
+              <td><span class="pm-tag" :class="{ 'hr-tag-contractor': r.kind === 'contractors' }">{{ r.kind === 'contractors' ? 'متعاونون' : 'موظفون' }}</span></td>
               <td>
                 <span class="pm-tag" :style="{ background: `${STATUS_COLOR[r.status]}22`, color: STATUS_COLOR[r.status] }">{{ r.statusLabel }}</span>
                 <span v-if="r.stageName" class="hr-mini">لدى: {{ r.stageName }}</span>
@@ -86,7 +95,7 @@ const pending = computed(() => live.value.filter((r) => r.status === 'pending').
               <td>{{ r.createdByName }}</td>
               <td><RouterLink :to="`/hr/payroll/${r.id}`" class="btn btn-sm">فتح</RouterLink></td>
             </tr>
-            <tr v-if="loaded && !runs.length"><td colspan="8" class="pm-empty">لم يُصدر كشف رواتب بعد. اختر الشهر واضغط «إصدار كشف الشهر».</td></tr>
+            <tr v-if="loaded && !shown.length"><td colspan="9" class="pm-empty">لم يُصدر كشف رواتب بعد. اختر الشهر واضغط «إصدار كشف الشهر».</td></tr>
           </tbody>
         </table>
       </div>

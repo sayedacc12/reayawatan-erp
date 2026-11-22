@@ -1,6 +1,6 @@
-import type { AttendanceConfig } from './entities/hr.entity';
+import type { AttendanceConfig, MarkKind } from './entities/hr.entity';
 
-export const DEFAULT_ATTENDANCE: AttendanceConfig = { enabled: false, workStart: '08:00', workEnd: '15:00', weekend: [5, 6], holidays: [] };
+export const DEFAULT_ATTENDANCE: AttendanceConfig = { enabled: false, workStart: '08:00', workEnd: '15:00', weekend: [5, 6], holidays: [], sites: [] };
 
 export type DayStatus = 'present' | 'absent' | 'weekend' | 'holiday' | 'leave' | 'not_employed' | 'no_data';
 export const DAY_STATUS_AR: Record<DayStatus, string> = {
@@ -14,6 +14,8 @@ export interface DayResult {
   late: number; early: number;
   /** ما يُحتسب للخصم منها بعد فترة السماح */
   deductible: number; missingOut: boolean;
+  /** اليوم محسوب من كشف الحضور الشهري المرفوع (لا من البصمات) */
+  fromSheet: boolean;
 }
 
 export interface MonthResult {
@@ -27,10 +29,12 @@ const addDay = (d: string, n = 1) => new Date(Date.parse(`${d}T00:00:00Z`) + n *
 /**
  * حضور موظف خلال شهر: لكل يوم عمل (ليس راحة ولا عطلة ولا إجازة معتمدة) أول بصمة حضور وآخر بصمة انصراف.
  * لا بصمة = غياب. بصمة واحدة = انصراف ناقص (لا يُحسب خروج مبكر). الأيام بعد آخر يوم وصلت بياناته لا تُحتسب.
+ * وإن شمل الموظفَ كشفُ حضور شهري (sheet) فعلامة اليوم فيه تُقدَّم على البصمات، واليوم بلا علامة ولا بصمة يُعد حضورًا.
  */
 export function attendanceMonth(o: {
   month: string; from: string; to: string; coverageEnd: string | null; cfg: AttendanceConfig; graceMinutes: number;
   leaves: { startDate: string; endDate: string }[]; punches: Map<string, string[]>;
+  marks?: Map<string, { kind: MarkKind; minutes: number }>; sheet?: boolean;
 }): MonthResult {
   const start = `${o.month}-01`;
   const days: DayResult[] = [];
@@ -42,12 +46,22 @@ export function attendanceMonth(o: {
     const list = (o.punches.get(d) ?? []).slice().sort();
     const row: DayResult = {
       date: d, weekday, status: 'present', holiday: holidays.get(d) ?? null, checkIn: list[0] ?? null, checkOut: list.length > 1 ? list[list.length - 1] : null,
-      punches: list.length, late: 0, early: 0, deductible: 0, missingOut: false,
+      punches: list.length, late: 0, early: 0, deductible: 0, missingOut: false, fromSheet: false,
     };
+    const mark = o.marks?.get(d);
     if (d < o.from || d > o.to) row.status = 'not_employed';
     else if (holidays.has(d)) row.status = 'holiday';
     else if (o.cfg.weekend.includes(weekday)) row.status = 'weekend';
     else if (o.leaves.some((l) => l.startDate <= d && l.endDate >= d)) row.status = 'leave';
+    else if (mark) {
+      row.fromSheet = true;
+      if (mark.kind === 'absent') row.status = 'absent';
+      else if (mark.kind === 'leave') row.status = 'leave';
+      else if (mark.kind === 'late') {
+        row.late = mark.minutes;
+        row.deductible = mark.minutes > o.graceMinutes ? mark.minutes : 0;
+      }
+    } else if (!list.length && o.sheet) row.fromSheet = true;
     else if (!list.length) row.status = !o.coverageEnd || d > o.coverageEnd ? 'no_data' : 'absent';
     else {
       row.late = Math.max(0, minutes(list[0]) - ws);

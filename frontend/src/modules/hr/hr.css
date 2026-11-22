@@ -133,3 +133,26 @@
 @keyframes hr-grow { from { transform: scaleY(0); } }
 @keyframes hr-spin-in { from { transform: rotate(-90deg) scale(.7); opacity: 0; } }
 @media (max-width: 900px) { .hr-grid { grid-template-columns: 1fr; } .hr-bars .r { grid-template-columns: 100px 1fr 30px; } }
+
+/* مواقع العمل للتسجيل من الجوال */
+.hr-site { display: grid; grid-template-columns: 1.4fr 1fr 1fr .8fr auto; gap: 8px; align-items: end; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.hr-site-actions { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 4px; }
+@media (max-width: 760px) { .hr-site { grid-template-columns: 1fr 1fr; } .hr-site > .field:first-child, .hr-site-actions { grid-column: 1 / -1; } }
+
+/* كشف الحضور الشهري */
+.hr-sheet-marks { display: flex; flex-wrap: wrap; gap: 4px; }
+.hr-sheet-marks span { font-size: .72rem; padding: 1px 6px; border-radius: 6px; background: var(--surface-2, #f3f4f6); }
+.hr-sheet-marks .absent { background: #ef444420; color: #b91c1c; }
+.hr-sheet-marks .leave { background: #0ea5e920; color: #0369a1; }
+.hr-sheet-marks .late { background: #f59e0b20; color: #b45309; }
+.hr-reverted { opacity: .5; text-decoration: line-through; }
+
+/* الحضور من الجوال في صفحة خدمتي */
+.ess-clock { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ess-clock-btn { min-width: 170px; min-height: 52px; font-size: 1.05rem; border-radius: 14px; }
+.ess-clock-times { display: flex; gap: 6px; flex-wrap: wrap; }
+.hr-tag-contractor { background: #0ea5e922; color: #0369a1; }
+/* الأسطر المعدّلة يدويًا في كشف الرواتب */
+.hr-edited td { background: rgba(245, 158, 11, .07); }
+.hr-edited td:first-child { box-shadow: inset -3px 0 0 #f59e0b; }
+.hr-edited-tag { margin-inline-start: 6px; border: 0; cursor: pointer; background: #f59e0b22; color: #b45309; font: inherit; font-size: .75rem; }

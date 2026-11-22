@@ -5,16 +5,18 @@ import { useToast } from '../../../stores/toast';
 import type { AccLookups } from '../lib';
 
 /** الربط المحاسبي لمسير الرواتب ومراحل اعتماده */
-interface Config { payableAccountId: string | null; gosiPayableAccountId: string | null; deductionsAccountId: string | null; advancesAccountId?: string | null; defaultCashAccountId: string | null; stages: { name: string; roleId: string | null }[] }
+interface Config { payableAccountId: string | null; gosiPayableAccountId: string | null; deductionsAccountId: string | null; advancesAccountId?: string | null; defaultCashAccountId: string | null; contractorExpenseAccountId?: string | null; contractorPayableAccountId?: string | null; contractorCashAccountId?: string | null; stages: { name: string; roleId: string | null }[] }
 const toast = useToast();
 const lk = ref<AccLookups | null>(null);
-const f = reactive({ payableAccountId: '', gosiPayableAccountId: '', deductionsAccountId: '', advancesAccountId: '', defaultCashAccountId: '', stages: [] as { name: string; roleId: string }[] });
+const f = reactive({ payableAccountId: '', gosiPayableAccountId: '', deductionsAccountId: '', advancesAccountId: '', defaultCashAccountId: '', contractorExpenseAccountId: '', contractorPayableAccountId: '', contractorCashAccountId: '', stages: [] as { name: string; roleId: string }[] });
 function fill(r: AccLookups & { config: Config }) {
   lk.value = r;
   const c = r.config;
   Object.assign(f, {
     payableAccountId: c.payableAccountId ?? '', gosiPayableAccountId: c.gosiPayableAccountId ?? '',
-    deductionsAccountId: c.deductionsAccountId ?? '', advancesAccountId: c.advancesAccountId ?? '', defaultCashAccountId: c.defaultCashAccountId ?? '', stages: c.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? '' })),
+    deductionsAccountId: c.deductionsAccountId ?? '', advancesAccountId: c.advancesAccountId ?? '', defaultCashAccountId: c.defaultCashAccountId ?? '',
+    contractorExpenseAccountId: c.contractorExpenseAccountId ?? '', contractorPayableAccountId: c.contractorPayableAccountId ?? '', contractorCashAccountId: c.contractorCashAccountId ?? '',
+    stages: c.stages.map((s) => ({ name: s.name, roleId: s.roleId ?? '' })),
   });
 }
 onMounted(async () => {
@@ -26,6 +28,7 @@ onMounted(async () => {
 });
 const by = (n: string) => computed(() => lk.value?.accounts.filter((a) => a.nature === n) ?? []);
 const liabilities = by('liabilities');
+const expenses = by('expenses');
 async function save() {
   try {
     const n = (v: string) => v || null;
@@ -34,6 +37,7 @@ async function save() {
       json: {
         payableAccountId: n(f.payableAccountId), gosiPayableAccountId: n(f.gosiPayableAccountId),
         deductionsAccountId: n(f.deductionsAccountId), advancesAccountId: n(f.advancesAccountId), defaultCashAccountId: n(f.defaultCashAccountId),
+        contractorExpenseAccountId: n(f.contractorExpenseAccountId), contractorPayableAccountId: n(f.contractorPayableAccountId), contractorCashAccountId: n(f.contractorCashAccountId),
         stages: f.stages.filter((s) => s.name.trim()).map((s) => ({ name: s.name.trim(), roleId: s.roleId || null })),
       },
     }));
@@ -66,7 +70,17 @@ function move(i: number, d: number) {
         <select v-model="f.defaultCashAccountId" class="input"><option value="">—</option><option v-for="c in lk?.cashAccounts ?? []" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
     </section>
     <section class="card pm-panel">
-      <h2>مراحل اعتماد كشف الرواتب</h2>
+      <h2>حسابات المتعاونين</h2>
+      <p class="pm-muted">أتعاب المتعاونين في حكم الاستشارات وليست رواتب، فلها قيد مستقل: مصروف الأتعاب محمّلًا على الحساب التحليلي لوحدة المتعاون، مقابل الأتعاب المستحقة. ويُنشأ سند صرف مستقل لكل متعاون. بلا تأمينات اجتماعية.</p>
+      <label class="field"><span>مصروف أتعاب المتعاونين (الاستشارات)</span>
+        <select v-model="f.contractorExpenseAccountId" class="input"><option value="">—</option><option v-for="a in expenses" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
+      <label class="field"><span>أتعاب المتعاونين المستحقة</span>
+        <select v-model="f.contractorPayableAccountId" class="input"><option value="">—</option><option v-for="a in liabilities" :key="a.id" :value="a.id">{{ a.code }} {{ a.name }}</option></select></label>
+      <label class="field"><span>بنك صرف الأتعاب (إن تُرك فارغًا يُستخدم البنك الافتراضي)</span>
+        <select v-model="f.contractorCashAccountId" class="input"><option value="">—</option><option v-for="c in lk?.cashAccounts ?? []" :key="c.id" :value="c.id">{{ c.name }}</option></select></label>
+    </section>
+    <section class="card pm-panel">
+      <h2>مراحل اعتماد كشوف الرواتب والمتعاونين</h2>
       <p class="pm-muted">يمر الكشف بهذه المراحل بالترتيب، ولكل مرحلة دور مسؤول عنها (فارغ = أي مستخدم معه صلاحية اعتماد المسير). بدون مراحل يعتمده صاحب الصلاحية مباشرة عند الرفع.</p>
       <div v-for="(s, i) in f.stages" :key="i" style="display: grid; grid-template-columns: 28px 1fr 1fr auto auto auto; gap: 6px; margin-bottom: 8px; align-items: center">
         <span class="pm-tag" style="text-align: center">{{ i + 1 }}</span>

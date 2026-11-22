@@ -26,6 +26,7 @@ import { PlanningModule } from './modules/planning/planning.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { WebsiteModule } from './modules/website/website.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { DemoModule } from './modules/demo/demo.module';
 import { StarterModule } from './modules/starter/starter.module';
 import { HealthController } from './health.controller';
@@ -59,6 +60,7 @@ import { HealthController } from './health.controller';
     ProcurementModule,
     BillingModule,
     WebsiteModule,
+    CrmModule,
     DemoModule,
     StarterModule,
     // الوحدات القادمة تُضاف هنا: MembersModule, DonationsModule, ...

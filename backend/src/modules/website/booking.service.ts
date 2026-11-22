@@ -107,6 +107,7 @@ export class BookingService {
       throw e;
     });
     const when = riyadhLabel(booking.startsAt);
+    await this.leads.toCrm(org, lead);
     await this.leads.notifyTeam(org, lead, [{ label: 'موعد الجلسة', value: when }, ...(booking.topic ? [{ label: 'الموضوع', value: booking.topic }] : [])]);
     const origin = publicOrigin();
     await this.leads.confirmVisitor(org, lead, 'تم حجز جلسة التشخيص المجانية', [

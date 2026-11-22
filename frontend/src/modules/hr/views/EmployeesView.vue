@@ -52,12 +52,12 @@ const total = computed(() => shown.value.reduce((s, r) => s + (r.gross ?? 0), 0)
           <tbody>
             <tr v-for="r in shown" :key="r.id" class="hr-row-click" @click="router.push(`/hr/employees/${r.id}`)">
               <td class="hr-num">{{ r.employeeNo }}</td>
-              <td><b>{{ r.fullName }}</b><span class="pm-muted">{{ r.isSaudi ? 'سعودي' : r.nationality }} · <span class="hr-code">{{ r.nationalId }}</span></span></td>
+              <td><b>{{ r.fullName }}</b><span v-if="r.employmentKind === 'contractor'" class="pm-tag hr-tag-contractor">متعاون</span><span class="pm-muted">{{ r.isSaudi ? 'سعودي' : r.nationality }} · <span class="hr-code">{{ r.nationalId }}</span></span></td>
               <td>{{ r.jobTitle }}<span class="pm-muted">{{ r.unitName }}{{ r.gradeName ? ` · ${r.gradeName}` : '' }}</span></td>
               <td>{{ fmtDate(r.hireDate) }}</td>
               <td>{{ r.contractTypeLabel }}<span v-if="r.contractEnd" class="pm-muted">حتى {{ fmtDate(r.contractEnd) }}</span></td>
               <td><span class="pm-pill" :style="{ '--c': QIWA_C[r.qiwaStatus] }">{{ QIWA_L[r.qiwaStatus] }}</span></td>
-              <td v-if="session.can(P.salaries)" class="pm-money">{{ sar(r.gross) }}</td>
+              <td v-if="session.can(P.salaries)" class="pm-money">{{ r.gross === null ? '—' : sar(r.gross) }}</td>
               <td><span class="pm-pill" :style="{ '--c': STATUS_COLOR[r.status] }">{{ r.status === 'active' ? 'على رأس العمل' : `انتهت ${fmtDate(r.terminationDate)}` }}</span></td>
             </tr>
             <tr v-if="!shown.length"><td colspan="8" class="pm-empty">لا يوجد موظفون</td></tr>

@@ -63,7 +63,7 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
     <section class="pm-hero hr-hero">
       <div>
         <p class="pm-kicker">ملف الموظف رقم {{ e.employeeNo }} · {{ e.unitName }}</p>
-        <h1>{{ e.fullName }}</h1>
+        <h1>{{ e.fullName }} <span v-if="e.employmentKind === 'contractor'" class="pm-tag hr-tag-contractor" style="font-size: .9rem; vertical-align: middle">متعاون</span></h1>
         <p class="pm-sub">{{ e.jobTitle }}{{ e.gradeName ? ` · المرتبة ${e.gradeName} الدرجة ${e.step}` : '' }} · في الخدمة منذ {{ span(e.service) }}</p>
       </div>
       <div class="pm-actions">
@@ -92,8 +92,9 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
             <div><dt>البريد</dt><dd>{{ e.email ?? '—' }}</dd></div>
             <div><dt>حساب الدخول</dt><dd>{{ e.userName ?? 'غير مربوط' }}</dd></div>
             <div><dt>المدير المباشر</dt><dd>{{ e.managerName ?? '—' }}</dd></div>
-            <div><dt>رقم التأمينات</dt><dd class="hr-code">{{ e.gosiNumber ?? '—' }}</dd></div>
-            <div><dt>رقم البصمة</dt><dd><span class="hr-code">{{ e.attendanceCode || e.employeeNo }}</span><span v-if="e.attendanceExempt" class="pm-tag">معفى من البصمة</span></dd></div>
+            <div v-if="e.employmentKind === 'contractor'"><dt>أتعاب التعاون</dt><dd>{{ ({ monthly: 'مبلغ شهري', daily: 'باليوم', hourly: 'بالساعة', task: 'بالمهمة' } as Record<string, string>)[e.payBasis] }}<template v-if="e.payRate !== null"> · {{ sar(e.payRate) }}</template></dd></div>
+            <div v-else><dt>رقم التأمينات</dt><dd class="hr-code">{{ e.gosiNumber ?? '—' }}</dd></div>
+            <div><dt>رقم البصمة</dt><dd><span class="hr-code">{{ e.attendanceCode || e.employeeNo }}</span><span v-if="e.attendanceExempt" class="pm-tag">معفى من البصمة</span><span v-else-if="e.mobileAttendance" class="pm-tag">يسجل من الجوال</span></dd></div>
             <div><dt>انتهاء {{ e.isSaudi ? 'الهوية' : 'الإقامة' }}</dt><dd>{{ fmtDate(e.idExpiry) }}<span class="hr-hijri">{{ hijri(e.idExpiry) }}</span></dd></div>
             <div v-if="!e.isSaudi"><dt>انتهاء الجواز</dt><dd>{{ fmtDate(e.passportExpiry) }}</dd></div>
           </dl>

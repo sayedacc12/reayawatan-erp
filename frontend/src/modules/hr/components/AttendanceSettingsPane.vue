@@ -6,14 +6,15 @@ import { fmtDate } from '../lib';
 
 /** إعدادات الحضور: الدوام وأيام الراحة والعطل الرسمية، وأجهزة البصمة المرتبطة */
 interface Device { id: string; name: string; brand: string | null; serialNumber: string; location: string | null; isActive: boolean; lastSeenAt: string | null; punchCount: number }
-interface Settings { config: { enabled: boolean; workStart: string; workEnd: string; weekend: number[]; holidays: { date: string; name: string }[] }; devices: Device[] }
+interface Site { id?: string; name: string; lat: number | null; lng: number | null; radius: number }
+interface Settings { config: { enabled: boolean; workStart: string; workEnd: string; weekend: number[]; holidays: { date: string; name: string }[]; sites: Site[] }; devices: Device[] }
 const DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const toast = useToast();
-const cfg = reactive({ enabled: false, workStart: '08:00', workEnd: '15:00', weekend: [5, 6] as number[], holidays: [] as { date: string; name: string }[] });
+const cfg = reactive({ enabled: false, workStart: '08:00', workEnd: '15:00', weekend: [5, 6] as number[], holidays: [] as { date: string; name: string }[], sites: [] as Site[] });
 const devices = ref<Device[]>([]);
 const origin = window.location.origin;
 function fill(s: Settings) {
-  Object.assign(cfg, { ...s.config, holidays: s.config.holidays.map((h) => ({ ...h })) });
+  Object.assign(cfg, { ...s.config, holidays: s.config.holidays.map((h) => ({ ...h })), sites: (s.config.sites ?? []).map((x) => ({ ...x })) });
   devices.value = s.devices;
 }
 onMounted(async () => {
@@ -28,12 +29,29 @@ function toggleDay(d: number) {
 }
 async function save() {
   try {
-    fill(await api<Settings>('/hr/attendance/settings', { method: 'PUT', json: { ...cfg, holidays: cfg.holidays.filter((h) => h.date && h.name) } }));
+    const sites = cfg.sites.filter((x) => x.name || x.lat !== null || x.lng !== null);
+    if (sites.some((x) => x.lat === null || x.lng === null)) throw new Error('حدد موقع كل مكان عمل (خط العرض وخط الطول)، أو اضغط «موقعي الحالي»');
+    fill(await api<Settings>('/hr/attendance/settings', { method: 'PUT', json: { ...cfg, holidays: cfg.holidays.filter((h) => h.date && h.name), sites } }));
     toast.success('حُفظت إعدادات الحضور');
   } catch (e) {
     toast.error((e as Error).message);
   }
 }
+const locating = ref(-1);
+function locate(i: number) {
+  if (!navigator.geolocation) return toast.error('المتصفح لا يدعم تحديد الموقع');
+  locating.value = i;
+  navigator.geolocation.getCurrentPosition((p) => {
+    cfg.sites[i].lat = Number(p.coords.latitude.toFixed(6));
+    cfg.sites[i].lng = Number(p.coords.longitude.toFixed(6));
+    locating.value = -1;
+    toast.success(`حُدد الموقع بدقة ${Math.round(p.coords.accuracy)} متر. اضغط «حفظ»`);
+  }, () => {
+    locating.value = -1;
+    toast.error('تعذر تحديد الموقع. اسمح للمتصفح باستخدام الموقع ثم حاول مرة أخرى');
+  }, { enableHighAccuracy: true, timeout: 20000 });
+}
+const mapUrl = (x: Site) => `https://www.google.com/maps?q=${x.lat},${x.lng}`;
 const editing = ref<Device | null>(null);
 const dev = reactive({ show: false, name: '', brand: 'ZKTeco', serialNumber: '', location: '', isActive: true });
 function openDevice(d?: Device) {
@@ -114,6 +132,23 @@ const ago = (d: string | null) => {
         </table>
       </div>
       <p v-if="devices.some((d) => d.lastSeenAt)" class="pm-muted">آخر بيانات وصلت: {{ fmtDate(devices.map((d) => d.lastSeenAt ?? '').sort().at(-1)) }}</p>
+    </section>
+    <section class="card pm-panel" style="grid-column: 1 / -1">
+      <div class="pm-row-head"><h2>مواقع العمل للتسجيل من الجوال</h2><button class="btn hr-glow" @click="cfg.sites.push({ name: '', lat: null, lng: null, radius: 100 })">+ موقع</button></div>
+      <p class="pm-muted">الموظف المفعّل له «التسجيل من الجوال» في ملفه يسجل حضوره وانصرافه من صفحة «خدمتي»، ويُقبل التسجيل فقط إن كان داخل نطاق أحد هذه المواقع. أسهل طريقة: افتح هذه الصفحة وأنت في المقر واضغط «موقعي الحالي». الخدمة مجانية ولا تحتاج تطبيقًا.</p>
+      <div v-for="(x, i) in cfg.sites" :key="x.id ?? `n${i}`" class="hr-site">
+        <label class="field"><span>اسم الموقع</span><input v-model="x.name" class="input" placeholder="مثل: المقر الرئيسي" /></label>
+        <label class="field"><span>خط العرض</span><input v-model.number="x.lat" type="number" step="0.000001" class="input hr-code" /></label>
+        <label class="field"><span>خط الطول</span><input v-model.number="x.lng" type="number" step="0.000001" class="input hr-code" /></label>
+        <label class="field"><span>نصف القطر (متر)</span><input v-model.number="x.radius" type="number" min="20" max="5000" class="input" /></label>
+        <div class="hr-site-actions">
+          <button type="button" class="btn btn-sm" :disabled="locating === i" @click="locate(i)">{{ locating === i ? 'جارٍ التحديد…' : '📍 موقعي الحالي' }}</button>
+          <a v-if="x.lat !== null && x.lng !== null" :href="mapUrl(x)" target="_blank" rel="noopener" class="btn btn-sm">عرض على الخريطة</a>
+          <button type="button" class="btn btn-sm" @click="cfg.sites.splice(i, 1)">✕</button>
+        </div>
+      </div>
+      <p v-if="!cfg.sites.length" class="pm-empty">لم يُضف موقع بعد، فالتسجيل من الجوال غير متاح</p>
+      <div class="modal-actions"><button class="btn btn-primary" @click="save">حفظ</button></div>
     </section>
     <div v-if="dev.show" class="modal-backdrop" @click.self="dev.show = false">
       <form class="card modal" @submit.prevent="saveDevice">

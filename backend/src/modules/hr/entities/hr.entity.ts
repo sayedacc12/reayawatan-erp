@@ -19,6 +19,12 @@ export const COMPETENCY_KINDS = ['core', 'leadership', 'technical'] as const;
 export type CompetencyKind = (typeof COMPETENCY_KINDS)[number];
 export const CONTRACT_TYPES = ['fixed', 'indefinite', 'part_time', 'temporary'] as const;
 export type ContractType = (typeof CONTRACT_TYPES)[number];
+/** نوع العلاقة: موظف على الرواتب، أو متعاون بعقد تعاون (كشف مستقل، بلا تأمينات، وحساب مصروف استشارات) */
+export const EMPLOYMENT_KINDS = ['staff', 'contractor'] as const;
+export type EmploymentKind = (typeof EMPLOYMENT_KINDS)[number];
+/** أساس أجر المتعاون: مبلغ شهري ثابت، أو باليوم، أو بالساعة، أو بالمهمة */
+export const PAY_BASES = ['monthly', 'daily', 'hourly', 'task'] as const;
+export type PayBasis = (typeof PAY_BASES)[number];
 export const QIWA_STATUSES = ['documented', 'pending', 'not_documented'] as const;
 export type QiwaStatus = (typeof QIWA_STATUSES)[number];
 
@@ -48,6 +54,10 @@ export interface PayrollConfig {
   /** البنك الافتراضي لصرف أي بند ليس له بنك خاص */
   defaultCashAccountId: string | null;
   stages: PayrollStage[];
+  /** كشف المتعاونين: مصروف أتعاب التعاون (في حكم الاستشارات لا الرواتب)، ومستحقاتها، والبنك الذي تُصرف منه */
+  contractorExpenseAccountId?: string | null;
+  contractorPayableAccountId?: string | null;
+  contractorCashAccountId?: string | null;
 }
 /** بند في نموذج إخلاء الطرف ومن المسؤول عن إخلائه */
 export interface ClearanceItemDef {
@@ -87,7 +97,10 @@ export interface AttendanceConfig {
   /** أيام الراحة الأسبوعية (0 = الأحد ... 5 = الجمعة، 6 = السبت) */
   weekend: number[];
   holidays: { date: string; name: string }[];
+  /** مواقع العمل المسموح التسجيل منها بالجوال: المركز ونصف القطر بالمتر */
+  sites: AttendanceSite[];
 }
+export interface AttendanceSite { id: string; name: string; lat: number; lng: number; radius: number }
 
 /** إعدادات الموارد البشرية لكل جمعية: مستويات الهيكل والترقيم */
 @Entity('hr_settings')
@@ -467,6 +480,17 @@ export class HrEmployee {
   @Column({ name: 'hire_date', type: 'date' })
   hireDate!: string;
 
+  // ---- نوع العلاقة ----
+  @Column({ name: 'employment_kind', type: 'varchar', length: 12, default: 'staff' })
+  employmentKind!: EmploymentKind;
+
+  /** للمتعاون: أساس الأجر وقيمته (شهريًا أو لليوم أو للساعة أو للمهمة) */
+  @Column({ name: 'pay_basis', type: 'varchar', length: 10, nullable: true })
+  payBasis!: PayBasis | null;
+
+  @Column(money('pay_rate', true))
+  payRate!: number | null;
+
   // ---- العقد ----
   @Column({ name: 'contract_type', type: 'varchar', length: 12, default: 'fixed' })
   contractType!: ContractType;
@@ -506,6 +530,10 @@ export class HrEmployee {
   /** معفى من البصمة (لا يُخصم عليه غياب أو تأخير) */
   @Column({ name: 'attendance_exempt', default: false })
   attendanceExempt!: boolean;
+
+  /** يُسمح له بتسجيل الحضور والانصراف من جواله داخل نطاق مواقع العمل */
+  @Column({ name: 'mobile_attendance', default: false })
+  mobileAttendance!: boolean;
 
   // ---- التأمينات ----
   @Column({ name: 'gosi_number', type: 'varchar', length: 20, nullable: true })
@@ -779,7 +807,7 @@ export class HrAttendanceDevice {
   createdAt!: Date;
 }
 
-export type PunchSource = 'device' | 'excel' | 'text' | 'manual';
+export type PunchSource = 'device' | 'excel' | 'text' | 'manual' | 'mobile';
 
 /** بصمة حضور أو انصراف: من الجهاز مباشرة، أو من ملف مرفوع، أو مدخلة يدويًا */
 @Entity('hr_attendance_punches')
@@ -821,11 +849,70 @@ export class HrAttendancePunch {
   @Column({ name: 'created_by_name', type: 'varchar', length: 200, nullable: true })
   createdByName!: string | null;
 
+  /** التسجيل من الجوال: الموقع ودقته والمسافة عن أقرب موقع عمل (بالمتر) */
+  @Column({ type: 'numeric', precision: 9, scale: 6, nullable: true })
+  latitude!: string | null;
+
+  @Column({ type: 'numeric', precision: 9, scale: 6, nullable: true })
+  longitude!: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  accuracy!: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  distance!: number | null;
+
+  /** عنوان الشبكة ومتصفح الجهاز عند التسجيل من الجوال (للتحقق عند الشك) */
+  @Column({ name: 'client_ip', type: 'varchar', length: 64, nullable: true })
+  clientIp!: string | null;
+
+  @Column({ name: 'user_agent', type: 'varchar', length: 300, nullable: true })
+  userAgent!: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 }
 
-/** سجل ملف حضور مرفوع (Excel أو نصي) */
+export type MarkKind = 'present' | 'absent' | 'leave' | 'late';
+
+/**
+ * حالة يوم من كشف الحضور الشهري (نموذج Excel من المنصة): غياب أو إجازة أو دقائق تأخير.
+ * الأيام التي لا علامة لها في كشف مرفوع تُعد حضورًا. تُحذف علامات الموظف في الشهر عند رفع كشف أحدث له.
+ */
+@Entity('hr_attendance_marks')
+@Index('UQ_hr_attendance_marks', ['organizationId', 'employeeId', 'markDate'], { unique: true, where: 'superseded_by IS NULL' })
+@Index('IDX_hr_attendance_marks_import', ['organizationId', 'importId'])
+export class HrAttendanceMark {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'employee_id', type: 'uuid' })
+  employeeId!: string;
+
+  @Column({ name: 'mark_date', type: 'date' })
+  markDate!: string;
+
+  @Column({ type: 'varchar', length: 10 })
+  kind!: MarkKind;
+
+  @Column({ type: 'int', default: 0 })
+  minutes!: number;
+
+  @Column({ name: 'import_id', type: 'uuid' })
+  importId!: string;
+
+  /** الكشف الأحدث الذي حل محل هذه العلامة (لا تُحذف، فيعود بها التراجع عن الكشف الأحدث) */
+  @Column({ name: 'superseded_by', type: 'uuid', nullable: true })
+  supersededBy!: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+
+/** سجل ملف حضور مرفوع: بصمات (Excel أو نصي من الجهاز) أو كشف حضور شهري من نموذج المنصة */
 @Entity('hr_attendance_imports')
 export class HrAttendanceImport {
   @PrimaryGeneratedColumn('uuid')
@@ -839,6 +926,29 @@ export class HrAttendanceImport {
 
   @Column({ type: 'varchar', length: 10 })
   format!: 'excel' | 'text';
+
+  /** punches = بصمات خام، sheet = كشف حضور شهري من نموذج المنصة */
+  @Column({ type: 'varchar', length: 10, default: 'punches' })
+  kind!: 'punches' | 'sheet';
+
+  /** شهر الكشف (YYYY-MM) والموظفون الذين شملهم (لكشوف الحضور الشهرية) */
+  @Column({ type: 'varchar', length: 7, nullable: true })
+  month!: string | null;
+
+  @Column({ name: 'employee_ids', type: 'jsonb', default: () => `'[]'` })
+  employeeIds!: string[];
+
+  @Column({ name: 'reverted_at', type: 'timestamptz', nullable: true })
+  revertedAt!: Date | null;
+
+  @Column({ name: 'reverted_by_name', type: 'varchar', length: 200, nullable: true })
+  revertedByName!: string | null;
+
+  @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+  createdById!: string | null;
+
+  @Column({ name: 'reverted_by_id', type: 'uuid', nullable: true })
+  revertedById!: string | null;
 
   @Column({ type: 'int' })
   rows!: number;
@@ -883,21 +993,29 @@ export interface RunLine {
   absenceDeduction: number; lateDeduction: number;
   additions: { code: string; amount: number; note: string | null }[];
   otherDeduction: number; otherDeductionNote: string | null;
+  /** سطر متعاون: أساس الأجر وقيمته وعدد الوحدات (أيام أو ساعات أو مهام) وملاحظة المسؤول */
+  contract?: { basis: PayBasis; rate: number; units: number; manualUnits: boolean; note: string | null };
   /** أقساط السلف المستردة في هذا الشهر (تُسجل عند الاعتماد النهائي) */
   advanceDeduction?: number; advances?: { advanceId: string; amount: number }[];
   earned: number; gosiEmployee: number; gosiEmployer: number; totalDeductions: number; net: number; employerCost: number;
 }
-export interface RunHistory { action: string; stageName: string | null; note: string | null; actorName: string; at: string }
+/** تغيير في قيمة من قيم سطر الكشف: قبل وبعد */
+export interface RunChange { field: string; label: string; before: number | string | null; after: number | string | null }
+export interface RunHistory { action: string; stageName: string | null; note: string | null; actorName: string; actorId?: string; at: string; employeeId?: string; reason?: string | null; changes?: RunChange[] }
 
 /** كشف رواتب شهر: يُعد ثم يمر بمراحل الاعتماد، وعند الاعتماد النهائي يصدر قيده المحاسبي ثم سندات الصرف */
 @Entity('hr_payroll_runs')
-@Index('UQ_hr_payroll_runs_month', ['organizationId', 'month'], { unique: true, where: `status <> 'cancelled'` })
+@Index('UQ_hr_payroll_runs_month', ['organizationId', 'month', 'kind'], { unique: true, where: `status <> 'cancelled'` })
 export class HrPayrollRun {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ name: 'organization_id', type: 'uuid' })
   organizationId!: string;
+
+  /** staff = كشف رواتب الموظفين، contractors = كشف المتعاونين المستقل */
+  @Column({ type: 'varchar', length: 12, default: 'staff' })
+  kind!: 'staff' | 'contractors';
 
   /** YYYY-MM */
   @Column({ length: 7 })
@@ -1387,6 +1505,6 @@ export class HrSeparation {
 
 export const HR_ENTITIES = [
   HrSeparation, HrRequestType, HrRequest, HrAdvance, HrAdvanceRepayment,
-  HrExpenseProfile, HrDevPlan, HrSuccessionCandidate, HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrPayrollRun,
+  HrExpenseProfile, HrDevPlan, HrSuccessionCandidate, HrAllowanceType, HrAttendanceDevice, HrAttendancePunch, HrAttendanceImport, HrAttendanceMark, HrPayrollRun,
   HrSettings, HrPolicyVersion, HrUnit, HrGrade, HrCompetency, HrJob, HrStaffingPlan, HrEmployee, HrLeaveRequest, HrPerformanceCard,
 ];
