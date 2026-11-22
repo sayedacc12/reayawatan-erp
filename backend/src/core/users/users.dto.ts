@@ -1,6 +1,6 @@
 import { IsValidPassword } from '../validation';
 import {
-  ArrayUnique, IsArray, IsBoolean, IsEmail, IsOptional, IsString, IsUUID, MaxLength, MinLength,
+  ArrayUnique, IsArray, IsBoolean, IsDateString, IsEmail, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -57,4 +57,25 @@ export class UpdateUserDto {
   @ArrayUnique()
   @IsUUID('all', { each: true })
   roleIds?: string[];
+}
+
+/** تكليف مستخدم بدور من تاريخ إلى تاريخ */
+export class CreateAssignmentDto {
+  @IsUUID('all', { message: 'اختر الدور' })
+  roleId!: string;
+
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'تاريخ البداية بالشكل 2026-01-31' })
+  @IsDateString({ strict: true }, { message: 'تاريخ البداية غير صحيح' })
+  startDate!: string;
+
+  /** فارغ = مفتوح حتى يُنهى */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'تاريخ النهاية بالشكل 2026-01-31' })
+  @IsDateString({ strict: true }, { message: 'تاريخ النهاية غير صحيح' })
+  endDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

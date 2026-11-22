@@ -72,6 +72,10 @@ export class UsersService {
     if (dto.roleIds !== undefined) {
       const roles = await this.roles.loadForAssignment(actor, dto.roleIds);
       const current = new Set(user.roles.map((r) => r.id));
+      // لا يضيف أحد لنفسه دورًا جديدًا (ومنه دور تكليف مؤقت يريد جعله دائمًا)
+      if (id === actor.id && !actor.isSuperadmin && roles.some((r) => !current.has(r.id))) {
+        throw new ForbiddenException('لا يمكنك إضافة أدوار لنفسك؛ يضيفها مستخدم آخر');
+      }
       await this.roles.assertCanAssign(actor, roles.filter((r) => !current.has(r.id)));
       user.roles = roles;
     }

@@ -319,7 +319,7 @@ export class SeparationService implements OnModuleInit {
       const [own] = await em.query('SELECT 1 FROM hr_employees WHERE id = $1 AND user_id = $2', [s.employeeId, actor.id]);
       if (own) return { ok: false, reason: 'لا يعتمد الموظف مستحقاته', stage };
       if (stage.roleId) {
-        const [row] = await em.query('SELECT 1 FROM user_roles WHERE user_id = $1 AND role_id = $2', [actor.id, stage.roleId]);
+        const [row] = await em.query('SELECT 1 FROM effective_user_roles WHERE user_id = $1 AND role_id = $2', [actor.id, stage.roleId]);
         if (!row) return { ok: false, reason: `هذه المرحلة «${stage.name}» لدور آخر`, stage };
       }
     }

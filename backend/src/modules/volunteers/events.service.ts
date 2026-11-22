@@ -25,7 +25,7 @@ export class EventsService {
   }
 
   private async roleIds(actor: OrgUser) {
-    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM user_roles WHERE user_id = $1', [actor.id]);
+    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM effective_user_roles WHERE user_id = $1', [actor.id]);
     return new Set(rows.map((r) => r.role_id));
   }
 

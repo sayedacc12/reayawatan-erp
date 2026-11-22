@@ -62,7 +62,7 @@ export class RequestsService {
 
   async me(actor: OrgUser): Promise<Me> {
     const employee = await this.db.getRepository(HrEmployee).findOne({ where: { organizationId: actor.organizationId, userId: actor.id } });
-    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM user_roles WHERE user_id = $1', [actor.id]);
+    const rows: { role_id: string }[] = await this.db.query('SELECT role_id FROM effective_user_roles WHERE user_id = $1', [actor.id]);
     return { actor, employee, roles: new Set(rows.map((r) => r.role_id)) };
   }
 

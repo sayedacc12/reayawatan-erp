@@ -11,6 +11,7 @@ import { PasswordResetService } from './auth/password-reset.service';
 import { CoreTasks } from './auth/core.tasks';
 import { PermissionResolver } from './auth/permission-resolver.service';
 import { BootstrapService } from './bootstrap.service';
+import { AssignmentsService } from './users/assignments.service';
 import { CORE_ENTITIES } from './entities';
 import { FileStore } from './files/file-store.service';
 import { IdentityController, PublicIdentityController } from './identity/identity.controller';
@@ -73,7 +74,7 @@ import { isSingleCompany } from './company';
     ...(isSingleCompany() ? [] : [PublicSiteController]), PlatformSiteController, OnboardingController, OrgLifecycleController, PlatformLifecycleController, MailController,
   ],
   providers: [
-    AuthService, PasswordResetService, CoreTasks, PermissionResolver, ModuleCatalogService, RolesService, UsersService, OrganizationsService, BootstrapService,
+    AuthService, PasswordResetService, CoreTasks, PermissionResolver, ModuleCatalogService, RolesService, UsersService, AssignmentsService, OrganizationsService, BootstrapService,
     FileStore, ContractsService, ApplicationsService, SubscriptionReportsService, SupportService, SupportDeskService, LookupsService, SubscriptionsReports, SupportReports, IdentityService, SiteService, OnboardingService, LifecycleService, MailService,
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
