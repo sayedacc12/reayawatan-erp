@@ -84,13 +84,16 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
         <section class="card pm-panel">
           <h2>البيانات الشخصية</h2>
           <dl class="pm-dl">
-            <div><dt>{{ e.isSaudi ? 'الهوية الوطنية' : 'الإقامة' }}</dt><dd class="hr-code">{{ e.nationalId }}</dd></div>
+            <div><dt>{{ e.isSaudi ? 'الهوية الوطنية' : 'الإقامة' }}</dt><dd class="hr-code">{{ e.nationalId ?? 'لم يُدخل بعد' }}</dd></div>
             <div><dt>الجنسية</dt><dd>{{ e.nationality }}</dd></div>
             <div><dt>الجنس</dt><dd>{{ e.gender === 'female' ? 'أنثى' : 'ذكر' }}</dd></div>
             <div><dt>تاريخ الميلاد</dt><dd>{{ fmtDate(e.birthDate) }}</dd></div>
             <div><dt>الجوال</dt><dd class="hr-code">{{ e.phone ?? '—' }}</dd></div>
             <div><dt>البريد</dt><dd>{{ e.email ?? '—' }}</dd></div>
             <div><dt>حساب الدخول</dt><dd>{{ e.userName ?? 'غير مربوط' }}</dd></div>
+            <div v-if="e.roles?.length" style="grid-column: 1 / -1"><dt>الأدوار والتكليفات</dt><dd>
+              <span v-for="r in e.roles" :key="r.kind + r.name" class="pm-tag" :title="r.note ?? ''">{{ r.kind === 'assignment' ? 'تكليف: ' : '' }}{{ r.name }}<template v-if="r.kind === 'assignment'"> ({{ r.endDate ? `حتى ${r.endDate}` : 'مفتوح' }})</template></span>
+            </dd></div>
             <div><dt>المدير المباشر</dt><dd>{{ e.managerName ?? '—' }}</dd></div>
             <div v-if="e.employmentKind === 'contractor'"><dt>أتعاب التعاون</dt><dd>{{ ({ monthly: 'مبلغ شهري', daily: 'باليوم', hourly: 'بالساعة', task: 'بالمهمة' } as Record<string, string>)[e.payBasis] }}<template v-if="e.payRate !== null"> · {{ sar(e.payRate) }}</template></dd></div>
             <div v-else><dt>رقم التأمينات</dt><dd class="hr-code">{{ e.gosiNumber ?? '—' }}</dd></div>

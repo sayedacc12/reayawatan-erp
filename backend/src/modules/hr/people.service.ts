@@ -80,6 +80,19 @@ export class PeopleService {
     return { units: new Map(u.map((x) => [x.id, x])), jobs: new Map(j.map((x) => [x.id, x])), grades: new Map(g.map((x) => [x.id, x])) };
   }
 
+  private async rolesOf(org: string, userId: string) {
+    const rows: { name: string; kind: string; start_date: string | null; end_date: string | null; note: string | null }[] = await this.db.query(
+      `SELECT r.name, 'role' AS kind, NULL::text AS start_date, NULL::text AS end_date, NULL::text AS note
+         FROM user_roles ur JOIN roles r ON r.id = ur.role_id AND r.organization_id = $1 WHERE ur.user_id = $2
+       UNION ALL
+       SELECT r.name, 'assignment', a.start_date::text, a.end_date::text, a.note
+         FROM role_assignments a JOIN roles r ON r.id = a.role_id
+        WHERE a.organization_id = $1 AND a.user_id = $2 AND a.ended_at IS NULL
+          AND (a.end_date IS NULL OR a.end_date >= (now() AT TIME ZONE 'Asia/Riyadh')::date)
+       ORDER BY 2, 1`, [org, userId]);
+    return rows.map((r) => ({ name: r.name, kind: r.kind as 'role' | 'assignment', startDate: r.start_date, endDate: r.end_date, note: r.note }));
+  }
+
   async profile(actor: OrgUser, id: string) {
     const org = actor.organizationId;
     const e = await this.employee(org, id);
@@ -96,6 +109,8 @@ export class PeopleService {
       gradeName: grade ? `${grade.code} ${grade.name}` : null, salaryRange: grade && salaries ? { min: grade.minSalary, max: grade.maxSalary } : null,
       managerName: manager?.fullName ?? null,
       userName: e.userId ? ((await this.db.query('SELECT full_name FROM users WHERE id = $1', [e.userId]))[0]?.full_name ?? null) : null,
+      // أدوار حساب الدخول وتكليفاته (الدائمة، والتكليفات السارية والقادمة) ليظهر في الملف ما يعمله الموظف
+      roles: e.userId ? await this.rolesOf(org, e.userId) : [],
       contractTypeLabel: CONTRACT_AR[e.contractType], qiwaLabel: QIWA_AR[e.qiwaStatus],
       terminationLabel: e.terminationReason ? EOS_REASONS[e.terminationReason as EosReason]?.label ?? e.terminationReason : null,
       service: serviceSpan(e.hireDate, asOf),

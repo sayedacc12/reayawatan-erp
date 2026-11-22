@@ -441,8 +441,9 @@ export class HrEmployee {
   fullName!: string;
 
   /** رقم الهوية الوطنية أو الإقامة */
-  @Column({ name: 'national_id', type: 'varchar', length: 20 })
-  nationalId!: string;
+  /** فارغ = لم يُدخل بعد (ملفات أُدرجت تلقائيًا ويكملها شؤون الموظفين) */
+  @Column({ name: 'national_id', type: 'varchar', length: 20, nullable: true })
+  nationalId!: string | null;
 
   @Column({ type: 'varchar', length: 100 })
   nationality!: string;
