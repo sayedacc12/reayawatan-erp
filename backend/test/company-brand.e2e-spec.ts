@@ -91,5 +91,10 @@ describe('Reaya Watan default brand identity', () => {
     expect(org.subscriptionEndsOn).toBeNull();
     expect(org.isActive).toBe(true);
     await http.post('/api/auth/login').send({ login: 'director', password: 'RwAdmin2026' }).expect(200);
+    // الإيقاف المتعمد يبقى كما هو بعد إعادة التشغيل
+    await db.query(`UPDATE organizations SET is_active = false WHERE slug = 'reayawatan'`);
+    await (app.get(BootstrapService) as unknown as { ensureCompany(): Promise<void> }).ensureCompany();
+    expect((await db.getRepository(Organization).findOneByOrFail({ slug: 'reayawatan' })).isActive).toBe(false);
+    await db.query(`UPDATE organizations SET is_active = true WHERE slug = 'reayawatan'`);
   });
 });
