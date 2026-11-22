@@ -18,6 +18,19 @@ type Filters = { kind?: string; status?: string; year?: string; unitId?: string 
 const pick = <T extends object, K extends keyof T>(o: T, keys: readonly K[]) => Object.fromEntries(keys.map((k) => [k, o[k]])) as Pick<T, K>;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
+class ImportDryRun extends Error {
+  constructor(readonly result: { id: string; code: string; items: { key: string; code: string; id: string }[] }) { super('dry-run'); }
+}
+
+/** بيانات خطة مستوردة بعد فحصها (انظر PlanImportService) */
+export interface PlanImportData {
+  header: PlanDto;
+  items: { key: string; parentKey: string | null; dto: Partial<ItemDto> }[];
+  kpis: { itemKey: string | null; dto: KpiDto }[];
+  refs: { itemKey: string; system: RefDto['system']; src: RefOption; contribution: number | null; note: string | null }[];
+  parentLinks: { itemKey: string; toItemId: string; contribution: number | null; note: string | null }[];
+}
+
 /** الخطط وعناصرها ومؤشراتها وعلاقاتها، والاعتماد والإصدارات، ومتابعة الإنجاز والترحيل */
 @Injectable()
 export class PlansService {
@@ -234,6 +247,88 @@ export class PlansService {
     };
     const roots: string[] = [];
     for (const t of items) await add(t, null, 0, roots);
+  }
+
+  /**
+   * خطة كاملة من ملف Excel في معاملة واحدة: الرأس والعناصر والمؤشرات والروابط، بنفس قواعد الإدخال اليدوي.
+   * المراجع (المخاطر وعوامل التحليل) محلولة مسبقًا من النظام المرتبط، وعناصر الخطة الأم محمّلة بمعرف الشركة.
+   */
+  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false) {
+    const org = actor.organizationId;
+    if (!actor.isSuperadmin && !actor.permissions.includes(this.manageCode(data.header.kind))) throw new ForbiddenException('إعداد هذا النوع من الخطط ليس من صلاحيتك');
+    const cfg = await this.core.config(org);
+    const relation = cfg.relationTypes[0]?.code;
+    const run = this.db.transaction(async (em) => {
+      if (await em.getRepository(Plan).exists({ where: { organizationId: org, kind: data.header.kind, title: data.header.title } })) {
+        throw new ConflictException('توجد خطة بالنوع والعنوان نفسيهما. غيّر العنوان في الملف أو احذف الخطة السابقة');
+      }
+      const p = em.getRepository(Plan).create({
+        organizationId: org, kind: data.header.kind, code: await this.core.nextCode(em, org, data.header.kind === 'strategic' ? 'SP' : 'OP'), status: 'draft', approvals: [], wfStages: [],
+        levels: [], values: [], sharedUnits: [], templateKey: null, createdByName: actor.fullName,
+      });
+      await this.applyHeader(em, org, p, data.header, cfg);
+      const saved = await em.getRepository(Plan).save(p);
+      const byKey = new Map<string, PlanItem>();
+      const siblings = new Map<string, string[]>();
+      let order = 0;
+      for (const row of data.items) {
+        const parent = row.parentKey ? byKey.get(row.parentKey)! : null;
+        const level = parent ? parent.level + 1 : 0;
+        if (level >= saved.levels.length) throw new BadRequestException(`العنصر ${row.key}: «${saved.levels[level - 1]?.name}» هو أدنى مستوى في هذه الخطة`);
+        const sib = siblings.get(parent?.id ?? '') ?? [];
+        const it = em.getRepository(PlanItem).create({
+          organizationId: org, planId: saved.id, parentId: parent?.id ?? null, level, code: itemCode(saved.levels[level].prefix, parent?.code ?? null, sib),
+          participants: [], targets: [], milestones: [], resources: [], costByYear: {}, plannedCost: 0, customValues: {}, weight: 1, sortOrder: order++,
+        });
+        sib.push(it.code);
+        siblings.set(parent?.id ?? '', sib);
+        try {
+          await this.applyItem(em, org, saved, it, row.dto, cfg);
+        } catch (e) {
+          if (e instanceof BadRequestException) throw new BadRequestException(`العنصر ${row.key}: ${(e.getResponse() as { message?: string }).message ?? e.message}`);
+          throw e;
+        }
+        byKey.set(row.key, await em.getRepository(PlanItem).save(it));
+      }
+      for (const k of data.kpis) {
+        let targets: Record<string, number>;
+        try {
+          targets = this.validTargets(saved, k.dto.frequency, k.dto.targets);
+        } catch (e) {
+          if (e instanceof BadRequestException) throw new BadRequestException(`المؤشر «${k.dto.name}»: ${(e.getResponse() as { message?: string }).message ?? e.message}`);
+          throw e;
+        }
+        await em.getRepository(PlanKpi).save(em.getRepository(PlanKpi).create({
+          organizationId: org, planId: saved.id, itemId: k.itemKey ? byKey.get(k.itemKey)!.id : null, code: await this.core.nextCode(em, org, 'KPI'), name: k.dto.name,
+          description: k.dto.description ?? null, unit: k.dto.unit, direction: k.dto.direction, frequency: k.dto.frequency, aggregation: k.dto.aggregation, baseline: k.dto.baseline ?? null,
+          targets, weight: k.dto.weight ?? 1, ownerName: k.dto.ownerName ?? null, dataSource: k.dto.dataSource ?? null, sortOrder: order++,
+        }));
+      }
+      for (const r of data.refs) {
+        const itemId = byKey.get(r.itemKey)!.id;
+        if (await em.getRepository(PlanRef).count({ where: { itemId, system: r.system, refId: r.src.id } })) continue;
+        await em.getRepository(PlanRef).save(this.refRow(actor, itemId, r.system, r.src, r.contribution, r.note));
+      }
+      for (const l of data.parentLinks) {
+        if (!relation) throw new BadRequestException('لا توجد أنواع علاقات معرفة في إعدادات التخطيط');
+        const to = await this.item(em, org, l.toItemId);
+        if (to.planId !== saved.parentPlanId) throw new BadRequestException('عنصر الربط ليس من الخطة الأم');
+        await this.assertContribution(em, to.id, l.contribution, null);
+        await em.getRepository(PlanLink).save(em.getRepository(PlanLink).create({
+          organizationId: org, fromItemId: byKey.get(l.itemKey)!.id, toItemId: to.id, relation, contribution: l.contribution, note: l.note,
+        }));
+      }
+      const result = { id: saved.id, code: saved.code, items: [...byKey.entries()].map(([key, it]) => ({ key, code: it.code, id: it.id })) };
+      // الفحص يجري الحفظ كاملًا ثم يتراجع عنه، فيطابق الفحص الحفظ الفعلي تمامًا
+      if (dryRun) throw new ImportDryRun(result);
+      return result;
+    });
+    try {
+      return await run;
+    } catch (e) {
+      if (e instanceof ImportDryRun) return { ...e.result, id: null as string | null, code: null as string | null, items: e.result.items.map((i) => ({ ...i, id: null as string | null })) };
+      throw e;
+    }
   }
 
   async update(actor: OrgUser, id: string, dto: Partial<PlanDto>) {

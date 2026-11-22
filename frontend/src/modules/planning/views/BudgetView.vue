@@ -5,6 +5,7 @@ import { api } from '../../../api';
 import { useSession } from '../../../stores/session';
 import { useToast } from '../../../stores/toast';
 import BudgetExecution from '../components/BudgetExecution.vue';
+import ExcelImportDialog from '../../../components/ExcelImportDialog.vue';
 import BudgetAssumptions from '../components/BudgetAssumptions.vue';
 import BudgetLinePanel from '../components/BudgetLinePanel.vue';
 import PlanWorkflow from '../components/PlanWorkflow.vue';
@@ -31,6 +32,7 @@ const busy = ref('');
 const canManage = computed(() => session.can(P.budgets));
 const editable = computed(() => canManage.value && b.value && ['draft', 'returned', 'approved'].includes(b.value.status));
 const isSc = computed(() => !!b.value?.isScenario);
+const importingLines = ref(false);
 const LEVEL: Record<string, string> = { danger: '#ef4444', warning: '#f59e0b', info: '#0ea5e9' };
 
 async function load() {
@@ -154,6 +156,7 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
         </p>
       </div>
       <div class="pm-actions">
+        <button v-if="editable && !isSc" class="btn rk-ghost" @click="importingLines = true">استيراد بنود من Excel</button>
         <button v-if="editable" class="btn rk-ghost" :disabled="!!busy" @click="recalc">{{ busy === 'recalc' ? 'جارٍ الاحتساب…' : 'إعادة الاحتساب' }}</button>
         <button v-if="isSc && canManage" class="btn pl-glow" @click="promo.open = true">تحويل إلى مشروع موازنة</button>
         <button v-if="canManage && !b.version && b.status !== 'in_review'" class="btn rk-ghost" @click="removeBudget">حذف</button>
@@ -368,5 +371,16 @@ const CHANGE: Record<string, string> = { added: 'إضافة', removed: 'حذف',
         <div class="modal-actions"><button class="btn btn-primary">إضافة</button><button type="button" class="btn" @click="add.open = false">إلغاء</button></div>
       </form>
     </div>
+    <ExcelImportDialog v-if="importingLines && b" title="استيراد بنود الموازنة من Excel"
+      intro="إيرادات ومصروفات ومبالغ للموارد البشرية ووظائف تُحتسب بمعادلات النظام. أنشطة الخطط التشغيلية المعتمدة تُستورد من «الأنشطة» لا من هذا الملف. يُفحص الملف أولًا دون حفظ، ولا يتكرر بند موجود بالقسم والاسم نفسيهما."
+      template-url="/planning/budget-lines/import/template" template-name="نموذج استيراد بنود الموازنة.xlsx" :upload-url="`/planning/budgets/${b.id}/lines/import`"
+      @close="importingLines = false" @done="load">
+      <template #summary="{ report }">
+        <ul class="pm-sub" style="margin: 0">
+          <li>{{ (report.lines as any[]).filter((l) => l.status === 'new').length }} بندًا جديدًا من {{ (report.lines as any[]).length }}</li>
+          <li>الإيرادات {{ money((report.totals as any).revenue) }} · الموارد البشرية {{ money((report.totals as any).hr) }} · المصروفات التشغيلية {{ money((report.totals as any).opex) }} · الأنشطة {{ money((report.totals as any).activity) }}</li>
+        </ul>
+      </template>
+    </ExcelImportDialog>
   </div>
 </template>

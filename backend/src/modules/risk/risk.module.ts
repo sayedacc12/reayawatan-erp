@@ -17,11 +17,13 @@ import { RiskReports } from './risk.reports';
  * - نظام الجودة يربط مخاطره وفرصه به بدل سجل منفصل.
  * يقرأ الهيكل التنظيمي (hr_units) والمستخدمين للاختيار فقط.
  */
+import { StrategyImportService } from './strategy-import.service';
+
 @Module({
   imports: [TypeOrmModule.forFeature(RISK_ENTITIES), CoreModule],
   controllers: [RiskController],
   providers: [RiskReports, 
-    RiskCore, RegisterService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge,
+    RiskCore, RegisterService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge, StrategyImportService,
     { provide: 'RISK_REGISTER_LOOKUP', useExisting: RiskAuditBridge },
   ],
   exports: [RiskCore, RegisterService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge, 'RISK_REGISTER_LOOKUP'],

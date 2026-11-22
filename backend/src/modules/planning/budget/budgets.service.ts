@@ -21,6 +21,10 @@ const month = (v: unknown, d: number) => Math.min(12, Math.max(1, Math.round(n(v
 const nullableNum = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 const str = (v: unknown, max = 200) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 const HR_KINDS = ['employee', 'new_position'];
+
+/** بند مستورد من Excel بعد فحصه (انظر BudgetImportService) */
+export interface ExcelLine { section: Section; kind: 'new_position' | 'hr_other' | 'manual'; name: string; params: Record<string, unknown>; fundingType: string | null; note: string | null }
+class LineDryRun extends Error {}
 const KINDS: Record<Section, string[]> = { hr: ['employee', 'new_position', 'hr_other'], opex: ['account', 'manual'], activity: ['activity', 'project', 'manual'], revenue: ['account', 'manual'] };
 // growth متغير في الافتراضات يمكن تخصيصه للبند أو للإدارة، فليس محجوزًا
 const BUILTIN_KEYS = new Set(Object.values(BUILTIN_VARS).flat().map((v) => v.key).filter((k) => k !== 'growth'));
@@ -689,6 +693,48 @@ export class BudgetsService {
       return l.id;
     });
     return this.db.getRepository(BudgetLine).findOneByOrFail({ id: lineId });
+  }
+
+  /**
+   * بنود من ملف Excel في معاملة واحدة، بنفس قواعد الإضافة اليدوية. البند الموجود بالقسم والاسم نفسيهما لا يتكرر.
+   * dryRun يحتسب البنود ويعيد النتيجة دون حفظ.
+   */
+  async importExcelLines(actor: OrgUser, id: string, rows: ExcelLine[], dryRun: boolean) {
+    const org = actor.organizationId;
+    if (rows.some((r) => r.section === 'hr')) this.assertHr(actor);
+    for (const r of rows) if (!KINDS[r.section].includes(r.kind) || !['new_position', 'hr_other', 'manual'].includes(r.kind)) throw new BadRequestException(`نوع البند «${r.name}» لا يناسب القسم`);
+    const run = async (em: EntityManager) => {
+      const b = await this.budget(em, org, id, true);
+      this.editable(b, actor);
+      const repo = em.getRepository(BudgetLine);
+      const existing = await repo.find({ where: { budgetId: id }, select: ['id', 'section', 'name', 'sortOrder'] });
+      const have = new Set(existing.map((l) => `${l.section}|${l.name}`));
+      let order = existing.reduce((m, l) => Math.max(m, l.sortOrder), 0);
+      const ctx = await this.ctx(org, em);
+      const out: { name: string; section: Section; amount: number; status: 'new' | 'exists' }[] = [];
+      for (const r of rows) {
+        if (have.has(`${r.section}|${r.name}`)) { out.push({ name: r.name, section: r.section, amount: 0, status: 'exists' }); continue; }
+        have.add(`${r.section}|${r.name}`);
+        const l = repo.create({
+          organizationId: org, budgetId: id, section: r.section, kind: r.kind, name: r.name, sortOrder: ++order, methodology: b.methodology, allocations: [], included: true,
+          fundingType: r.section === 'revenue' ? null : r.fundingType ?? 'unrestricted', overrideAmount: null, note: r.note, history: {},
+          sourceRef: 'استيراد من Excel',
+        });
+        const input = { ...r.params };
+        if (r.kind === 'hr_other' || r.kind === 'manual') input.method = 'manual';
+        l.params = this.cleanParams(r.section, r.kind, input, b.historyYears);
+        this.compute(b, l, ctx);
+        if (!dryRun) await repo.save(l);
+        out.push({ name: r.name, section: r.section, amount: Number(l.amount ?? 0), status: 'new' });
+      }
+      if (!dryRun) await em.getRepository(Budget).save(b);
+      return { budget: { id: b.id, code: b.code, title: b.title, fiscalYear: b.fiscalYear }, lines: out };
+    };
+    if (!dryRun) return this.db.transaction(run);
+    // الفحص داخل معاملة تُلغى في النهاية، فلا يتغير شيء
+    let result: Awaited<ReturnType<typeof run>> | null = null;
+    await this.db.transaction(async (em) => { result = await run(em); throw new LineDryRun(); }).catch((e) => { if (!(e instanceof LineDryRun)) throw e; });
+    return result!;
   }
 
   async updateLine(actor: OrgUser, lineId: string, dto: UpdateLineDto) {

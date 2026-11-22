@@ -169,6 +169,56 @@ export class RegisterService {
     });
   }
 
+  // ---------------- الاستيراد من Excel ----------------
+
+  /** فحص قواعد الخطر دون حفظ: يعيد سبب الرفض أو null */
+  async checkRisk(org: string, dto: RiskDto): Promise<string | null> {
+    try {
+      await this.riskData(org, dto, await this.core.config(org), this.db.manager);
+      return null;
+    } catch (e) {
+      if (e instanceof BadRequestException) return String((e.getResponse() as { message?: string }).message ?? e.message);
+      throw e;
+    }
+  }
+
+  /** خطر مستورد داخل معاملة الاستيراد: نفس قواعد الإنشاء، ويُربط بعامل التحليل المستورد معه */
+  async saveImportedRisk(em: EntityManager, actor: OrgUser, dto: RiskDto) {
+    const org = actor.organizationId;
+    const cfg = await this.core.config(org, em);
+    const data = await this.riskData(org, dto, cfg, em);
+    const identified = dto.identifiedDate ?? today();
+    const r = await em.getRepository(RiskItem).save(em.getRepository(RiskItem).create({
+      ...data, organizationId: org, code: await this.core.nextCode(em, org, 'RSK'), createdByName: actor.fullName,
+      riskState: 'open', identifiedDate: identified, nextReviewDate: nextReview(cfg, data.residualScore, identified),
+      analysisId: dto.analysisId ?? null, analysisItemId: dto.analysisItemId ?? null,
+    }));
+    await em.getRepository(RiskReview).save({
+      organizationId: org, riskId: r.id, reviewDate: identified, likelihood: r.residualLikelihood, impact: r.residualImpact, score: r.residualScore,
+      note: 'التقييم الأول (استيراد من Excel)', byName: actor.fullName,
+    });
+    if (dto.analysisId && dto.analysisItemId) {
+      // العامل يُربط بأول خطر نشأ منه فقط، كما في التحويل اليدوي
+      await em.query(
+        `UPDATE risk_analyses SET items = (SELECT jsonb_agg(CASE WHEN i->>'id' = $3 AND i->>'riskId' IS NULL THEN jsonb_set(i, '{riskId}', to_jsonb($4::text)) ELSE i END) FROM jsonb_array_elements(items) i)
+          WHERE organization_id = $1 AND id = $2`, [org, dto.analysisId, dto.analysisItemId, r.id]);
+    }
+    return r;
+  }
+
+  /** تحليل مستورد داخل معاملة الاستيراد، بمعرفات العوامل المحددة مسبقًا ليرتبط بها الخطر */
+  async saveImportedAnalysis(em: EntityManager, actor: OrgUser, dto: AnalysisDto) {
+    const org = actor.organizationId;
+    const factors = (dto.kind === 'pestel' ? PESTEL_FACTORS : SWOT_FACTORS).map((f) => f.code);
+    if (dto.items.some((i) => !factors.includes(i.factor))) throw new BadRequestException('أحد العوامل لا يتبع نوع التحليل');
+    const repo = em.getRepository(RiskAnalysis);
+    return repo.save(repo.create({
+      organizationId: org, code: await this.core.nextCode(em, org, 'ANL'), kind: dto.kind, title: dto.title, scope: dto.scope ?? null, analysisDate: dto.analysisDate,
+      items: dto.items.map((i) => ({ id: i.id ?? randomUUID(), factor: i.factor, text: i.text, impact: i.impact, likelihood: i.likelihood, trend: i.trend ?? null, note: i.note ?? null, riskId: null })),
+      strategies: dto.kind === 'swot' ? dto.strategies ?? [] : [], summary: dto.summary ?? null, createdByName: actor.fullName,
+    }));
+  }
+
   submitRisk(actor: OrgUser, id: string) {
     return this.core.transition(actor, 'risk', (em) => em.getRepository(RiskItem), id, { submit: true });
   }

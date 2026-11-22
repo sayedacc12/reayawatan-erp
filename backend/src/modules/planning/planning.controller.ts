@@ -1,4 +1,10 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
+import { memoryStorage } from 'multer';
+import { IMPORT_FILE_BYTES } from '../../core/files/xlsx-sheets';
+import { PlanImportService } from './plan-import.service';
 import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } from '../../core/auth/decorators';
 import { PlanningCore } from './planning-core.service';
 import { PlanningViews } from './planning-views.service';
@@ -20,7 +26,7 @@ const ver = (v: string) => {
 /** التخطيط الاستراتيجي والتشغيلي */
 @Controller('planning')
 export class PlanningController {
-  constructor(private readonly core: PlanningCore, private readonly plans: PlansService, private readonly views: PlanningViews, private readonly links: PlanningLinks) {}
+  constructor(private readonly core: PlanningCore, private readonly plans: PlansService, private readonly views: PlanningViews, private readonly links: PlanningLinks, private readonly importer: PlanImportService) {}
 
   // ---------------- اللوحة والقوائم ----------------
 
@@ -49,6 +55,24 @@ export class PlanningController {
   linkOptions(@CurrentOrgUser() a: OrgUser) { return this.plans.linkOptions(a); }
 
   // ---------------- الخطط ----------------
+
+  /** نموذج استيراد خطة من Excel */
+  @Get('plans/import/template') @RequireAnyPermission(...EDIT)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  async importTemplate(@Res() res: Response) {
+    const buf = await this.importer.template();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="plan-import.xlsx"; filename*=UTF-8''${encodeURIComponent('نموذج استيراد خطة.xlsx')}`);
+    res.send(buf);
+  }
+
+  /** mode=check يفحص الملف دون حفظ، وmode=apply ينشئ الخطة كاملة أو لا شيء. صلاحية نوع الخطة تُفحص في الخدمة */
+  @Post('plans/import') @RequireAnyPermission(...EDIT)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: IMPORT_FILE_BYTES, files: 1 } }))
+  importPlan(@CurrentOrgUser() a: OrgUser, @UploadedFile() file: Express.Multer.File, @Body('mode') mode?: string) {
+    return this.importer.import(a, file, mode ?? 'check');
+  }
 
   @Get('plans') @RequirePermissions(P.read)
   list(@CurrentOrgUser() a: OrgUser, @Query() q: Record<string, string>) { return this.plans.list(a, q); }
