@@ -563,7 +563,7 @@ export class RequestsService {
       const span = serviceSpan(e.hireDate, t);
       const letterNo = `${t.slice(0, 4)}/${String(r.requestNo).padStart(4, '0')}`;
       const vars: Record<string, string> = {
-        اسم_الموظف: e.fullName, رقم_الهوية: e.nationalId, الجنسية: e.nationality, الرقم_الوظيفي: String(e.employeeNo), المسمى_الوظيفي: job?.title ?? '',
+        اسم_الموظف: e.fullName, رقم_الهوية: e.nationalId ?? '', الجنسية: e.nationality, الرقم_الوظيفي: String(e.employeeNo), المسمى_الوظيفي: job?.title ?? '',
         الإدارة: unit?.name ?? '', تاريخ_المباشرة: fmtAr(e.hireDate), مدة_الخدمة: `${span.years} سنة و${span.months} شهر`,
         الراتب_الأساسي: money(e.basicSalary), البدلات: e.allowances.map((a) => `${a.name}: ${money(a.amount)}`).join('\n'), إجمالي_الراتب: money(gross),
         الجهة: String(r.data.addressee ?? 'إلى من يهمه الأمر'), اسم_الشركة: org1?.name ?? actor.organizationName ?? '', التاريخ: fmtAr(t), التاريخ_الهجري: hijriAr(t),

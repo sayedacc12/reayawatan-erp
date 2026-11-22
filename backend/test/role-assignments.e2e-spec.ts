@@ -7,6 +7,7 @@ import { configureApp } from '../src/main';
 import { BootstrapService } from '../src/core/bootstrap.service';
 import { DEFAULT_ROLES } from '../src/core/roles/default-roles';
 import { COMPANY_TEAM } from '../src/core/company-team';
+import { TeamFilesService } from '../src/modules/hr/team-files.service';
 
 /**
  * الأدوار الافتراضية لرعاية وطن (تُضاف مرة واحدة) والتكليفات: دور لمستخدم من تاريخ إلى تاريخ أو مفتوح، يسقط تلقائيًا أو بإنهائه.
@@ -68,6 +69,19 @@ describe('Default company roles and temporary role assignments', () => {
   afterAll(async () => {
     await db.destroy();
     await app.close();
+  });
+
+  it('adds HR files for the team as contractors linked to their accounts, once, showing their assignments', async () => {
+    expect(await app.get(TeamFilesService).run()).toBe(COMPANY_TEAM.length);
+    expect(await app.get(TeamFilesService).run()).toBeNull();
+    const rows = (await http.get('/api/hr/employees').set(as(director)).expect(200)).body as { id: string; fullName: string; employmentKind: string; nationalId: string | null }[];
+    for (const m of COMPANY_TEAM) {
+      const row = rows.find((r) => r.fullName === m.fullName)!;
+      expect(row).toMatchObject({ employmentKind: 'contractor', nationalId: null });
+      const file = (await http.get(`/api/hr/employees/${row.id}`).set(as(director)).expect(200)).body;
+      expect(file.jobTitle).toBe(m.title);
+      expect((file.roles as { name: string; kind: string }[]).filter((r) => r.kind === 'assignment').map((r) => r.name).sort()).toEqual([...m.roles].sort());
+    }
   });
 
   it('adds the company team once, each with open assignments for their roles and no usable password', async () => {
