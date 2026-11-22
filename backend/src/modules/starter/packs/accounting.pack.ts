@@ -7,16 +7,6 @@ import { MastersService } from '../../accounting/masters.service';
 import { VouchersService } from '../../accounting/vouchers.service';
 import { StarterPack, StarterStep, added, existing } from '../starter.types';
 
-/** الحساب البنكي المعتمد لرعاية وطن (يظهر على فواتيرها لاستلام المدفوعات) */
-export const COMPANY_BANK = {
-  slug: 'reayawatan',
-  name: 'مصرف الراجحي ــ الحساب الجاري',
-  bankName: 'مصرف الراجحي',
-  accountNumber: '44900-001-0006086184656',
-  iban: 'SA8580000449608016184656',
-  description: 'فرع السلام (44900). أُضيف ضمن الإعدادات الافتراضية',
-};
-
 /** النظام المالي: دليل الحسابات ومراكز التكلفة، ومراحل اعتماد السندات، والصندوق الرئيسي، وتصنيفات العملاء والموردين */
 @Injectable()
 export class AccountingStarter implements StarterPack {
@@ -68,11 +58,6 @@ export class AccountingStarter implements StarterPack {
         run: async (a) => this.cashBox(a),
       },
       {
-        key: 'bank', label: 'حساب الشركة في مصرف الراجحي',
-        detail: 'لرعاية وطن فقط: الحساب الجاري في مصرف الراجحي (فرع السلام 44900) برقم حسابه والآيبان، مرتبطًا بحساب «حسابات جارية ــ مصرف الراجحي» في الدليل، ليظهر في البنوك والصناديق وعلى الفواتير.',
-        run: async (a) => this.companyBank(a),
-      },
-      {
         key: 'categories', label: 'تصنيفات العملاء والموردين',
         detail: 'تصنيفا «عملاء» و«موردون» لدليل الشركاء.',
         run: async (a) => {
@@ -82,25 +67,6 @@ export class AccountingStarter implements StarterPack {
         },
       },
     ];
-  }
-
-  /** حساب رعاية وطن البنكي المعتمد (من بيانات الشركة)، ولا يُضاف لأي منشأة أخرى */
-  private async companyBank(a: OrgUser) {
-    const org = a.organizationId;
-    const [o] = await this.db.query('SELECT slug FROM organizations WHERE id = $1', [org]);
-    if (o?.slug !== COMPANY_BANK.slug) return { added: 0, note: 'أضف حسابات الشركة البنكية من شاشة البنوك والصناديق' };
-    if (await this.db.getRepository(CashAccount).exists({ where: { organizationId: org, iban: COMPANY_BANK.iban } })) return existing('الحساب البنكي موجود');
-    const [gl] = await this.db.query(
-      `SELECT a.id FROM acc_accounts a
-        WHERE a.organization_id = $1 AND a.kind = 'sub' AND a.is_active AND a.code LIKE '11101002%'
-          AND NOT EXISTS (SELECT 1 FROM acc_cash_accounts c WHERE c.organization_id = $1 AND c.gl_account_id = a.id)
-        ORDER BY a.code LIMIT 1`, [org]);
-    if (!gl) return { added: 0, note: 'لم يُعثر على حساب مصرف الراجحي في الدليل، فأضف الحساب البنكي يدويًا من شاشة البنوك والصناديق' };
-    await this.masters.createCash(a, {
-      kind: 'bank', name: COMPANY_BANK.name, bankName: COMPANY_BANK.bankName, accountNumber: COMPANY_BANK.accountNumber,
-      iban: COMPANY_BANK.iban, glAccountId: gl.id, description: COMPANY_BANK.description,
-    });
-    return added(1);
   }
 
   private async cashBox(a: OrgUser) {

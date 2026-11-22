@@ -57,17 +57,6 @@ describe('Reaya Watan default brand identity', () => {
     expect(org.tax_number).toBe('314466205600003');
   });
 
-  it('adds the company Al Rajhi bank account with the accounting defaults', async () => {
-    const r = (await http.post('/api/starter/accounting').set(as(director)).expect(201)).body;
-    const res = Object.fromEntries(r.applied.results.map((x: { key: string; added: number }) => [x.key, x.added]));
-    expect(res.bank).toBe(1);
-    const [bank] = await app.get(DataSource).query(
-      `SELECT c.bank_name, c.account_number, c.iban, a.code FROM acc_cash_accounts c JOIN acc_accounts a ON a.id = c.gl_account_id
-        WHERE c.kind = 'bank' AND c.organization_id = (SELECT id FROM organizations WHERE slug = 'reayawatan')`);
-    expect(bank).toMatchObject({ bank_name: 'مصرف الراجحي', account_number: '44900-001-0006086184656', iban: 'SA8580000449608016184656' });
-    expect(bank.code.startsWith('11101002')).toBe(true);
-  });
-
   it('never overwrites what the director saves', async () => {
     const v = (await http.get('/api/identity').set(as(director)).expect(200)).body;
     const dto = {
@@ -78,7 +67,10 @@ describe('Reaya Watan default brand identity', () => {
     await http.put('/api/identity').set(as(director)).send(dto).expect(200);
     const db = app.get(DataSource);
     const [org] = await db.query("SELECT id, slug FROM organizations WHERE slug = 'reayawatan'");
+    await db.query('UPDATE organizations SET tax_number = NULL WHERE id = $1', [org.id]);
     await seedCompanyBrand(db, app.get(FileStore), org);
+    // الرقم الضريبي لا يُعاد بعد أول تعبئة
+    expect((await db.query('SELECT tax_number FROM organizations WHERE id = $1', [org.id]))[0].tax_number).toBeNull();
     const after = (await http.get('/api/public/identity/reayawatan').expect(200)).body;
     expect(after.name).toBe('اسم معدّل');
     expect(after.colors.primary).toBe('#123456');

@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { DataSource } from 'typeorm';
+import { companySlug } from '../company';
 import { FileStore } from '../files/file-store.service';
 import { OrgIdentity, StoredImage } from './identity.entity';
 
@@ -48,9 +49,7 @@ const BRAND_DIR = process.env.BRAND_DIR ?? join(process.cwd(), 'assets', 'brand'
 
 /** يملأ هوية رعاية وطن إن لم يحفظها أحد بعد. آمن للتكرار، ويتجاهل أي منشأة غير رعاية وطن. */
 export async function seedCompanyBrand(db: DataSource, files: FileStore, org: { id: string; slug: string }, logger = new Logger('Brand')) {
-  if (org.slug !== COMPANY_BRAND.slug) return;
-  // الرقم الضريبي في البيانات الأساسية للمنشأة (يظهر في الفواتير)، فقط إن كان فارغًا
-  await db.query('UPDATE organizations SET tax_number = $1 WHERE id = $2 AND tax_number IS NULL', [COMPANY_BRAND.taxNumber, org.id]);
+  if (org.slug !== COMPANY_BRAND.slug || companySlug() !== COMPANY_BRAND.slug) return;
   const repo = db.getRepository(OrgIdentity);
   const b = COMPANY_BRAND;
   await repo.createQueryBuilder().insert().values({ organizationId: org.id, colors: b.colors, fonts: b.fonts, contact: b.contact }).orIgnore().execute();
@@ -70,13 +69,18 @@ export async function seedCompanyBrand(db: DataSource, files: FileStore, org: { 
   }
 
   // الشرط updated_by_name IS NULL في نفس الجملة، فلا يُكتب فوق حفظ يدوي حدث بين القراءة والكتابة
-  const res = await repo.createQueryBuilder().update(OrgIdentity).set({
-    displayName: b.displayName, shortName: b.shortName, englishName: b.englishName, slogan: b.slogan,
-    about: b.about, vision: b.vision, mission: b.mission, goals: b.goals, values: b.values,
-    colors: b.colors, fonts: b.fonts, contact: b.contact,
-    licenseNo: b.licenseNo, licenseAuthority: b.licenseAuthority, foundedOn: b.foundedOn,
-    applyToSystem: true, updatedByName: 'إعداد الهوية الافتراضية', ...logos,
-  }).where('organization_id = :org AND updated_by_name IS NULL', { org: org.id }).execute();
+  const res = await db.transaction(async (em) => {
+    const r = await em.getRepository(OrgIdentity).createQueryBuilder().update(OrgIdentity).set({
+      displayName: b.displayName, shortName: b.shortName, englishName: b.englishName, slogan: b.slogan,
+      about: b.about, vision: b.vision, mission: b.mission, goals: b.goals, values: b.values,
+      colors: b.colors, fonts: b.fonts, contact: b.contact,
+      licenseNo: b.licenseNo, licenseAuthority: b.licenseAuthority, foundedOn: b.foundedOn,
+      applyToSystem: true, updatedByName: 'إعداد الهوية الافتراضية', ...logos,
+    }).where('organization_id = :org AND updated_by_name IS NULL', { org: org.id }).execute();
+    // الرقم الضريبي (يظهر في الفواتير) مرة واحدة فقط مع أول تعبئة للهوية، وإن كان فارغًا؛ فلا يُعاد إن حذفه المستخدم لاحقًا
+    if (r.affected) await em.query('UPDATE organizations SET tax_number = $1 WHERE id = $2 AND tax_number IS NULL', [b.taxNumber, org.id]);
+    return r;
+  }).catch((e) => { logger.warn(`Company identity defaults not saved: ${(e as Error).message}`); return { affected: 0 }; });
   if (!res.affected) {
     for (const img of Object.values(logos)) await files.remove(img!.key).catch(() => undefined);
     return;
