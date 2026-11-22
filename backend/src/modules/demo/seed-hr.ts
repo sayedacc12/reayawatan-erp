@@ -475,9 +475,10 @@ export class HrSeed {
   private async contractorAccounts(admin: DemoTeam['admin']) {
     const org = admin.organizationId;
     const id = async (code: string) => ((await this.db.query('SELECT id FROM acc_accounts WHERE organization_id = $1 AND code = $2', [org, code])) as { id: string }[])[0].id;
-    const expense = (await this.accounts.create(admin, { code: '4120301004', name: 'أتعاب المتعاونين', kind: 'sub', nature: 'expenses', parentId: await id('41203010') })).id;
-    const group = await this.accounts.create(admin, { code: '21401006', name: 'التكاليف المهنية والاستشارات ــ المستحقة', kind: 'main', nature: 'liabilities', parentId: await id('21401') });
-    const payable = (await this.accounts.create(admin, { code: '2140100601', name: 'أتعاب المتعاونين ــ المستحقة', kind: 'sub', nature: 'liabilities', parentId: group.id })).id;
+    // دليل الشركات: الأتعاب المهنية 41205 والأتعاب المهنية المستحقة 21402002
+    const expGroup = await this.accounts.create(admin, { code: '41205003', name: 'أتعاب المتعاونين', kind: 'main', nature: 'expenses', parentId: await id('41205') });
+    const expense = (await this.accounts.create(admin, { code: '4120500301', name: 'أتعاب المتعاونين', kind: 'sub', nature: 'expenses', parentId: expGroup.id })).id;
+    const payable = (await this.accounts.create(admin, { code: '2140200202', name: 'أتعاب المتعاونين ــ المستحقة', kind: 'sub', nature: 'liabilities', parentId: await id('21402002') })).id;
     return { expense, payable };
   }
 
