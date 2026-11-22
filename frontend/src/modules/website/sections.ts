@@ -26,7 +26,7 @@ export const FIELD_LABELS: Record<string, string> = {
   logoEyebrow: 'السطر التمهيدي', logoTitle: 'العنوان', logoText: 'النص', logoNote: 'ملاحظة الاعتماد', commitEyebrow: 'السطر التمهيدي', commitTitle: 'العنوان', commitments: 'الالتزامات',
   kpiEyebrow: 'السطر التمهيدي', kpiTitle: 'العنوان', kpiLead: 'المقدمة', kpis: 'المؤشرات', value: 'القيمة', finalTitle: 'عنوان الخاتمة', finalText: 'نص الخاتمة',
   story: 'قصتنا (فقرات)', vision: 'الرؤية', mission: 'الرسالة', card: 'بطاقة الشركة', reasonsTitle: 'عنوان أسباب التأسيس', reasons: 'أسباب التأسيس',
-  govTitle: 'عنوان الحوكمة', govText: 'نص الحوكمة', govNote: 'ملاحظة حالة اللوائح', policies: 'اللوائح والسياسات', values: 'القيم', teamNote: 'فريق العمل',
+  govTitle: 'عنوان الحوكمة', govText: 'نص الحوكمة', govNote: 'ملاحظة حالة اللوائح', policies: 'اللوائح والسياسات', values: 'القيم', boardTitle: 'عنوان مجلس المديرين', board: 'أعضاء مجلس المديرين', name: 'الاسم', role: 'الصفة', teamNote: 'فريق العمل',
   phone: 'الهاتف', email: 'البريد الإلكتروني', whatsapp: 'واتساب الأعمال', address: 'العنوان', hours: 'ساعات العمل', careers: 'نص التوظيف', orgTypes: 'أنواع الجهات في النموذج',
   successText: 'رسالة نجاح الإرسال', options: 'خيارات الإجابة (من الأفضل للأضعف)', questions: 'الأسئلة', service: 'معرّف الخدمة', advancedText: 'نص المنظمة المتقدمة',
   emptyText: 'نص عند عدم وجود أدلة',

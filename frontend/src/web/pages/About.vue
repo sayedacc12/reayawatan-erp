@@ -45,7 +45,11 @@ onMounted(() => setTitle('من نحن'));
   </div></section>
   <section class="band"><div class="wrap">
     <div class="sec-head"><p class="eyebrow">فريق العمل</p><h2>القيادة والخبراء</h2></div>
-    <p class="note"><Rich :text="a.teamNote" /></p>
+    <template v-if="a.board?.length">
+      <h3 style="margin-bottom: 12px">{{ a.boardTitle }}</h3>
+      <div class="grid g3"><div v-for="(m, i) in a.board" :key="i" class="svc-card"><h3>{{ m.name }}</h3><p>{{ m.role }}</p></div></div>
+    </template>
+    <p v-if="a.teamNote" class="note" style="margin-top: 16px"><Rich :text="a.teamNote" /></p>
   </div></section>
   <CtaBand />
 </template>
