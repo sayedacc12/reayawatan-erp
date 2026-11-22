@@ -33,6 +33,6 @@ import { BoardReportsService } from './board/board-reports.service';
   imports: [TypeOrmModule.forFeature(PLANNING_ENTITIES), CoreModule],
   controllers: [PlanningController, BudgetController, BoardReportsController],
   providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks, BoardReportsService],
-  exports: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
+  exports: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
 })
 export class PlanningModule {}

@@ -26,6 +26,6 @@ import { StrategyImportService } from './strategy-import.service';
     RiskCore, RegisterService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge, StrategyImportService,
     { provide: 'RISK_REGISTER_LOOKUP', useExisting: RiskAuditBridge },
   ],
-  exports: [RiskCore, RegisterService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge, 'RISK_REGISTER_LOOKUP'],
+  exports: [RiskCore, RegisterService, StrategyImportService, ChangeService, ComplianceService, ContinuityService, RiskReportsService, RiskAuditBridge, 'RISK_REGISTER_LOOKUP'],
 })
 export class RiskModule {}
