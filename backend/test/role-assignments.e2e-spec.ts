@@ -6,6 +6,7 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 import { BootstrapService } from '../src/core/bootstrap.service';
 import { DEFAULT_ROLES } from '../src/core/roles/default-roles';
+import { COMPANY_TEAM } from '../src/core/company-team';
 
 /**
  * الأدوار الافتراضية لرعاية وطن (تُضاف مرة واحدة) والتكليفات: دور لمستخدم من تاريخ إلى تاريخ أو مفتوح، يسقط تلقائيًا أو بإنهائه.
@@ -67,6 +68,26 @@ describe('Default company roles and temporary role assignments', () => {
   afterAll(async () => {
     await db.destroy();
     await app.close();
+  });
+
+  it('adds the company team once, each with open assignments for their roles and no usable password', async () => {
+    const users = (await http.get('/api/users').set(as(director)).expect(200)).body as { id: string; email: string }[];
+    const list = (await http.get('/api/users/assignments').set(as(director)).expect(200)).body as { userId: string; roleName: string; endDate: string | null; state: string }[];
+    for (const m of COMPANY_TEAM) {
+      const u = users.find((x) => x.email === m.email.toLowerCase());
+      expect(u).toBeDefined();
+      const mine = list.filter((a) => a.userId === u!.id);
+      expect(mine.map((a) => a.roleName).sort()).toEqual([...m.roles].sort());
+      expect(mine.every((a) => a.endDate === null && a.state === 'active')).toBe(true);
+    }
+    // لا يدخل أحد قبل أن يصدر له المدير كلمة مؤقتة
+    await http.post('/api/auth/login').send({ login: COMPANY_TEAM[1].email, password: 'Anything123' }).expect(401);
+    // إنهاء تكليف ثم إعادة التشغيل لا يعيده
+    const one = (await http.get('/api/users/assignments').set(as(director))).body as { id: string }[];
+    await http.post(`/api/users/assignments/${one[0].id}/end`).set(as(director)).expect(201);
+    const before = one.length;
+    await app.get(BootstrapService).onApplicationBootstrap();
+    expect(((await http.get('/api/users/assignments').set(as(director))).body as unknown[]).length).toBe(before);
   });
 
   it('adds the default roles to the company once, and never brings back a deleted one', async () => {
