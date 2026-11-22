@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 import { CompanyPackService } from '../src/modules/starter/company-pack.service';
+import { PACK_BUDGET } from '../src/modules/starter/company-pack.content';
 
 /**
  * حزمة رعاية وطن الجاهزة: تُدرج مرة واحدة في منشأة الشركة فقط، عبر خدمات الأنظمة نفسها:
@@ -51,6 +52,12 @@ describe('Company starter pack (strategy, risks and budget 2027)', () => {
   });
 
   it('inserts the whole pack once, approved, in the company only', async () => {
+    // موازنة نصف منشأة من تشغيل سابق انقطع: تُكمل بنودها وأنشطتها واعتمادها ولا تتكرر
+    await db.query(`INSERT INTO plan_budgets (organization_id, code, title, fiscal_year, status, version, created_by_name, variables, raise_rules, hr_setup, ceilings)
+      VALUES ($1, 'BG-OLD', $2, $3, 'draft', 0, 'تشغيل سابق', '[]', '[]', '{}', '[]')`, [company, PACK_BUDGET.title, PACK_BUDGET.fiscalYear]);
+    // حجز متروك من تشغيل انقطع قبل أكثر من 20 دقيقة لا يمنع الإدراج
+    await db.query(`INSERT INTO organization_starters (organization_id, module_code, status, applied_by, applied_by_id, results, applied_at)
+      VALUES ($1, 'rw-plan-2027', 'applying', 'تشغيل سابق', $2, '[]', now() - interval '1 hour')`, [company, (await db.query('SELECT id FROM users WHERE organization_id = $1 LIMIT 1', [company]))[0].id]);
     const results = await pack.run();
     expect(results).not.toBeNull();
     expect(results!.map((r) => r.key)).toEqual(['starter-risk', 'starter-planning', 'policy', 'analyses', 'strategic', 'operational', 'budget', 'controls', 'compliance', 'continuity']);
@@ -68,6 +75,7 @@ describe('Company starter pack (strategy, risks and budget 2027)', () => {
 
     const [b] = await db.query('SELECT id, status, fiscal_year FROM plan_budgets WHERE organization_id = $1', [company]);
     expect(b).toMatchObject({ status: 'approved', fiscal_year: 2027 });
+    expect((await db.query('SELECT code FROM plan_budgets WHERE id = $1', [b.id]))[0].code).toBe('BG-OLD');
     const [{ rev, exp }] = await db.query(
       `SELECT sum(amount) FILTER (WHERE section = 'revenue')::numeric AS rev, sum(amount) FILTER (WHERE section <> 'revenue')::numeric AS exp
          FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2 AND included`, [company, b.id]);

@@ -95,6 +95,10 @@ export class CompanyPackService implements OnApplicationBootstrap {
     const actor = await this.actor(company.id, company.slug);
     if (!actor) return null;
     const org = company.id;
+    // حجز متروك من تشغيل انقطع (إعادة تشغيل الحاوية أثناء الإدراج) يُعاد بعد 20 دقيقة
+    await this.db.query(
+      `DELETE FROM organization_starters WHERE organization_id = $1 AND module_code = $2 AND status = 'applying' AND applied_at < now() - interval '20 minutes'`,
+      [org, PACK_CODE]);
     const reserved = await this.db.query(
       `INSERT INTO organization_starters (organization_id, module_code, status, applied_by, applied_by_id, results)
        VALUES ($1, $2, 'applying', $3, $4, '[]'::jsonb) ON CONFLICT DO NOTHING RETURNING applied_at::text AS applied_at`,
@@ -169,15 +173,26 @@ export class CompanyPackService implements OnApplicationBootstrap {
       ['strategic', 'الخطة الاستراتيجية 2027 - 2030', () => plan(PACK_FILES.strategic)],
       ['operational', 'الخطة التشغيلية 2027', () => plan(PACK_FILES.operational)],
       ['budget', 'الموازنة التقديرية 2027', async () => {
+        // تكمل الموازنة إن توقف إدراج سابق في منتصفها: البنود ثم الأنشطة ثم الاعتماد
         let id = await one('SELECT id FROM plan_budgets WHERE organization_id = $1 AND fiscal_year = $2 AND title = $3 LIMIT 1', [org, PACK_BUDGET.fiscalYear, PACK_BUDGET.title]);
-        if (id) return { added: 0, note: 'الموازنة موجودة مسبقًا' };
-        id = (await this.budgets.create(a, PACK_BUDGET as never)).id as string;
-        const r = await this.budgetImport.import(a, id, await this.file(PACK_FILES.budget), 'apply');
-        if (!r.ok) throw new Error(`budget import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
-        await this.budgets.importLines(a, id, { source: 'activities' });
+        const created = !id;
+        if (!id) id = (await this.budgets.create(a, PACK_BUDGET as never)).id as string;
+        const lines = (section: string) => this.db.query(
+          `SELECT count(*)::int AS n FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2 AND ($3 = '' OR section = $3)`, [org, id, section]).then((r) => r[0].n as number);
+        const [st] = await this.db.query('SELECT status FROM plan_budgets WHERE organization_id = $1 AND id = $2', [org, id]);
+        if (st.status === 'approved') return { added: 0, note: 'الموازنة معتمدة مسبقًا' };
+        if (st.status === 'draft' || st.status === 'returned') {
+          if (!(await lines(''))) {
+            const r = await this.budgetImport.import(a, id, await this.file(PACK_FILES.budget), 'apply');
+            if (!r.ok) throw new Error(`budget import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
+          }
+          if (!(await lines('activity'))) await this.budgets.importLines(a, id, { source: 'activities' });
+        }
         const note = 'اعتماد عند الإدراج بقرار المالك (موازنة سنة الأساس 2027)';
-        const s = await this.approve(() => this.budgets.submit(a, id!, note), () => this.budgets.decide(a, id!, { decision: 'approve', note } as never));
-        return { added: 1, note: s === 'approved' ? 'معتمدة' : 'بانتظار الاعتماد' };
+        const s = st.status === 'in_review'
+          ? await this.approve(async () => ({ status: 'in_review' }), () => this.budgets.decide(a, id!, { decision: 'approve', note } as never))
+          : await this.approve(() => this.budgets.submit(a, id!, note), () => this.budgets.decide(a, id!, { decision: 'approve', note } as never));
+        return { added: created ? 1 : 0, note: s === 'approved' ? 'معتمدة' : 'بانتظار الاعتماد' };
       }],
       ['controls', 'الضوابط الرقابية', async () => {
         let n = 0;
@@ -209,7 +224,12 @@ export class CompanyPackService implements OnApplicationBootstrap {
         const ids: string[] = [];
         for (const c of PACK_CONTINUITY) {
           const found = await one('SELECT id FROM risk_continuity WHERE organization_id = $1 AND activity = $2', [org, c.activity]);
-          if (found) { ids.push(found); continue; }
+          if (found) {
+            ids.push(found);
+            const [x] = await this.db.query('SELECT status FROM risk_continuity WHERE organization_id = $1 AND id = $2', [org, found]);
+            if (x.status === 'draft') await this.approve(() => this.continuity.submitContinuity(a, found), () => this.continuity.decideContinuity(a, found, 'approve', note));
+            continue;
+          }
           const { risks, ...dto } = c;
           const b = await this.continuity.saveContinuity(a, { ...dto, unitName: null, riskIds: risks.map((k) => riskIds.get(k)).filter((x): x is string => !!x) });
           ids.push(b.id);
