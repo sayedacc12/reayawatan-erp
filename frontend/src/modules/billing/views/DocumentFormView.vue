@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
-import { billingLookups, money, sar, today } from '../lib';
+import { billingLookups, latinNum, money, num, sar, today } from '../lib';
 import '../../../shared/module.css';
 import '../../procurement/procurement.css';
 import '../billing.css';
@@ -84,35 +84,56 @@ function pickItem(l: any) {
 const itemOf = (l: any) => items.value.find((x) => x.id === l.itemId);
 const catOf = (l: any) => (!taxable.value ? 'O' : l.category || itemOf(l)?.vatCategory || (isNote.value && ref0.value ? ref0.value.lines.find((x: any) => x.id === l.refLineId)?.category : null) || 'S');
 const reasonsFor = (cat: string) => (lk.value?.vatReasons ?? []).filter((r: any) => r.category === cat);
-const h = (n: unknown) => Math.round(Number(n || 0) * 100);
+const h = (n: unknown) => Math.round((num(n) || 0) * 100);
 const calc = computed(() => {
   const rate = Number(lk.value?.settings?.vatRate ?? 15);
   let gross = 0; let disc = 0; let vat = 0;
   for (const l of f.value.lines) {
-    if (!Number(l.qty)) continue;
-    const g = Math.round(Number(l.qty) * Number(l.unitPrice) * 100);
+    if (!(num(l.qty) > 0)) continue;
+    const g = Math.round(num(l.qty) * (num(l.unitPrice) || 0) * 100);
     const d = Math.min(h(l.discount), g);
     gross += g; disc += d;
     if (catOf(l) === 'S') vat += Math.round(((g - d) * rate) / 100);
   }
   return { gross: gross / 100, discount: disc / 100, taxable: (gross - disc) / 100, vat: vat / 100, total: (gross - disc + vat) / 100, rate };
 });
-const lineNet = (l: any) => Math.max(0, h(Number(l.qty) * Number(l.unitPrice)) - h(l.discount)) / 100;
+const lineNet = (l: any) => Math.max(0, h((num(l.qty) || 0) * (num(l.unitPrice) || 0)) - h(l.discount)) / 100;
 
+/**
+ * السطور المرسلة: في الإشعار الدائن ما له كمية فقط (سطور الفاتورة الأصلية تظهر كلها)،
+ * وفي الفاتورة والإشعار المدين كل سطر فيه صنف أو وصف أو سعر أو كمية، فلا يُحذف سطر مكتمل بصمت.
+ */
+const usedLines = () => f.value.lines.filter((l: any) => (f.value.kind === 'credit_note'
+  ? num(l.qty) > 0
+  : !!(l.itemId || String(l.description ?? '').trim() || num(l.unitPrice) > 0 || num(l.qty) > 0)));
+/** خطأ واضح برقم السطر قبل الإرسال */
+function lineProblem(): string | null {
+  const used = usedLines();
+  if (!used.length) return 'أضف سطرًا واحدًا على الأقل: اختر الصنف أو اكتب الوصف والكمية والسعر';
+  for (const l of used) {
+    const n = f.value.lines.indexOf(l) + 1;
+    if (!(num(l.qty) > 0)) return `السطر ${n}: اكتب الكمية رقمًا أكبر من صفر`;
+    if (Number.isNaN(num(l.unitPrice))) return `السطر ${n}: اكتب السعر رقمًا`;
+  }
+  return null;
+}
+const fixNum = (l: any, k: 'qty' | 'unitPrice' | 'discount') => { l[k] = latinNum(l[k]); };
 function payload() {
   const x = f.value;
   return {
     kind: x.kind, docType: isNote.value || !x.docType ? undefined : x.docType, customerId: isNote.value ? null : x.customerId || null,
     buyerName: isNote.value || x.customerId ? null : x.buyerName || null, refId: isNote.value ? x.refId : null, reason: isNote.value ? x.reason || null : null,
     supplyDate: x.supplyDate || null, dueDate: x.kind === 'credit_note' ? null : x.dueDate || null, analyticId: x.analyticId || null, notes: x.notes || null,
-    lines: x.lines.filter((l: any) => Number(l.qty) > 0).map((l: any) => ({
+    lines: usedLines().map((l: any) => ({
       itemId: isNote.value && x.kind === 'credit_note' ? null : l.itemId || null, refLineId: x.kind === 'credit_note' ? l.refLineId : null,
-      description: l.description || null, unit: l.unit || null, qty: Number(l.qty), unitPrice: Number(l.unitPrice), discount: Number(l.discount || 0),
+      description: l.description || null, unit: l.unit || null, qty: num(l.qty), unitPrice: num(l.unitPrice) || 0, discount: num(l.discount) || 0,
       category: x.kind === 'credit_note' ? undefined : l.category || undefined, reasonCode: x.kind === 'credit_note' ? null : l.reasonCode || null,
     })),
   };
 }
 async function save(submit: boolean) {
+  const problem = lineProblem();
+  if (problem) { toast.error(problem); return; }
   busy.value = true;
   try {
     let d = props.id
@@ -187,9 +208,9 @@ const title = computed(() => `${props.id ? 'تعديل' : 'إعداد'} ${lk.val
                   <input v-model="l.description" class="input" maxlength="500" placeholder="الوصف" style="margin-top: 4px" />
                 </template>
               </td>
-              <td><input v-model.number="l.qty" type="number" min="0" step="any" class="input" style="width: 80px" /></td>
-              <td><input v-model.number="l.unitPrice" type="number" min="0" step="any" class="input" style="width: 100px" /></td>
-              <td><input v-model.number="l.discount" type="number" min="0" step="any" class="input" style="width: 80px" /></td>
+              <td><input v-model="l.qty" type="text" inputmode="decimal" dir="ltr" class="input" style="width: 80px" @input="fixNum(l, 'qty')" /></td>
+              <td><input v-model="l.unitPrice" type="text" inputmode="decimal" dir="ltr" class="input" style="width: 100px" @input="fixNum(l, 'unitPrice')" /></td>
+              <td><input v-model="l.discount" type="text" inputmode="decimal" dir="ltr" class="input" style="width: 80px" @input="fixNum(l, 'discount')" /></td>
               <td v-if="taxable && f.kind !== 'credit_note'">
                 <select v-model="l.category" class="input"><option value="">{{ itemOf(l) ? `من الصنف (${lk.vatCategories[itemOf(l).vatCategory]})` : lk.vatCategories.S }}</option><option v-for="(c, k) in lk.vatCategories" :key="k" :value="k">{{ c }}</option></select>
                 <select v-if="l.category && l.category !== 'S'" v-model="l.reasonCode" class="input" style="margin-top: 4px" required><option value="">سبب الإعفاء أو الصفر…</option><option v-for="r in reasonsFor(l.category)" :key="r.code" :value="r.code">{{ r.label }}</option></select>

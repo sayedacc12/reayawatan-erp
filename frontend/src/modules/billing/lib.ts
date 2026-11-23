@@ -33,3 +33,5 @@ export const addressPayload = (a: any) => {
   return Object.entries(out).some(([k, v]) => k !== 'country' && v) ? out : null;
 };
 export const addressText = (a: any) => (a ? [a.buildingNo && `مبنى ${a.buildingNo}`, a.street, a.district, a.city, a.postalCode, a.additionalNo && `إضافي ${a.additionalNo}`].filter(Boolean).join('، ') : '—');
+
+export { latinNum, num } from './numbers';

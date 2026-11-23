@@ -39,6 +39,7 @@ async function load() {
 onMounted(async () => {
   await load();
   lk.value = await billingLookups().catch(() => null);
+  brand.value = await api('/identity').catch(() => null);
 });
 watch(() => props.id, load);
 
@@ -75,6 +76,19 @@ const submit = () => act('submit', {}, 'أُرسل المستند للإصدار
 const TITLES: Record<string, string> = { issue: 'إصدار المستند', return: 'إعادة المستند للتعديل', cancel: 'إلغاء المستند قبل إصداره', collect: 'تحصيل بسند قبض' };
 const printPage = () => window.print();
 const seller = computed(() => d.value?.seller ?? (lk.value ? { name: lk.value.settings.sellerName, vatNumber: lk.value.settings.vatNumber, address: lk.value.settings.address } : null));
+/** هوية الشركة (الشعار والألوان وبيانات التواصل) للفاتورة المطبوعة */
+const brand = ref<any>(null);
+/** وقت الإصدار بتوقيت الرياض بأرقام لاتينية (مثل 14:05) */
+const timeOf = (t: string) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Riyadh' });
+const brandVars = computed(() => {
+  const c = brand.value?.colors ?? {};
+  return { '--rw-primary': c.primary || '#164e38', '--rw-accent': c.accent || '#c7a27a', '--rw-dark': c.dark || '#0f2e22', '--rw-soft': '#f3ede6' } as Record<string, string>;
+});
+const docTitleEn = computed(() => {
+  if (!d.value) return '';
+  const t = d.value.docType === 'standard' ? 'Tax Invoice' : d.value.docType === 'simplified' ? 'Simplified Tax Invoice' : 'Invoice';
+  return d.value.kind === 'invoice' ? t : `${d.value.kind === 'credit_note' ? 'Credit Note' : 'Debit Note'} (${t})`;
+});
 const docTitle = computed(() => {
   if (!d.value) return '';
   const t = d.value.docType === 'standard' ? 'فاتورة ضريبية' : d.value.docType === 'simplified' ? 'فاتورة ضريبية مبسطة' : 'فاتورة';
@@ -114,74 +128,113 @@ const docTitle = computed(() => {
     </div>
     <div v-if="d.buyerProblems?.length" class="alert alert-error pc-noprint">بيانات المشتري ناقصة للفاتورة الضريبية: {{ d.buyerProblems.join('، ') }}</div>
 
-    <div class="pc-grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr)">
-      <section class="card bl-invoice">
-        <div class="bl-invoice-head">
-          <div>
+    <div class="rw-doc-layout">
+      <section class="card bl-invoice" :style="brandVars">
+        <header class="rw-inv-top">
+          <div class="rw-inv-brand">
+            <img v-if="brand?.logoUrl" :src="brand.logoUrl" :alt="seller?.name" class="rw-inv-logo" />
+            <div>
+              <p class="rw-inv-legal">{{ seller?.name }}</p>
+              <p v-if="seller?.nameEn || brand?.englishName" class="rw-inv-en" dir="ltr">{{ seller?.nameEn || brand?.englishName }}</p>
+              <p class="rw-inv-ids">
+                <template v-if="seller?.idNumber">{{ lk?.idTypes?.[seller.idType] ?? 'السجل التجاري' }} {{ seller.idNumber }}</template>
+                <template v-if="seller?.vatNumber"> · الرقم الضريبي <b dir="ltr">{{ seller.vatNumber }}</b></template>
+              </p>
+            </div>
+          </div>
+          <div class="rw-inv-title">
             <h2>{{ docTitle }}</h2>
-            <p class="pc-code" style="margin: 0">{{ d.code }}</p>
-            <p class="pm-muted" style="margin: 4px 0 0; font-size: .82rem">
-              تاريخ الإصدار {{ fmtDate(d.issueDate) }}<template v-if="d.issuedAt"> · {{ fmtDateTime(d.issuedAt) }}</template>
-              <template v-if="d.supplyDate"> · تاريخ التوريد {{ fmtDate(d.supplyDate) }}</template>
-              <template v-if="d.dueDate && d.kind === 'invoice'"> · الاستحقاق {{ fmtDate(d.dueDate) }}</template>
-            </p>
-            <p v-if="d.ref" style="margin: 4px 0 0; font-size: .84rem">على الفاتورة <RouterLink class="pm-link" :to="`/billing/invoices/${d.ref.id}`">{{ d.ref.code }}</RouterLink> بتاريخ {{ fmtDate(d.ref.issueDate) }} · السبب: {{ d.reason }}</p>
-            <p v-if="!d.icv" style="margin-top: 8px"><span class="bl-stamp">مسودة غير صادرة</span></p>
+            <p class="rw-inv-title-en" dir="ltr">{{ docTitleEn }}</p>
+            <p class="rw-inv-no" dir="ltr">{{ d.code }}</p>
+            <span v-if="!d.icv" class="bl-stamp">مسودة غير صادرة</span>
           </div>
-          <img v-if="d.qrImage" :src="d.qrImage" alt="رمز الاستجابة السريعة للفاتورة" />
+        </header>
+        <div class="rw-inv-rule" />
+
+        <div class="rw-inv-meta">
+          <div><span>تاريخ الإصدار <i dir="ltr">Issue date</i></span><b>{{ fmtDate(d.issueDate) }}<small v-if="d.issuedAt" class="rw-inv-time" dir="ltr">{{ timeOf(d.issuedAt) }}</small></b></div>
+          <div v-if="d.supplyDate"><span>تاريخ التوريد <i dir="ltr">Supply date</i></span><b>{{ fmtDate(d.supplyDate) }}</b></div>
+          <div v-if="d.dueDate && d.kind === 'invoice'"><span>تاريخ الاستحقاق <i dir="ltr">Due date</i></span><b>{{ fmtDate(d.dueDate) }}</b></div>
+          <div v-if="d.ref"><span>الفاتورة الأصلية <i dir="ltr">Original invoice</i></span><b><RouterLink class="pm-link" :to="`/billing/invoices/${d.ref.id}`">{{ d.ref.code }}</RouterLink> · {{ fmtDate(d.ref.issueDate) }}</b></div>
+          <div v-if="d.qrImage" class="rw-inv-qr"><img :src="d.qrImage" alt="رمز الاستجابة السريعة للفاتورة" /></div>
         </div>
-        <div class="bl-parties">
+        <p v-if="d.ref" class="rw-inv-reason">سبب {{ d.kindLabel }}: {{ d.reason }}</p>
+
+        <div class="rw-inv-parties">
           <div>
-            <h3>البائع</h3>
+            <h3>البائع <i dir="ltr">Seller</i></h3>
             <p><b>{{ seller?.name }}</b></p>
-            <p v-if="seller?.vatNumber">الرقم الضريبي: <span class="pc-code">{{ seller.vatNumber }}</span></p>
+            <p v-if="seller?.vatNumber">الرقم الضريبي: <span dir="ltr">{{ seller.vatNumber }}</span></p>
             <p>{{ addressText(seller?.address) }}</p>
+            <p v-if="brand?.contact?.phone || brand?.contact?.email" dir="ltr" class="rw-inv-contact">{{ [brand.contact.phone, brand.contact.email].filter(Boolean).join(' · ') }}</p>
           </div>
           <div>
-            <h3>المشتري</h3>
+            <h3>المشتري <i dir="ltr">Buyer</i></h3>
             <p><b>{{ d.buyer?.name ?? 'عميل نقدي' }}</b> <RouterLink v-if="d.customer" class="pm-link pc-noprint" :to="`/billing/customers/${d.customer.id}`">{{ d.customer.code }}</RouterLink></p>
-            <p v-if="d.buyer?.vatNumber">الرقم الضريبي: <span class="pc-code">{{ d.buyer.vatNumber }}</span></p>
+            <p v-if="d.buyer?.vatNumber">الرقم الضريبي: <span dir="ltr">{{ d.buyer.vatNumber }}</span></p>
             <p v-if="d.buyer?.idNumber">{{ lk?.idTypes?.[d.buyer.idType] ?? 'المعرّف' }}: {{ d.buyer.idNumber }}</p>
             <p v-if="d.buyer?.address">{{ addressText(d.buyer.address) }}</p>
           </div>
         </div>
+
         <div class="table-wrap">
-          <table class="bl-lines">
-            <thead><tr><th>البيان</th><th>الكمية</th><th>السعر</th><th>الخصم</th><th>الصافي</th><th>الضريبة</th><th>الإجمالي</th></tr></thead>
+          <table class="rw-inv-lines">
+            <thead>
+              <tr>
+                <th>#</th><th>البيان <i>Description</i></th><th>الكمية <i>Qty</i></th><th>سعر الوحدة <i>Unit price</i></th><th>الخصم <i>Discount</i></th>
+                <th>الصافي <i>Net</i></th><th v-if="d.docType !== 'nontax'">الضريبة <i>VAT</i></th><th>الإجمالي <i>Total</i></th>
+              </tr>
+            </thead>
             <tbody>
-              <tr v-for="l in d.lines" :key="l.id">
-                <td>{{ l.description }}<small class="pm-muted" style="display: block"><span :style="{ color: CAT_COLOR[l.category] }">{{ l.categoryLabel }} {{ l.rate }}%</span><template v-if="l.reasonText"> · {{ l.reasonText }}</template></small></td>
+              <tr v-for="(l, i) in d.lines" :key="l.id">
+                <td class="pc-num">{{ i + 1 }}</td>
+                <td>{{ l.description }}<small v-if="d.docType !== 'nontax'" class="rw-inv-cat"><span :style="{ color: CAT_COLOR[l.category] }">{{ l.categoryLabel }} {{ l.rate }}%</span><template v-if="l.reasonText"> · {{ l.reasonText }}</template></small></td>
                 <td class="pc-num">{{ l.qty }} {{ l.unit ?? '' }}</td>
                 <td class="pc-num">{{ money(l.unitPrice) }}</td>
                 <td class="pc-num">{{ l.discount ? money(l.discount) : '—' }}</td>
                 <td class="pc-num">{{ money(l.net) }}</td>
-                <td class="pc-num">{{ money(l.vat) }}</td>
-                <td class="pc-num">{{ money(l.total) }}</td>
+                <td v-if="d.docType !== 'nontax'" class="pc-num">{{ money(l.vat) }}</td>
+                <td class="pc-num"><b>{{ money(l.total) }}</b></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="bl-totals" style="margin-top: 12px">
-          <div><span>الإجمالي قبل الخصم</span><span class="pc-num">{{ sar(d.gross) }}</span></div>
-          <div v-if="d.discount"><span>الخصم</span><span class="pc-num">− {{ sar(d.discount) }}</span></div>
-          <div><span>الإجمالي الخاضع للضريبة</span><span class="pc-num">{{ sar(d.taxable) }}</span></div>
-          <div v-for="b in d.breakdown" :key="`${b.category}${b.rate}${b.reasonCode}`" style="font-size: .82rem; color: var(--muted)"><span>{{ lk?.vatCategories?.[b.category] }} {{ b.rate }}%<template v-if="b.reasonText"> ({{ b.reasonText }})</template>: {{ money(b.taxable) }}</span><span class="pc-num">{{ money(b.vat) }}</span></div>
-          <div v-if="d.docType !== 'nontax'"><span>مجموع ضريبة القيمة المضافة</span><span class="pc-num">{{ sar(d.vat) }}</span></div>
-          <div class="grand"><span>الإجمالي شامل الضريبة</span><span class="pc-num">{{ sar(d.total) }}</span></div>
+
+        <div class="rw-inv-bottom">
+          <div class="rw-inv-side">
+            <div v-if="d.bank && d.kind !== 'credit_note'" class="rw-inv-bank">
+              <h3>بيانات السداد <i dir="ltr">Payment details</i></h3>
+              <p>{{ d.bank.bankName ?? '' }}<template v-if="d.bank.bankName"> · </template>{{ d.bank.accountName }}</p>
+              <p v-if="d.bank.iban">الآيبان <b dir="ltr">{{ d.bank.iban }}</b></p>
+            </div>
+            <p v-if="d.notes" class="rw-inv-notes">{{ d.notes }}</p>
+            <p v-if="d.terms && d.kind === 'invoice'" class="rw-inv-terms">{{ d.terms }}</p>
+          </div>
+          <div class="rw-inv-totals">
+            <div><span>الإجمالي قبل الخصم</span><span class="pc-num">{{ sar(d.gross) }}</span></div>
+            <div v-if="d.discount"><span>الخصم</span><span class="pc-num">− {{ sar(d.discount) }}</span></div>
+            <div><span>{{ d.docType === 'nontax' ? 'الصافي' : 'الإجمالي الخاضع للضريبة' }}</span><span class="pc-num">{{ sar(d.taxable) }}</span></div>
+            <template v-if="d.docType !== 'nontax'">
+              <div v-for="b in d.breakdown" :key="`${b.category}${b.rate}${b.reasonCode}`" class="rw-inv-sub"><span>{{ lk?.vatCategories?.[b.category] }} {{ b.rate }}%<template v-if="b.reasonText"> ({{ b.reasonText }})</template>: {{ money(b.taxable) }}</span><span class="pc-num">{{ money(b.vat) }}</span></div>
+              <div><span>ضريبة القيمة المضافة <i dir="ltr">VAT</i></span><span class="pc-num">{{ sar(d.vat) }}</span></div>
+            </template>
+            <div class="grand"><span>{{ d.docType === 'nontax' ? 'الإجمالي' : 'الإجمالي شامل الضريبة' }} <i dir="ltr">Total</i></span><span class="pc-num">{{ sar(d.total) }}</span></div>
+          </div>
         </div>
-        <p v-if="d.notes" style="white-space: pre-line; margin-top: 12px; font-size: .86rem">{{ d.notes }}</p>
-        <div v-if="d.bank && d.kind !== 'credit_note'" class="bl-bank" style="margin-top: 12px; font-size: .84rem">
-          <b>بيانات السداد</b>
-          <p style="margin: 2px 0">{{ d.bank.bankName ?? '' }} · {{ d.bank.accountName }}</p>
-          <p v-if="d.bank.iban" style="margin: 2px 0">الآيبان: <span class="pc-code" dir="ltr">{{ d.bank.iban }}</span></p>
+
+        <div class="rw-inv-tech">
+          <p v-if="d.uuid">المعرّف الفريد <span dir="ltr">{{ d.uuid }}</span> · العداد {{ d.icv }}</p>
+          <p v-if="d.hasXml">بصمة المستند <span dir="ltr">{{ d.invoiceHash }}</span></p>
+          <p v-if="d.hasXml && d.signedEnv !== 'production'"><span class="bl-stamp">نسخة تجريبية: موقّعة بشهادة {{ d.signedEnvLabel }}</span></p>
         </div>
-        <p v-if="d.terms && d.kind === 'invoice'" class="pm-muted" style="white-space: pre-line; font-size: .8rem">{{ d.terms }}</p>
-        <p v-if="d.uuid" class="pm-muted" style="font-size: .72rem; margin: 10px 0 0">المعرّف الفريد <span class="pc-code">{{ d.uuid }}</span> · العداد {{ d.icv }}</p>
-        <p v-if="d.hasXml" class="pm-muted" style="font-size: .72rem; margin: 4px 0 0">بصمة المستند <span class="pc-code" dir="ltr">{{ d.invoiceHash }}</span></p>
-        <p v-if="d.hasXml && d.signedEnv !== 'production'" style="margin: 6px 0 0"><span class="bl-stamp">نسخة تجريبية: موقّعة بشهادة {{ d.signedEnvLabel }}</span></p>
+        <footer class="rw-inv-foot">
+          <span>{{ addressText(seller?.address) }}</span>
+          <span v-if="brand?.contact?.email" dir="ltr">{{ brand.contact.email }}</span>
+          <span v-if="brand?.contact?.phone" dir="ltr">{{ brand.contact.phone }}</span>
+        </footer>
       </section>
 
-      <div style="display: grid; gap: 16px; align-content: start" class="pc-noprint">
+      <div class="rw-doc-side pc-noprint">
         <section class="card pm-panel">
           <h2>القيد والتحصيل</h2>
           <dl class="pc-dl" style="grid-template-columns: 1fr">
