@@ -97,4 +97,26 @@ describe('Reaya Watan default brand identity', () => {
     expect((await db.getRepository(Organization).findOneByOrFail({ slug: 'reayawatan' })).isActive).toBe(false);
     await db.query(`UPDATE organizations SET is_active = true WHERE slug = 'reayawatan'`);
   });
+  it('fills the approved contact details: empty identity fields and still-pending site fields, never a saved value', async () => {
+    const db = app.get(DataSource);
+    const [org] = await db.query("SELECT id, slug FROM organizations WHERE slug = 'reayawatan'");
+    // هوية محفوظة قبل اعتماد الهاتف: الهاتف وأوقات العمل والواتساب فارغة، والبريد مُدخل يدويًا
+    await db.query(`UPDATE org_identity SET contact = contact || '{"phone":"","workingHours":"","email":"manual@reayawatan.com"}'::jsonb
+                      || jsonb_build_object('social', (contact->'social') || '{"whatsapp":""}'::jsonb) WHERE organization_id = $1`, [org.id]);
+    // صفحة تواصل محفوظة قبل الاعتماد: الهاتف معلّق، والبريد معدّل يدويًا
+    await db.query(`INSERT INTO rw_site_content (organization_id, key, data) VALUES ($1, 'contact', $2)
+                    ON CONFLICT (organization_id, key) DO UPDATE SET data = EXCLUDED.data`,
+      [org.id, JSON.stringify({ phone: '{{يُستكمل}}', whatsapp: '{{يُستكمل}}', hours: 'الأحد إلى الخميس، {{الساعات}}', email: 'sales@reayawatan.com' })]);
+    await seedCompanyBrand(db, app.get(FileStore), org);
+    const id = (await http.get('/api/identity').set(as(director)).expect(200)).body;
+    expect(id.contact.phone).toBe('+966564355564');
+    expect(id.contact.workingHours).toContain('من 9 صباحاً إلى 2 ظهراً');
+    expect(id.contact.social.whatsapp).toBe('966564355564');
+    expect(id.contact.email).toBe('manual@reayawatan.com');
+    const site = (await http.get('/api/public/web').expect(200)).body;
+    expect(site.content.contact.phone).toBe('+966 56 435 5564');
+    expect(site.content.contact.whatsapp).toBe('+966 56 435 5564');
+    expect(site.content.contact.hours).toBe('الأحد إلى الخميس، من 9 صباحاً إلى 2 ظهراً. الجمعة والسبت إجازة.');
+    expect(site.content.contact.email).toBe('sales@reayawatan.com');
+  });
 });
