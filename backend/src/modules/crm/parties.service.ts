@@ -9,7 +9,7 @@ import {
   ACTIVITY_TYPES, CHANNELS, Consents, CrmContact, CrmMerge, CrmParty, CrmPartyLink, DECISION_ROLES, LEAD_STATUS, PARTY_KINDS, PARTY_ROLES, PartyKind, PartyRole,
 } from './entities/crm.entity';
 import { CRM_PERMISSIONS as P } from './crm.manifest';
-import { ACT_OF_PARTY, CrmCore, SYSTEM_ACTOR, audienceLabel, clean, leadCode, logEntry, normEmail, normName, normPhone, partyCode } from './crm-core.service';
+import { CrmCore, SYSTEM_ACTOR, audienceLabel, clean, leadCode, logEntry, normEmail, normName, normPhone, partyCode } from './crm-core.service';
 import { ConsentsDto, ContactDto, DuplicateCheckQuery, LinkDto, PartyDto, PartyListQuery } from './crm.dto';
 
 type ExternalRole = Exclude<PartyRole, 'lead'>;
@@ -150,7 +150,7 @@ export class PartiesService {
       `SELECT p.id, p.party_no AS "partyNo", p.kind, p.name, p.phone, p.email, p.city, p.tags, p.owner_id AS "ownerId", p.do_not_contact AS "doNotContact",
               p.consents, p.created_at AS "createdAt", us.full_name AS "ownerName",
               COALESCE((SELECT jsonb_agg(DISTINCT l.role) FROM crm_party_links l WHERE l.organization_id = $1 AND l.party_id = p.id), '[]') AS roles,
-              (SELECT max(COALESCE(a.done_at, a.created_at)) FROM crm_activities a WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('p.id')}) AS "lastActivity"
+              (SELECT max(COALESCE(a.done_at, a.created_at)) FROM crm_activities a WHERE a.organization_id = $1 AND (a.party_id = p.id OR a.id IN (SELECT ap.activity_id FROM crm_activity_parties ap WHERE ap.organization_id = a.organization_id AND ap.party_id = p.id))) AS "lastActivity"
          FROM crm_parties p LEFT JOIN users us ON us.id = p.owner_id AND us.organization_id = $1
         WHERE p.organization_id = $1 AND p.is_active
           AND crm_party_visible($1, p.id, p.owner_id, $3, $2, $10, $11::text[])
@@ -463,7 +463,7 @@ export class PartiesService {
     const rows: Record<string, unknown>[] = await this.db.query(
       `SELECT p.id, p.party_no AS "partyNo", p.kind, p.name, p.phone, p.email, p.vat_number AS "vatNumber", p.city, p.created_at AS "createdAt",
               COALESCE((SELECT jsonb_agg(l.role) FROM crm_party_links l WHERE l.organization_id = $1 AND l.party_id = p.id), '[]') AS roles,
-              (SELECT count(*)::int FROM crm_activities a WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('p.id')}) AS activities
+              (SELECT count(*)::int FROM crm_activities a WHERE a.organization_id = $1 AND (a.party_id = p.id OR a.id IN (SELECT ap.activity_id FROM crm_activity_parties ap WHERE ap.organization_id = a.organization_id AND ap.party_id = p.id))) AS activities
          FROM crm_parties p WHERE p.organization_id = $1 AND p.id = ANY($2::uuid[])`, [org, ids]);
     const map = new Map(rows.map((r) => [r.id as string, { ...r, code: partyCode(Number(r.partyNo)) }]));
     // المجموعة نفسها قد تظهر بأكثر من سبب: تُعرض مرة واحدة بأسبابها
@@ -548,7 +548,7 @@ export class PartiesService {
                 a.audience, a.audience_role AS "audienceRole",
                 CASE WHEN a.audience IS NOT NULL THEN (SELECT count(*)::int FROM crm_activity_parties ap WHERE ap.organization_id = $1 AND ap.activity_id = a.id) END AS "partyCount"
            FROM crm_activities a LEFT JOIN users us ON us.id = a.owner_id AND us.organization_id = $1
-          WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('$2')} ORDER BY COALESCE(a.done_at, a.due_at, a.created_at) DESC LIMIT 200`, [org, id]),
+          WHERE a.organization_id = $1 AND (a.party_id = $2 OR a.id IN (SELECT ap.activity_id FROM crm_activity_parties ap WHERE ap.organization_id = a.organization_id AND ap.party_id = $2)) ORDER BY COALESCE(a.done_at, a.due_at, a.created_at) DESC LIMIT 200`, [org, id]),
       this.db.query(`SELECT id, lead_no AS "leadNo", name, status, source, interest, created_at AS "createdAt", converted_at AS "convertedAt" FROM crm_leads WHERE organization_id = $1 AND party_id = $2 ORDER BY created_at DESC`, [org, id]),
       p.ownerId ? this.db.query('SELECT full_name AS "fullName" FROM users WHERE organization_id = $1 AND id = $2', [org, p.ownerId]).then((r) => r[0]?.fullName ?? null) : null,
       this.db.query(`SELECT removed_id AS "removedId", snapshot->>'name' AS name, by_name AS "byName", created_at AS "createdAt" FROM crm_merges WHERE organization_id = $1 AND kept_id = $2 ORDER BY created_at DESC`, [org, id]),

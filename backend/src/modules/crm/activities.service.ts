@@ -133,7 +133,7 @@ export class ActivitiesService {
       `SELECT p.id, p.do_not_contact AS dnc FROM crm_parties p WHERE p.organization_id = $1 AND p.is_active
           AND crm_party_visible($1, p.id, p.owner_id, $2, $3, $4, $5::text[])
           AND ($6::text IS NULL OR EXISTS (SELECT 1 FROM crm_party_links k WHERE k.organization_id = $1 AND k.party_id = p.id AND k.role = $6))
-        ORDER BY p.party_no LIMIT ${MAX_AUDIENCE_PARTIES + 1}`, [org, u.id, sc.all, sc.shared, sc.roles, dto.audienceRole ?? null]);
+        ORDER BY p.party_no LIMIT $7`, [org, u.id, sc.all, sc.shared, sc.roles, dto.audienceRole ?? null, MAX_AUDIENCE_PARTIES + 1]);
     const ids = rows.filter((r) => !(contact && r.dnc)).map((r) => r.id);
     if (rows.length > MAX_AUDIENCE_PARTIES) throw new BadRequestException(`عدد الجهات أكبر من ${MAX_AUDIENCE_PARTIES}، فاختر دورًا أضيق`);
     if (!ids.length) throw new BadRequestException(rows.length ? 'كل الجهات في هذا الاختيار طلبت عدم التواصل معها' : 'لا توجد جهات في هذا الاختيار');
