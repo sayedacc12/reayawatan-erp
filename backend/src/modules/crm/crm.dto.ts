@@ -2,7 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize, IsArray, IsBoolean, IsDateString, IsEmail, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf, ValidateNested,
 } from 'class-validator';
-import { ACTIVITY_TYPES, ASSIGN_MODES, CHANNELS, DECISION_ROLES, LEAD_STATUS, PARTY_KINDS, PARTY_ROLES } from './entities/crm.entity';
+import { ACTIVITY_TYPES, ASSIGN_MODES, CHANNELS, DECISION_ROLES, LEAD_STATUS, MAX_FOLLOWERS, MAX_PICKED_PARTIES, PARTY_KINDS, PARTY_ROLES } from './entities/crm.entity';
 import { WEB_TOPIC_INTEREST } from './crm-defaults';
 
 const KEY = /^[a-z][a-z0-9_]{1,39}$/;
@@ -185,7 +185,18 @@ export class ActivityDto {
   @IsOptional() @IsString() @MaxLength(2000) outcome?: string | null;
   @IsOptional() @ValidateIf(opt) @IsUUID() partyId?: string | null;
   @IsOptional() @ValidateIf(opt) @IsUUID() leadId?: string | null;
+  /** عدة جهات مختارة (جهة واحدة هنا تُعامل كـ partyId) */
+  @IsOptional() @IsArray() @ArrayMaxSize(MAX_PICKED_PARTIES, { message: `اختر ${MAX_PICKED_PARTIES} جهة على الأكثر، أو اختر «الكل»` }) @IsUUID('all', { each: true }) partyIds?: string[];
+  /** كل العملاء (أو كل الجهات إن كان audienceRole فارغًا) في نطاق رؤية الموظف وقت الإنشاء */
+  @IsOptional() @IsBoolean() allParties?: boolean;
+  @IsOptional() @ValidateIf(opt) @IsIn(Object.keys(PARTY_ROLES)) audienceRole?: keyof typeof PARTY_ROLES | null;
   @IsOptional() @ValidateIf(opt) @IsUUID() ownerId?: string | null;
+  /** متابعون للاطلاع فقط */
+  @IsOptional() @IsArray() @ArrayMaxSize(MAX_FOLLOWERS) @IsUUID('all', { each: true }) followerIds?: string[];
+}
+
+export class FollowersDto {
+  @IsArray() @ArrayMaxSize(MAX_FOLLOWERS) @IsUUID('all', { each: true }) userIds!: string[];
 }
 
 export class CompleteActivityDto {

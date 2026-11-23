@@ -23,6 +23,14 @@ export const normEmail = (e: string | null | undefined) => clean(e)?.toLowerCase
 /** توحيد الاسم للمقارنة: بلا تشكيل ولا همزات ولا مسافات زائدة */
 export const normName = (s: string) => s.trim().replace(/[ً-ٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').toLowerCase();
 export const SYSTEM_ACTOR = 'النظام';
+/** وصف الجهات في نشاط لعدة جهات: «كل العملاء (25)» أو «جهات مختارة (3)» */
+export const audienceLabel = (audience: string | null | undefined, role: string | null | undefined, count: number | null | undefined) => {
+  if (!audience) return null;
+  const n = Number(count ?? 0);
+  if (audience === 'many') return `جهات مختارة (${n})`;
+  if (!role) return `كل الجهات (${n})`;
+  return role === 'customer' ? `كل العملاء (${n})` : `الكل: ${PARTY_ROLES[role as keyof typeof PARTY_ROLES] ?? role} (${n})`;
+};
 
 const has = (u: OrgUser, p: string) => u.isSuperadmin || u.permissions.includes(p);
 

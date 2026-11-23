@@ -70,6 +70,12 @@ export class CrmSeed {
       await this.activities.create(sales, { type: 'whatsapp', subject: 'إرسال جدول الدورات القادمة', dueAt: at(-2), done: false, partyId: ahmad });
     }
 
+    // نشاط واحد لعدة عملاء، ورسالة لكل العملاء، بمسؤول ومتابع للاطلاع
+    if (amal && ahmad) {
+      await this.activities.create(sales, { type: 'meeting', subject: 'لقاء تعريفي مشترك ببرامج التدريب الصحي', dueAt: at(5), done: false, partyIds: [amal, ahmad], followerIds: [admin.id] });
+    }
+    await this.activities.create(sales, { type: 'email', subject: 'إرسال دليل خدمات الشركة', done: true, outcome: 'أُرسل الدليل بالبريد.', allParties: true, audienceRole: 'customer' }).catch(() => undefined);
+
     // جهة مكررة تنتظر الدمج (البريد نفسه لشركة الأمل): تُجرَّب من شاشة المكرر والدمج
     await this.parties.create(sales, { kind: 'org', name: 'الأمل للتجارة', email: 'csr@alamal-demo.sa', city: 'الرياض', source: 'event', tags: ['ملتقى الرياض'], allowDuplicate: true, notes: 'سُجلت في الملتقى قبل البحث في السجل.' });
 
