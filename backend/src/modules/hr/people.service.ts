@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
+import { CORE_PERMISSIONS } from '../../core/core.manifest';
 import { ContractType, HrEmployee, HrGrade, HrJob, HrLeaveRequest, HrPerformanceCard, HrRequest, HrUnit, LeaveStatus, QiwaStatus } from './entities/hr.entity';
 import { EmployeeDto, EosCalcDto, LeaveDto, TerminateDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
@@ -232,6 +233,7 @@ export class PeopleService {
         ...dto, organizationId: org, employeeNo: no, unitId: v.unitId, gradeId: v.gradeId, probationEnd: v.probationEnd, leaveOpening: v.opening,
         step: dto.step ?? 1, managerId: dto.managerId ?? null, salaryException: dto.salaryException ?? null,
       }));
+      await this.syncUserName(em, actor, e);
       return e.id;
     });
     return { id };
@@ -267,8 +269,24 @@ export class PeopleService {
       ...dto, unitId: v.unitId, gradeId: v.gradeId, probationEnd: v.probationEnd, leaveOpening: v.opening, step: dto.step ?? e.step,
       managerId: dto.managerId ?? null, salaryException: dto.salaryException ?? null,
     });
-    await this.employees.save(e);
+    await this.db.transaction(async (em) => {
+      await em.getRepository(HrEmployee).save(e);
+      await this.syncUserName(em, actor, e);
+    });
     return { id };
+  }
+
+  /**
+   * اسم الموظف هو اسم حساب الدخول المربوط به: يُحدَّث معه في المعاملة نفسها،
+   * لمن يملك أيضًا صلاحية إدارة المستخدمين، ولا يمس حساب مدير نظام إلا بيد مدير نظام.
+   */
+  private async syncUserName(em: EntityManager, actor: OrgUser, e: HrEmployee) {
+    if (!e.userId) return;
+    if (!actor.isSuperadmin && !actor.permissions.includes(CORE_PERMISSIONS.usersManage)) return;
+    await em.query(
+      `UPDATE users SET full_name = $1 WHERE id = $2 AND organization_id = $3 AND ($4 OR is_superadmin = false) AND full_name IS DISTINCT FROM $1`,
+      [e.fullName, e.userId, actor.organizationId, actor.isSuperadmin],
+    );
   }
 
   /** إنهاء الخدمة: يحسب المكافأة وتعويض رصيد الإجازة السنوية ويغلق ملف الموظف */

@@ -7,6 +7,9 @@ import { User } from '../entities';
 import { RolesService } from '../roles/roles.service';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
 
+/** صلاحية ملفات الموظفين (وحدة الموارد البشرية) */
+const HR_EMPLOYEES_MANAGE = 'hr.employees.manage';
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -79,7 +82,18 @@ export class UsersService {
       await this.roles.assertCanAssign(actor, roles.filter((r) => !current.has(r.id)));
       user.roles = roles;
     }
-    await this.users.save(user);
+    await this.users.manager.transaction(async (em) => {
+      await em.save(user);
+      // اسم حساب الدخول هو اسم ملف الموظف المربوط به (ما لم تنتهِ خدمته فيبقى ملفه كما أُغلق).
+      // الاسم الرسمي في ملف الموظف لا يغيّره إلا من يملك صلاحية ملفات الموظفين، ولا يغيّر أحد ملفه بنفسه.
+      const hrEditor = actor.isSuperadmin || (actor.permissions.includes(HR_EMPLOYEES_MANAGE) && id !== actor.id);
+      if (dto.fullName !== undefined && hrEditor) {
+        await em.query(
+          `UPDATE hr_employees SET full_name = $1 WHERE organization_id = $2 AND user_id = $3 AND status <> 'terminated' AND full_name IS DISTINCT FROM $1`,
+          [user.fullName, actor.organizationId, id],
+        );
+      }
+    });
     return this.get(actor, id);
   }
 
