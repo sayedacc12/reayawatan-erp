@@ -30,6 +30,7 @@ import { StarterController } from './starter.controller';
 import { OrganizationStarter } from './starter.entity';
 import { STARTER_PACKS, StarterService } from './starter.service';
 import { CompanyPackService } from './company-pack.service';
+import { CompanyQualityService } from './company-quality.service';
 
 /**
  * الإعدادات الافتراضية لكل نظام، مكيّفة لشركة استشارية (رعاية وطن). لإضافة نظام جديد: اكتب ملف packs/<النظام>.pack.ts
@@ -48,6 +49,6 @@ const PACKS = [
     TypeOrmModule.forFeature([OrganizationStarter]),
   ],
   controllers: [StarterController],
-  providers: [...PACKS, StarterService, CompanyPackService, { provide: STARTER_PACKS, useFactory: (...packs: unknown[]) => packs, inject: PACKS }],
+  providers: [...PACKS, StarterService, CompanyPackService, CompanyQualityService, { provide: STARTER_PACKS, useFactory: (...packs: unknown[]) => packs, inject: PACKS }],
 })
 export class StarterModule {}
