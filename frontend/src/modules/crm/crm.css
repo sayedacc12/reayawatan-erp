@@ -93,3 +93,9 @@ button.cr-chip.on { background: var(--c, #0891b2); color: #fff; }
 .cr-trend > div { flex: 1; max-width: 36px; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
 .cr-trend i { display: block; min-height: 3px; border-radius: 6px 6px 2px 2px; background: linear-gradient(180deg, #22d3ee, #7c3aed); animation: cr-rise .8s var(--ease) both; }
 @keyframes cr-rise { from { height: 0 !important; } }
+.cr-x { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; font-weight: 700; padding: 0 2px; line-height: 1; }
+.cr-picklist { display: flex; flex-direction: column; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; margin-top: 6px; overflow: hidden; }
+.cr-picklist button { text-align: start; border: 0; border-bottom: 1px solid var(--border, #e2e8f0); background: transparent; color: inherit; font: inherit; padding: 8px 12px; cursor: pointer; }
+.cr-picklist button:last-child { border-bottom: 0; }
+.cr-picklist button:hover { background: color-mix(in srgb, #0891b2 8%, transparent); }
+.cr-people { font-size: .82rem; color: var(--muted); }

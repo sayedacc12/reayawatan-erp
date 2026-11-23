@@ -9,7 +9,7 @@ import {
   ACTIVITY_TYPES, CHANNELS, Consents, CrmContact, CrmMerge, CrmParty, CrmPartyLink, DECISION_ROLES, LEAD_STATUS, PARTY_KINDS, PARTY_ROLES, PartyKind, PartyRole,
 } from './entities/crm.entity';
 import { CRM_PERMISSIONS as P } from './crm.manifest';
-import { CrmCore, SYSTEM_ACTOR, clean, leadCode, logEntry, normEmail, normName, normPhone, partyCode } from './crm-core.service';
+import { ACT_OF_PARTY, CrmCore, SYSTEM_ACTOR, audienceLabel, clean, leadCode, logEntry, normEmail, normName, normPhone, partyCode } from './crm-core.service';
 import { ConsentsDto, ContactDto, DuplicateCheckQuery, LinkDto, PartyDto, PartyListQuery } from './crm.dto';
 
 type ExternalRole = Exclude<PartyRole, 'lead'>;
@@ -150,7 +150,7 @@ export class PartiesService {
       `SELECT p.id, p.party_no AS "partyNo", p.kind, p.name, p.phone, p.email, p.city, p.tags, p.owner_id AS "ownerId", p.do_not_contact AS "doNotContact",
               p.consents, p.created_at AS "createdAt", us.full_name AS "ownerName",
               COALESCE((SELECT jsonb_agg(DISTINCT l.role) FROM crm_party_links l WHERE l.organization_id = $1 AND l.party_id = p.id), '[]') AS roles,
-              (SELECT max(COALESCE(a.done_at, a.created_at)) FROM crm_activities a WHERE a.organization_id = $1 AND a.party_id = p.id) AS "lastActivity"
+              (SELECT max(COALESCE(a.done_at, a.created_at)) FROM crm_activities a WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('p.id')}) AS "lastActivity"
          FROM crm_parties p LEFT JOIN users us ON us.id = p.owner_id AND us.organization_id = $1
         WHERE p.organization_id = $1 AND p.is_active
           AND crm_party_visible($1, p.id, p.owner_id, $3, $2, $10, $11::text[])
@@ -463,7 +463,7 @@ export class PartiesService {
     const rows: Record<string, unknown>[] = await this.db.query(
       `SELECT p.id, p.party_no AS "partyNo", p.kind, p.name, p.phone, p.email, p.vat_number AS "vatNumber", p.city, p.created_at AS "createdAt",
               COALESCE((SELECT jsonb_agg(l.role) FROM crm_party_links l WHERE l.organization_id = $1 AND l.party_id = p.id), '[]') AS roles,
-              (SELECT count(*)::int FROM crm_activities a WHERE a.organization_id = $1 AND a.party_id = p.id) AS activities
+              (SELECT count(*)::int FROM crm_activities a WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('p.id')}) AS activities
          FROM crm_parties p WHERE p.organization_id = $1 AND p.id = ANY($2::uuid[])`, [org, ids]);
     const map = new Map(rows.map((r) => [r.id as string, { ...r, code: partyCode(Number(r.partyNo)) }]));
     // المجموعة نفسها قد تظهر بأكثر من سبب: تُعرض مرة واحدة بأسبابها
@@ -494,12 +494,18 @@ export class PartiesService {
         this.assertManage(u, x);
       }
       const snapshot = { ...rem } as unknown as Record<string, unknown>;
+      // الأنشطة الجماعية: روابط المكررة تنتقل إلى الأساسية، وما كانت فيه الجهتان معًا يبقى مرة واحدة
+      await em.query(
+        `INSERT INTO crm_activity_parties (activity_id, party_id, organization_id)
+         SELECT activity_id, $3, organization_id FROM crm_activity_parties WHERE organization_id = $1 AND party_id = $2 ON CONFLICT DO NOTHING`, [org, removeId, keepId]);
+      const groupMoved = (await em.query('DELETE FROM crm_activity_parties WHERE organization_id = $1 AND party_id = $2', [org, removeId]))[1] as number;
       const moved = {
         links: (await em.query('UPDATE crm_party_links SET party_id = $3 WHERE organization_id = $1 AND party_id = $2', [org, removeId, keepId]))[1] as number,
         contacts: (await em.query('UPDATE crm_contacts SET party_id = $3 WHERE organization_id = $1 AND party_id = $2', [org, removeId, keepId]))[1] as number,
         activities: (await em.query('UPDATE crm_activities SET party_id = $3 WHERE organization_id = $1 AND party_id = $2', [org, removeId, keepId]))[1] as number,
         leads: (await em.query('UPDATE crm_leads SET party_id = $3 WHERE organization_id = $1 AND party_id = $2', [org, removeId, keepId]))[1] as number,
       };
+      moved.activities += groupMoved;
       // البيانات الناقصة في الأساسية تُكمَّل من المكررة
       for (const k of ['phone', 'email', 'city', 'vatNumber', 'crNumber', 'ownerId', 'source'] as const) {
         if (!keep[k] && rem[k]) (keep as unknown as Record<string, unknown>)[k] = rem[k];
@@ -538,9 +544,11 @@ export class PartiesService {
       this.db.getRepository(CrmContact).find({ where: { organizationId: org, partyId: id }, order: { isPrimary: 'DESC', name: 'ASC' } }),
       this.db.query(
         `SELECT a.id, a.type, a.subject, a.details, a.due_at AS "dueAt", a.done_at AS "doneAt", a.outcome, a.owner_id AS "ownerId", us.full_name AS "ownerName",
-                a.created_by_name AS "createdByName", a.created_at AS "createdAt", a.lead_id AS "leadId"
+                a.created_by_id AS "createdById", a.created_by_name AS "createdByName", a.created_at AS "createdAt", a.lead_id AS "leadId",
+                a.audience, a.audience_role AS "audienceRole",
+                CASE WHEN a.audience IS NOT NULL THEN (SELECT count(*)::int FROM crm_activity_parties ap WHERE ap.organization_id = $1 AND ap.activity_id = a.id) END AS "partyCount"
            FROM crm_activities a LEFT JOIN users us ON us.id = a.owner_id AND us.organization_id = $1
-          WHERE a.organization_id = $1 AND a.party_id = $2 ORDER BY COALESCE(a.done_at, a.due_at, a.created_at) DESC LIMIT 200`, [org, id]),
+          WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('$2')} ORDER BY COALESCE(a.done_at, a.due_at, a.created_at) DESC LIMIT 200`, [org, id]),
       this.db.query(`SELECT id, lead_no AS "leadNo", name, status, source, interest, created_at AS "createdAt", converted_at AS "convertedAt" FROM crm_leads WHERE organization_id = $1 AND party_id = $2 ORDER BY created_at DESC`, [org, id]),
       p.ownerId ? this.db.query('SELECT full_name AS "fullName" FROM users WHERE organization_id = $1 AND id = $2', [org, p.ownerId]).then((r) => r[0]?.fullName ?? null) : null,
       this.db.query(`SELECT removed_id AS "removedId", snapshot->>'name' AS name, by_name AS "byName", created_at AS "createdAt" FROM crm_merges WHERE organization_id = $1 AND kept_id = $2 ORDER BY created_at DESC`, [org, id]),
@@ -550,7 +558,9 @@ export class PartiesService {
       mergedIntoCode: p.mergedInto ? (await this.db.query('SELECT party_no FROM crm_parties WHERE organization_id = $1 AND id = $2', [org, p.mergedInto]))[0]?.party_no ?? null : null,
       records,
       contacts: contacts.map((c) => ({ ...c, decisionRoleLabel: DECISION_ROLES[c.decisionRole] })),
-      activities: activities.map((a: Record<string, unknown>) => ({ ...a, typeLabel: ACTIVITY_TYPES[a.type as keyof typeof ACTIVITY_TYPES] })),
+      activities: activities.map((a: Record<string, unknown>) => ({
+        ...a, typeLabel: ACTIVITY_TYPES[a.type as keyof typeof ACTIVITY_TYPES], audienceLabel: audienceLabel(a.audience as string | null, a.audienceRole as string | null, a.partyCount as number | null),
+      })),
       leads: leads.map((l: Record<string, unknown>) => ({ ...l, code: leadCode(Number(l.leadNo)), statusLabel: LEAD_STATUS[l.status as keyof typeof LEAD_STATUS], sourceLabel: this.core.label(s.sources, l.source as string) })),
       merges,
       can: {

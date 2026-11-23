@@ -32,6 +32,7 @@ describe('CRM module (phase 1)', () => {
   let other: string;
   let salesId: string;
   let sales2Id: string;
+  let viewerId: string;
   const as = (t: string) => ({ Authorization: `Bearer ${t}` });
   const login = async (login: string, password: string, organization?: string) =>
     (await http.post('/api/auth/login').send({ login, password, organization }).expect(200)).body.accessToken as string;
@@ -67,7 +68,7 @@ describe('CRM module (phase 1)', () => {
       (await http.post('/api/users').set(as(admin)).send({ fullName, email, password: 'Sales12345', roleIds: [roleId] }).expect(201)).body.id as string;
     salesId = await mkUser('موظف المبيعات', 'sales@test.org', salesRole);
     sales2Id = await mkUser('موظفة المبيعات', 'sales2@test.org', salesRole);
-    await mkUser('المطلع', 'viewer@test.org', viewRole);
+    viewerId = await mkUser('المطلع', 'viewer@test.org', viewRole);
     await mkUser('مدقق البيانات', 'merger@test.org', mergeRole);
     sales = await login('sales@test.org', 'Sales12345', 'crm');
     sales2 = await login('sales2@test.org', 'Sales12345', 'crm');
@@ -253,6 +254,80 @@ describe('CRM module (phase 1)', () => {
     await http.post(`${C}/activities/${a.id}/complete`).set(as(sales2)).send({}).expect(404);
     await http.post(`${C}/activities/${a.id}/complete`).set(as(sales)).send({ outcome: 'تم', nextSubject: 'متابعة', nextDueAt: new Date(Date.now() + 86400000).toISOString() }).expect(201);
     await http.delete(`${C}/activities/${a.id}`).set(as(sales)).expect(400);
+  });
+
+  it('links one activity to several parties or to all customers, with an assignee and read-only followers', async () => {
+    const mk = async (name: string, email: string) => (await http.post(`${C}/parties`).set(as(sales)).send({ kind: 'org', name, email }).expect(201)).body.id as string;
+    const p1 = await mk('مركز الشفاء الطبي', 'info@shifa.test');
+    const p2 = await mk('عيادات الريان', 'info@rayan.test');
+    const due = new Date(Date.now() + 86400_000).toISOString();
+    // جهات مختارة، ومسندة لزميلة، ومتابع للاطلاع
+    const a = (await http.post(`${C}/activities`).set(as(sales)).send({
+      type: 'meeting', subject: 'ورشة تعريفية مشتركة', dueAt: due, done: false, partyIds: [p1, p2, p1], ownerId: sales2Id, followerIds: [viewerId],
+    }).expect(201)).body;
+    expect(a.parties).toBe(2);
+    const forOwner = (await http.get(`${C}/activities?status=open`).set(as(sales2)).expect(200)).body.find((x: { id: string }) => x.id === a.id);
+    expect(forOwner).toMatchObject({ audience: 'many', partyCount: 2, audienceLabel: 'جهات مختارة (2)', following: false });
+    expect(forOwner.followers.map((f: { id: string }) => f.id)).toEqual([viewerId]);
+    expect(JSON.stringify((await http.get('/api/tasks').set(as(sales2)).expect(200)).body)).not.toContain('ورشة تعريفية مشتركة'); // موعدها غدًا
+    // المنشئ يبقى يراه، والمتابع يراه للاطلاع
+    expect((await http.get(`${C}/activities`).set(as(sales)).expect(200)).body.some((x: { id: string }) => x.id === a.id)).toBe(true);
+    const forViewer = (await http.get(`${C}/activities`).set(as(viewer)).expect(200)).body.find((x: { id: string }) => x.id === a.id);
+    expect(forViewer.following).toBe(true);
+    // يظهر في ملف كل جهة، ويُحسب في عدد أنشطتها
+    for (const id of [p1, p2]) {
+      const prof = (await http.get(`${C}/parties/${id}`).set(as(sales)).expect(200)).body;
+      expect(prof.activities.find((x: { id: string }) => x.id === a.id)).toMatchObject({ audienceLabel: 'جهات مختارة (2)' });
+    }
+    // الإنجاز مع خطوة تالية: الجهات والمتابعون ينتقلون إليها
+    await http.post(`${C}/activities/${a.id}/complete`).set(as(sales2)).send({ outcome: 'حضر الجميع', nextSubject: 'إرسال العروض', nextDueAt: due }).expect(201);
+    const next = (await http.get(`${C}/activities?status=open`).set(as(sales2)).expect(200)).body.find((x: { subject: string }) => x.subject === 'إرسال العروض');
+    expect(next).toMatchObject({ audience: 'many', partyCount: 2 });
+    expect(next.followers.map((f: { id: string }) => f.id)).toEqual([viewerId]);
+
+    // لا يُسند نشاط جهة لزميل لا يرى الجهة، ولا يُضاف متابعًا، ولا لمن لا يملك صلاحية علاقات العملاء
+    const hidden = await http.post(`${C}/activities`).set(as(sales)).send({ type: 'call', subject: 'اتصال', dueAt: due, done: false, partyId: p1, ownerId: sales2Id }).expect(400);
+    expect(hidden.body.message).toContain('لا يرى');
+    await http.post(`${C}/activities`).set(as(sales)).send({ type: 'call', subject: 'اتصال', dueAt: due, done: false, partyId: p1, followerIds: [sales2Id] }).expect(400);
+    await http.post(`${C}/activities`).set(as(sales)).send({ type: 'task', subject: 'مهمة', dueAt: due, done: false, ownerId: viewerId }).expect(400);
+
+    // المتابع لا ينجز ولا يحذف (403 برسالة واضحة)، ويعدّل المتابعين المسؤول أو المنشئ
+    const b = (await http.post(`${C}/activities`).set(as(sales2)).send({ type: 'task', subject: 'تجهيز القاعة', dueAt: due, done: false, followerIds: [salesId] }).expect(201)).body;
+    const r = await http.post(`${C}/activities/${b.id}/complete`).set(as(sales)).send({}).expect(403);
+    expect(r.body.message).toContain('للاطلاع فقط');
+    await http.delete(`${C}/activities/${b.id}`).set(as(sales)).expect(403);
+    await http.put(`${C}/activities/${b.id}/followers`).set(as(sales)).send({ userIds: [] }).expect(403);
+    await http.put(`${C}/activities/${b.id}/followers`).set(as(viewer)).send({ userIds: [] }).expect(403);
+    await http.put(`${C}/activities/${b.id}/followers`).set(as(other)).send({ userIds: [] }).expect(404);
+    await http.put(`${C}/activities/${b.id}/followers`).set(as(sales2)).send({ userIds: ['00000000-0000-4000-8000-000000000000'] }).expect(400);
+    expect((await http.put(`${C}/activities/${b.id}/followers`).set(as(sales2)).send({ userIds: [viewerId, sales2Id] }).expect(200)).body.followers).toBe(1);
+    expect((await http.get(`${C}/activities`).set(as(sales)).expect(200)).body.some((x: { id: string }) => x.id === b.id)).toBe(false);
+
+    // كل العملاء: لقطة بالجهات ذات دور «عميل» في نطاق رؤية الموظف
+    const all = (await http.post(`${C}/activities`).set(as(sales)).send({ type: 'email', subject: 'نشرة الخدمات الجديدة', done: true, allParties: true, audienceRole: 'customer' }).expect(201)).body;
+    expect(all.parties).toBe(1);
+    const prof = (await http.get(`${C}/parties/${ids.ihsan}`).set(as(admin)).expect(200)).body;
+    expect(prof.activities.find((x: { id: string }) => x.id === all.id)).toMatchObject({ audienceLabel: 'كل العملاء (1)' });
+    const rep = (await http.get(`/api/reports/run/crm.activities?from=2020-01-01&to=2100-01-01`).set(as(admin)).expect(200)).body;
+    expect(JSON.stringify(rep)).toContain('كل العملاء (1)');
+
+    // طريقة ربط واحدة فقط، وجهات منشأة أخرى غير موجودة
+    await http.post(`${C}/activities`).set(as(sales)).send({ type: 'note', subject: 'ملاحظة', done: true, partyIds: [p1, p2], leadId: ids.lead }).expect(400);
+    await http.post(`${C}/activities`).set(as(sales)).send({ type: 'note', subject: 'ملاحظة', done: true, partyIds: [p1], allParties: true }).expect(400);
+    const foreign = (await http.post(`${C}/parties`).set(as(other)).send({ kind: 'org', name: 'جهة منشأة أخرى' }).expect(201)).body.id;
+    await http.post(`${C}/activities`).set(as(sales)).send({ type: 'note', subject: 'ملاحظة', done: true, partyIds: [p1, foreign] }).expect(404);
+    await db.query('DELETE FROM crm_parties WHERE id = $1', [foreign]); // اختبار العزل لاحقًا يتوقع منشأة أخرى فارغة
+    await http.post(`${C}/activities`).set(as(sales)).send({ type: 'note', subject: 'ملاحظة', done: true, followerIds: ['00000000-0000-4000-8000-000000000000'] }).expect(400);
+    await http.post(`${C}/activities`).set(as(viewer)).send({ type: 'note', subject: 'ملاحظة', done: true, partyIds: [p1, p2] }).expect(403);
+
+    // دمج جهة مكررة في نشاط جماعي: يبقى النشاط مرة واحدة في الجهة الأساسية
+    const dup = (await http.post(`${C}/parties`).set(as(sales)).send({ kind: 'org', name: 'الشفاء الطبي', email: 'info@shifa.test', allowDuplicate: true }).expect(201)).body.id;
+    const g = (await http.post(`${C}/activities`).set(as(sales)).send({ type: 'note', subject: 'ملاحظة مشتركة', done: true, partyIds: [p1, dup] }).expect(201)).body;
+    await http.post(`${C}/parties/${p1}/merge`).set(as(admin)).send({ removeId: dup }).expect(201);
+    const merged = (await http.get(`${C}/parties/${p1}`).set(as(admin)).expect(200)).body;
+    expect(merged.activities.filter((x: { id: string }) => x.id === g.id)).toHaveLength(1);
+    const [{ n }] = await db.query('SELECT count(*)::int AS n FROM crm_activity_parties WHERE activity_id = $1', [g.id]);
+    expect(n).toBe(1);
   });
 
   it('dashboard and reports work', async () => {

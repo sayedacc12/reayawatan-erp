@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { PendingTask, TasksRegistry } from '../../core/tasks/tasks.registry';
 import { CRM_PERMISSIONS as P } from './crm.manifest';
-import { leadCode } from './crm-core.service';
+import { audienceLabel, leadCode } from './crm-core.service';
 
 /** مهام علاقات العملاء في جرس الإشعارات: عملاء محتملون بلا مسؤول، وتجاوز مهلة التواصل الأول، والأنشطة المستحقة والمتأخرة */
 @Injectable()
@@ -31,14 +31,16 @@ export class CrmTasks implements OnModuleInit {
       id: `crm-sla:${l.id}`, group: 'التواصل الأول', link: `/crm/leads/${l.id}`, at: l.due_at, title: `تواصل مع ${l.name} (${leadCode(l.lead_no)})`,
       subtitle: l.due_at < new Date() ? 'تجاوز مهلة التواصل الأول' : 'تنتهي مهلة التواصل الأول قريبًا', urgent: l.due_at < new Date(),
     })));
-    const acts: { id: string; subject: string; due_at: Date; party_id: string | null; lead_id: string | null; related: string | null }[] = await this.db.query(
-      `SELECT a.id, a.subject, a.due_at, a.party_id, a.lead_id, COALESCE(p.name, l.name) AS related FROM crm_activities a
+    const acts: { id: string; subject: string; due_at: Date; party_id: string | null; lead_id: string | null; related: string | null; audience: string | null; audience_role: string | null; party_count: number | null }[] = await this.db.query(
+      `SELECT a.id, a.subject, a.due_at, a.party_id, a.lead_id, COALESCE(p.name, l.name) AS related, a.audience, a.audience_role,
+              CASE WHEN a.audience IS NOT NULL THEN (SELECT count(*)::int FROM crm_activity_parties ap WHERE ap.organization_id = $1 AND ap.activity_id = a.id) END AS party_count
+         FROM crm_activities a
          LEFT JOIN crm_parties p ON p.id = a.party_id AND p.organization_id = $1 LEFT JOIN crm_leads l ON l.id = a.lead_id AND l.organization_id = $1
         WHERE a.organization_id = $1 AND a.owner_id = $2 AND a.done_at IS NULL
           AND (a.due_at AT TIME ZONE 'Asia/Riyadh')::date <= (now() AT TIME ZONE 'Asia/Riyadh')::date ORDER BY a.due_at LIMIT 40`, [org, u.id]);
     out.push(...acts.map((a) => ({
       id: `crm-act:${a.id}`, group: 'متابعات اليوم والمتأخرة', link: a.party_id ? `/crm/parties/${a.party_id}` : a.lead_id ? `/crm/leads/${a.lead_id}` : '/crm/activities',
-      at: a.due_at, title: a.subject, subtitle: a.related, urgent: a.due_at < new Date(),
+      at: a.due_at, title: a.subject, subtitle: a.related ?? audienceLabel(a.audience, a.audience_role, a.party_count), urgent: a.due_at < new Date(),
     })));
     return out;
   }

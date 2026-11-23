@@ -4,7 +4,7 @@ import { ar, dynamicFilter, org, periodFilters, selectFilter } from '../../core/
 import { ReportDefinition } from '../../core/reports/report.types';
 import { ReportsRegistry } from '../../core/reports/reports.registry';
 import { ACTIVITY_TYPES, LEAD_STATUS, PARTY_KINDS, PARTY_ROLES } from './entities/crm.entity';
-import { CrmCore, leadCode, partyCode } from './crm-core.service';
+import { ACT_OF_PARTY, CrmCore, audienceLabel, leadCode, partyCode } from './crm-core.service';
 import { CRM_PERMISSIONS as P } from './crm.manifest';
 import { PartiesService } from './parties.service';
 
@@ -37,8 +37,8 @@ export class CrmReports implements OnModuleInit {
           const rows = await this.db.query(
             `SELECT p.id, p.party_no, p.name, p.kind, p.phone, p.email, p.city, us.full_name AS owner, p.consents, p.do_not_contact,
                     (SELECT string_agg(DISTINCT l.role, ',') FROM crm_party_links l WHERE l.organization_id = $1 AND l.party_id = p.id) AS roles,
-                    (SELECT count(*)::int FROM crm_activities a WHERE a.organization_id = $1 AND a.party_id = p.id) AS activities,
-                    (SELECT max(COALESCE(a.done_at, a.created_at)) FROM crm_activities a WHERE a.organization_id = $1 AND a.party_id = p.id) AS "lastActivity"
+                    (SELECT count(*)::int FROM crm_activities a WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('p.id')}) AS activities,
+                    (SELECT max(COALESCE(a.done_at, a.created_at)) FROM crm_activities a WHERE a.organization_id = $1 AND ${ACT_OF_PARTY('p.id')}) AS "lastActivity"
                FROM crm_parties p LEFT JOIN users us ON us.id = p.owner_id AND us.organization_id = $1
               WHERE p.organization_id = $1 AND p.is_active AND ($2::text IS NULL OR EXISTS (SELECT 1 FROM crm_party_links l WHERE l.organization_id = $1 AND l.party_id = p.id AND l.role = $2))
                 AND ($3::text IS NULL OR p.kind = $3) AND ($4::uuid IS NULL OR p.owner_id = $4)
@@ -130,6 +130,7 @@ export class CrmReports implements OnModuleInit {
           const o = org(u).organizationId;
           const rows = await this.db.query(
             `SELECT COALESCE(a.done_at, a.due_at, a.created_at) AS date, a.type, a.subject, COALESCE(p.name, l.name) AS related, us.full_name AS owner, a.outcome,
+                    a.audience, a.audience_role, CASE WHEN a.audience IS NOT NULL THEN (SELECT count(*)::int FROM crm_activity_parties ap WHERE ap.organization_id = $1 AND ap.activity_id = a.id) END AS party_count,
                     CASE WHEN a.done_at IS NOT NULL THEN 'منجز' WHEN a.due_at < now() THEN 'متأخر' ELSE 'مجدول' END AS state
                FROM crm_activities a LEFT JOIN crm_parties p ON p.id = a.party_id AND p.organization_id = $1 LEFT JOIN crm_leads l ON l.id = a.lead_id AND l.organization_id = $1
                LEFT JOIN users us ON us.id = a.owner_id AND us.organization_id = $1
@@ -137,7 +138,9 @@ export class CrmReports implements OnModuleInit {
                 AND ($4::text IS NULL OR a.type = $4) AND ($5::uuid IS NULL OR a.owner_id = $5)
                 AND ($6::text IS NULL OR ($6 = 'done' AND a.done_at IS NOT NULL) OR ($6 = 'open' AND a.done_at IS NULL AND (a.due_at IS NULL OR a.due_at >= now())) OR ($6 = 'overdue' AND a.done_at IS NULL AND a.due_at < now()))
               ORDER BY 1 DESC`, [o, f.from, f.to, f.type ?? null, f.owner ?? null, f.state ?? null]);
-          return rows.map((r: Record<string, unknown>) => ({ ...r, type: ar(ACTIVITY_TYPES, r.type) }));
+          return rows.map((r: Record<string, unknown>) => ({
+            ...r, type: ar(ACTIVITY_TYPES, r.type), related: r.related ?? audienceLabel(r.audience as string | null, r.audience_role as string | null, r.party_count as number | null),
+          }));
         },
       },
     ];

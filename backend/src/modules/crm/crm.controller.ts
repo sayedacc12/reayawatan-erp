@@ -3,7 +3,7 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { ActivitiesService } from './activities.service';
 import { CrmCore } from './crm-core.service';
 import {
-  ActivityDto, ActivityListQuery, CompleteActivityDto, ConsentsDto, ContactDto, ConvertDto, DuplicateCheckQuery, ImportDto, LeadDto, LeadListQuery, LeadStatusDto,
+  ActivityDto, ActivityListQuery, CompleteActivityDto, FollowersDto, ConsentsDto, ContactDto, ConvertDto, DuplicateCheckQuery, ImportDto, LeadDto, LeadListQuery, LeadStatusDto,
   LinkCandidatesQuery, LinkDto, ListsDto, MergeDto, OwnerDto, PartyDto, PartyListQuery, SettingsDto,
 } from './crm.dto';
 import { CRM_PERMISSIONS as P } from './crm.manifest';
@@ -210,6 +210,12 @@ export class CrmController {
   @RequirePermissions(P.manage)
   complete(@CurrentOrgUser() u: OrgUser, @Param('id', ID) id: string, @Body() dto: CompleteActivityDto) {
     return this.activities.complete(u, id, dto);
+  }
+
+  @Put('activities/:id/followers')
+  @RequirePermissions(P.manage)
+  activityFollowers(@CurrentOrgUser() u: OrgUser, @Param('id', ID) id: string, @Body() dto: FollowersDto) {
+    return this.activities.setFollowers(u, id, dto);
   }
 
   @Delete('activities/:id')

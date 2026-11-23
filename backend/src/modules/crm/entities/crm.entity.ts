@@ -192,11 +192,47 @@ export class CrmActivity {
   @Column({ type: 'varchar', length: 2000, nullable: true }) outcome!: string | null;
   @Column({ name: 'party_id', type: 'uuid', nullable: true }) partyId!: string | null;
   @Column({ name: 'lead_id', type: 'uuid', nullable: true }) leadId!: string | null;
+  /**
+   * نطاق الجهات المرتبطة حين يكون النشاط لأكثر من جهة: many (جهات مختارة) أو all (كل العملاء، أو كل الجهات إن لم يُحدد دور).
+   * الجهات نفسها في crm_activity_parties، وpartyId يبقى فارغًا. null = جهة واحدة (partyId) أو عميل محتمل أو بلا ربط.
+   */
+  @Column({ type: 'varchar', length: 4, nullable: true }) audience!: ActivityAudience | null;
+  /** دور الجهات حين يكون النطاق «الكل» (مثل customer)، وnull = كل الجهات */
+  @Column({ name: 'audience_role', type: 'varchar', length: 12, nullable: true }) audienceRole!: PartyRole | null;
   @Column({ name: 'owner_id', type: 'uuid' }) ownerId!: string;
   @Column({ name: 'created_by_id', type: 'uuid', nullable: true }) createdById!: string | null;
   @Column({ name: 'created_by_name', type: 'varchar', length: 200 }) createdByName!: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt!: Date;
+}
+
+export const ACTIVITY_AUDIENCE = { many: 'جهات مختارة', all: 'الكل' } as const;
+export type ActivityAudience = keyof typeof ACTIVITY_AUDIENCE;
+/** أقصى عدد للجهات المختارة يدويًا، وللجهات في نشاط «الكل» */
+export const MAX_PICKED_PARTIES = 200;
+export const MAX_AUDIENCE_PARTIES = 5000;
+export const MAX_FOLLOWERS = 20;
+
+/** الجهات المرتبطة بنشاط واحد لأكثر من جهة (لقطة وقت الإنشاء، فلا تُضاف إليه الجهات الجديدة لاحقًا) */
+@Entity('crm_activity_parties')
+@Index('IDX_crm_activity_parties_party', ['organizationId', 'partyId'])
+@Index('UQ_crm_activity_parties', ['activityId', 'partyId'], { unique: true })
+export class CrmActivityParty {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'activity_id', type: 'uuid' }) activityId!: string;
+  @Column({ name: 'party_id', type: 'uuid' }) partyId!: string;
+  @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
+}
+
+/** متابعو النشاط: يرونه في قائمتهم للاطلاع فقط، ولا ينجزونه ولا يحذفونه */
+@Entity('crm_activity_followers')
+@Index('IDX_crm_activity_followers_user', ['organizationId', 'userId'])
+@Index('UQ_crm_activity_followers', ['activityId', 'userId'], { unique: true })
+export class CrmActivityFollower {
+  @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ name: 'activity_id', type: 'uuid' }) activityId!: string;
+  @Column({ name: 'user_id', type: 'uuid' }) userId!: string;
+  @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
 }
 
 /** سجل دمج الجهات المكررة: نسخة من الجهة المحذوفة كما كانت قبل الدمج */
@@ -212,4 +248,4 @@ export class CrmMerge {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
 }
 
-export const CRM_ENTITIES = [CrmSettings, CrmParty, CrmPartyLink, CrmContact, CrmLead, CrmActivity, CrmMerge];
+export const CRM_ENTITIES = [CrmSettings, CrmParty, CrmPartyLink, CrmContact, CrmLead, CrmActivity, CrmActivityParty, CrmActivityFollower, CrmMerge];

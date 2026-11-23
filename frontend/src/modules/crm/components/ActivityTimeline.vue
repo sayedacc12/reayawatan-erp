@@ -13,7 +13,27 @@ const COLORS: Record<string, string> = { call: '#0891b2', meeting: '#7c3aed', wh
 const completing = ref<any>(null);
 const busy = ref(false);
 const isLate = (a: any) => !a.doneAt && a.dueAt && new Date(a.dueAt) < new Date();
-const mine = (a: any) => props.lk.can.all || a.ownerId === props.lk.me;
+/** ينجزه ويحذفه المسؤول عنه أو منشئه أو مدير المبيعات. والمتابع يطّلع فقط */
+const mine = (a: any) => !a.following && (props.lk.can.all || a.ownerId === props.lk.me || a.createdById === props.lk.me);
+const editing = ref<{ a: any; ids: string[] } | null>(null);
+const toggle = (id: string) => {
+  const e = editing.value!;
+  e.ids = e.ids.includes(id) ? e.ids.filter((x) => x !== id) : [...e.ids, id];
+};
+async function saveFollowers() {
+  const e = editing.value!;
+  busy.value = true;
+  try {
+    await api(`/crm/activities/${e.a.id}/followers`, { method: 'PUT', json: { userIds: e.ids } });
+    toast.success('حُفظ المتابعون');
+    editing.value = null;
+    emit('changed');
+  } catch (err) {
+    toast.error((err as Error).message);
+  } finally {
+    busy.value = false;
+  }
+}
 
 function start(a: any) {
   completing.value = { a, outcome: '', nextSubject: '', nextType: 'call', nextDueAt: toLocalInput(new Date(Date.now() + 2 * 86400_000)) };
@@ -63,19 +83,42 @@ async function remove(a: any) {
             <RouterLink v-if="a.partyId" class="pm-link" :to="`/crm/parties/${a.partyId}`">{{ a.partyName }}</RouterLink>
             <RouterLink v-else class="pm-link" :to="`/crm/leads/${a.leadId}`">{{ a.leadName }} (عميل محتمل)</RouterLink>
           </p>
+          <p v-if="a.audienceLabel">
+            <span class="cr-chip" style="--c: #b45309">{{ a.audienceLabel }}</span>
+            <template v-if="showTarget && a.parties?.length">
+              <template v-for="(p, i) in a.parties" :key="p.id">{{ i ? '، ' : ' ' }}<RouterLink class="pm-link" :to="`/crm/parties/${p.id}`">{{ p.name }}</RouterLink></template>
+              <template v-if="a.partyCount > a.parties.length"> وغيرها</template>
+            </template>
+          </p>
           <p v-if="a.details">{{ a.details }}</p>
           <p v-if="a.outcome"><b>النتيجة:</b> {{ a.outcome }}</p>
           <div class="meta">
             <template v-if="a.doneAt">نُفّذ {{ fmtDateTime(a.doneAt) }}</template>
             <template v-else-if="a.dueAt">موعده {{ fmtDateTime(a.dueAt) }} ({{ relTime(a.dueAt) }})</template>
             · {{ a.ownerName ?? a.createdByName }}
+            <template v-if="a.followers?.length"> · المتابعون: {{ a.followers.map((x: any) => x.name).join('، ') }}</template>
+            <span v-if="a.following" class="cr-chip" style="--c: #0e7490">متابع للاطلاع</span>
           </div>
           <div v-if="canManage && !a.doneAt && mine(a)" class="tools">
             <button class="btn btn-sm btn-primary" @click="start(a)">إنجاز</button>
             <button class="btn btn-sm" @click="remove(a)">حذف</button>
+            <button v-if="a.followers" class="btn btn-sm" @click="editing = { a, ids: a.followers.map((x: any) => x.id) }">المتابعون</button>
           </div>
         </div>
       </div>
+    </div>
+    <div v-if="editing" class="modal-backdrop" @click.self="editing = null">
+      <form class="card modal cr-modal" @submit.prevent="saveFollowers">
+        <h2>متابعو: {{ editing.a.subject }}</h2>
+        <p class="muted">يرى المتابع النشاط في قائمته للاطلاع فقط، ولا ينجزه ولا يحذفه.</p>
+        <div class="cr-chips">
+          <button v-for="u in lk.users.filter((x: any) => x.id !== editing!.a.ownerId)" :key="u.id" type="button" :class="['cr-chip', { on: editing.ids.includes(u.id) }]" style="--c: #0e7490" @click="toggle(u.id)">{{ u.fullName }}</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" @click="editing = null">إلغاء</button>
+          <button class="btn btn-primary" :disabled="busy">حفظ</button>
+        </div>
+      </form>
     </div>
     <div v-if="completing" class="modal-backdrop" @click.self="completing = null">
       <form class="card modal cr-modal" @submit.prevent="complete">
