@@ -813,6 +813,41 @@ export class BudgetsService {
     return { ok: true };
   }
 
+  /**
+   * عدد ما يشير إلى بنود الموازنة من خارجها: حجوزات غير محررة، ومناقلات، ومستندات مشتريات وعقود وحركات أصول، وبنود سيناريوهات.
+   * أي إشارة تمنع حذف البنود جملة (لا قيود مفاتيح في الجداول، فالفحص هنا هو الحماية).
+   */
+  async lineBlockers(org: string, budgetId: string, em: EntityManager = this.db.manager): Promise<number> {
+    const [{ n }] = await em.query(
+      `WITH l AS (SELECT id FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2)
+       SELECT ((SELECT COUNT(*) FROM plan_budget_commitments WHERE organization_id = $1 AND status <> 'released' AND line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM plan_budget_transfers WHERE organization_id = $1 AND (from_line_id IN (SELECT id FROM l) OR to_line_id IN (SELECT id FROM l)))
+             + (SELECT COUNT(*) FROM plan_budget_lines WHERE organization_id = $1 AND base_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM pr_requests WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM pr_orders WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM pr_contracts WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM acc_asset_moves WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l)))::int AS n`,
+      [org, budgetId]);
+    return n;
+  }
+
+  /**
+   * حذف كل بنود الموازنة في معاملة واحدة تمهيدًا لإعادة بنائها (تعديل الموازنة المعتمدة إلى إصدار جديد، وإصدارها السابق محفوظ).
+   * يرفض دون تغيير شيء إن أشار إلى أي بند حجز أو مناقلة أو مستند. يستخدمه إدراج حزمة الشركة فقط.
+   */
+  async clearLinesForRevision(actor: OrgUser, id: string) {
+    const org = actor.organizationId;
+    await this.db.transaction(async (em) => {
+      const b = await this.budget(em, org, id, true);
+      if (b.isScenario) throw new BadRequestException('السيناريو لا يُعدّل بهذه الطريقة');
+      if (await em.getRepository(BudgetLine).exists({ where: { organizationId: org, budgetId: id, section: 'hr' } })) this.assertHr(actor);
+      if (await this.lineBlockers(org, id, em)) throw new ConflictException('على بنود الموازنة حجوزات أو مناقلات أو مستندات مرتبطة، فلا تُحذف بنودها');
+      this.editable(b, actor);
+      await em.query('DELETE FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2', [org, id]);
+      await em.getRepository(Budget).save(b);
+    });
+  }
+
   // ---------------- الاعتماد والإصدارات ----------------
 
   async snapshot(em: EntityManager, b: Budget): Promise<BudgetSnapshot> {

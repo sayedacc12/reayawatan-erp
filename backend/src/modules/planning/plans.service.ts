@@ -78,6 +78,36 @@ export class PlansService {
     return p;
   }
 
+  /** حذف محتوى خطة في مسودة تعديل تمهيدًا لاستبداله من ملف. يرفض إن كان عليها عمل مسجل لا يصح فقده */
+  private async clearContent(em: EntityManager, actor: OrgUser, p: Plan) {
+    const org = actor.organizationId;
+    const ids = (await em.getRepository(PlanItem).find({ where: { organizationId: org, planId: p.id }, select: ['id'] })).map((i) => i.id);
+    const [{ progress, readings, carried }] = await em.query(
+      `SELECT (SELECT COUNT(*) FROM plan_progress_updates WHERE organization_id = $1 AND item_id = ANY($2))::int AS progress,
+              (SELECT COUNT(*) FROM plan_kpi_readings r JOIN plan_kpis k ON k.id = r.kpi_id WHERE k.organization_id = $1 AND k.plan_id = $3)::int AS readings,
+              (SELECT COUNT(*) FROM plan_items WHERE organization_id = $1 AND (carried_from_id = ANY($2) OR (id = ANY($2) AND carried_from_id IS NOT NULL)))::int AS carried`,
+      [org, ids, p.id]);
+    if (progress || readings || carried) throw new ConflictException('على الخطة إنجاز أو قراءات مؤشرات أو أنشطة مرحّلة، فلا يُستبدل محتواها. عدّلها من شاشتها');
+    if (ids.length) {
+      // روابط من خطط أخرى: الخطط التشغيلية التابعة لهذه الخطة تفقد ربطها وتتحول لمسودة تعديل، وأي خطة أخرى تمنع الاستبدال
+      const incoming: { id: string; plan_id: string }[] = await em.query(
+        `SELECT l.id, f.plan_id FROM plan_links l JOIN plan_items f ON f.id = l.from_item_id
+          WHERE l.organization_id = $1 AND l.to_item_id = ANY($2) AND NOT (l.from_item_id = ANY($2))`, [org, ids]);
+      for (const planId of new Set(incoming.map((l) => l.plan_id))) {
+        const child = await this.plan(em, org, planId, true);
+        if (child.parentPlanId !== p.id) throw new ConflictException(`عناصر من الخطة ${child.code} مرتبطة بهذه الخطة وليست تابعة لها. احذف الربط أولًا`);
+        assertEditable(child);
+        markEdited(child, actor.fullName);
+        child.revisionNote = child.revisionNote ?? `أُزيلت روابطها بعناصر الخطة الأم ${p.code} عند استبدال محتواها، ويلزم ربطها من جديد`;
+        await em.getRepository(Plan).save(child);
+      }
+      await em.query(`DELETE FROM plan_links WHERE organization_id = $1 AND (from_item_id = ANY($2) OR to_item_id = ANY($2))`, [org, ids]);
+      await em.query(`DELETE FROM plan_refs WHERE organization_id = $1 AND item_id = ANY($2)`, [org, ids]);
+    }
+    await em.query(`DELETE FROM plan_kpis WHERE organization_id = $1 AND plan_id = $2`, [org, p.id]);
+    await em.query(`DELETE FROM plan_items WHERE organization_id = $1 AND plan_id = $2`, [org, p.id]);
+  }
+
   // ---------------- الخطط ----------------
 
   async list(actor: OrgUser, f: Filters) {
@@ -253,21 +283,37 @@ export class PlansService {
    * خطة كاملة من ملف Excel في معاملة واحدة: الرأس والعناصر والمؤشرات والروابط، بنفس قواعد الإدخال اليدوي.
    * المراجع (المخاطر وعوامل التحليل) محلولة مسبقًا من النظام المرتبط، وعناصر الخطة الأم محمّلة بمعرف الشركة.
    */
-  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false) {
+  /**
+   * استيراد خطة من ملف. مع replaceId يستبدل محتوى خطة قائمة (الرأس والعناصر والمؤشرات والروابط) بمحتوى الملف كمسودة تعديل،
+   * ويبقى إصدارها المعتمد السابق محفوظًا للمقارنة، ثم تُرفع للاعتماد فتصبح إصدارًا جديدًا. لا يُستبدل محتوى خطة عليها إنجاز
+   * أو قراءات مؤشرات أو أنشطة مرحّلة. روابط الخطط التشغيلية التابعة لها تُزال وتتحول تلك الخطط لمسودة تعديل حتى يُعاد ربطها.
+   * يستخدمه إدراج حزمة الشركة فقط، ولا يُعرض في واجهة الاستيراد.
+   */
+  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false, replaceId?: string) {
     const org = actor.organizationId;
     if (!actor.isSuperadmin && !actor.permissions.includes(this.manageCode(data.header.kind))) throw new ForbiddenException('إعداد هذا النوع من الخطط ليس من صلاحيتك');
     const cfg = await this.core.config(org);
     const relation = cfg.relationTypes[0]?.code;
     const run = this.db.transaction(async (em) => {
-      if (await em.getRepository(Plan).exists({ where: { organizationId: org, kind: data.header.kind, title: data.header.title } })) {
+      const same = await em.getRepository(Plan).findOne({ where: { organizationId: org, kind: data.header.kind, title: data.header.title }, select: ['id'] });
+      if (same && same.id !== replaceId) {
         throw new ConflictException('توجد خطة بالنوع والعنوان نفسيهما. غيّر العنوان في الملف أو احذف الخطة السابقة');
       }
-      const p = em.getRepository(Plan).create({
-        organizationId: org, kind: data.header.kind, code: await this.core.nextCode(em, org, data.header.kind === 'strategic' ? 'SP' : 'OP'), status: 'draft', approvals: [], wfStages: [],
-        levels: [], values: [], sharedUnits: [], templateKey: null, createdByName: actor.fullName,
-      });
-      await this.applyHeader(em, org, p, data.header, cfg);
-      const saved = await em.getRepository(Plan).save(p);
+      let saved: Plan;
+      if (replaceId) {
+        const p = await this.editing(em, actor, replaceId);
+        if (p.kind !== data.header.kind) throw new BadRequestException('نوع الخطة في الملف يختلف عن الخطة المراد تعديلها');
+        await this.clearContent(em, actor, p);
+        await this.applyHeader(em, org, p, data.header, cfg);
+        saved = await em.getRepository(Plan).save(p);
+      } else {
+        const p = em.getRepository(Plan).create({
+          organizationId: org, kind: data.header.kind, code: await this.core.nextCode(em, org, data.header.kind === 'strategic' ? 'SP' : 'OP'), status: 'draft', approvals: [], wfStages: [],
+          levels: [], values: [], sharedUnits: [], templateKey: null, createdByName: actor.fullName,
+        });
+        await this.applyHeader(em, org, p, data.header, cfg);
+        saved = await em.getRepository(Plan).save(p);
+      }
       const byKey = new Map<string, PlanItem>();
       const siblings = new Map<string, string[]>();
       let order = 0;
