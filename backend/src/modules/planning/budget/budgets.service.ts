@@ -843,7 +843,15 @@ export class BudgetsService {
       if (await em.getRepository(BudgetLine).exists({ where: { organizationId: org, budgetId: id, section: 'hr' } })) this.assertHr(actor);
       if (await this.lineBlockers(org, id, em)) throw new ConflictException('على بنود الموازنة حجوزات أو مناقلات أو مستندات مرتبطة، فلا تُحذف بنودها');
       this.editable(b, actor);
-      await em.query('DELETE FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2', [org, id]);
+      const res = await em.query(
+        `DELETE FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2
+         RETURNING section, kind, name, amount::text AS amount, included, unit_name AS unit`, [org, id]);
+      const all = (Array.isArray(res) && Array.isArray(res[0]) ? res[0] : res) as Record<string, unknown>[];
+      // بنود الموارد البشرية (رواتب) لا تُكتب بأسمائها ومبالغها في السجل الذي يراه من لا يملك صلاحية الرواتب؛ تُجمع في بند واحد
+      const hr = all.filter((l) => l.section === 'hr');
+      const gone = [...all.filter((l) => l.section !== 'hr'), ...(hr.length ? [{ section: 'hr', name: `${hr.length} بند موارد بشرية`, amount: String(hr.reduce((t, l) => t + Math.round(Number(l.amount) * 100), 0) / 100) }] : [])];
+      // البنود المحذوفة تُحفظ بقيمها في سجل الموازنة (للموازنة التي لم تُعتمد قط لا يوجد إصدار يحفظها)
+      if (all.length) b.approvals = [...b.approvals, { action: 'reopen', stage: null, byName: actor.fullName, at: new Date().toISOString(), note: `حُذفت ${all.length} بندًا لاستبدالها: ${revisionNote}. البنود المحذوفة: ${JSON.stringify(gone)}` }];
       b.revisionNote = revisionNote;
       await em.getRepository(Budget).save(b);
     });
