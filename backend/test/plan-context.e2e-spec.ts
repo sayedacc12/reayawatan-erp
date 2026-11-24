@@ -101,6 +101,7 @@ describe('Plan material issues and stakeholder map', () => {
     await http.patch(`${R}/stakeholders/${ids.sh}`).set(as(otherAdmin)).send({ name: 'آخر' }).expect(404);
     await http.delete(`${R}/stakeholders/${ids.sh}`).set(as(otherAdmin)).expect(404);
     await http.patch(`${R}/issues/${ids.issue}`).set(as(director)).send({ title: null }).expect(400);
+    await http.patch(`${R}/issues/${ids.issue}`).set(as(director)).send({ sortOrder: null }).expect(400);
     p = (await http.patch(`${R}/issues/${ids.issue}`).set(as(director)).send({ title: 'تركز الإيرادات في الجهة المالكة' }).expect(200)).body;
     expect(p.issues[0].title).toBe('تركز الإيرادات في الجهة المالكة');
     expect(p.issues[0].summary).toBe('معظم الدخل من الجهة المالكة');
@@ -172,11 +173,15 @@ describe('Plan material issues and stakeholder map', () => {
     expect(content.stakeholders.length).toBeGreaterThanOrEqual(12);
     const count = async (table: string, planId: string) => Number((await db.query(`SELECT count(*)::int AS n FROM ${table} WHERE organization_id = $1 AND plan_id = $2`, [company, planId]))[0].n);
 
-    // أحدث خطة (المستوردة، مسودة بها قضايا مسبقًا) لا يضاف إليها شيء
+    // أحدث خطة 2027 (المستوردة) مسودة: لا يُكتب في مسودة، ويُعاد المحاولة لاحقًا
     let r = await svc.run();
-    expect(r).toMatchObject({ added: 0 });
+    expect(r).toBe('wait');
     expect(await count('plan_material_issues', ids.imported)).toBe(1);
     await http.delete(`${R}/plans/${ids.imported}`).set(as(director)).expect(200);
+    // خطة معتمدة فيها قضايا مسبقًا لا يضاف إليها شيء
+    r = await svc.run();
+    expect(r).toMatchObject({ added: 0 });
+    expect(await count('plan_material_issues', ids.sp)).toBe(1);
 
     // خطة جديدة معتمدة بلا قضايا: تُضاف البيانات ويُعتمد إصدار جديد
     ids.latest = await newPlan('الخطة الاستراتيجية لشركة رعاية وطن 2027 - 2029', 2027, 2029);
@@ -191,14 +196,21 @@ describe('Plan material issues and stakeholder map', () => {
     expect(p.stakeholders[0].category).toBe('الجهة المالكة');
 
     // التشغيل الثاني لا يكرر، وحذف الشركة لقضية لا يعيدها
+    expect(await svc.run()).toBeNull();
     await http.delete(`${R}/issues/${p.issues[0].id}`).set(as(director)).expect(200);
+    await approveAll(ids.latest, 'حذف قضية');
     expect(await svc.run()).toBeNull();
     expect(await count('plan_material_issues', ids.latest)).toBe(content.issues.length - 1);
     // المنشآت الأخرى لا تتأثر
     expect(Number((await db.query('SELECT count(*)::int AS n FROM plan_stakeholders WHERE organization_id = $1', [other]))[0].n)).toBe(0);
 
-    // خطة قيد الاعتماد لا تُمس
-    const pending = await newPlan('خطة لاحقة', 2030, 2032);
+    // خطط دورة لاحقة لا يُدرج فيها محتوى 2027
+    const later = await newPlan('خطة الدورة التالية', 2030, 2032);
+    await approveAll(later);
+    expect(await svc.run()).toBeNull();
+    expect(await count('plan_stakeholders', later)).toBe(0);
+    // خطة 2027 قيد الاعتماد لا تُمس
+    const pending = await newPlan('خطة 2027 أخرى', 2027, 2029);
     await http.post(`${R}/plans/${pending}/submit`).set(as(director)).send({}).expect(201);
     expect(await svc.run()).toBe('wait');
     expect(await count('plan_stakeholders', pending)).toBe(0);

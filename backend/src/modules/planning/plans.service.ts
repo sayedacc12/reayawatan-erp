@@ -942,12 +942,23 @@ export class PlansService {
     return this.get(actor, planId);
   }
 
-  /** إضافة عدة صفوف في معاملة واحدة (الإدراج الآلي لبيانات الشركة) */
-  async addContextBatch(actor: OrgUser, planId: string, issues: IssueDto[], stakeholders: StakeholderDto[]) {
-    await this.db.transaction(async (em) => {
+  /**
+   * إضافة عدة صفوف في معاملة واحدة. مع approveNote: على خطة معتمدة فقط، وتُرفع وتمر بمراحل الاعتماد في المعاملة نفسها
+   * (الإدراج الآلي لبيانات الشركة بقرار المالك)، فلا تبقى الخطة مسودة أو في منتصف الاعتماد إن انقطع التشغيل.
+   */
+  async addContextBatch(actor: OrgUser, planId: string, issues: IssueDto[], stakeholders: StakeholderDto[], approveNote?: string) {
+    const cfg = approveNote ? await this.core.config(actor.organizationId) : null;
+    const d = approveNote ? await this.core.decider(actor) : null;
+    return this.db.transaction(async (em) => {
+      if (approveNote && (await this.plan(em, actor.organizationId, planId, true)).status !== 'approved') throw new ConflictException('الخطة ليست معتمدة');
       const p = await this.editing(em, actor, planId);
       for (const dto of issues) await this.insertContext(em, p, 'issue', dto);
       for (const dto of stakeholders) await this.insertContext(em, p, 'stakeholder', dto);
+      if (!approveNote) return p.status;
+      let s = (await this.submitIn(em, actor, planId, approveNote, cfg!)).status;
+      for (let i = 0; i < 8 && s === 'in_review'; i++) s = (await this.decideIn(em, actor, planId, { decision: 'approve', note: approveNote } as DecideDto, d!)).status;
+      if (s !== 'approved') throw new ConflictException('تعذر إكمال مراحل الاعتماد');
+      return s;
     });
   }
 
@@ -960,12 +971,13 @@ export class PlansService {
   async updateContext(actor: OrgUser, kind: ContextKind, id: string, dto: Partial<IssueDto & StakeholderDto>) {
     const org = actor.organizationId;
     const planId = await this.db.transaction(async (em) => {
+      await this.editing(em, actor, (await this.contextRow(em, org, kind, id)).planId);
+      // إعادة القراءة بعد قفل الخطة، فلا يُعاد صف حُذف في طلب متزامن
       const r = await this.contextRow(em, org, kind, id);
-      await this.editing(em, actor, r.planId);
       const allowed = CONTEXT[kind].keys.filter((k) => k !== 'id' && k !== 'code') as readonly string[];
       for (const [k, v] of Object.entries(dto)) {
         if (v === undefined || !allowed.includes(k)) continue;
-        if (v === null && ['title', 'summary', 'name', 'category'].includes(k)) throw new BadRequestException('أكمل الحقول الإلزامية');
+        if (v === null && ['title', 'summary', 'name', 'category', 'sortOrder'].includes(k)) throw new BadRequestException('أكمل الحقول الإلزامية');
         (r as unknown as Record<string, unknown>)[k] = v;
       }
       await em.getRepository<ContextRow>(CONTEXT[kind].entity).save(r);
@@ -977,8 +989,8 @@ export class PlansService {
   async removeContext(actor: OrgUser, kind: ContextKind, id: string) {
     const org = actor.organizationId;
     const planId = await this.db.transaction(async (em) => {
+      await this.editing(em, actor, (await this.contextRow(em, org, kind, id)).planId);
       const r = await this.contextRow(em, org, kind, id);
-      await this.editing(em, actor, r.planId);
       await em.getRepository<ContextRow>(CONTEXT[kind].entity).delete({ id: r.id, organizationId: org });
       return r.planId;
     });
@@ -1004,9 +1016,14 @@ export class PlansService {
   }
 
   async submit(actor: OrgUser, id: string, note: string | null) {
+    const cfg = await this.core.config(actor.organizationId);
+    await this.db.transaction((em) => this.submitIn(em, actor, id, note, cfg));
+    return this.get(actor, id);
+  }
+
+  private async submitIn(em: EntityManager, actor: OrgUser, id: string, note: string | null, cfg: PlanningConfig) {
     const org = actor.organizationId;
-    const cfg = await this.core.config(org);
-    await this.db.transaction(async (em) => {
+    {
       const p = await this.plan(em, org, id, true);
       this.assertManage(actor, p);
       const items = await em.getRepository(PlanItem).find({ where: { planId: id } });
@@ -1024,20 +1041,22 @@ export class PlansService {
       wfSubmit(p, route?.stages ?? [], actor.fullName, note?.trim() || null);
       await em.getRepository(Plan).save(p);
       if (p.status === 'approved') await this.afterApprove(em, p, actor.fullName);
-    });
-    return this.get(actor, id);
+      return p;
+    }
   }
 
   async decide(actor: OrgUser, id: string, dto: DecideDto) {
-    const org = actor.organizationId;
     const d = await this.core.decider(actor);
-    await this.db.transaction(async (em) => {
-      const p = await this.plan(em, org, id, true);
-      wfDecide(p, d, dto.decision, dto.note ?? null);
-      await em.getRepository(Plan).save(p);
-      if (p.status === 'approved') await this.afterApprove(em, p, actor.fullName);
-    });
+    await this.db.transaction((em) => this.decideIn(em, actor, id, dto, d));
     return this.get(actor, id);
+  }
+
+  private async decideIn(em: EntityManager, actor: OrgUser, id: string, dto: DecideDto, d: Awaited<ReturnType<PlanningCore['decider']>>) {
+    const p = await this.plan(em, actor.organizationId, id, true);
+    wfDecide(p, d, dto.decision, dto.note ?? null);
+    await em.getRepository(Plan).save(p);
+    if (p.status === 'approved') await this.afterApprove(em, p, actor.fullName);
+    return p;
   }
 
   /** بعد الاعتماد النهائي: إصدار جديد بنسخة كاملة لا تتغير */

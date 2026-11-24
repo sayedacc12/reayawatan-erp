@@ -536,6 +536,7 @@ export class PlanVersion {
  */
 @Entity('plan_material_issues')
 @Index('IDX_plan_material_issues_plan', ['organizationId', 'planId'])
+@Index('UQ_plan_material_issues_code', ['organizationId', 'planId', 'code'], { unique: true })
 export class PlanMaterialIssue {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -576,6 +577,7 @@ export class PlanMaterialIssue {
  */
 @Entity('plan_stakeholders')
 @Index('IDX_plan_stakeholders_plan', ['organizationId', 'planId'])
+@Index('UQ_plan_stakeholders_code', ['organizationId', 'planId', 'code'], { unique: true })
 export class PlanStakeholder {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
