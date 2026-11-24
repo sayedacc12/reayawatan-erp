@@ -5,7 +5,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
-import { CompanyPlanContextService, PLAN_CONTEXT_NOTE } from '../src/modules/starter/company-plan-context.service';
+import { CompanyPlanContextService } from '../src/modules/starter/company-plan-context.service';
 
 /**
  * القضايا الجوهرية وخارطة المعنيين في الخطة: الإضافة والتعديل والحذف بصلاحية نوع الخطة، وعزل المنشآت (404)،
@@ -122,6 +122,18 @@ describe('Plan material issues and stakeholder map', () => {
     expect(p.status).toBe('approved');
     expect(p.stakeholders.map((s: any) => s.id)).toEqual([ids.sh]);
 
+    // الخطة التشغيلية تعرض قضايا خطتها الأم ومعنييها للقراءة، ولا تُضاف فيها
+    const op = (await http.post(`${R}/plans`).set(as(director)).send({ kind: 'operational', title: 'الخطة التشغيلية 2027', startYear: 2027, endYear: 2027, periodicity: 'quarterly', parentPlanId: ids.sp }).expect(201)).body;
+    expect(op.contextFrom).toMatchObject({ id: ids.sp });
+    expect(op.issues.map((i: any) => i.id)).toEqual([ids.issue]);
+    expect(op.stakeholders.map((x: any) => x.id)).toEqual([ids.sh]);
+    await http.post(`${R}/plans/${op.id}/issues`).set(as(director)).send({ title: 'قضية تشغيلية', summary: 'ملخص القضية' }).expect(400);
+    await http.post(`${R}/plans/${op.id}/stakeholders`).set(as(director)).send({ name: 'معني', category: 'العملاء' }).expect(400);
+    const solo = (await http.post(`${R}/plans`).set(as(director)).send({ kind: 'operational', title: 'خطة تشغيلية مستقلة', startYear: 2027, endYear: 2027, periodicity: 'annual' }).expect(201)).body;
+    expect(solo).toMatchObject({ contextFrom: null, issues: [], stakeholders: [] });
+    await http.delete(`${R}/plans/${op.id}`).set(as(director)).expect(200);
+    await http.delete(`${R}/plans/${solo.id}`).set(as(director)).expect(200);
+
     // النسخ لفترة جديدة ينسخهما
     const copy = (await http.post(`${R}/plans/${ids.sp}/copy`).set(as(director)).send({ title: 'نسخة الخطة', startYear: 2030, endYear: 2032 }).expect(201)).body;
     expect(copy.issues.map((i: any) => i.title)).toEqual(['تركز الإيرادات في الجهة المالكة']);
@@ -166,39 +178,35 @@ describe('Plan material issues and stakeholder map', () => {
     ids.imported = r.plan.id;
   });
 
-  it('loads the company issues and stakeholders into the latest strategic plan once per plan', async () => {
+  it('loads the company issues and stakeholders into the latest 2027 draft strategic plan once per plan, without approving it', async () => {
     const svc = app.get(CompanyPlanContextService);
     const content = await svc.content();
     expect(content.issues.length).toBeGreaterThanOrEqual(8);
     expect(content.stakeholders.length).toBeGreaterThanOrEqual(12);
     const count = async (table: string, planId: string) => Number((await db.query(`SELECT count(*)::int AS n FROM ${table} WHERE organization_id = $1 AND plan_id = $2`, [company, planId]))[0].n);
 
-    // أحدث خطة 2027 (المستوردة) مسودة: لا يُكتب في مسودة، ويُعاد المحاولة لاحقًا
+    // أحدث خطة 2027 (المستوردة) مسودة فيها قضايا مسبقًا: لا يضاف إليها شيء
     let r = await svc.run();
-    expect(r).toBe('wait');
+    expect(r).toMatchObject({ added: 0 });
     expect(await count('plan_material_issues', ids.imported)).toBe(1);
     await http.delete(`${R}/plans/${ids.imported}`).set(as(director)).expect(200);
-    // خطة معتمدة فيها قضايا مسبقًا لا يضاف إليها شيء
-    r = await svc.run();
-    expect(r).toMatchObject({ added: 0 });
-    expect(await count('plan_material_issues', ids.sp)).toBe(1);
+    // الخطة المعتمدة (ids.sp) لا تُفتح للتعديل
+    expect(await svc.run()).toBe('wait');
+    expect((await http.get(`${R}/plans/${ids.sp}`).set(as(director)).expect(200)).body.status).toBe('approved');
 
-    // خطة جديدة معتمدة بلا قضايا: تُضاف البيانات ويُعتمد إصدار جديد
+    // خطة 2027 جديدة مسودة بلا قضايا: تُضاف البيانات وتبقى مسودة دون رفع أو اعتماد
     ids.latest = await newPlan('الخطة الاستراتيجية لشركة رعاية وطن 2027 - 2029', 2027, 2029);
-    await approveAll(ids.latest);
     r = await svc.run();
     expect(r).toMatchObject({ added: content.issues.length + content.stakeholders.length });
     expect(await count('plan_material_issues', ids.latest)).toBe(content.issues.length);
     expect(await count('plan_stakeholders', ids.latest)).toBe(content.stakeholders.length);
     const p = (await http.get(`${R}/plans/${ids.latest}`).set(as(director)).expect(200)).body;
-    expect(p).toMatchObject({ status: 'approved', version: 2 });
-    expect(p.versions[0].note).toBe(PLAN_CONTEXT_NOTE);
+    expect(p).toMatchObject({ status: 'draft', version: 0, versions: [] });
+    expect(p.approvals).toEqual([]);
     expect(p.stakeholders[0].category).toBe('الجهة المالكة');
 
     // التشغيل الثاني لا يكرر، وحذف الشركة لقضية لا يعيدها
-    expect(await svc.run()).toBeNull();
     await http.delete(`${R}/issues/${p.issues[0].id}`).set(as(director)).expect(200);
-    await approveAll(ids.latest, 'حذف قضية');
     expect(await svc.run()).toBeNull();
     expect(await count('plan_material_issues', ids.latest)).toBe(content.issues.length - 1);
     // المنشآت الأخرى لا تتأثر
@@ -206,7 +214,6 @@ describe('Plan material issues and stakeholder map', () => {
 
     // خطط دورة لاحقة لا يُدرج فيها محتوى 2027
     const later = await newPlan('خطة الدورة التالية', 2030, 2032);
-    await approveAll(later);
     expect(await svc.run()).toBeNull();
     expect(await count('plan_stakeholders', later)).toBe(0);
     // خطة 2027 قيد الاعتماد لا تُمس

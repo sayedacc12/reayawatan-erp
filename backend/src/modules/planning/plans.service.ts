@@ -146,8 +146,10 @@ export class PlansService {
     const children = [...a.plans.values()].filter((x) => x.parentPlanId === id).map((x) => ({ id: x.id, code: x.code, title: x.title, unitName: x.unitName, status: x.status, startYear: x.startYear, endYear: x.endYear, ...this.analysis.summary(a, x) }));
     const parent = p.parentPlanId ? a.plans.get(p.parentPlanId) : null;
     const updates = ids.size ? await this.db.getRepository(PlanProgressUpdate).find({ where: { organizationId: org, itemId: In([...ids]) }, order: { createdAt: 'DESC' } }) : [];
-    const issues = await this.db.getRepository(PlanMaterialIssue).find({ where: { organizationId: org, planId: id }, order: { sortOrder: 'ASC', code: 'ASC' } });
-    const stakeholders = await this.db.getRepository(PlanStakeholder).find({ where: { organizationId: org, planId: id }, order: { sortOrder: 'ASC', code: 'ASC' } });
+    // القضايا والمعنيون للخطة الاستراتيجية، والخطة التشغيلية تعرض ما في خطتها الأم للقراءة فقط
+    const ctxPlan = p.kind === 'strategic' ? p : parent ?? null;
+    const issues = ctxPlan ? await this.db.getRepository(PlanMaterialIssue).find({ where: { organizationId: org, planId: ctxPlan.id }, order: { sortOrder: 'ASC', code: 'ASC' } }) : [];
+    const stakeholders = ctxPlan ? await this.db.getRepository(PlanStakeholder).find({ where: { organizationId: org, planId: ctxPlan.id }, order: { sortOrder: 'ASC', code: 'ASC' } }) : [];
     return {
       ...this.header(p), summary: this.analysis.summary(a, p),
       stageName: p.status === 'in_review' && p.stageIndex !== null ? p.wfStages[p.stageIndex]?.name ?? null : null,
@@ -167,6 +169,7 @@ export class PlansService {
       links,
       issues,
       stakeholders,
+      contextFrom: p.kind === 'strategic' ? null : ctxPlan ? { id: ctxPlan.id, code: ctxPlan.code, title: ctxPlan.title } : null,
       versions,
       periods: Array.from({ length: p.endYear - p.startYear + 1 }, (_, i) => p.startYear + i),
     };
@@ -925,6 +928,7 @@ export class PlansService {
 
   /** إضافة صف برمز يلي آخر رمز في الخطة (الخطة مقفلة بالمعاملة فلا يتكرر الرمز) */
   private async insertContext(em: EntityManager, p: Plan, kind: ContextKind, dto: IssueDto | StakeholderDto, fallbackOrder?: number) {
+    if (p.kind !== 'strategic') throw new BadRequestException('القضايا الجوهرية وخارطة المعنيين تُعد في الخطة الاستراتيجية، والخطة التشغيلية تعرضها من خطتها الأم');
     const c = CONTEXT[kind];
     const repo = em.getRepository<ContextRow>(c.entity);
     const rows = await repo.find({ where: { organizationId: p.organizationId, planId: p.id }, select: ['code', 'sortOrder'] });
@@ -942,23 +946,12 @@ export class PlansService {
     return this.get(actor, planId);
   }
 
-  /**
-   * إضافة عدة صفوف في معاملة واحدة. مع approveNote: على خطة معتمدة فقط، وتُرفع وتمر بمراحل الاعتماد في المعاملة نفسها
-   * (الإدراج الآلي لبيانات الشركة بقرار المالك)، فلا تبقى الخطة مسودة أو في منتصف الاعتماد إن انقطع التشغيل.
-   */
-  async addContextBatch(actor: OrgUser, planId: string, issues: IssueDto[], stakeholders: StakeholderDto[], approveNote?: string) {
-    const cfg = approveNote ? await this.core.config(actor.organizationId) : null;
-    const d = approveNote ? await this.core.decider(actor) : null;
-    return this.db.transaction(async (em) => {
-      if (approveNote && (await this.plan(em, actor.organizationId, planId, true)).status !== 'approved') throw new ConflictException('الخطة ليست معتمدة');
+  /** إضافة عدة صفوف في معاملة واحدة (الإدراج الآلي لبيانات الشركة). لا ترفع الخطة ولا تعتمدها */
+  async addContextBatch(actor: OrgUser, planId: string, issues: IssueDto[], stakeholders: StakeholderDto[]) {
+    await this.db.transaction(async (em) => {
       const p = await this.editing(em, actor, planId);
       for (const dto of issues) await this.insertContext(em, p, 'issue', dto);
       for (const dto of stakeholders) await this.insertContext(em, p, 'stakeholder', dto);
-      if (!approveNote) return p.status;
-      let s = (await this.submitIn(em, actor, planId, approveNote, cfg!)).status;
-      for (let i = 0; i < 8 && s === 'in_review'; i++) s = (await this.decideIn(em, actor, planId, { decision: 'approve', note: approveNote } as DecideDto, d!)).status;
-      if (s !== 'approved') throw new ConflictException('تعذر إكمال مراحل الاعتماد');
-      return s;
     });
   }
 

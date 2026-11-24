@@ -18,18 +18,17 @@ export interface PlanContextFile { label: string; issues: IssueDto[]; stakeholde
 export const PLAN_CONTEXT_PREFIX = 'rw-ctx.';
 /** المحتوى مكتوب لدورة التخطيط التي تبدأ 2027، فلا يُدرج في خطط دورات لاحقة */
 export const PLAN_CONTEXT_START_YEAR = 2027;
-export const PLAN_CONTEXT_NOTE = 'إضافة القضايا الجوهرية وخارطة المعنيين عند الإدراج بقرار المالك';
 
 /**
- * القضايا الجوهرية وخارطة المعنيين لشركة رعاية وطن (قرار المالك 2026-11-24): تُدرج في أحدث خطة استراتيجية معتمدة للشركة
- * تبدأ في 2027، من assets/plan-context/rw-plan-context.json، فلا تُترك للإدخال اليدوي.
+ * القضايا الجوهرية وخارطة المعنيين لشركة رعاية وطن (قرار المالك 2026-11-24): تُدرج في أحدث خطة استراتيجية للشركة تبدأ
+ * في 2027 وهي مسودة، من assets/plan-context/rw-plan-context.json، فلا تُترك للإدخال اليدوي. لا تُعتمد الخطة هنا: تبقى
+ * مسودة حتى تمر بمراحل اعتمادها (الإدارة التنفيذية ثم المجلس).
  *
  * - مرة واحدة لكل خطة (organization_starters = rw-ctx.<رمز الخطة>)، فإن حذفتها الشركة لا تعود. وإن حلت خطة استراتيجية
  *   جديدة محل السابقة (مثل خطة 2027 - 2029) ولم يأتِ ملف رفعها بالقضايا والمعنيين، تُدرج فيها مع التحديث التالي.
  * - الخطة التي فيها قضايا أو معنيون مسبقًا (من ملف الرفع أو الإدخال) لا يُضاف إليها شيء.
- * - عبر خدمة الخطط نفسها وبنفس تحقق الطلبات، باسم مدير نظام الشركة مثل حزمة الشركة: تُفتح الخطة مسودة تعديل وتُرفع وتمر
- *   بمراحل الاعتماد في معاملة واحدة، بملاحظة تبين أنه إدراج آلي بقرار المالك (إصدار جديد يحفظ الإضافة في سجل الإصدارات).
- *   الخطة غير المعتمدة (مسودة يعمل عليها أحد، أو قيد الاعتماد، أو مرفوضة) لا تُمس ويُعاد المحاولة في التشغيل التالي.
+ * - عبر خدمة الخطط نفسها وبنفس تحقق الطلبات، باسم مدير نظام الشركة، في معاملة واحدة. الخطة المعتمدة لا تُفتح للتعديل،
+ *   والخطة قيد الاعتماد أو المرفوضة لا تُمس، ويُعاد المحاولة في التشغيل التالي.
  * - تنتظر اكتمال حزمة الشركة (الخطة الاستراتيجية) إن كانت تعمل الآن.
  */
 @Injectable()
@@ -90,8 +89,9 @@ export class CompanyPlanContextService implements OnApplicationBootstrap {
     const [plan] = await this.db.query(
       `SELECT id, code, status FROM plan_plans WHERE organization_id = $1 AND kind = 'strategic' AND start_year = $2 ORDER BY created_at DESC LIMIT 1`, [org, PLAN_CONTEXT_START_YEAR]) as { id: string; code: string; status: string }[];
     if (!plan) return 'wait';
-    // الخطة المعتمدة فقط: لا يُكتب في مسودة يعمل عليها أحد، ولا في خطة قيد الاعتماد
-    if (plan.status !== 'approved') return 'wait';
+    // المسودة فقط (قرار المالك 2026-11-24: لا اعتماد قبل نقاش المجلس). الخطة المعتمدة لا تُفتح للتعديل هنا،
+    // والخطة قيد الاعتماد أو المرفوضة لا تُمس، ويُعاد المحاولة في التشغيل التالي (مثل حلول خطة 2027 - 2029 مسودة)
+    if (plan.status !== 'draft' && plan.status !== 'returned') return 'wait';
     const code = `${PLAN_CONTEXT_PREFIX}${plan.code}`.slice(0, 40);
     await this.db.query(
       `DELETE FROM organization_starters WHERE organization_id = $1 AND module_code = $2 AND status = 'applying' AND applied_at < now() - interval '20 minutes'`, [org, code]);
@@ -123,9 +123,9 @@ export class CompanyPlanContextService implements OnApplicationBootstrap {
       `SELECT (SELECT count(*) FROM plan_material_issues WHERE organization_id = $1 AND plan_id = $2) + (SELECT count(*) FROM plan_stakeholders WHERE organization_id = $1 AND plan_id = $2) AS n`,
       [org, plan.id]);
     if (Number(n) > 0) return { key: 'plan-context', label: c.label, added: 0, note: `الخطة ${plan.code} فيها قضايا أو معنيون مسبقًا` };
-    // مرحلة واحدة: الإضافة ثم الرفع والاعتماد في معاملة واحدة، فإما كلها أو لا شيء
-    await this.plans.addContextBatch(a, plan.id, c.issues, c.stakeholders, PLAN_CONTEXT_NOTE);
-    const note = `${plan.code}: ${c.issues.length} قضية جوهرية و${c.stakeholders.length} معنيًا، واعتُمد إصدار جديد للخطة`;
+    // معاملة واحدة، والخطة تبقى مسودة لتُرفع وتُعتمد بمراحلها المعتادة
+    await this.plans.addContextBatch(a, plan.id, c.issues, c.stakeholders);
+    const note = `${plan.code}: ${c.issues.length} قضية جوهرية و${c.stakeholders.length} معنيًا، والخطة مسودة بانتظار الاعتماد`;
     return { key: 'plan-context', label: c.label, added: c.issues.length + c.stakeholders.length, note };
   }
 }

@@ -11,6 +11,9 @@ const emit = defineEmits<{ changed: [v: any] }>();
 const toast = useToast();
 
 const isIssue = computed(() => props.kind === 'issue');
+/** الخطة التشغيلية تعرض قضايا خطتها الاستراتيجية الأم ومعنييها للقراءة فقط */
+const inherited = computed(() => props.plan.kind !== 'strategic');
+const canEdit = computed(() => props.editable && !inherited.value);
 const rows = computed<any[]>(() => (isIssue.value ? props.plan.issues : props.plan.stakeholders) ?? []);
 const base = computed(() => (isIssue.value ? 'issues' : 'stakeholders'));
 const lines = (t: string | null) => (t ?? '').split('\n').map((x) => x.trim()).filter(Boolean);
@@ -69,9 +72,14 @@ async function remove(r: any) {
       <span>{{ isIssue ? 'القضايا الجوهرية' : 'خارطة المعنيين' }} <span class="pm-muted">{{ rows.length }} {{ isIssue ? 'قضية' : 'معنيًا' }}</span></span>
       <span class="pl-flex">
         <input v-model="q" class="input" style="width: 200px" placeholder="بحث" />
-        <button v-if="editable" class="btn btn-sm btn-primary" @click="open(null)">+ {{ isIssue ? 'قضية جوهرية' : 'معني' }}</button>
+        <button v-if="canEdit" class="btn btn-sm btn-primary" @click="open(null)">+ {{ isIssue ? 'قضية جوهرية' : 'معني' }}</button>
       </span>
     </h2>
+    <p v-if="inherited" class="alert" style="margin: 0 0 10px">
+      <template v-if="plan.contextFrom">تُعد {{ isIssue ? 'القضايا الجوهرية' : 'خارطة المعنيين' }} في الخطة الاستراتيجية، وهذه الخطة التشغيلية منبثقة من
+        <RouterLink :to="`/planning/plans/${plan.contextFrom.id}?tab=${isIssue ? 'issues' : 'stakeholders'}`">{{ plan.contextFrom.code }} {{ plan.contextFrom.title }}</RouterLink>، فتُعرض منها للقراءة. التعديل من الخطة الاستراتيجية.</template>
+      <template v-else>هذه الخطة التشغيلية غير مرتبطة بخطة استراتيجية، و{{ isIssue ? 'القضايا الجوهرية' : 'خارطة المعنيين' }} تُعد في الخطة الاستراتيجية. اربطها بخطتها الأم من «بيانات الخطة».</template>
+    </p>
     <p class="pm-muted" style="margin-top: -6px">
       {{ isIssue ? 'القضايا التي بُنيت عليها توجهات الخطة: عنوان كل قضية وملخصها والتوصيات المتوقعة منها.' : 'الجهات المعنية بالخطة مصنفة، مع ما يتوقعه كل معني من الشركة وما تتوقعه الشركة منه.' }}
     </p>
@@ -89,7 +97,7 @@ async function remove(r: any) {
       <article v-for="r in shown" :key="r.id" class="pc-card" style="--c: #0ea5e9">
         <header>
           <span><span class="rk-code">{{ r.code }}</span> <b>{{ r.title }}</b></span>
-          <span v-if="editable" class="pl-flex"><button class="btn btn-sm" @click="open(r)">تعديل</button><button class="btn btn-sm" @click="remove(r)">✕</button></span>
+          <span v-if="canEdit" class="pl-flex"><button class="btn btn-sm" @click="open(r)">تعديل</button><button class="btn btn-sm" @click="remove(r)">✕</button></span>
         </header>
         <div class="pc-cols">
           <div><h4>ملخص القضية</h4><p>{{ r.summary }}</p></div>
@@ -106,7 +114,7 @@ async function remove(r: any) {
           <article v-for="r in list" :key="r.id" class="pc-card" :style="{ '--c': color(c) }">
             <header>
               <span><span class="rk-code">{{ r.code }}</span> <b>{{ r.name }}</b></span>
-              <span v-if="editable" class="pl-flex"><button class="btn btn-sm" @click="open(r)">تعديل</button><button class="btn btn-sm" @click="remove(r)">✕</button></span>
+              <span v-if="canEdit" class="pl-flex"><button class="btn btn-sm" @click="open(r)">تعديل</button><button class="btn btn-sm" @click="remove(r)">✕</button></span>
             </header>
             <p v-if="r.definition" class="pc-def">{{ r.definition }}</p>
             <div class="pc-cols">
