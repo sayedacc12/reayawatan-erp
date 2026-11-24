@@ -3,6 +3,7 @@ import { moduleRoutes } from './modules';
 import { loginPath, useSession } from './stores/session';
 import AppShell from './layouts/AppShell.vue';
 import { useSupplierPortal } from './supplier/supplier';
+import { setIndexable } from './web/parts';
 import { volunteersPublicRoutes } from './modules/volunteers/routes';
 import { membersPublicRoutes } from './modules/members/routes';
 
@@ -114,5 +115,8 @@ router.beforeEach(async (to) => {
 router.afterEach((to) => {
   // صفحات الموقع العام تضبط عناوينها بنفسها
   if (to.meta.web) return;
+  // شاشات النظام والبوابات والروابط الخاصة لا تظهر في نتائج البحث
+  setIndexable(false);
+  document.head.querySelector('link[rel="canonical"]')?.remove();
   document.title = to.meta.title ? `${to.meta.title} · رعاية وطن` : 'رعاية وطن · National Care';
 });
