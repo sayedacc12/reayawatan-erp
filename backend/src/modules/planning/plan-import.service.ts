@@ -113,7 +113,8 @@ export class PlanImportService {
     return Buffer.from(await wb.xlsx.writeBuffer());
   }
 
-  async import(actor: OrgUser, file: Express.Multer.File | undefined, mode: string): Promise<PlanImportResult> {
+  /** replaceId: يستبدل محتوى خطة قائمة بمحتوى الملف مع سبب التعديل revisionNote (لإدراج حزمة الشركة فقط، انظر PlansService.importPlan) */
+  async import(actor: OrgUser, file: Express.Multer.File | undefined, mode: string, replaceId?: string, revisionNote?: string): Promise<PlanImportResult> {
     if (mode !== 'check' && mode !== 'apply') throw new BadRequestException('وضع الاستيراد غير صحيح');
     const wb = await loadXlsx(file);
     const org = actor.organizationId;
@@ -246,7 +247,7 @@ export class PlanImportService {
     out.plan = kind ? { kind, title: header.title, startYear: header.startYear, endYear: header.endYear, parent: parentRef || null, id: null, code: null } : null;
     if (errors.length) return out;
     try {
-      const res = await this.plans.importPlan(actor, { header, items, kpis, refs, parentLinks }, mode === 'check');
+      const res = await this.plans.importPlan(actor, { header, items, kpis, refs, parentLinks }, mode === 'check', replaceId, revisionNote);
       out.plan!.id = res.id;
       out.plan!.code = res.code;
       const codes = new Map(res.items.map((i) => [i.key, i.code]));

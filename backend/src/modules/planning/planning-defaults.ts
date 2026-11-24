@@ -34,6 +34,13 @@ export const OPERATIONAL_LEVELS: PlanLevel[] = [
   { key: 'task', name: 'مهمة', prefix: 'T' },
 ];
 
+/** مرحلتا اعتماد الخطط والموازنة: الأولى الاعتماد الأولي من الإدارة التنفيذية، والأخيرة الاعتماد النهائي من مجلس المديرين */
+export const INITIAL_STAGE = 'الاعتماد الأولي من الإدارة التنفيذية';
+export const BOARD_STAGE = 'الاعتماد النهائي من مجلس المديرين';
+export const BOARD_STAGES = (): WfStage[] => [{ name: INITIAL_STAGE, roleId: null }, { name: BOARD_STAGE, roleId: null }];
+/** أنواع المسارات التي تمر بمرحلتي الاعتماد الأولي والمجلس */
+export const BOARD_ROUTE_KINDS = ['strategic', 'operational', 'budget'] as const;
+
 export function defaultConfig(): PlanningConfig {
   return {
     strategicLevels: STRATEGIC_LEVELS.map((l) => ({ ...l })),
@@ -47,23 +54,12 @@ export function defaultConfig(): PlanningConfig {
     thresholds: { green: 90, amber: 70 },
     delayTolerance: 10,
     customFields: [],
+    // رعاية وطن (قرار المالك 2026-11-24): الخطط والموازنة تمر بمرحلتين؛ الاعتماد الأولي من الإدارة التنفيذية،
+    // وبعده يُطبع تقرير الاعتماد ويُرفع لمجلس المديرين، ثم الاعتماد النهائي من المجلس
     routes: [
-      {
-        key: 'strategic', name: 'اعتماد الخطة الاستراتيجية', planKind: 'strategic', unitId: null, minCost: null,
-        stages: [{ name: 'مراجعة إدارة التخطيط والأداء', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
-      },
-      {
-        key: 'operational', name: 'اعتماد الخطة التشغيلية', planKind: 'operational', unitId: null, minCost: null,
-        stages: [{ name: 'اعتماد مدير الإدارة', roleId: null }, { name: 'مراجعة إدارة التخطيط والأداء', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }],
-      },
-      {
-        key: 'operational-large', name: 'خطة تشغيلية بتكلفة مليون ريال فأكثر', planKind: 'operational', unitId: null, minCost: 1_000_000,
-        stages: [{ name: 'اعتماد مدير الإدارة', roleId: null }, { name: 'مراجعة إدارة التخطيط والأداء', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
-      },
-      {
-        key: 'budget', name: 'اعتماد الموازنة التقديرية', planKind: 'budget', unitId: null, minCost: null,
-        stages: [{ name: 'مراجعة الإدارة المالية', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }, { name: 'اعتماد مجلس الإدارة', roleId: null }],
-      },
+      { key: 'strategic', name: 'اعتماد الخطة الاستراتيجية', planKind: 'strategic', unitId: null, minCost: null, stages: BOARD_STAGES() },
+      { key: 'operational', name: 'اعتماد الخطة التشغيلية', planKind: 'operational', unitId: null, minCost: null, stages: BOARD_STAGES() },
+      { key: 'budget', name: 'اعتماد الموازنة التقديرية', planKind: 'budget', unitId: null, minCost: null, stages: BOARD_STAGES() },
       {
         key: 'transfer', name: 'اعتماد مناقلات الموازنة وتعديلاتها', planKind: 'transfer', unitId: null, minCost: null,
         stages: [{ name: 'مراجعة الإدارة المالية', roleId: null }, { name: 'اعتماد المدير التنفيذي', roleId: null }],

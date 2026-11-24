@@ -191,7 +191,7 @@ describe('Budgets', () => {
     await http.post(`${R}/budgets/${ids.b}/decision`).set(as(clerk)).send({ decision: 'approve' }).expect(403);
     let b = (await http.get(`${R}/budgets/${ids.b}`).set(as(admin)).expect(200)).body;
     expect(b.routeName).toBe('اعتماد الموازنة التقديرية');
-    for (let i = 0; i < 5 && b.status === 'in_review'; i++) b = (await http.post(`${R}/budgets/${ids.b}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201)).body;
+    for (let i = 0; i < 5 && b.status === 'in_review'; i++) b = (await http.post(`${R}/budgets/${ids.b}/decision`).set(as(admin)).send({ decision: 'approve', note: 'قرار مجلس المديرين رقم 1/2027' }).expect(201)).body;
     expect(b.status).toBe('approved');
     expect(b.version).toBe(1);
     // تعديل بعد الاعتماد: مسودة، والإصدار المعتمد يبقى مرجع المتاح
