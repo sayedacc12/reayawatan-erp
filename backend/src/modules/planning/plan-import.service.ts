@@ -8,12 +8,12 @@ import {
   findSheet, lines, loadXlsx, parseDate, parseNum, readKeyValues, readSheet, SheetCol, writeHelp, writeKeyValues, writeSheet,
 } from '../../core/files/xlsx-sheets';
 import { Plan, PlanItem } from './entities/planning.entity';
-import { ItemDto, KpiDto, PlanDto } from './planning.dto';
+import { IssueDto, ItemDto, KpiDto, PlanDto, StakeholderDto } from './planning.dto';
 import { PlanningLinks, RefOption } from './planning-links.service';
 import { PlanImportData, PlansService } from './plans.service';
 
-const S_PLAN = 'الخطة', S_ITEMS = 'العناصر', S_KPIS = 'المؤشرات', S_LINKS = 'الروابط';
-const MAX_ITEMS = 500, MAX_KPIS = 300, MAX_LINKS = 500;
+const S_PLAN = 'الخطة', S_ITEMS = 'العناصر', S_KPIS = 'المؤشرات', S_LINKS = 'الروابط', S_ISSUES = 'القضايا الجوهرية', S_STAKE = 'خارطة المعنيين';
+const MAX_ITEMS = 500, MAX_KPIS = 300, MAX_LINKS = 500, MAX_CONTEXT = 200;
 const KEY_RE = /^[A-Za-z0-9._-]{1,30}$/;
 
 const ITEM_COLS: SheetCol[] = [
@@ -48,6 +48,19 @@ const LINK_COLS: SheetCol[] = [
   { key: 'note', label: 'ملاحظة', width: 30 },
 ];
 
+const ISSUE_COLS: SheetCol[] = [
+  { key: 'title', label: 'عنوان القضية', required: true, width: 40 },
+  { key: 'summary', label: 'ملخص القضية', required: true, width: 70 },
+  { key: 'recommendations', label: 'التوصيات المتوقعة', width: 70, note: 'توصية في كل سطر' },
+];
+const STAKE_COLS: SheetCol[] = [
+  { key: 'name', label: 'المعني', required: true, width: 30 },
+  { key: 'category', label: 'التصنيف', required: true, width: 22, note: 'مثل: الجهة المالكة، العملاء، الشركاء، الجهات التنظيمية، فريق العمل' },
+  { key: 'definition', label: 'التعريف', width: 50 },
+  { key: 'expectsFromUs', label: 'ما يتوقعه من الشركة', width: 55 },
+  { key: 'weExpect', label: 'ما تتوقعه الشركة منه', width: 55 },
+];
+
 const KIND: Record<string, 'strategic' | 'operational'> = { استراتيجية: 'strategic', تشغيلية: 'operational', strategic: 'strategic', operational: 'operational' };
 const PERIOD: Record<string, PlanDto['periodicity']> = { سنوية: 'annual', 'نصف سنوية': 'semiannual', 'ربع سنوية': 'quarterly', شهرية: 'monthly', annual: 'annual', semiannual: 'semiannual', quarterly: 'quarterly', monthly: 'monthly' };
 const DIRECTION: Record<string, 'up' | 'down'> = { تصاعدي: 'up', تنازلي: 'down', up: 'up', down: 'down' };
@@ -64,6 +77,8 @@ export interface PlanImportResult {
   plan: { kind: 'strategic' | 'operational'; title: string; startYear: number; endYear: number; parent: string | null; id: string | null; code: string | null } | null;
   items: { row: number; key: string; title: string; code: string | null }[];
   kpis: number;
+  issues: number;
+  stakeholders: number;
   links: { row: number; item: string; system: string; ref: string; resolved: string | null }[];
   errors: PlanIssue[];
   warnings: PlanIssue[];
@@ -97,7 +112,8 @@ export class PlanImportService {
       '3. ورقة «المؤشرات»: مؤشر في كل صف مرتبط برمز العنصر، والمستهدفات في أعمدة «مستهدف 2027» و«مستهدف 2028»...',
       '4. ورقة «الروابط»: ربط العناصر بسجل المخاطر (رمز الخطر أو عنوانه)، أو بعامل من تحليل PESTEL أو SWOT معتمد (نص العامل)، أو بعنصر في الخطة الأم (رمزه).',
       '   الروابط التي لا يجدها النظام تظهر تنبيهًا ولا تمنع الاستيراد، ويمكن إضافتها لاحقًا من شاشة الخطة.',
-      '5. ارفع الملف من شاشة الخطط: يُفحص أولًا ويظهر تقرير بالأخطاء والتنبيهات ولا يُحفظ شيء حتى توافق. الحفظ كله أو لا شيء.',
+      '5. ورقتا «القضايا الجوهرية» و«خارطة المعنيين» اختياريتان وللخطة الاستراتيجية فقط (التشغيلية تعرضهما من خطتها الأم): القضية بعنوانها وملخصها والتوصيات المتوقعة منها، والمعني باسمه وتصنيفه وتعريفه وما يتوقعه من الشركة وما تتوقعه الشركة منه.',
+      '6. ارفع الملف من شاشة الخطط: يُفحص أولًا ويظهر تقرير بالأخطاء والتنبيهات ولا يُحفظ شيء حتى توافق. الحفظ كله أو لا شيء.',
     ]);
     writeKeyValues(wb, S_PLAN, [
       ['نوع الخطة', 'استراتيجية', 'استراتيجية أو تشغيلية'], ['عنوان الخطة', 'الخطة الاستراتيجية'], ['سنة البداية', 2027], ['سنة النهاية', 2030],
@@ -110,6 +126,8 @@ export class PlanImportService {
     const kpis = writeSheet(wb, S_KPIS, KPI_COLS, [['G1.1', 'مثال: نسبة رضا العملاء', '%', 'تصاعدي', 'سنوية', 'آخر قراءة', '', '', '', '', '']]);
     ['مستهدف 2027', 'مستهدف 2028'].forEach((h, i) => { const c = kpis.getCell(1, KPI_COLS.length + 1 + i); c.value = h; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } }; });
     writeSheet(wb, S_LINKS, LINK_COLS, [['G1.1', 'سجل المخاطر', 'RSK-001', '', '']]);
+    writeSheet(wb, S_ISSUES, ISSUE_COLS, [['مثال: الاعتماد على مصدر إيراد واحد', 'ملخص القضية وأثرها على الخطة', 'تنويع مصادر الإيراد\nبناء احتياطي نقدي']]);
+    writeSheet(wb, S_STAKE, STAKE_COLS, [['مثال: العملاء من الجمعيات', 'العملاء', 'من هم وعلاقتهم بالشركة', 'جودة الخدمة وسعر مناسب', 'الالتزام بالتعاقد والسداد في الوقت']]);
     return Buffer.from(await wb.xlsx.writeBuffer());
   }
 
@@ -121,7 +139,7 @@ export class PlanImportService {
     const errors: PlanIssue[] = [];
     const warnings: PlanIssue[] = [];
     const err = (sheet: string, row: number | null, label: string | null, messages: string[]) => { if (messages.length) errors.push({ sheet, row, label, messages }); };
-    const out: PlanImportResult = { mode: mode as 'check' | 'apply', ok: false, plan: null, items: [], kpis: 0, links: [], errors, warnings };
+    const out: PlanImportResult = { mode: mode as 'check' | 'apply', ok: false, plan: null, items: [], kpis: 0, issues: 0, stakeholders: 0, links: [], errors, warnings };
 
     // ---------------- الرأس
     const planWs = findSheet(wb, S_PLAN);
@@ -244,10 +262,34 @@ export class PlanImportService {
       out.links.push({ row, item: v.item, system: v.system, ref: v.ref, resolved });
     }
 
+    // ---------------- القضايا الجوهرية وخارطة المعنيين (اختياريتان)
+    const issues: IssueDto[] = [];
+    const issuesWs = findSheet(wb, S_ISSUES);
+    for (const { row, v } of issuesWs ? readSheet(issuesWs, ISSUE_COLS, MAX_CONTEXT, S_ISSUES) : []) {
+      const dto = { title: v.title, summary: v.summary, recommendations: v.recommendations || null } as IssueDto;
+      const m = await dtoErrors(IssueDto, dto);
+      err(S_ISSUES, row, v.title.slice(0, 40) || null, m);
+      if (!m.length) issues.push(dto);
+    }
+    const stakeholders: StakeholderDto[] = [];
+    const stakeWs = findSheet(wb, S_STAKE);
+    for (const { row, v } of stakeWs ? readSheet(stakeWs, STAKE_COLS, MAX_CONTEXT, S_STAKE) : []) {
+      const dto = { name: v.name, category: v.category, definition: v.definition || null, expectsFromUs: v.expectsFromUs || null, weExpect: v.weExpect || null } as StakeholderDto;
+      const m = await dtoErrors(StakeholderDto, dto);
+      err(S_STAKE, row, v.name.slice(0, 40) || null, m);
+      if (!m.length) stakeholders.push(dto);
+    }
+    if (kind === 'operational') {
+      if (issues.length) err(S_ISSUES, null, null, ['القضايا الجوهرية تُعد في الخطة الاستراتيجية، والخطة التشغيلية تعرضها من خطتها الأم. احذف هذه الورقة']);
+      if (stakeholders.length) err(S_STAKE, null, null, ['خارطة المعنيين تُعد في الخطة الاستراتيجية، والخطة التشغيلية تعرضها من خطتها الأم. احذف هذه الورقة']);
+    }
+    out.issues = issues.length;
+    out.stakeholders = stakeholders.length;
+
     out.plan = kind ? { kind, title: header.title, startYear: header.startYear, endYear: header.endYear, parent: parentRef || null, id: null, code: null } : null;
     if (errors.length) return out;
     try {
-      const res = await this.plans.importPlan(actor, { header, items, kpis, refs, parentLinks }, mode === 'check', replaceId, revisionNote);
+      const res = await this.plans.importPlan(actor, { header, items, kpis, refs, parentLinks, issues, stakeholders }, mode === 'check', replaceId, revisionNote);
       out.plan!.id = res.id;
       out.plan!.code = res.code;
       const codes = new Map(res.items.map((i) => [i.key, i.code]));

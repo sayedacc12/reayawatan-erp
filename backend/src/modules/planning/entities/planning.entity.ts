@@ -530,6 +530,96 @@ export class PlanVersion {
   approvedAt!: Date;
 }
 
+/**
+ * القضايا الجوهرية للخطة: القضايا التي يبنى عليها التوجه، لكل قضية عنوان وملخص والتوصيات المتوقعة منها.
+ * جزء من تعريف الخطة، فتُحفظ في الإصدار المعتمد، وتعديلها على خطة معتمدة يفتح مسودة تعديل.
+ */
+@Entity('plan_material_issues')
+@Index('IDX_plan_material_issues_plan', ['organizationId', 'planId'])
+@Index('UQ_plan_material_issues_code', ['organizationId', 'planId', 'code'], { unique: true })
+export class PlanMaterialIssue {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'plan_id', type: 'uuid' })
+  planId!: string;
+
+  /** رمز داخل الخطة: MI-01، MI-02 ... */
+  @Column({ type: 'varchar', length: 12 })
+  code!: string;
+
+  @Column({ length: 300 })
+  title!: string;
+
+  @Column({ type: 'varchar', length: 3000 })
+  summary!: string;
+
+  /** التوصيات المتوقعة من القضية (توصية في كل سطر) */
+  @Column({ type: 'varchar', length: 3000, nullable: true })
+  recommendations!: string | null;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
+/**
+ * خارطة المعنيين (أصحاب المصلحة) للخطة: الاسم والتصنيف والتعريف، وما يتوقعه المعني من الشركة وما تتوقعه الشركة منه.
+ * جزء من تعريف الخطة مثل القضايا الجوهرية.
+ */
+@Entity('plan_stakeholders')
+@Index('IDX_plan_stakeholders_plan', ['organizationId', 'planId'])
+@Index('UQ_plan_stakeholders_code', ['organizationId', 'planId', 'code'], { unique: true })
+export class PlanStakeholder {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string;
+
+  @Column({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string;
+
+  @Column({ name: 'plan_id', type: 'uuid' })
+  planId!: string;
+
+  /** رمز داخل الخطة: SH-01، SH-02 ... */
+  @Column({ type: 'varchar', length: 12 })
+  code!: string;
+
+  @Column({ length: 200 })
+  name!: string;
+
+  /** تصنيف المعني (الجهة المالكة، العملاء، الشركاء، الجهات التنظيمية ...) */
+  @Column({ type: 'varchar', length: 100 })
+  category!: string;
+
+  @Column({ type: 'varchar', length: 2000, nullable: true })
+  definition!: string | null;
+
+  /** ما يتوقعه المعني من الشركة */
+  @Column({ name: 'expects_from_us', type: 'varchar', length: 2000, nullable: true })
+  expectsFromUs!: string | null;
+
+  /** ما تتوقعه الشركة من المعني */
+  @Column({ name: 'we_expect', type: 'varchar', length: 2000, nullable: true })
+  weExpect!: string | null;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+
 /** الحقول التعريفية للعنصر التي يحفظها الإصدار (لا تشمل الإنجاز ولا حالة التنفيذ) */
 export const ITEM_DEF_KEYS = [
   'id', 'parentId', 'level', 'code', 'title', 'description', 'ownerUserId', 'ownerName', 'unitId', 'unitName', 'participants', 'startDate', 'endDate', 'weight',
@@ -540,13 +630,19 @@ export const KPI_DEF_KEYS = [
   'id', 'itemId', 'code', 'name', 'description', 'unit', 'direction', 'frequency', 'aggregation', 'baseline', 'targets', 'weight', 'ownerName', 'dataSource', 'sortOrder',
 ] as const;
 export type SnapshotKpi = Pick<PlanKpi, (typeof KPI_DEF_KEYS)[number]>;
+export const ISSUE_DEF_KEYS = ['id', 'code', 'title', 'summary', 'recommendations', 'sortOrder'] as const;
+export type SnapshotIssue = Pick<PlanMaterialIssue, (typeof ISSUE_DEF_KEYS)[number]>;
+export const STAKEHOLDER_DEF_KEYS = ['id', 'code', 'name', 'category', 'definition', 'expectsFromUs', 'weExpect', 'sortOrder'] as const;
+export type SnapshotStakeholder = Pick<PlanStakeholder, (typeof STAKEHOLDER_DEF_KEYS)[number]>;
 export const PLAN_DEF_KEYS = [
   'title', 'description', 'startYear', 'endYear', 'periodicity', 'vision', 'mission', 'values', 'unitId', 'unitName', 'sharedUnits', 'parentPlanId', 'levels', 'ownerName',
 ] as const;
 export type PlanSnapshot = Pick<Plan, (typeof PLAN_DEF_KEYS)[number]> & {
   items: SnapshotItem[]; kpis: SnapshotKpi[];
   links: { fromItemId: string; toItemId: string; relation: string; contribution: number | null; note: string | null }[];
+  /** غير موجودة في إصدارات ما قبل إضافة القضايا الجوهرية وخارطة المعنيين */
+  issues?: SnapshotIssue[]; stakeholders?: SnapshotStakeholder[];
 };
 
-export const PLANNING_ENTITIES = [PlanSettings, Plan, PlanItem, PlanLink, PlanRef, PlanKpi, PlanKpiReading, PlanProgressUpdate, PlanVersion, ...BUDGET_ENTITIES];
+export const PLANNING_ENTITIES = [PlanSettings, Plan, PlanItem, PlanLink, PlanRef, PlanKpi, PlanKpiReading, PlanProgressUpdate, PlanVersion, PlanMaterialIssue, PlanStakeholder, ...BUDGET_ENTITIES];
 export type { PlanningConfig };

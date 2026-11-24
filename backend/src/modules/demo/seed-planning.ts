@@ -109,6 +109,17 @@ export class PlanningSeed {
     }
     sp = await this.plans.get(admin, sp.id);
     for (const k of sp.kpis) await this.plans.updateKpi(admin, k.id, { ownerName: this.find(sp, sp.items.find((i) => i.id === k.itemId)?.title ?? '').ownerName ?? admin.fullName });
+    // القضايا الجوهرية وخارطة المعنيين التي بُنيت عليها الخطة
+    await this.plans.addContextBatch(admin, sp.id, [
+      { title: 'الاعتماد على عدد محدود من العملاء', summary: 'نسبة كبيرة من الإيرادات تأتي من عميلين، فأي تأخر في تجديد عقديهما يهدد التشغيل.', recommendations: 'تنويع العملاء والقطاعات\nباقات سنوية متكررة\nمتابعة تركز الإيرادات ربعيًا' },
+      { title: 'نقص الكفاءات المتخصصة', summary: 'الطلب على خدمات التحول الرقمي والحوكمة أعلى من قدرة الفريق الحالي.', recommendations: 'شبكة خبراء متعاونين\nخطة تدريب سنوية للفريق' },
+      { title: 'التحول الرقمي للعمليات الداخلية', summary: 'كثير من الإجراءات ما زالت يدوية، مما يبطئ الخدمة ويرفع احتمال الخطأ.', recommendations: 'أتمتة الإجراءات الرئيسية\nلوحات مؤشرات للإدارة' },
+    ], [
+      { name: 'مجلس الإدارة', category: 'الحوكمة', definition: 'يعتمد الخطط والموازنات ويتابع الأداء.', expectsFromUs: 'تقارير أداء دورية\nالالتزام باللوائح', weExpect: 'اعتماد القرارات في وقتها\nالتوجيه الاستراتيجي' },
+      { name: 'العملاء من الجمعيات', category: 'العملاء', definition: 'الجمعيات المتعاقدة على خدمات الشركة.', expectsFromUs: 'جودة الخدمة\nسعر مناسب', weExpect: 'السداد في الموعد\nتوفير البيانات اللازمة' },
+      { name: 'فريق العمل', category: 'فريق العمل', definition: 'موظفو الشركة ومتعاونوها.', expectsFromUs: 'بيئة عمل محفزة\nمسار تطور واضح', weExpect: 'الالتزام بالجودة والمواعيد' },
+      { name: 'المركز الوطني لتنمية القطاع غير الربحي', category: 'الجهات التنظيمية والإشرافية', definition: 'الجهة المشرفة على القطاع غير الربحي.', expectsFromUs: 'الالتزام بالأنظمة', weExpect: 'وضوح المعايير' },
+    ]);
     await this.plans.submit(admin, sp.id, 'اعتماد الخطة الاستراتيجية بعد ورش العمل مع الإدارات');
     sp = await this.approveAll(admin, sp.id);
 

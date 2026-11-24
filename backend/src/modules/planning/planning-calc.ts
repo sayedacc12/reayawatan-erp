@@ -343,7 +343,7 @@ export function wfDecide(r: WfRecord, d: Decider, decision: 'approve' | 'return'
 // ---------------------------------------------------------------- مقارنة الإصدارات
 
 export interface FieldChange { field: string; label: string; before: unknown; after: unknown }
-export interface DiffRow { kind: 'item' | 'kpi' | 'link' | 'plan'; change: 'added' | 'removed' | 'modified'; code: string; title: string; changes: FieldChange[] }
+export interface DiffRow { kind: 'item' | 'kpi' | 'link' | 'plan' | 'issue' | 'stakeholder'; change: 'added' | 'removed' | 'modified'; code: string; title: string; changes: FieldChange[] }
 
 const ITEM_FIELDS: [keyof PlanSnapshot['items'][number], string][] = [
   ['title', 'العنوان'], ['parentId', 'الموقع في الهيكل'], ['ownerName', 'المسؤول'], ['unitName', 'الجهة'], ['startDate', 'البداية'], ['endDate', 'النهاية'],
@@ -352,6 +352,12 @@ const ITEM_FIELDS: [keyof PlanSnapshot['items'][number], string][] = [
 ];
 const KPI_FIELDS: [keyof PlanSnapshot['kpis'][number], string][] = [
   ['name', 'الاسم'], ['itemId', 'العنصر المرتبط'], ['unit', 'الوحدة'], ['direction', 'الاتجاه'], ['baseline', 'خط الأساس'], ['targets', 'المستهدفات'], ['weight', 'الوزن'],
+];
+const ISSUE_FIELDS: [keyof NonNullable<PlanSnapshot['issues']>[number], string][] = [
+  ['title', 'العنوان'], ['summary', 'الملخص'], ['recommendations', 'التوصيات المتوقعة'], ['sortOrder', 'الترتيب'],
+];
+const STAKEHOLDER_FIELDS: [keyof NonNullable<PlanSnapshot['stakeholders']>[number], string][] = [
+  ['name', 'الاسم'], ['category', 'التصنيف'], ['definition', 'التعريف'], ['expectsFromUs', 'ما يتوقعه من الشركة'], ['weExpect', 'ما تتوقعه الشركة منه'], ['sortOrder', 'الترتيب'],
 ];
 const PLAN_FIELDS: [keyof PlanSnapshot, string][] = [
   ['title', 'عنوان الخطة'], ['startYear', 'سنة البداية'], ['endYear', 'سنة النهاية'], ['periodicity', 'دورية المتابعة'], ['vision', 'الرؤية'], ['mission', 'الرسالة'], ['values', 'القيم'],
@@ -400,6 +406,20 @@ export function diffSnapshots(a: PlanSnapshot, b: PlanSnapshot): DiffRow[] {
     }
   }
   for (const [kk, l] of al) if (!bl.has(kk)) out.push({ kind: 'link', change: 'removed', code: '—', title: lt(l), changes: [] });
+  // الإصدارات الأقدم لا تحوي القضايا والمعنيين فتُعامل كقوائم فارغة
+  const rows = <T extends { id: string; code: string }>(kind: 'issue' | 'stakeholder', x: T[], y: T[], fields: [keyof T, string][], title: (r: T) => string) => {
+    const ax = new Map(x.map((r) => [r.id, r]));
+    const by = new Set(y.map((r) => r.id));
+    for (const r of y) {
+      const o = ax.get(r.id);
+      if (!o) { out.push({ kind, change: 'added', code: r.code, title: title(r), changes: [] }); continue; }
+      const ch = fields.filter(([f]) => !same(o[f], r[f])).map(([f, label]) => ({ field: String(f), label, before: o[f], after: r[f] }));
+      if (ch.length) out.push({ kind, change: 'modified', code: r.code, title: title(r), changes: ch });
+    }
+    for (const r of x) if (!by.has(r.id)) out.push({ kind, change: 'removed', code: r.code, title: title(r), changes: [] });
+  };
+  rows('issue', a.issues ?? [], b.issues ?? [], ISSUE_FIELDS, (r) => r.title);
+  rows('stakeholder', a.stakeholders ?? [], b.stakeholders ?? [], STAKEHOLDER_FIELDS, (r) => r.name);
   return out;
 }
 
