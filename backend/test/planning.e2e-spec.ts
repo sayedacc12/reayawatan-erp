@@ -61,8 +61,15 @@ describe('Planning calculations', () => {
     expect(itemCode('P', null, [])).toBe('P1');
     const routes = defaultConfig().routes;
     expect(pickRoute(routes, 'operational', null, 50_000)?.key).toBe('operational');
-    expect(pickRoute(routes, 'operational', null, 2_000_000)?.key).toBe('operational-large');
-    expect(pickRoute(routes, 'strategic', null, 0)?.stages.length).toBe(3);
+    expect(pickRoute(routes, 'operational', null, 2_000_000)?.key).toBe('operational');
+    // مسار بحد أدنى للتكلفة يُختار للخطة الأكبر منه فقط
+    const large = [...routes, { key: 'operational-large', name: 'خطة كبيرة', planKind: 'operational' as const, unitId: null, minCost: 1_000_000, stages: [] }];
+    expect(pickRoute(large, 'operational', null, 50_000)?.key).toBe('operational');
+    expect(pickRoute(large, 'operational', null, 2_000_000)?.key).toBe('operational-large');
+    // الخطط والموازنة: الاعتماد الأولي من الإدارة التنفيذية ثم الاعتماد النهائي من مجلس المديرين (قرار المالك 2026-11-24)
+    for (const kind of ['strategic', 'operational', 'budget'] as const) {
+      expect(pickRoute(routes, kind, null, 0)?.stages.map((x) => x.name)).toEqual(['الاعتماد الأولي من الإدارة التنفيذية', 'الاعتماد النهائي من مجلس المديرين']);
+    }
     const snap = (items: { id: string; title: string; plannedCost: number }[]) => ({
       title: 'خطة', description: null, startYear: 2026, endYear: 2028, periodicity: 'annual' as const, vision: null, mission: null, values: [], unitId: null, unitName: null,
       sharedUnits: [], parentPlanId: null, levels: [], ownerName: null, kpis: [], links: [],
@@ -88,7 +95,7 @@ describe('Strategic and operational planning', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const approveAll = async (planId: string): Promise<any> => {
     let p = (await http.get(`${R}/plans/${planId}`).set(as(admin)).expect(200)).body;
-    for (let i = 0; i < 6 && p.status === 'in_review'; i++) p = (await http.post(`${R}/plans/${planId}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201)).body;
+    for (let i = 0; i < 6 && p.status === 'in_review'; i++) p = (await http.post(`${R}/plans/${planId}/decision`).set(as(admin)).send({ decision: 'approve', note: 'قرار مجلس المديرين رقم 1/2027' }).expect(201)).body;
     return p;
   };
 
@@ -128,7 +135,7 @@ describe('Strategic and operational planning', () => {
     expect(p.items.filter((i: { level: number }) => i.level === 0)).toHaveLength(4);
     expect(p.kpis.length).toBeGreaterThan(8);
     expect(p.vision).toBeTruthy();
-    expect(p.stages).toHaveLength(3);
+    expect(p.stages).toHaveLength(2);
     // كل المستهدفات موزعة على سنوات الخطة
     expect(Object.keys(p.kpis[0].targets)).toEqual([String(Y), String(Y + 1), String(Y + 2)]);
     const init = p.items.find((i: { title: string }) => i.title === 'برنامج العقود الإطارية');
@@ -139,7 +146,7 @@ describe('Strategic and operational planning', () => {
     await http.patch(`${R}/items/${init.id}`).set(as(clerk)).send({ title: 'عنوان آخر' }).expect(403);
     let s = (await http.post(`${R}/plans/${ids.sp}/submit`).set(as(admin)).send({}).expect(201)).body;
     expect(s.status).toBe('in_review');
-    expect(s.stageName).toBe('مراجعة إدارة التخطيط والأداء');
+    expect(s.stageName).toBe('الاعتماد الأولي من الإدارة التنفيذية');
     await http.patch(`${R}/items/${init.id}`).set(as(admin)).send({ title: 'عنوان آخر' }).expect(409);
     await http.post(`${R}/plans/${ids.sp}/decision`).set(as(clerk)).send({ decision: 'approve' }).expect(403);
     await http.post(`${R}/plans/${ids.sp}/decision`).set(as(admin)).send({ decision: 'return' }).expect(400);

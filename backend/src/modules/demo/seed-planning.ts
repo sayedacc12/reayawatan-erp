@@ -45,7 +45,7 @@ export class PlanningSeed {
 
   private async approveAll(admin: OrgUser, id: string) {
     let p = await this.plans.get(admin, id);
-    for (let i = 0; i < 8 && p.status === 'in_review'; i++) p = await this.plans.decide(admin, id, { decision: 'approve', note: null });
+    for (let i = 0; i < 8 && p.status === 'in_review'; i++) p = await this.plans.decide(admin, id, { decision: 'approve', note: 'قرار مجلس المديرين (بيانات تجريبية)' });
     return p;
   }
 
@@ -294,7 +294,7 @@ export class PlanningSeed {
       },
     ]);
     await this.plans.submit(finance, fin.op.id, null);
-    // مرحلة أولى معتمدة، وتنتظر مراجعة إدارة التخطيط
+    // اعتماد أولي من الإدارة التنفيذية، وتنتظر قرار مجلس المديرين (فيُطبع تقرير اعتمادها للمجلس)
     await this.plans.decide(admin, fin.op.id, { decision: 'approve', note: 'متوافقة مع احتياج الإدارة' });
 
     // ---- خطة الجودة: مسودة (ليظهر الإعداد قبل الرفع)

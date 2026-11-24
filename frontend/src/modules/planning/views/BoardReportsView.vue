@@ -14,8 +14,8 @@ import '../planning.css';
  */
 type Type = 'plan-approval' | 'plan-performance' | 'budget-approval' | 'budget-performance';
 interface Form { code: string; type: Type; kind: 'strategic' | 'operational' | null; title: string; purpose: string }
-interface PlanOpt { id: string; code: string; kind: string; title: string; startYear: number; endYear: number; status: string; statusName: string; version: number }
-interface BudgetOpt { id: string; code: string; title: string; fiscalYear: number; status: string; statusName: string; version: number }
+interface PlanOpt { id: string; code: string; kind: string; title: string; startYear: number; endYear: number; status: string; statusName: string; version: number; printable: boolean }
+interface BudgetOpt { id: string; code: string; title: string; fiscalYear: number; status: string; statusName: string; version: number; printable: boolean }
 interface Catalog { forms: Form[]; plans: PlanOpt[]; budgets: BudgetOpt[]; today: string; pdf: boolean }
 
 const route = useRoute();
@@ -32,10 +32,11 @@ const form = computed(() => cat.value?.forms.find((f) => f.code === sel.form) ??
 const isPlan = computed(() => !!form.value?.type.startsWith('plan'));
 const isPerf = computed(() => !!form.value?.type.endsWith('performance'));
 const plans = computed(() => (cat.value?.plans ?? []).filter((p) => !form.value?.kind || p.kind === form.value.kind)
-  .filter((p) => !isPerf.value || p.version > 0));
-const budgets = computed(() => (cat.value?.budgets ?? []).filter((b) => !isPerf.value || b.version > 0));
+  .filter((p) => (isPerf.value ? p.version > 0 : p.printable)));
+// تقرير الاعتماد للمجلس بعد الاعتماد الأولي من الإدارة التنفيذية فقط
+const budgets = computed(() => (cat.value?.budgets ?? []).filter((b) => (isPerf.value ? b.version > 0 : b.printable)));
 const groups = computed(() => [
-  { title: 'تقارير الاعتماد', hint: 'تُرفع قبل الاعتماد مع صفحة القرار والتوقيعات', forms: (cat.value?.forms ?? []).filter((f) => f.type.endsWith('approval')) },
+  { title: 'تقارير الاعتماد', hint: 'تُطبع بعد الاعتماد الأولي من الإدارة التنفيذية وتُرفع للمجلس مع صفحة القرار والتوقيعات', forms: (cat.value?.forms ?? []).filter((f) => f.type.endsWith('approval')) },
   { title: 'تقارير تقييم الأداء الدورية', hint: 'المخطط مقابل الفعلي والانحرافات والتوصيات لفترة تختارها', forms: (cat.value?.forms ?? []).filter((f) => f.type.endsWith('performance')) },
 ].filter((g) => g.forms.length));
 
@@ -158,12 +159,12 @@ onMounted(async () => {
         <div class="br-params">
           <label v-if="isPlan" class="field"><span>{{ form.kind ? `الخطة ${KIND[form.kind]}` : 'الخطة' }}</span>
             <select v-model="sel.planId" class="input">
-              <option v-if="!plans.length" value="">{{ isPerf ? 'لا توجد خطط معتمدة من هذا النوع' : 'لا توجد خطط من هذا النوع' }}</option>
+              <option v-if="!plans.length" value="">{{ isPerf ? 'لا توجد خطط معتمدة من هذا النوع' : 'لا توجد خطط معتمدة مبدئيًا من الإدارة التنفيذية' }}</option>
               <option v-for="p in plans" :key="p.id" :value="p.id">{{ p.code }} {{ p.title }} ({{ p.startYear }}{{ p.endYear !== p.startYear ? `-${p.endYear}` : '' }}) · {{ p.statusName }}</option>
             </select></label>
           <label v-else class="field"><span>الموازنة</span>
             <select v-model="sel.budgetId" class="input">
-              <option v-if="!budgets.length" value="">{{ isPerf ? 'لا توجد موازنات معتمدة' : 'لا توجد موازنات' }}</option>
+              <option v-if="!budgets.length" value="">{{ isPerf ? 'لا توجد موازنات معتمدة' : 'لا توجد موازنات معتمدة مبدئيًا من الإدارة التنفيذية' }}</option>
               <option v-for="b in budgets" :key="b.id" :value="b.id">{{ b.code }} {{ b.title }} ({{ b.fiscalYear }}) · {{ b.statusName }}</option>
             </select></label>
           <template v-if="isPerf">

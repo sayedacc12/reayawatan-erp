@@ -31,7 +31,7 @@ describe('Plan material issues and stakeholder map', () => {
   const ids: Record<string, string> = {};
   const approveAll = async (planId: string, note = 'اعتماد'): Promise<any> => {
     let p = (await http.post(`${R}/plans/${planId}/submit`).set(as(director)).send({ note }).expect(201)).body;
-    for (let i = 0; i < 6 && p.status === 'in_review'; i++) p = (await http.post(`${R}/plans/${planId}/decision`).set(as(director)).send({ decision: 'approve' }).expect(201)).body;
+    for (let i = 0; i < 6 && p.status === 'in_review'; i++) p = (await http.post(`${R}/plans/${planId}/decision`).set(as(director)).send({ decision: 'approve', note: 'قرار مجلس المديرين رقم 1/2027' }).expect(201)).body;
     return p;
   };
   const newPlan = async (title: string, startYear: number, endYear: number) => {
