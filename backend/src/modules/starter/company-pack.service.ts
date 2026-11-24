@@ -8,6 +8,8 @@ import { User } from '../../core/entities';
 import { BudgetImportService } from '../planning/budget/budget-import.service';
 import { BudgetsService } from '../planning/budget/budgets.service';
 import { PlanImportService } from '../planning/plan-import.service';
+import { PlanningCore } from '../planning/planning-core.service';
+import { BOARD_ROUTE_KINDS, defaultConfig } from '../planning/planning-defaults';
 import { PLANNING_PERMISSIONS } from '../planning/planning.manifest';
 import { PlansService } from '../planning/plans.service';
 import { ComplianceService } from '../risk/compliance.service';
@@ -28,17 +30,28 @@ import { StarterService } from './starter.service';
 type Status = { status: string };
 
 /**
+ * خطوات تعمل مرة واحدة فقط: تُسجَّل عند اكتمالها (organization_starters = rw-plan-2027-2029.<الخطوة>) فلا تُعاد إن أُعيد التشغيل
+ * بعد تعثر خطوة لاحقة، فلا يُمس ما عدّله المستخدمون أو اعتمدوه بعدها (مسودة الخطة، أو الموازنة المعتمدة، أو مسارات الاعتماد).
+ */
+const ONCE = ['routes', 'strategic', 'operational', 'budget'];
+
+/**
  * حزمة رعاية وطن الجاهزة: تُدرج مرة واحدة في منشأة الشركة (COMPANY_SLUG) عند تشغيل الخادم بعد التحديث،
  * بقرار المالك (2026-11-22) أن تكون الخطة والمخاطر والموازنة في النظام دون رفع يدوي:
- * الإعدادات الافتراضية للمخاطر والتخطيط، لائحة المخاطر، تحليلا PESTEL وSWOT و23 خطرًا، الخطة الاستراتيجية 2027 - 2029
- * والخطة التشغيلية 2027، موازنة 2027 وأنشطتها، الضوابط، سجل الالتزام، تحليل أثر التوقف وخطط التعافي، وفريق الأزمات.
+ * الإعدادات الافتراضية للمخاطر والتخطيط، مسارا اعتماد الخطط والموازنة (الاعتماد الأولي من الإدارة التنفيذية ثم مجلس المديرين)،
+ * لائحة المخاطر، تحليلا PESTEL وSWOT والمخاطر، الخطة الاستراتيجية 2027 - 2029 والخطة التشغيلية 2027، موازنة 2027 وأنشطتها،
+ * الضوابط، سجل الالتزام، تحليل أثر التوقف وخطط التعافي، وفريق الأزمات.
  *
- * إن كانت الحزمة السابقة (2027 - 2030) مُدرجة: تُعدَّل الخطتان والموازنة في مكانها وتُعتمد إصدارًا ثانيًا بسبب التعديل
- * (والإصدار الأول محفوظ للمقارنة)، وتُغلق مخاطر المنتجات الوقفية والاستثمار بمراجعة توضح السبب، وتُضاف المخاطر الجديدة.
+ * الخطتان والموازنة لا تُعتمد هنا (قرار المالك 2026-11-24): تبقى مسودات حتى تعتمدها الإدارة التنفيذية اعتمادًا أوليًا،
+ * ثم يُطبع تقرير الاعتماد ويُرفع لمجلس المديرين ليعتمدها نهائيًا من مسار الاعتماد في النظام.
+ *
+ * إن كانت الحزمة السابقة (2027 - 2030) مُدرجة: يُستبدل محتوى الخطتين والموازنة في مكانها كمسودة تعديل بسببها
+ * (والإصدار المعتمد السابق باقٍ ومحفوظ للمقارنة حتى يُعتمد التعديل)، وتُغلق مخاطر المنتجات الوقفية والاستثمار بمراجعة توضح السبب،
+ * وتُضاف المخاطر الجديدة.
  * لا يُستبدل محتوى خطة عليها إنجاز أو قراءات، ولا بند موازنة عليه حجز، فتتوقف الحزمة وتُسجل السبب دون تغيير ذلك.
  *
  * - كل العمليات عبر خدمات الأنظمة نفسها (بنفس التحقق والترقيم ومسارات الاعتماد)، وتُسجَّل باسم مدير نظام الشركة،
- *   والاعتمادات تمر بكل مراحلها المضبوطة باسمه مع ملاحظة أنها إدراج بقرار المالك.
+ *   واعتمادات المخاطر والتحليلات واستمرارية الأعمال تمر بكل مراحلها المضبوطة باسمه مع ملاحظة أنها إدراج بقرار المالك.
  * - تُحجز في organization_starters (صف واحد للحزمة) فلا تعمل مرتين. إن فشلت خطوة يُلغى الحجز ويُعاد التشغيل التالي
  *   من أولها، وكل خطوة تتجاوز ما أُدرج قبلها (بالعنوان) فلا يتكرر شيء.
  * - لا تعمل في الاختبارات إلا باستدعاء صريح، ولا تعمل إن حذفت الشركة ما أُدرج بعد اكتمالها.
@@ -59,6 +72,7 @@ export class CompanyPackService implements OnApplicationBootstrap {
     private readonly plans: PlansService,
     private readonly budgets: BudgetsService,
     private readonly budgetImport: BudgetImportService,
+    private readonly planningCore: PlanningCore,
   ) {}
 
   onApplicationBootstrap() {
@@ -116,10 +130,13 @@ export class CompanyPackService implements OnApplicationBootstrap {
     try {
       const legacy = !!(await this.db.query(
         `SELECT 1 FROM organization_starters WHERE organization_id = $1 AND module_code = $2 AND status = 'applied'`, [org, PACK_LEGACY.code])).length;
-      if (legacy) await this.preflight(org);
+      const done = await this.doneSteps(org);
+      if (legacy) await this.preflight(org, done);
       for (const [key, label, step] of this.steps(actor, legacy)) {
         current = label;
+        if (done.has(key)) { results.push({ key, label, added: 0, note: 'اكتملت في تشغيل سابق' }); continue; }
         const out = await step();
+        if (ONCE.includes(key)) await this.markDone(org, key, actor);
         results.push({ key, label, added: out.added, ...(out.note ? { note: out.note } : {}) });
       }
     } catch (e) {
@@ -136,21 +153,36 @@ export class CompanyPackService implements OnApplicationBootstrap {
     return results;
   }
 
+  /** الخطوات التي تُسجَّل عند اكتمالها فلا تُعاد إن تعثرت خطوة بعدها وأُعيد التشغيل */
+  private async doneSteps(org: string) {
+    const rows: { code: string }[] = await this.db.query(
+      `SELECT module_code AS code FROM organization_starters WHERE organization_id = $1 AND module_code = ANY($2) AND status = 'applied'`,
+      [org, ONCE.map((k) => `${PACK_CODE}.${k}`)]);
+    return new Set(rows.map((r) => r.code.slice(PACK_CODE.length + 1)));
+  }
+
+  private async markDone(org: string, key: string, a: OrgUser) {
+    await this.db.query(
+      `INSERT INTO organization_starters (organization_id, module_code, status, applied_by, applied_by_id, results)
+       VALUES ($1, $2, 'applied', $3, $4, '[]'::jsonb) ON CONFLICT DO NOTHING`, [org, `${PACK_CODE}.${key}`, a.fullName, a.id]);
+  }
+
   /**
    * فحص قبل أي تعديل في ترقية الحزمة السابقة: لا تعديل جارٍ من المستخدمين على الخطتين أو الموازنة، ولا إنجاز أو قراءات أو أنشطة
    * مرحّلة على الخطتين، ولا حجز أو مستند يشير إلى بنود الموازنة. أي مانع يوقف الحزمة قبل أن يتغير شيء.
    * ما عدّلته الحزمة نفسها في تشغيل سابق انقطع (الخطة الاستراتيجية بعنوانها الجديد) يُكمل دون هذا الشرط.
    */
-  private async preflight(org: string) {
+  private async preflight(org: string, done: Set<string>) {
+    const revised = (r: { rev: string | null; note: string | null }) => r.rev === PACK_LEGACY.revisionNote || r.note === PACK_LEGACY.revisionNote;
     const problems: string[] = [];
     const [sp] = await this.db.query(
       `SELECT id, code, status FROM plan_plans WHERE organization_id = $1 AND kind = 'strategic' AND title = $2 ORDER BY created_at LIMIT 1`, [org, PACK_LEGACY.strategicTitle]);
-    const fresh = !!sp; // لم يبدأ التعديل بعد
-    const plans: { id: string; code: string; status: string }[] = sp ? [sp] : [];
+    const fresh = !!sp && !done.has('strategic'); // لم يبدأ التعديل بعد
+    const plans: { id: string; code: string; status: string }[] = fresh ? [sp] : [];
     const [op] = await this.db.query(
-      `SELECT p.id, p.code, p.status, (SELECT v.note FROM plan_versions v WHERE v.organization_id = $1 AND v.plan_id = p.id ORDER BY v.version DESC LIMIT 1) AS note
+      `SELECT p.id, p.code, p.status, p.revision_note AS rev, (SELECT v.note FROM plan_versions v WHERE v.organization_id = $1 AND v.plan_id = p.id ORDER BY v.version DESC LIMIT 1) AS note
          FROM plan_plans p WHERE p.organization_id = $1 AND p.kind = 'operational' AND p.title = $2 ORDER BY p.created_at LIMIT 1`, [org, PACK_TITLES.operational]);
-    if (op && op.note !== PACK_LEGACY.revisionNote) plans.push(op);
+    if (op && !revised(op) && !done.has('operational')) plans.push(op);
     for (const p of plans) {
       if (fresh && p.status !== 'approved') problems.push(`الخطة ${p.code} عليها تعديل جارٍ أو قيد الاعتماد`);
       const [{ n }] = await this.db.query(
@@ -162,10 +194,10 @@ export class CompanyPackService implements OnApplicationBootstrap {
       if (n) problems.push(`الخطة ${p.code} عليها إنجاز أو قراءات مؤشرات أو أنشطة مرحّلة`);
     }
     const [b] = await this.db.query(
-      `SELECT b.id, b.code, b.status, (SELECT v.note FROM plan_budget_versions v WHERE v.organization_id = $1 AND v.budget_id = b.id ORDER BY v.version DESC LIMIT 1) AS note
+      `SELECT b.id, b.code, b.status, b.revision_note AS rev, (SELECT v.note FROM plan_budget_versions v WHERE v.organization_id = $1 AND v.budget_id = b.id ORDER BY v.version DESC LIMIT 1) AS note
          FROM plan_budgets b WHERE b.organization_id = $1 AND b.fiscal_year = $2 AND b.title = $3 AND NOT b.is_scenario ORDER BY b.created_at LIMIT 1`,
       [org, PACK_BUDGET.fiscalYear, PACK_BUDGET.title]);
-    if (b && b.note !== PACK_LEGACY.revisionNote) {
+    if (b && !revised(b) && !done.has('budget')) {
       if (fresh && b.status !== 'approved') problems.push(`الموازنة ${b.code} عليها تعديل جارٍ أو قيد الاعتماد`);
       if (await this.budgets.lineBlockers(org, b.id)) problems.push(`على بنود الموازنة ${b.code} حجوزات أو مناقلات أو مستندات مرتبطة`);
     }
@@ -180,31 +212,27 @@ export class CompanyPackService implements OnApplicationBootstrap {
       try { await this.starters.apply(a, code); return { added: 1 }; } catch (e) { if (e instanceof ConflictException) return { added: 0, note: 'مضافة مسبقًا' }; if (e instanceof NotFoundException) return { added: 0, note: 'النظام غير مفعّل' }; throw e; }
     };
     /**
-     * الخطة: تُنشأ من الملف، أو في حالة الحزمة السابقة يُستبدل محتوى الخطة القائمة (بعنوانها القديم أو الجديد) فتصبح إصدارًا جديدًا،
-     * إلا إن كان آخر إصدار معتمد لها هو التعديل نفسه. ثم تمر بمراحل الاعتماد.
+     * الخطة: تُنشأ من الملف مسودةً، أو في حالة الحزمة السابقة يُستبدل محتوى الخطة المعتمدة القائمة (بعنوانها القديم) كمسودة تعديل
+     * بسبب التعديل، ما لم تُستبدل في تشغيل سابق. لا تُرفع للاعتماد ولا تُعتمد: الاعتماد الأولي للإدارة التنفيذية ثم للمجلس.
      */
     const plan = async (file: string, kind: 'strategic' | 'operational', titles: string[]) => {
-      let target: { id: string; status: string } | null = null;
+      let target: string | null = null;
       if (legacy) {
         const [p] = await this.db.query(
-          `SELECT p.id, p.status, (SELECT v.note FROM plan_versions v WHERE v.organization_id = $1 AND v.plan_id = p.id ORDER BY v.version DESC LIMIT 1) AS note
+          `SELECT p.id, p.status, p.version, p.revision_note AS rev, (SELECT v.note FROM plan_versions v WHERE v.organization_id = $1 AND v.plan_id = p.id ORDER BY v.version DESC LIMIT 1) AS note
              FROM plan_plans p WHERE p.organization_id = $1 AND p.kind = $2 AND p.title = ANY($3) ORDER BY p.created_at LIMIT 1`, [org, kind, titles]);
-        if (p && p.note !== PACK_LEGACY.revisionNote) target = p;
+        // عُدّلت في تشغيل سابق إن حملت سبب التعديل (مسودة) أو كان آخر إصدار معتمد لها هو التعديل. الخطة التشغيلية تصبح مسودة
+        // بعد استبدال الخطة الأم (أُزيلت روابطها) فتُستبدل هي أيضًا؛ وما عدا ذلك منعه الفحص المسبق
+        const done = p && (p.rev === PACK_LEGACY.revisionNote || p.note === PACK_LEGACY.revisionNote);
+        if (p && !done && p.version > 0 && ['approved', 'draft', 'returned'].includes(p.status)) target = p.id;
+        else if (p) return { added: 0, note: done ? 'عُدّلت مسبقًا' : 'مضافة مسبقًا' };
       }
-      let id: string | null;
-      if (target?.status === 'in_review') id = target.id; // استُبدل في تشغيل سابق وتوقف أثناء الاعتماد
-      else {
-        const r = await this.planImport.import(a, await this.file(file), 'apply', target?.id);
-        if (target && !r.ok) throw new Error(`plan revision failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
-        id = r.plan?.id ?? (r.plan?.title ? await one('SELECT id FROM plan_plans WHERE organization_id = $1 AND title = $2 ORDER BY created_at LIMIT 1', [org, r.plan.title]) : null);
-        if (!id) throw new Error(`plan import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
-      }
-      const [p] = await this.db.query('SELECT status, version FROM plan_plans WHERE organization_id = $1 AND id = $2', [org, id]);
-      if (p.status === 'approved') return { added: target ? 0 : 1, note: target ? 'عُدّلت ومعتمدة' : undefined };
-      const note = p.version > 0 ? PACK_LEGACY.revisionNote : 'اعتماد عند الإدراج بقرار المالك (الخطة الاستراتيجية 2027 - 2029)';
-      const decide = () => this.plans.decide(a, id!, { decision: 'approve', note } as never);
-      const s = p.status === 'in_review' ? await this.approve(async () => ({ status: 'in_review' }), decide) : await this.approve(() => this.plans.submit(a, id!, note), decide);
-      return { added: target ? 0 : 1, note: `${target ? 'عُدّلت إلى إصدار جديد، ' : ''}${s === 'approved' ? 'معتمدة' : 'بانتظار الاعتماد'}` };
+      const r = await this.planImport.import(a, await this.file(file), 'apply', target ?? undefined, target ? PACK_LEGACY.revisionNote : undefined);
+      if (target && !r.ok) throw new Error(`plan revision failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
+      const id = r.plan?.id ?? (r.plan?.title ? await one('SELECT id FROM plan_plans WHERE organization_id = $1 AND title = $2 ORDER BY created_at LIMIT 1', [org, r.plan.title]) : null);
+      if (!id) throw new Error(`plan import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
+      if (target) return { added: 0, note: 'عُدّلت كمسودة تعديل بانتظار الاعتماد الأولي ثم المجلس' };
+      return r.ok && r.plan?.id ? { added: 1, note: 'مسودة بانتظار الاعتماد الأولي ثم المجلس' } : { added: 0, note: 'مضافة مسبقًا' };
     };
     /** إغلاق مخاطر الحزمة السابقة التي حُذفت من الخطة، بمراجعة تسجل السبب ثم إغلاق الخطر (يبقى في السجل) */
     const retire = async () => {
@@ -228,6 +256,23 @@ export class CompanyPackService implements OnApplicationBootstrap {
     return [
       ['starter-risk', 'الإعدادات الافتراضية لنظام المخاطر', () => starter('risk')],
       ['starter-planning', 'الإعدادات الافتراضية لنظام التخطيط', () => starter('planning')],
+      // مسارا اعتماد الخطط والموازنة بقرار المالك: الاعتماد الأولي من الإدارة التنفيذية ثم الاعتماد النهائي من مجلس المديرين.
+      // يستبدل مسارات هذه الأنواع في إعدادات الشركة (ولا يمس مسارات المناقلات)، ولا يغير ما رُفع للاعتماد قبله
+      ['routes', 'مراحل اعتماد الخطط والموازنة', async () => {
+        const cfg = await this.planningCore.config(org);
+        const kinds = new Set<string>(BOARD_ROUTE_KINDS);
+        const old = cfg.routes.filter((r) => kinds.has(r.planKind));
+        // دور معتمد سبق ضبطه على مرحلة بنفس الاسم في مسار النوع نفسه يبقى عليها
+        const want = defaultConfig().routes.filter((r) => kinds.has(r.planKind)).map((r) => ({
+          ...r, stages: r.stages.map((st) => ({ ...st, roleId: old.find((o) => o.planKind === r.planKind)?.stages.find((x) => x.name === st.name)?.roleId ?? null })),
+        }));
+        const keep = cfg.routes.filter((r) => !kinds.has(r.planKind));
+        if (JSON.stringify(old) === JSON.stringify(want)) return { added: 0, note: 'مضبوطة مسبقًا' };
+        // يُسجَّل ما استُبدل في سجل الخادم للمراجعة
+        this.logger.log(`Company pack replaced plan/budget approval routes: ${old.map((r) => `${r.key}[${r.stages.map((x) => `${x.name}${x.roleId ? '*' : ''}`).join(' > ')}]`).join(', ')}`);
+        await this.planningCore.saveConfig(a, { ...cfg, routes: [...want, ...keep] } as never);
+        return { added: want.length, note: `استُبدل ${old.length} مسارًا بمرحلتي الاعتماد الأولي والمجلس` };
+      }],
       ['policy', 'لائحة إدارة المخاطر', async () => {
         if ((await this.riskCore.getPolicy(a)).current) return { added: 0, note: 'اللائحة معتمدة مسبقًا' };
         await this.riskCore.savePolicy(a, { sections: defaultPolicy(), ...PACK_POLICY });
@@ -250,39 +295,32 @@ export class CompanyPackService implements OnApplicationBootstrap {
         }
         return { added: r.created.analyses + r.created.risks };
       }],
-      ['strategic', 'الخطة الاستراتيجية 2027 - 2029', () => plan(PACK_FILES.strategic, 'strategic', [PACK_LEGACY.strategicTitle, PACK_TITLES.strategic])],
+      ['strategic', 'الخطة الاستراتيجية 2027 - 2029', () => plan(PACK_FILES.strategic, 'strategic', [PACK_LEGACY.strategicTitle])],
       ['operational', 'الخطة التشغيلية 2027', () => plan(PACK_FILES.operational, 'operational', [PACK_TITLES.operational])],
       ['budget', 'الموازنة التقديرية 2027', async () => {
-        // تكمل الموازنة إن توقف إدراج سابق في منتصفها: البنود ثم الأنشطة ثم الاعتماد
+        // تكمل الموازنة إن توقف إدراج سابق في منتصفها: البنود ثم الأنشطة. لا تُرفع للاعتماد ولا تُعتمد هنا
         let id = await one('SELECT id FROM plan_budgets WHERE organization_id = $1 AND fiscal_year = $2 AND title = $3 AND NOT is_scenario ORDER BY created_at LIMIT 1', [org, PACK_BUDGET.fiscalYear, PACK_BUDGET.title]);
         const created = !id;
         if (!id) id = (await this.budgets.create(a, PACK_BUDGET as never)).id as string;
         const lines = (section: string) => this.db.query(
           `SELECT count(*)::int AS n FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2 AND ($3 = '' OR section = $3)`, [org, id, section]).then((r) => r[0].n as number);
-        const state = async () => (await this.db.query(
+        const [st] = await this.db.query(
           `SELECT b.status, b.version, (SELECT v.note FROM plan_budget_versions v WHERE v.organization_id = $1 AND v.budget_id = b.id ORDER BY v.version DESC LIMIT 1) AS note
-             FROM plan_budgets b WHERE b.organization_id = $1 AND b.id = $2`, [org, id]))[0] as { status: string; version: number; note: string | null };
-        let st = await state();
-        // الحزمة السابقة: تُحذف بنود الموازنة المعتمدة (فتصبح مسودة تعديل) وتُستورد بنود الخطة الجديدة وأنشطتها، إلا إن عُدّلت سابقًا
+             FROM plan_budgets b WHERE b.organization_id = $1 AND b.id = $2`, [org, id]) as { status: string; version: number; note: string | null }[];
+        // الحزمة السابقة: تُحذف بنود الموازنة المعتمدة (فتصبح مسودة تعديل بسببها) وتُستورد بنود الخطة الجديدة وأنشطتها، إلا إن عُدّلت سابقًا
         let revised = false;
-        if (legacy && !created && st.version > 0 && st.note !== PACK_LEGACY.revisionNote && st.status !== 'in_review') {
+        if (legacy && !created && st.status === 'approved' && st.version > 0 && st.note !== PACK_LEGACY.revisionNote) {
           revised = true;
-          await this.budgets.clearLinesForRevision(a, id);
-          st = await state();
+          await this.budgets.clearLinesForRevision(a, id, PACK_LEGACY.revisionNote);
+        } else if (st.status !== 'draft' && st.status !== 'returned') return { added: 0, note: 'مضافة مسبقًا' };
+        if (!(await lines(''))) {
+          const r = await this.budgetImport.import(a, id, await this.file(PACK_FILES.budget), 'apply');
+          if (!r.ok) throw new Error(`budget import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
         }
-        if (st.status === 'approved') return { added: 0, note: 'الموازنة معتمدة مسبقًا' };
-        if (st.status === 'draft' || st.status === 'returned') {
-          if (!(await lines(''))) {
-            const r = await this.budgetImport.import(a, id, await this.file(PACK_FILES.budget), 'apply');
-            if (!r.ok) throw new Error(`budget import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
-          }
-          if (!(await lines('activity'))) await this.budgets.importLines(a, id, { source: 'activities' });
-        }
-        const note = st.version > 0 ? PACK_LEGACY.revisionNote : 'اعتماد عند الإدراج بقرار المالك (موازنة سنة الأساس 2027)';
-        const s = st.status === 'in_review'
-          ? await this.approve(async () => ({ status: 'in_review' }), () => this.budgets.decide(a, id!, { decision: 'approve', note } as never))
-          : await this.approve(() => this.budgets.submit(a, id!, note), () => this.budgets.decide(a, id!, { decision: 'approve', note } as never));
-        return { added: created ? 1 : 0, note: `${revised ? 'عُدّلت إلى إصدار جديد، ' : ''}${s === 'approved' ? 'معتمدة' : 'بانتظار الاعتماد'}` };
+        // بنود الأنشطة تُستورد من الخطة التشغيلية التي لها إصدار معتمد فقط (قاعدة النظام)؛ في التثبيت الجديد تُضاف بعد اعتمادها
+        if (!(await lines('activity'))) await this.budgets.importLines(a, id, { source: 'activities' });
+        const acts = (await lines('activity')) ? '' : '، وبنود الأنشطة تُستورد بعد اعتماد الخطة التشغيلية';
+        return { added: created ? 1 : 0, note: `${revised ? 'عُدّلت كمسودة تعديل، ' : 'مسودة، '}بانتظار الاعتماد الأولي ثم المجلس${acts}` };
       }],
       // بعد تعديل الخطة (فلا يُغلق خطر ما زالت الخطة المعتمدة مرتبطة به إن توقف التعديل)
       ['retire', 'إغلاق مخاطر المنتجات الوقفية والاستثمار', async () => {

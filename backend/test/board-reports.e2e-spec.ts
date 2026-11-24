@@ -32,7 +32,7 @@ describe('Board reports for plans and budgets', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const approve = async (path: string): Promise<any> => {
     let x = (await http.get(path).set(as(admin)).expect(200)).body;
-    for (let i = 0; i < 6 && x.status === 'in_review'; i++) x = (await http.post(`${path}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201)).body;
+    for (let i = 0; i < 6 && x.status === 'in_review'; i++) x = (await http.post(`${path}/decision`).set(as(admin)).send({ decision: 'approve', note: 'قرار مجلس المديرين رقم 1/2027' }).expect(201)).body;
     return x;
   };
   const html = async (type: string, q: Record<string, string>, t = admin) => {
@@ -101,6 +101,9 @@ describe('Board reports for plans and budgets', () => {
     await http.post(`${R}/budgets/${b.id}/lines`).set(as(admin)).send({ section: 'hr', kind: 'new_position', name: 'مستشار', unitId: ids.unit, params: { basic: 9000, housing: 2000, transport: 800, count: 1, startMonth: 1, isSaudi: true } }).expect(201);
     await http.post(`${R}/budgets/${b.id}/lines`).set(as(admin)).send({ section: 'opex', kind: 'manual', name: 'إيجار المكتب', unitId: ids.unit, params: { manualAmount: 60000 } }).expect(201);
     await http.post(`${R}/budgets/${b.id}/lines`).set(as(admin)).send({ section: 'revenue', kind: 'manual', name: 'إيرادات الاستشارات', params: { manualAmount: 400000 } }).expect(201);
+    // الاعتماد الأولي من الإدارة التنفيذية فقط: تبقى بانتظار قرار المجلس، ويُطبع تقرير اعتمادها
+    expect((await http.post(`${R}/budgets/${b.id}/submit`).set(as(admin)).send({}).expect(201)).body.stageName).toBe('الاعتماد الأولي من الإدارة التنفيذية');
+    expect((await http.post(`${R}/budgets/${b.id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201)).body).toMatchObject({ status: 'in_review', stageName: 'الاعتماد النهائي من مجلس المديرين' });
     // تشكيل المجلس في نظام الاجتماعات يملأ صفحة التوقيعات
     await http.post('/api/meetings/bodies').set(as(admin)).send({
       kind: 'board', code: 'BRD', name: 'مجلس المديرين', members: [
@@ -186,11 +189,23 @@ describe('Board reports for plans and budgets', () => {
     const h = await html('budget-approval', { budgetId: ids.b });
     expect(h).toContain('QF-PLN-03');
     for (const s of ['الأسس والافتراضات', 'بنود الموارد البشرية', 'بنود المصروفات التشغيلية', 'بنود الإيرادات والتمويل', 'التوزيع الشهري', 'إيجار المكتب']) expect(h).toContain(s);
+    expect(h).toContain('معتمدة مبدئيًا من الإدارة التنفيذية');
+  });
+
+  it('prints an approval report only after the executive initial approval', async () => {
+    const sp = (await http.post(`${R}/plans`).set(as(admin)).send({ kind: 'strategic', title: 'خطة لم تُعتمد مبدئيًا', startYear: Y, endYear: Y + 1, periodicity: 'annual', templateKey: 'ncnp-strategic' }).expect(201)).body;
+    const r = await http.get(`${BR}/plan-approval`).query({ planId: sp.id }).set(as(admin)).expect(409);
+    expect(r.body.message).toContain('بعد اعتمادها الأولي من الإدارة التنفيذية');
+    expect((await http.get(BR).set(as(admin)).expect(200)).body.plans.find((p: { id: string }) => p.id === sp.id).printable).toBe(false);
+    expect((await http.post(`${R}/plans/${sp.id}/submit`).set(as(admin)).send({}).expect(201)).body.stageName).toBe('الاعتماد الأولي من الإدارة التنفيذية');
+    await http.get(`${BR}/plan-approval`).query({ planId: sp.id }).set(as(admin)).expect(409);
+    await http.post(`${R}/plans/${sp.id}/decision`).set(as(admin)).send({ decision: 'approve' }).expect(201);
+    expect((await http.get(BR).set(as(admin)).expect(200)).body.plans.find((p: { id: string }) => p.id === sp.id)).toMatchObject({ printable: true, statusName: 'معتمدة مبدئيًا من الإدارة التنفيذية، بانتظار قرار المجلس' });
+    expect(await html('plan-approval', { planId: sp.id })).toContain('QF-PLN-01');
   });
 
   it('builds the budget performance report (QF-PLN-06) only after approval', async () => {
     await http.get(`${BR}/budget-performance`).query({ budgetId: ids.b }).set(as(admin)).expect(409);
-    await http.post(`${R}/budgets/${ids.b}/submit`).set(as(admin)).send({}).expect(201);
     expect((await approve(`${R}/budgets/${ids.b}`)).status).toBe('approved');
     const h = await html('budget-performance', { budgetId: ids.b, period: `${Y}-H1` });
     expect(h).toContain('QF-PLN-06');

@@ -289,7 +289,7 @@ export class PlansService {
    * أو قراءات مؤشرات أو أنشطة مرحّلة. روابط الخطط التشغيلية التابعة لها تُزال وتتحول تلك الخطط لمسودة تعديل حتى يُعاد ربطها.
    * يستخدمه إدراج حزمة الشركة فقط، ولا يُعرض في واجهة الاستيراد.
    */
-  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false, replaceId?: string) {
+  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false, replaceId?: string, revisionNote?: string) {
     const org = actor.organizationId;
     if (!actor.isSuperadmin && !actor.permissions.includes(this.manageCode(data.header.kind))) throw new ForbiddenException('إعداد هذا النوع من الخطط ليس من صلاحيتك');
     const cfg = await this.core.config(org);
@@ -305,6 +305,7 @@ export class PlansService {
         if (p.kind !== data.header.kind) throw new BadRequestException('نوع الخطة في الملف يختلف عن الخطة المراد تعديلها');
         await this.clearContent(em, actor, p);
         await this.applyHeader(em, org, p, data.header, cfg);
+        if (revisionNote) p.revisionNote = revisionNote;
         saved = await em.getRepository(Plan).save(p);
       } else {
         const p = em.getRepository(Plan).create({

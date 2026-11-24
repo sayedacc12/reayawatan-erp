@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { DataSource, In } from 'typeorm';
@@ -12,7 +12,7 @@ import { BudgetTransfer, BudgetVersion } from '../budget/budget.entity';
 import { BudgetsService } from '../budget/budgets.service';
 import { Plan, PlanItem, PlanKpi, PlanRef, PlanVersion, WfLog } from '../entities/planning.entity';
 import { OrgAnalysis, planYear, PlanningAnalysis } from '../planning-analysis.service';
-import { PERIOD_LABEL, yearTarget } from '../planning-calc';
+import { initiallyApproved, PERIOD_LABEL, yearTarget } from '../planning-calc';
 import { today } from '../planning-core.service';
 import { PLANNING_PERMISSIONS as P } from '../planning.manifest';
 import { Block, BoardDoc, DocSection, fv as formatValue, nowStamp as nowText, Tone } from './board-doc';
@@ -37,6 +37,11 @@ export const BOARD_FORMS = [
 ] as const;
 
 const WF: Record<string, string> = { draft: 'مسودة', in_review: 'قيد الاعتماد', returned: 'مُرجعة للتعديل', approved: 'معتمدة', rejected: 'مرفوضة' };
+/** حالة الخطة أو الموازنة في التقرير: بعد الاعتماد الأولي وقبل قرار المجلس تظهر «معتمدة مبدئيًا» */
+const wfName = (r: { status: string; approvals: WfLog[] }) =>
+  (r.status === 'in_review' && initiallyApproved(r as Parameters<typeof initiallyApproved>[0]) ? 'معتمدة مبدئيًا من الإدارة التنفيذية، بانتظار قرار المجلس' : WF[r.status]);
+/** تقرير الاعتماد يُطبع للمجلس بعد الاعتماد الأولي من الإدارة التنفيذية فقط (قرار المالك 2026-11-24) */
+const NOT_YET = (what: string) => new ConflictException(`يُطبع تقرير اعتماد ${what} للمجلس بعد اعتمادها الأولي من الإدارة التنفيذية. ارفعها للاعتماد واعتمدها في مرحلتها الأولى`);
 const ACTION: Record<WfLog['action'], string> = { submit: 'رفع للاعتماد', approve: 'اعتماد', return: 'إعادة للتعديل', reject: 'رفض', reopen: 'فتح للتعديل' };
 const EXEC: Record<string, string> = { not_started: 'لم يبدأ', on_track: 'حسب الخطة', at_risk: 'في خطر', delayed: 'متأخر', completed: 'منجز', cancelled: 'ملغى', carried_over: 'مُرحّل', no_schedule: 'بلا جدول زمني' };
 const EXEC_TONE: Record<string, Tone> = { completed: 'good', on_track: 'good', at_risk: 'warn', delayed: 'bad', not_started: 'neutral', no_schedule: 'neutral', cancelled: 'neutral', carried_over: 'neutral' };
@@ -84,13 +89,13 @@ export class BoardReportsService {
   async catalog(actor: OrgUser) {
     const org = actor.organizationId;
     const canPlan = this.canPlan(actor), canBudget = this.canBudget(actor);
-    const plans = !canPlan ? [] : await this.db.getRepository(Plan).find({ where: { organizationId: org }, order: { startYear: 'DESC', code: 'ASC' }, select: ['id', 'code', 'kind', 'title', 'startYear', 'endYear', 'status', 'version'] });
+    const plans = !canPlan ? [] : await this.db.getRepository(Plan).find({ where: { organizationId: org }, order: { startYear: 'DESC', code: 'ASC' }, select: ['id', 'code', 'kind', 'title', 'startYear', 'endYear', 'status', 'version', 'approvals'] });
     const budgets = canBudget ? (await this.budgets.list(actor, {}))
-      .map((b) => ({ id: b.id, code: b.code, title: b.title, fiscalYear: b.fiscalYear, status: b.status, version: b.version })) : [];
+      .map((b) => ({ id: b.id, code: b.code, title: b.title, fiscalYear: b.fiscalYear, status: b.status, version: b.version, approvals: b.approvals, printable: initiallyApproved(b) })) : [];
     return {
       forms: BOARD_FORMS.filter((f) => (f.type.startsWith('budget') ? canBudget : canPlan)),
-      plans: plans.map((p) => ({ ...p, statusName: WF[p.status] })),
-      budgets: budgets.map((b) => ({ ...b, statusName: WF[b.status] })),
+      plans: plans.map(({ approvals, ...p }) => ({ ...p, statusName: wfName({ status: p.status, approvals }), printable: initiallyApproved({ status: p.status, approvals }) })),
+      budgets: budgets.map(({ approvals, ...b }) => ({ ...b, statusName: wfName({ status: b.status, approvals }) })),
       today: today(),
     };
   }
@@ -216,6 +221,7 @@ export class BoardReportsService {
 
   private async planApproval(actor: OrgUser, q: BoardQuery): Promise<BoardDoc> {
     const { a, p } = await this.loadPlan(actor, q);
+    if (!initiallyApproved(p)) throw NOT_YET('الخطة');
     const org = actor.organizationId;
     const form = this.formFor('plan-approval', p.kind);
     const t = this.tree(a, p.id);
@@ -245,7 +251,7 @@ export class BoardReportsService {
       { t: 'cards', items: [
         { label: 'مدة الخطة', value: periodText }, { label: `عدد ${lvl(0)}`, value: t.roots.length, type: 'number' },
         { label: 'إجمالي العناصر', value: live.length, type: 'number' }, { label: 'مؤشرات الأداء', value: kpis.length, type: 'number' },
-        { label: 'التكلفة التقديرية', value: totalCost, type: 'money', hint: 'ريال' }, { label: 'حالة الخطة', value: `${WF[p.status]}${p.version ? ` · إصدار ${p.version}` : ''}` },
+        { label: 'التكلفة التقديرية', value: totalCost, type: 'money', hint: 'ريال' }, { label: 'حالة الخطة', value: `${wfName(p)}${p.version ? ` · إصدار ${p.version}` : ''}` },
       ] },
       { t: 'p', text: `تتكون ${strategic ? 'الخطة الاستراتيجية' : 'الخطة التشغيلية'} «${p.title}» من ${t.roots.length} ${lvl(0)} و${live.length} عنصرًا على ${p.levels.length} مستويات (${p.levels.map((l) => l.name).join('، ')})، وتُقاس بـ${kpis.length} مؤشر أداء، بتكلفة تقديرية إجمالية ${money(totalCost)} موزعة على ${years.length === 1 ? 'سنة واحدة' : `${years.length} سنوات`}.${largest && totalCost ? ` أعلى ${lvl(0)} تكلفة «${largest.r.title}» بنسبة ${pctText(pct(largest.cost, totalCost))} من الإجمالي.` : ''}${!strategic && parent ? ` وتنفذ الخطة الاستراتيجية «${parent.code} ${parent.title}».` : ''}` },
       { t: 'h', text: `${lvl(0)} الخطة باختصار` },
@@ -344,7 +350,7 @@ export class BoardReportsService {
 
     // 8. سجل الاعتماد
     sections.push({ title: 'سجل الإعداد والاعتماد', lead: 'مراحل المراجعة الداخلية قبل العرض على المجلس، والإصدارات المعتمدة السابقة', blocks: [
-      { t: 'kv', items: [{ label: 'أعدها', value: p.createdByName }, { label: 'مسار الاعتماد', value: p.routeName ?? 'الافتراضي' }, { label: 'الحالة', value: WF[p.status] }, { label: 'آخر إصدار معتمد', value: p.version || 'لم تُعتمد بعد' }, ...(p.revisionNote ? [{ label: 'سبب التعديل', value: p.revisionNote }] : [])] },
+      { t: 'kv', items: [{ label: 'أعدها', value: p.createdByName }, { label: 'مسار الاعتماد', value: p.routeName ?? 'الافتراضي' }, { label: 'الحالة', value: wfName(p) }, { label: 'آخر إصدار معتمد', value: p.version || 'لم تُعتمد بعد' }, ...(p.revisionNote ? [{ label: 'سبب التعديل', value: p.revisionNote }] : [])] },
       this.wfTable(p.approvals),
       { t: 'h', text: 'الإصدارات' },
       { t: 'table', small: true, empty: 'لا توجد إصدارات معتمدة سابقة', columns: [{ key: 'v', label: 'الإصدار', type: 'number' }, { key: 'by', label: 'اعتمده' }, { key: 'at', label: 'التاريخ', type: 'datetime' }, { key: 'note', label: 'ملاحظة الإصدار' }],
@@ -355,7 +361,7 @@ export class BoardReportsService {
       await this.signatures(org, [{ role: 'إعداد', name: p.createdByName }, { role: 'مراجعة: مسؤول التخطيط', name: p.ownerName }]), q.meetingNo));
 
     return this.shell(actor, form, `${form.code}/${p.code}${p.version ? `/V${p.version}` : ''}`, `${p.code} · ${p.title}`, `الفترة ${periodText}`, [
-      { label: 'الخطة', value: `${p.code} ${p.title}` }, { label: 'حالة الخطة', value: WF[p.status] }, { label: 'الإصدار', value: p.version || 'مسودة قبل أول اعتماد' }, { label: 'تاريخ آخر تحديث للخطة', value: p.updatedAt, type: 'datetime' },
+      { label: 'الخطة', value: `${p.code} ${p.title}` }, { label: 'حالة الخطة', value: wfName(p) }, { label: 'الإصدار', value: p.version || 'مسودة قبل أول اعتماد' }, { label: 'تاريخ آخر تحديث للخطة', value: p.updatedAt, type: 'datetime' },
     ], sections);
   }
 
@@ -365,6 +371,7 @@ export class BoardReportsService {
     const end = periodEndOf(period);
     const asOf = end < t0 ? end : t0;
     const { a, p } = await this.loadPlan(actor, q, asOf);
+    if (p.version < 1) throw new ConflictException('يبدأ تقييم أداء الخطة بعد اعتمادها');
     const org = actor.organizationId;
     const form = this.formFor('plan-performance', p.kind);
     const t = this.tree(a, p.id);
@@ -472,6 +479,7 @@ export class BoardReportsService {
   private async budgetApproval(actor: OrgUser, q: BoardQuery): Promise<BoardDoc> {
     const b = await this.budgets.get(actor, this.budgetId(q));
     if (b.isScenario) throw new BadRequestException('السيناريو لا يُرفع للمجلس. حوّله إلى الموازنة أولًا');
+    if (!initiallyApproved(b)) throw NOT_YET('الموازنة');
     const org = actor.organizationId;
     const form = this.formFor('budget-approval', null);
     const s = b.summary;
@@ -557,7 +565,7 @@ export class BoardReportsService {
     }
 
     sectionsDoc.push({ title: 'سجل الإعداد والاعتماد', lead: 'مراحل المراجعة الداخلية والإصدارات المعتمدة', blocks: [
-      { t: 'kv', items: [{ label: 'أعدها', value: b.createdByName }, { label: 'مسار الاعتماد', value: b.routeName ?? 'الافتراضي' }, { label: 'الحالة', value: WF[b.status] }, { label: 'آخر إصدار معتمد', value: b.version || 'لم تُعتمد بعد' }, ...(b.revisionNote ? [{ label: 'سبب التعديل', value: b.revisionNote }] : [])] },
+      { t: 'kv', items: [{ label: 'أعدها', value: b.createdByName }, { label: 'مسار الاعتماد', value: b.routeName ?? 'الافتراضي' }, { label: 'الحالة', value: wfName(b) }, { label: 'آخر إصدار معتمد', value: b.version || 'لم تُعتمد بعد' }, ...(b.revisionNote ? [{ label: 'سبب التعديل', value: b.revisionNote }] : [])] },
       this.wfTable(b.approvals),
       { t: 'h', text: 'الإصدارات' },
       { t: 'table', small: true, empty: 'لا توجد إصدارات معتمدة سابقة', columns: [{ key: 'v', label: 'الإصدار', type: 'number' }, { key: 'exp', label: 'المصروفات', type: 'money' }, { key: 'rev', label: 'الإيرادات', type: 'money' }, { key: 'by', label: 'اعتمده' }, { key: 'at', label: 'التاريخ', type: 'datetime' }, { key: 'note', label: 'ملاحظة' }],
@@ -568,7 +576,7 @@ export class BoardReportsService {
       await this.signatures(org, [{ role: 'إعداد', name: b.createdByName }, { role: 'مراجعة: المسؤول المالي', name: null }]), q.meetingNo));
 
     return this.shell(actor, form, `${form.code}/${b.code}${b.version ? `/V${b.version}` : ''}`, `${b.code} · ${b.title}`, `السنة المالية ${b.fiscalYear}`, [
-      { label: 'الموازنة', value: `${b.code} ${b.title}` }, { label: 'السنة المالية', value: b.fiscalYear }, { label: 'الحالة', value: WF[b.status] }, { label: 'الإصدار', value: b.version || 'مسودة قبل أول اعتماد' },
+      { label: 'الموازنة', value: `${b.code} ${b.title}` }, { label: 'السنة المالية', value: b.fiscalYear }, { label: 'الحالة', value: wfName(b) }, { label: 'الإصدار', value: b.version || 'مسودة قبل أول اعتماد' },
     ], sectionsDoc);
   }
 

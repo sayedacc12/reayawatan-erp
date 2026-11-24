@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import type { ItemState, Periodicity, PlanSnapshot, WfLog, WfStage, WfStatus } from './entities/planning.entity';
-import type { PlanningConfig, WorkflowRoute } from './planning-defaults';
+import { BOARD_STAGE, INITIAL_STAGE, type PlanningConfig, type WorkflowRoute } from './planning-defaults';
 
 /** دوال خالصة للحساب والاعتماد والمقارنة، حتى تُختبر وحدها */
 
@@ -290,6 +290,19 @@ export function markEdited(r: WfRecord, byName: string) {
   }
 }
 
+/**
+ * اجتاز الاعتماد الأولي: معتمد نهائيًا، أو قيد الاعتماد وفي دورته الحالية (بعد آخر رفع) اعتماد في مرحلة
+ * «الاعتماد الأولي من الإدارة التنفيذية» بعينها، لا بترتيب المرحلة. لا يُطبع تقرير الاعتماد للمجلس قبل ذلك.
+ */
+export function initiallyApproved(r: Pick<WfRecord, 'status' | 'approvals'>) {
+  if (r.status === 'approved') return true;
+  if (r.status !== 'in_review') return false;
+  const log = r.approvals ?? [];
+  let start = -1;
+  log.forEach((l, i) => { if (l.action === 'submit') start = i; });
+  return log.slice(start + 1).some((l) => l.action === 'approve' && l.stage === INITIAL_STAGE);
+}
+
 /** الرفع للاعتماد: تُجمّد مراحل المسار المطابق على الخطة حتى نهاية الدورة */
 export function wfSubmit(r: WfRecord, stages: WfStage[], byName: string, note: string | null) {
   if (!['draft', 'returned'].includes(r.status)) throw new ConflictException('تُرفع للاعتماد الخطة المسودة أو المُرجعة فقط');
@@ -318,6 +331,8 @@ export function wfDecide(r: WfRecord, d: Decider, decision: 'approve' | 'return'
   if (!canDecide(r, d)) throw new ForbiddenException('القرار في هذه المرحلة ليس من صلاحيتك');
   if (decision !== 'approve' && !note?.trim()) throw new BadRequestException('اكتب سبب الإرجاع أو الرفض');
   const stage = r.wfStages[r.stageIndex]?.name ?? null;
+  // قرار المجلس يُسجَّل بمرجعه: رقم القرار أو محضر الاجتماع
+  if (decision === 'approve' && stage === BOARD_STAGE && !note?.trim()) throw new BadRequestException('اكتب رقم قرار مجلس المديرين أو محضر الاجتماع الذي اعتمدها');
   r.approvals = [...r.approvals, log(decision, stage, d.name, note?.trim() || null)];
   if (decision === 'return') { r.status = 'returned'; r.stageIndex = null; return; }
   if (decision === 'reject') { r.status = 'rejected'; r.stageIndex = null; return; }
