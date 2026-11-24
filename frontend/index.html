@@ -20,26 +20,49 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "رعاية وطن",
-        "alternateName": "National Care",
-        "legalName": "شركة رعاية وطن للاستثمار",
-        "url": "https://reayawatan.com/",
-        "logo": "https://reayawatan.com/brand/logo.png",
-        "email": "info@reayawatan.com",
-        "telephone": "+966564355564",
-        "openingHours": "Su-Th 09:00-14:00",
-        "vatID": "314466205600003",
-        "identifier": { "@type": "PropertyValue", "propertyID": "الرقم الوطني الموحد", "value": "7052873945" },
-        "parentOrganization": { "@type": "Organization", "name": "الجمعية الخيرية الصحية لرعاية المرضى (عناية)" },
-        "address": {
-          "@type": "PostalAddress",
-          "streetAddress": "شارع الوليد التميمي، حي الرحمانية",
-          "addressLocality": "الرياض",
-          "postalCode": "12341",
-          "addressCountry": "SA"
-        },
-        "areaServed": "SA"
+        "@graph": [
+          {
+            "@type": ["Organization", "ProfessionalService"],
+            "@id": "https://reayawatan.com/#organization",
+            "name": "رعاية وطن",
+            "alternateName": ["National Care", "شركة رعاية وطن للاستثمار", "Reaya Watan"],
+            "legalName": "شركة رعاية وطن للاستثمار",
+            "description": "شركة سعودية غير ربحية مملوكة لجمعية عناية الصحية، تقدم الاستشارات للقطاع غير الربحي والقطاع الصحي في التخطيط الاستراتيجي والحوكمة والاستدامة المالية والتقنية وإدارة المشاريع وقياس الأثر.",
+            "url": "https://reayawatan.com/",
+            "logo": "https://reayawatan.com/brand/logo.png",
+            "image": "https://reayawatan.com/brand/og-image.png",
+            "email": "info@reayawatan.com",
+            "telephone": "+966564355564",
+            "openingHoursSpecification": [
+              { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"], "opens": "09:00", "closes": "14:00" }
+            ],
+            "contactPoint": [
+              { "@type": "ContactPoint", "contactType": "customer service", "email": "info@reayawatan.com", "telephone": "+966564355564", "areaServed": "SA", "availableLanguage": ["ar", "en"] }
+            ],
+            "vatID": "314466205600003",
+            "identifier": { "@type": "PropertyValue", "propertyID": "السجل التجاري", "value": "7052873945" },
+            "parentOrganization": { "@type": "NGO", "name": "الجمعية الخيرية الصحية لرعاية المرضى (عناية)" },
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "شارع الوليد التميمي، حي الرحمانية",
+              "addressLocality": "الرياض",
+              "addressRegion": "منطقة الرياض",
+              "postalCode": "12341",
+              "addressCountry": "SA"
+            },
+            "areaServed": { "@type": "Country", "name": "المملكة العربية السعودية" },
+            "knowsAbout": ["التخطيط الاستراتيجي", "الحوكمة والامتثال", "الاستدامة المالية", "المنتجات الوقفية", "التحول الرقمي الصحي", "الذكاء الاصطناعي", "إدارة المشاريع", "التدريب الصحي", "قياس الأثر الاجتماعي"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://reayawatan.com/#website",
+            "url": "https://reayawatan.com/",
+            "name": "رعاية وطن",
+            "alternateName": "National Care",
+            "inLanguage": "ar",
+            "publisher": { "@id": "https://reayawatan.com/#organization" }
+          }
+        ]
       }
     </script>
     <link rel="icon" type="image/png" href="/brand/mark.png" />

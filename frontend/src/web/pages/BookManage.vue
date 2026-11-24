@@ -15,7 +15,7 @@ const busy = ref(false);
 const cancelled = ref(false);
 
 onMounted(async () => {
-  setTitle('إدارة الموعد');
+  setTitle('إدارة الموعد', undefined, false);
   try {
     const r = await fetch(`/api/public/web/booking/manage/${encodeURIComponent(token)}`);
     if (!r.ok) throw new Error(r.status === 429 ? 'محاولات كثيرة، انتظروا دقيقة' : 'الرابط غير صحيح أو انتهت صلاحيته');

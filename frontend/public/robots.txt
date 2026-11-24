@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
+# محتوى الموقع العام يُحمَّل من هذا المسار، وجوجل يحتاجه ليعرض الصفحات كما يراها الزائر
+Allow: /api/public/web
 Disallow: /api/
 Disallow: /login
 Disallow: /home
@@ -8,5 +10,9 @@ Disallow: /book/manage/
 Disallow: /pc/
 Disallow: /minutes/
 Disallow: /survey/
+Disallow: /supplier/
+Disallow: /account
+Disallow: /change-password
+Disallow: /_spa.html
 
 Sitemap: https://reayawatan.com/sitemap.xml
