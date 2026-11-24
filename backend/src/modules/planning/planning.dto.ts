@@ -371,3 +371,39 @@ export class UpdatePlanDto extends PartialType(PlanDto) {}
 export class UpdateItemDto extends PartialType(ItemDto) {}
 export class UpdateKpiDto extends PartialType(KpiDto) {}
 export class UpdateLinkDto extends PartialType(LinkDto) {}
+
+export class IssueDto {
+  @Text(300, true) @MinLength(3, { message: 'اكتب عنوان القضية الجوهرية' })
+  title!: string;
+
+  @Text(3000, true) @MinLength(3, { message: 'اكتب ملخص القضية' })
+  summary!: string;
+
+  @Text(3000)
+  recommendations?: string | null;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000)
+  sortOrder?: number;
+}
+export class UpdateIssueDto extends PartialType(IssueDto) {}
+
+export class StakeholderDto {
+  @Text(200, true) @MinLength(2, { message: 'اكتب اسم المعني' })
+  name!: string;
+
+  @Text(100, true) @MinLength(2, { message: 'اختر تصنيف المعني' })
+  category!: string;
+
+  @Text(2000)
+  definition?: string | null;
+
+  @Text(2000)
+  expectsFromUs?: string | null;
+
+  @Text(2000)
+  weExpect?: string | null;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(0) @Max(100000)
+  sortOrder?: number;
+}
+export class UpdateStakeholderDto extends PartialType(StakeholderDto) {}

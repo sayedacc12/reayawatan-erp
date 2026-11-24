@@ -98,6 +98,7 @@ const ringColor = (s: any) => (s.delayed ? EXEC.delayed.color : s.atRisk ? EXEC.
         <ul v-if="report.plan" class="pm-sub" style="margin: 0">
           <li>{{ (report.plan as any).kind === 'strategic' ? 'خطة استراتيجية' : 'خطة تشغيلية' }}: {{ (report.plan as any).title }} ({{ (report.plan as any).startYear }} - {{ (report.plan as any).endYear }})</li>
           <li>{{ (report.items as any[]).length }} عنصرًا · {{ report.kpis }} مؤشرًا · {{ (report.links as any[]).filter((l) => l.resolved).length }} ربطًا من {{ (report.links as any[]).length }}</li>
+          <li v-if="report.issues || report.stakeholders">{{ report.issues ?? 0 }} قضية جوهرية · {{ report.stakeholders ?? 0 }} معنيًا</li>
         </ul>
       </template>
     </ExcelImportDialog>

@@ -9,7 +9,8 @@ import { CurrentOrgUser, OrgUser, RequireAnyPermission, RequirePermissions } fro
 import { PlanningCore } from './planning-core.service';
 import { PlanningViews } from './planning-views.service';
 import {
-  CarryDto, ConfigDto, CopyPlanDto, DecideDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, SubmitDto, TreatmentDto, UpdateItemDto, UpdateKpiDto, UpdateLinkDto, UpdatePlanDto,
+  CarryDto, ConfigDto, CopyPlanDto, DecideDto, IssueDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, StakeholderDto, SubmitDto, TreatmentDto,
+  UpdateIssueDto, UpdateItemDto, UpdateKpiDto, UpdateLinkDto, UpdatePlanDto, UpdateStakeholderDto,
 } from './planning.dto';
 import { PLANNING_PERMISSIONS as P } from './planning.manifest';
 import { PlansService } from './plans.service';
@@ -160,6 +161,26 @@ export class PlanningController {
 
   @Delete('links/:id') @RequireAnyPermission(...EDIT)
   removeLink(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.plans.removeLink(a, id); }
+
+  // ---------------- القضايا الجوهرية وخارطة المعنيين (صلاحية نوع الخطة تُفحص في الخدمة) ----------------
+
+  @Post('plans/:id/issues') @RequireAnyPermission(...EDIT)
+  addIssue(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: IssueDto) { return this.plans.addContext(a, 'issue', id, dto); }
+
+  @Patch('issues/:id') @RequireAnyPermission(...EDIT)
+  updateIssue(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: UpdateIssueDto) { return this.plans.updateContext(a, 'issue', id, dto); }
+
+  @Delete('issues/:id') @RequireAnyPermission(...EDIT)
+  removeIssue(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.plans.removeContext(a, 'issue', id); }
+
+  @Post('plans/:id/stakeholders') @RequireAnyPermission(...EDIT)
+  addStakeholder(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: StakeholderDto) { return this.plans.addContext(a, 'stakeholder', id, dto); }
+
+  @Patch('stakeholders/:id') @RequireAnyPermission(...EDIT)
+  updateStakeholder(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string, @Body() dto: UpdateStakeholderDto) { return this.plans.updateContext(a, 'stakeholder', id, dto); }
+
+  @Delete('stakeholders/:id') @RequireAnyPermission(...EDIT)
+  removeStakeholder(@CurrentOrgUser() a: OrgUser, @Param('id', uuid) id: string) { return this.plans.removeContext(a, 'stakeholder', id); }
 
   // ---------------- المؤشرات ----------------
 
