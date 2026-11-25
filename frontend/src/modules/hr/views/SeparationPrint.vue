@@ -78,7 +78,8 @@ const MARK: Record<string, string> = { cleared: '✔', blocked: '✖', pending: 
         <h3>ثالثًا: بيان المستحقات <small v-if="!s.settlement">(معاينة غير معتمدة)</small></h3>
         <table class="sp-table">
           <tbody>
-            <tr><td>مكافأة نهاية الخدمة ({{ st.eos.years }} سنة و{{ st.eos.months }} شهر و{{ st.eos.days }} يوم)</td><td class="n">{{ sar(st.eos.amount) }}</td></tr>
+            <tr v-if="st.contractor"><td>مكافأة نهاية الخدمة (متعاون بعقد تعاون)</td><td class="n">لا تستحق</td></tr>
+            <tr v-else><td>مكافأة نهاية الخدمة ({{ st.eos.years }} سنة و{{ st.eos.months }} شهر و{{ st.eos.days }} يوم)</td><td class="n">{{ sar(st.eos.amount) }}</td></tr>
             <tr v-if="st.leaveEncashment"><td>بدل رصيد الإجازة ({{ st.leaveDays }} يوم × {{ sar(st.dailyWage) }})</td><td class="n">{{ sar(st.leaveEncashment) }}</td></tr>
             <tr v-for="(a, i) in st.adjustments.filter((x) => x.kind === 'addition')" :key="`a${i}`"><td>{{ a.label }}</td><td class="n">{{ sar(a.amount) }}</td></tr>
             <tr class="sum"><td>إجمالي المستحقات</td><td class="n">{{ sar(st.gross) }}</td></tr>

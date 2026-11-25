@@ -324,6 +324,21 @@ export function endOfService(policy: HrPolicy, wage: number, start: string, end:
   return { service, wage: round2(wage), firstPart, secondPart, fullAmount, factor, amount: round2(fullAmount * factor), reason, reasonLabel: rule.label, explanation };
 }
 
+export const CONTRACTOR_NO_EOS = 'متعاون بعقد تعاون: لا يستحق مكافأة نهاية خدمة ولا تعويض رصيد إجازات';
+
+/** المتعاون لا يستحق مكافأة نهاية الخدمة ولا يُجنَّب له مخصص، أيًا كان سبب انتهاء التعاون */
+export function contractorEos(start: string, end: string, reason: EosReason): EosResult {
+  return {
+    service: serviceSpan(start, end), wage: 0, firstPart: 0, secondPart: 0, fullAmount: 0, factor: 0, amount: 0,
+    reason, reasonLabel: EOS_REASONS[reason].label, explanation: CONTRACTOR_NO_EOS,
+  };
+}
+
+/** مكافأة نهاية الخدمة لموظف مسجل: صفر للمتعاون، وحسب اللائحة لغيره */
+export function employeeEos(policy: HrPolicy, kind: string, wage: number, start: string, end: string, reason: EosReason): EosResult {
+  return kind === 'contractor' ? contractorEos(start, end, reason) : endOfService(policy, wage, start, end, reason);
+}
+
 /** حصة الشهر من مخصص نهاية الخدمة حسب مدة الخدمة الحالية */
 export function monthlyEosProvision(policy: HrPolicy, wage: number, serviceYears: number) {
   const rate = serviceYears < policy.eos.firstYears ? policy.eos.firstRate : policy.eos.afterRate;

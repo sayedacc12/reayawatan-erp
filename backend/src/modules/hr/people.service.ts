@@ -9,7 +9,7 @@ import { EmployeeDto, EosCalcDto, LeaveDto, TerminateDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
 import { HR_PERMISSIONS as P } from './hr.manifest';
 import {
-  accruedMonthly, addDays, daysBetween, endOfService, EOS_REASONS, EosReason, gosi, HrPolicy, LeaveTypeRule, monthlyEosProvision, round2,
+  accruedMonthly, addDays, daysBetween, employeeEos, endOfService, EOS_REASONS, EosReason, gosi, HrPolicy, LeaveTypeRule, monthlyEosProvision, round2,
   serviceSpan, wageFor, wageTotal,
 } from './hr-policy';
 import { partsOf } from './org.service';
@@ -139,7 +139,8 @@ export class PeopleService {
     const gross = round2(wageTotal(parts));
     const g = gosi(policy, parts, e.isSaudi, e.gosiFirstRegistration, onDate);
     const service = serviceSpan(e.hireDate, onDate);
-    const eosProvision = monthlyEosProvision(policy, wageFor(policy.eos.wageBase, parts), service.decimalYears);
+    // المتعاون لا يُجنَّب له مخصص نهاية خدمة
+    const eosProvision = e.employmentKind === 'contractor' ? 0 : monthlyEosProvision(policy, wageFor(policy.eos.wageBase, parts), service.decimalYears);
     return {
       items: [{ code: 'basic', name: 'الراتب الأساسي', amount: e.basicSalary }, ...e.allowances],
       gross, gosi: g, net: round2(gross - g.employee.total), eosProvision,
@@ -258,6 +259,10 @@ export class PeopleService {
         `SELECT r.month FROM hr_payroll_runs r WHERE r.organization_id = $1 AND r.status IN ('draft', 'returned', 'pending')
             AND EXISTS (SELECT 1 FROM jsonb_array_elements(r.lines) x WHERE x->>'employeeId' = $2) LIMIT 1`, [org, id]);
       if (open) throw new ConflictException(`لا يتغير التصنيف وهو في كشف شهر ${open.month} قيد الإعداد أو الاعتماد. اعتمد الكشف أو ألغه أولًا`);
+      // ولا يتغير وله ملف إنهاء خدمة قائم، لأن التصنيف يحدد استحقاق مكافأة نهاية الخدمة في بيان المستحقات
+      const [sep] = await this.db.query(
+        `SELECT 1 FROM hr_separations WHERE organization_id = $1 AND employee_id = $2 AND status IN ('clearance', 'settlement', 'approved') LIMIT 1`, [org, id]);
+      if (sep) throw new ConflictException('لا يتغير التصنيف وللموظف ملف إنهاء خدمة قائم. أغلق الملف أو ألغه أولًا');
       if (e.employmentKind === 'staff') {
         const [adv] = await this.db.query(
           `SELECT 1 FROM hr_advances a WHERE a.organization_id = $1 AND a.employee_id = $2 AND a.status = 'active'
@@ -322,19 +327,21 @@ export class PeopleService {
 
   private async settlement(org: string, e: HrEmployee, policy: HrPolicy, end: string, reason: EosReason) {
     const parts = partsOf(e.basicSalary, e.allowances);
-    const eos = endOfService(policy, wageFor(policy.eos.wageBase, parts), e.hireDate, end, reason);
-    const annual = (await this.balances(org, e, policy, end)).find((b) => b.code === 'annual');
+    const contractor = e.employmentKind === 'contractor';
+    const eos = employeeEos(policy, e.employmentKind, wageFor(policy.eos.wageBase, parts), e.hireDate, end, reason);
+    // المتعاون لا مكافأة له ولا تعويض رصيد إجازات؛ أتعابه المستحقة تُصرف من كشف المتعاونين
+    const annual = contractor ? null : (await this.balances(org, e, policy, end)).find((b) => b.code === 'annual');
     const leaveDays = Math.max(annual?.available ?? 0, 0);
     const dailyWage = round2(wageTotal(parts) / policy.payroll.dayBasis);
     const leaveEncashment = round2(leaveDays * dailyWage);
-    return { eos, leaveDays, dailyWage, leaveEncashment, total: round2(eos.amount + leaveEncashment) };
+    return { contractor, eos, leaveDays, dailyWage, leaveEncashment, total: round2(eos.amount + leaveEncashment) };
   }
 
   async eosCalc(actor: OrgUser, dto: EosCalcDto) {
     const policy = await this.core.policy(actor.organizationId);
     if (dto.employeeId) {
       const e = await this.employee(actor.organizationId, dto.employeeId);
-      return { employee: { id: e.id, fullName: e.fullName, hireDate: e.hireDate }, ...(await this.settlement(actor.organizationId, e, policy, dto.endDate, dto.reason)) };
+      return { employee: { id: e.id, fullName: e.fullName, hireDate: e.hireDate, employmentKind: e.employmentKind }, ...(await this.settlement(actor.organizationId, e, policy, dto.endDate, dto.reason)) };
     }
     if (!dto.startDate || dto.wage === null || dto.wage === undefined) throw new BadRequestException('اختر موظفًا أو اكتب الأجر وتاريخ المباشرة');
     if (dto.endDate < dto.startDate) throw new BadRequestException('تاريخ نهاية الخدمة قبل المباشرة');
@@ -354,7 +361,7 @@ export class PeopleService {
     const start = `${month}-01`;
     const end = lastDay(month);
     const rows = await this.employees.createQueryBuilder('e')
-      .where('e.organization_id = :org', { org }).andWhere('e.hire_date <= :end', { end })
+      .where('e.organization_id = :org', { org }).andWhere(`e.employment_kind = 'staff'`).andWhere('e.hire_date <= :end', { end })
       .andWhere('(e.termination_date IS NULL OR e.termination_date >= :start)', { start }).orderBy('e.employee_no').getMany();
     const unpaidCodes = policy.leaveTypes.filter((t) => t.pay === 'unpaid').map((t) => t.code);
     const leaves = unpaidCodes.length && rows.length

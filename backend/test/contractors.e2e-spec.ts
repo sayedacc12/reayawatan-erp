@@ -265,4 +265,25 @@ describe('Contractors payroll', () => {
     expect(staff.lines.map((l: Line) => l.employeeId)).toEqual([ids.staff]);
     expect(staff.warnings.join(' ')).toContain('فهد عبدالله القحطاني: له سطر في كشف المتعاونين');
   });
+  it('a contractor has no end-of-service gratuity, provision or leave encashment', async () => {
+    // حاسبة نهاية الخدمة لمتعاون مسجل: صفر مع السبب، أيًا كان سبب الانتهاء
+    for (const reason of ['contract_end', 'employer_termination', 'resignation']) {
+      const calc = (await http.post(`${H}/eos/calculate`).set(as(tk.clerk)).send({ employeeId: ids.monthly, endDate: lastDay, reason }).expect(200)).body;
+      expect(calc).toMatchObject({ contractor: true, total: 0, leaveDays: 0, leaveEncashment: 0, eos: { amount: 0, fullAmount: 0, wage: 0 } });
+      expect(calc.eos.explanation).toContain('لا يستحق مكافأة نهاية خدمة');
+    }
+    // معاينة مسير الرواتب للموظفين فقط: لا يظهر المتعاون ولا يُجنَّب له مخصص
+    const preview = (await http.get(`${H}/payroll?month=${month}`).set(as(tk.clerk)).expect(200)).body;
+    const listed = preview.lines.map((l: { id: string }) => l.id);
+    expect(listed).not.toContain(ids.monthly);
+    expect(listed).not.toContain(ids.hourly);
+    // ملف إنهاء التعاون: بيان المستحقات بلا مكافأة ولا بدل إجازات
+    const sep = (await http.post(`${H}/separations`).set(as(tk.admin)).send({ employeeId: ids.hourly, reason: 'contract_end', lastWorkingDay: lastDay }).expect(201)).body;
+    expect(sep.preview).toMatchObject({ contractor: true, leaveEncashment: 0, gross: 0, eos: { amount: 0 } });
+    // لا يتغير تصنيفه إلى موظف وملف إنهاء التعاون قائم
+    const hourly = (await http.get(`${H}/employees/${ids.hourly}`).set(as(tk.clerk)).expect(200)).body;
+    await http.patch(`${H}/employees/${ids.hourly}`).set(as(tk.clerk)).send({ ...base(hourly.fullName, hourly.nationalId, { attendanceExempt: true }), employmentKind: 'staff', basicSalary: 6000 }).expect(409);
+    // ملف المتعاون في الشاشة بلا تفصيل مكافأة
+    expect((await http.get(`${H}/employees/${ids.monthly}`).set(as(tk.clerk)).expect(200)).body.eos).toBeNull();
+  });
 });
