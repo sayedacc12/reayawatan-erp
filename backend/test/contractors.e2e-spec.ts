@@ -280,6 +280,9 @@ describe('Contractors payroll', () => {
     // ملف إنهاء التعاون: بيان المستحقات بلا مكافأة ولا بدل إجازات
     const sep = (await http.post(`${H}/separations`).set(as(tk.admin)).send({ employeeId: ids.hourly, reason: 'contract_end', lastWorkingDay: lastDay }).expect(201)).body;
     expect(sep.preview).toMatchObject({ contractor: true, leaveEncashment: 0, gross: 0, eos: { amount: 0 } });
+    // لا يتغير تصنيفه إلى موظف وملف إنهاء التعاون قائم
+    const hourly = (await http.get(`${H}/employees/${ids.hourly}`).set(as(tk.clerk)).expect(200)).body;
+    await http.patch(`${H}/employees/${ids.hourly}`).set(as(tk.clerk)).send({ ...base(hourly.fullName, hourly.nationalId, { attendanceExempt: true }), employmentKind: 'staff', basicSalary: 6000 }).expect(409);
     // ملف المتعاون في الشاشة بلا تفصيل مكافأة
     expect((await http.get(`${H}/employees/${ids.monthly}`).set(as(tk.clerk)).expect(200)).body.eos).toBeNull();
   });

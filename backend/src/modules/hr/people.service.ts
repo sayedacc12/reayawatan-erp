@@ -256,6 +256,10 @@ export class PeopleService {
         `SELECT r.month FROM hr_payroll_runs r WHERE r.organization_id = $1 AND r.status IN ('draft', 'returned', 'pending')
             AND EXISTS (SELECT 1 FROM jsonb_array_elements(r.lines) x WHERE x->>'employeeId' = $2) LIMIT 1`, [org, id]);
       if (open) throw new ConflictException(`لا يتغير التصنيف وهو في كشف شهر ${open.month} قيد الإعداد أو الاعتماد. اعتمد الكشف أو ألغه أولًا`);
+      // ولا يتغير وله ملف إنهاء خدمة قائم، لأن التصنيف يحدد استحقاق مكافأة نهاية الخدمة في بيان المستحقات
+      const [sep] = await this.db.query(
+        `SELECT 1 FROM hr_separations WHERE organization_id = $1 AND employee_id = $2 AND status IN ('clearance', 'settlement', 'approved') LIMIT 1`, [org, id]);
+      if (sep) throw new ConflictException('لا يتغير التصنيف وللموظف ملف إنهاء خدمة قائم. أغلق الملف أو ألغه أولًا');
       if (e.employmentKind === 'staff') {
         const [adv] = await this.db.query(
           `SELECT 1 FROM hr_advances a WHERE a.organization_id = $1 AND a.employee_id = $2 AND a.status = 'active'
