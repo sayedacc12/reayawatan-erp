@@ -211,12 +211,28 @@ describe('HR', () => {
   it('employee name and linked login account stay in sync both ways', async () => {
     const u = (await http.post('/api/users').set(as(admin)).send({ fullName: 'اسم قديم', email: 'emp1@test.org', password: 'Emp12345678', roleIds: [] }).expect(201)).body;
     const userName = async () => (await http.get('/api/users').set(as(admin)).expect(200)).body.find((x: { id: string }) => x.id === u.id).fullName;
-    // ربط الحساب بملف الموظف وتعديل اسمه: يتغير اسم الحساب
+    // سجلات في أنظمة أخرى: عضو مجلس مربوط بالحساب، ووثيقة مسؤولها مكتوب نصاً بالاسم القديم، وأخرى لشخص آخر
+    const db = app.get(DataSource);
+    const [{ organization_id: org }] = await db.query('SELECT organization_id FROM users WHERE id = $1', [u.id]);
+    const [doc] = await db.query(`INSERT INTO kn_documents (organization_id, title, doc_type, created_by_name, owner_name) VALUES ($1, 'دليل', 'guide', 'اسم قديم', 'اسم قديم') RETURNING id`, [org]);
+    const [docOther] = await db.query(`INSERT INTO kn_documents (organization_id, title, doc_type, created_by_name, owner_name) VALUES ($1, 'دليل آخر', 'guide', 'غيره', 'شخص آخر') RETURNING id`, [org]);
+    const board = (await http.post('/api/meetings/bodies').set(as(admin)).send({
+      kind: 'board', code: 'BRD', name: 'مجلس الإدارة', quorumPercent: 60, isConfidential: false, isActive: true,
+      members: [{ type: 'user', userId: u.id, role: 'chair', voting: true }, { type: 'external', name: 'عضو خارجي', role: 'member', voting: true }],
+    }).expect(201)).body;
+    const memberName = async () => (await db.query('SELECT members FROM mtg_bodies WHERE id = $1', [board.id]))[0].members.find((m: { userId: string | null }) => m.userId === u.id).name;
+    const docRow = async (id: string) => (await db.query('SELECT owner_name, created_by_name FROM kn_documents WHERE id = $1', [id]))[0];
+    // ربط الحساب بملف الموظف وتعديل اسمه: يتغير اسم الحساب وكل السجلات المرتبطة
     await http.patch(`${H}/employees/${ids.emp}`).set(as(admin)).send(employee({ fullName: 'سارة أحمد العتيبي', userId: u.id })).expect(200);
     expect(await userName()).toBe('سارة أحمد العتيبي');
-    // تعديل اسم الحساب من المستخدمين: يتغير اسم الموظف
+    expect(await memberName()).toBe('سارة أحمد العتيبي');
+    expect(await docRow(doc.id)).toEqual({ owner_name: 'سارة أحمد العتيبي', created_by_name: 'اسم قديم' });
+    expect((await docRow(docOther.id)).owner_name).toBe('شخص آخر');
+    // تعديل اسم الحساب من المستخدمين: يتغير اسم الموظف والسجلات المرتبطة
     await http.patch(`/api/users/${u.id}`).set(as(admin)).send({ fullName: 'سارة أحمد عبدالله العتيبي' }).expect(200);
     expect((await http.get(`${H}/employees/${ids.emp}`).set(as(admin)).expect(200)).body.fullName).toBe('سارة أحمد عبدالله العتيبي');
+    expect(await memberName()).toBe('سارة أحمد عبدالله العتيبي');
+    expect((await docRow(doc.id)).owner_name).toBe('سارة أحمد عبدالله العتيبي');
     // حساب غير مربوط لا يمس أي موظف
     const other = (await http.get('/api/users').set(as(admin)).expect(200)).body.find((x: { email: string }) => x.email === 'clerk@test.org');
     await http.patch(`/api/users/${other.id}`).set(as(admin)).send({ fullName: 'موظف الشؤون' }).expect(200);
@@ -235,6 +251,9 @@ describe('HR', () => {
     const usersOnly = await login('accounts@test.org', 'Accts12345', 'albir');
     await http.patch(`/api/users/${u.id}`).set(as(usersOnly)).send({ fullName: 'اسم آخر' }).expect(200);
     expect((await http.get(`${H}/employees/${ids.emp}`).set(as(admin)).expect(200)).body.fullName).toBe('سارة أحمد عبدالله العتيبي');
+    // والسجلات المربوطة بالحساب تتبعه، أما المكتوبة نصاً فلا يعمّمها إلا مدير النظام
+    expect(await memberName()).toBe('اسم آخر');
+    expect((await docRow(doc.id)).owner_name).toBe('سارة أحمد عبدالله العتيبي');
   });
 
   it('leave balances and requests follow the policy', async () => {

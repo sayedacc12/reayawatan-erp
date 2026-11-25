@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import { CORE_PERMISSIONS } from '../../core/core.manifest';
+import { propagatePerson } from '../../core/users/person-sync';
 import { ContractType, HrEmployee, HrGrade, HrJob, HrLeaveRequest, HrPerformanceCard, HrRequest, HrUnit, LeaveStatus, QiwaStatus } from './entities/hr.entity';
 import { EmployeeDto, EosCalcDto, LeaveDto, TerminateDto } from './hr.dto';
 import { HrCore, today } from './hr-core.service';
@@ -233,7 +234,7 @@ export class PeopleService {
         ...dto, organizationId: org, employeeNo: no, unitId: v.unitId, gradeId: v.gradeId, probationEnd: v.probationEnd, leaveOpening: v.opening,
         step: dto.step ?? 1, managerId: dto.managerId ?? null, salaryException: dto.salaryException ?? null,
       }));
-      await this.syncUserName(em, actor, e);
+      await this.syncUserName(em, actor, e, null);
       return e.id;
     });
     return { id };
@@ -265,28 +266,38 @@ export class PeopleService {
       }
     }
     const v = await this.validate(org, dto, policy, id);
+    const oldName = e.fullName;
     Object.assign(e, {
       ...dto, unitId: v.unitId, gradeId: v.gradeId, probationEnd: v.probationEnd, leaveOpening: v.opening, step: dto.step ?? e.step,
       managerId: dto.managerId ?? null, salaryException: dto.salaryException ?? null,
     });
     await this.db.transaction(async (em) => {
       await em.getRepository(HrEmployee).save(e);
-      await this.syncUserName(em, actor, e);
+      await this.syncUserName(em, actor, e, oldName);
     });
     return { id };
   }
 
   /**
-   * اسم الموظف هو اسم حساب الدخول المربوط به: يُحدَّث معه في المعاملة نفسها،
+   * اسم الموظف هو اسم حساب الدخول المربوط به: يُحدَّث معه في المعاملة نفسها، ومعه كل السجلات الجارية
+   * في الأنظمة الأخرى (المسؤوليات والتكليفات وحضور الاجتماعات)؛ انظر propagatePerson.
    * لمن يملك أيضًا صلاحية إدارة المستخدمين، ولا يمس حساب مدير نظام إلا بيد مدير نظام.
    */
-  private async syncUserName(em: EntityManager, actor: OrgUser, e: HrEmployee) {
+  private async syncUserName(em: EntityManager, actor: OrgUser, e: HrEmployee, oldName: string | null) {
     if (!e.userId) return;
     if (!actor.isSuperadmin && !actor.permissions.includes(CORE_PERMISSIONS.usersManage)) return;
-    await em.query(
-      `UPDATE users SET full_name = $1 WHERE id = $2 AND organization_id = $3 AND ($4 OR is_superadmin = false) AND full_name IS DISTINCT FROM $1`,
-      [e.fullName, e.userId, actor.organizationId, actor.isSuperadmin],
+    const [u]: { full_name: string }[] = await em.query(
+      `SELECT full_name FROM users WHERE id = $1 AND organization_id = $2 AND ($3 OR is_superadmin = false) FOR UPDATE`,
+      [e.userId, actor.organizationId, actor.isSuperadmin],
     );
+    if (!u) return;
+    if (u.full_name !== e.fullName) {
+      await em.query('UPDATE users SET full_name = $1 WHERE id = $2 AND organization_id = $3', [e.fullName, e.userId, actor.organizationId]);
+    }
+    await propagatePerson(em, {
+      org: actor.organizationId, userId: e.userId, newName: e.fullName, oldNames: [u.full_name, oldName ?? ''], byName: actor.isSuperadmin,
+      mobile: e.phone || undefined, email: e.email || undefined,
+    });
   }
 
   /** إنهاء الخدمة: يحسب المكافأة وتعويض رصيد الإجازة السنوية ويغلق ملف الموظف */
