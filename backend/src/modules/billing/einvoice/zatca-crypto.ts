@@ -95,19 +95,22 @@ export function certInfo(body: string) {
  * مفتاح التشفير من ZATCA_KEY_SECRET إن وُجد في البيئة، وإلا يُشتق من JWT_SECRET (فلا يلزم متغير جديد).
  * تغيير JWT_SECRET بعد الربط يتطلب إعادة الربط، لذا يُفضّل ضبط ZATCA_KEY_SECRET على السيرفر.
  */
+/** وسم داخلي ثابت للتشفير، لا يُرسل للهيئة ولا يظهر للمستخدم. لا تغيّره: تغييره يمنع فك المفتاح والأسرار المحفوظة فيتوقف التوقيع */
+const VAULT_LABEL = 'sanabel:zatca';
+
 function vaultKey() {
   const own = process.env.ZATCA_KEY_SECRET;
   if (own) return createHash('sha256').update(own).digest();
   const base = process.env.JWT_SECRET;
   if (!base) throw new Error('JWT_SECRET must be set');
-  return createHmac('sha256', base).update('sanabel:zatca:vault').digest();
+  return createHmac('sha256', base).update(`${VAULT_LABEL}:vault`).digest();
 }
 
 /** التشفير مربوط بالشركة (بيانات إضافية موثّقة)، فلا يصلح سر جمعية إن نُقل إلى صف جمعية أخرى */
 export function seal(plain: string, org: string) {
   const iv = randomBytes(12);
   const c = createCipheriv('aes-256-gcm', vaultKey(), iv, { authTagLength: 16 });
-  c.setAAD(Buffer.from(`sanabel:zatca:${org}`));
+  c.setAAD(Buffer.from(`${VAULT_LABEL}:${org}`));
   const ct = Buffer.concat([c.update(plain, 'utf8'), c.final()]);
   return `v1:${iv.toString('base64')}:${c.getAuthTag().toString('base64')}:${ct.toString('base64')}`;
 }
@@ -118,7 +121,7 @@ export function unseal(sealed: string, org: string) {
   const tagBuf = Buffer.from(tag, 'base64');
   if (tagBuf.length !== 16) throw new Error('invalid vault tag');
   const d = createDecipheriv('aes-256-gcm', vaultKey(), Buffer.from(iv, 'base64'), { authTagLength: 16 });
-  d.setAAD(Buffer.from(`sanabel:zatca:${org}`));
+  d.setAAD(Buffer.from(`${VAULT_LABEL}:${org}`));
   d.setAuthTag(tagBuf);
   return Buffer.concat([d.update(Buffer.from(ct, 'base64')), d.final()]).toString('utf8');
 }
