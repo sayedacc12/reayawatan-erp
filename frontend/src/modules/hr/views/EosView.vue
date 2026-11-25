@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { api } from '../../../api';
 import { useToast } from '../../../stores/toast';
 import { num, sar, todayStr, type EmpRow } from '../lib';
@@ -8,6 +8,7 @@ import '../hr.css';
 
 const toast = useToast();
 const employees = ref<EmpRow[]>([]);
+const staff = computed(() => employees.value.filter((e) => e.employmentKind !== 'contractor'));
 const reasons = ref<{ value: string; label: string; kind: string }[]>([]);
 const form = reactive({ mode: 'employee', employeeId: '', wage: 10000, startDate: '', endDate: todayStr(), reason: 'contract_end' });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -40,7 +41,8 @@ const span = (s: { years: number; months: number; days: number }) => `${s.years}
           <button type="button" :class="['hr-tab', { on: form.mode === 'manual' }]" @click="form.mode = 'manual'">حساب حر</button>
         </div>
         <label v-if="form.mode === 'employee'" class="field"><span>الموظف</span>
-          <select v-model="form.employeeId" class="input" required><option value="" disabled>اختر الموظف</option><option v-for="e in employees" :key="e.id" :value="e.id">{{ e.fullName }}</option></select>
+          <select v-model="form.employeeId" class="input" required><option value="" disabled>اختر الموظف</option><option v-for="e in staff" :key="e.id" :value="e.id">{{ e.fullName }}</option></select>
+          <small class="pm-muted">المتعاونون بعقود تعاون لا يستحقون مكافأة نهاية خدمة، فلا يظهرون هنا.</small>
         </label>
         <template v-else>
           <label class="field"><span>الأجر الشهري المعتمد للحساب</span><input v-model.number="form.wage" type="number" min="0" class="input" required /></label>

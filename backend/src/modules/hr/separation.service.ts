@@ -12,7 +12,7 @@ import {
 } from './entities/hr.entity';
 import { HrCore, today } from './hr-core.service';
 import { HR_PERMISSIONS as P } from './hr.manifest';
-import { endOfService, EOS_REASONS, EosReason, round2, wageFor, wageTotal } from './hr-policy';
+import { employeeEos, EOS_REASONS, EosReason, round2, wageFor, wageTotal } from './hr-policy';
 import { partsOf } from './org.service';
 import { PayrollService } from './payroll.service';
 import { PeopleService } from './people.service';
@@ -238,13 +238,15 @@ export class SeparationService implements OnModuleInit {
   // ---------------- بيان المستحقات ----------------
 
   async compute(org: string, s: HrSeparation, adjustments: SettlementAdjustment[], actor: OrgUser, em: EntityManager = this.db.manager): Promise<Settlement> {
-    const e = await em.getRepository(HrEmployee).findOneOrFail({ where: { id: s.employeeId } });
+    const e = await em.getRepository(HrEmployee).findOneOrFail({ where: { id: s.employeeId, organizationId: org } });
     const policy = await this.core.policy(org);
     const cfg = await this.config(org, em);
     const parts = partsOf(e.basicSalary, e.allowances);
-    const eos = endOfService(policy, wageFor(policy.eos.wageBase, parts), e.hireDate, s.lastWorkingDay, s.reason as EosReason);
+    // المتعاون: لا مكافأة نهاية خدمة ولا تعويض رصيد إجازات، وتبقى البنود الإضافية والخصومات
+    const contractor = e.employmentKind === 'contractor';
+    const eos = employeeEos(policy, e.employmentKind, wageFor(policy.eos.wageBase, parts), e.hireDate, s.lastWorkingDay, s.reason as EosReason);
     let leaveDays = 0;
-    if (cfg.encashLeave) {
+    if (cfg.encashLeave && !contractor) {
       const annual = (await this.people.balances(org, e, policy, s.lastWorkingDay)).find((b) => b.code === 'annual');
       leaveDays = round2(Math.max(annual?.available ?? 0, 0));
     }
@@ -259,6 +261,7 @@ export class SeparationService implements OnModuleInit {
     const gross = round2(eos.amount + leaveEncashment + adds);
     const deductions = round2(advancesTotal + clearanceDeductions + subs);
     return {
+      contractor,
       eos: {
         amount: eos.amount, fullAmount: eos.fullAmount, factor: eos.factor, wage: eos.wage, years: eos.service.years, months: eos.service.months, days: eos.service.days,
         explanation: eos.explanation, reasonLabel: eos.reasonLabel,

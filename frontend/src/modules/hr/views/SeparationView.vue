@@ -145,8 +145,9 @@ const who = (i: SepItem) => i.approverName ?? i.roleName ?? i.kindLabel;
           <h2>{{ s.settlement ? 'بيان المستحقات' : 'معاينة المستحقات (تقديرية)' }}</h2>
           <table class="table sep-table">
             <tbody>
-              <tr><td>مكافأة نهاية الخدمة <small class="pm-muted">{{ st.eos.years }} سنة و{{ st.eos.months }} شهر و{{ st.eos.days }} يوم · {{ st.eos.explanation }}</small></td><td class="hr-num">{{ sar(st.eos.amount) }}</td></tr>
-              <tr><td>بدل رصيد الإجازات <small class="pm-muted">{{ num(st.leaveDays) }} يوم × {{ sar(st.dailyWage) }}</small></td><td class="hr-num">{{ sar(st.leaveEncashment) }}</td></tr>
+              <tr v-if="st.contractor"><td>مكافأة نهاية الخدمة وبدل الإجازات <small class="pm-muted">{{ st.eos.explanation }}</small></td><td class="hr-num">لا تستحق</td></tr>
+              <tr v-if="!st.contractor"><td>مكافأة نهاية الخدمة <small class="pm-muted">{{ st.eos.years }} سنة و{{ st.eos.months }} شهر و{{ st.eos.days }} يوم · {{ st.eos.explanation }}</small></td><td class="hr-num">{{ sar(st.eos.amount) }}</td></tr>
+              <tr v-if="!st.contractor"><td>بدل رصيد الإجازات <small class="pm-muted">{{ num(st.leaveDays) }} يوم × {{ sar(st.dailyWage) }}</small></td><td class="hr-num">{{ sar(st.leaveEncashment) }}</td></tr>
               <tr v-for="(a, k) in st.adjustments.filter((x) => x.kind === 'addition')" :key="`a${k}`"><td>{{ a.label }}</td><td class="hr-num">{{ sar(a.amount) }}</td></tr>
               <tr class="sum"><td>إجمالي المستحقات</td><td class="hr-num">{{ sar(st.gross) }}</td></tr>
               <tr v-if="st.advancesTotal"><td>رصيد السلف المتبقي</td><td class="hr-num neg">− {{ sar(st.advancesTotal) }}</td></tr>

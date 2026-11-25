@@ -1425,6 +1425,8 @@ export interface ClearanceItem {
 }
 export interface SettlementAdjustment { kind: 'addition' | 'deduction'; label: string; amount: number }
 export interface Settlement {
+  /** متعاون بعقد تعاون: لا مكافأة نهاية خدمة ولا تعويض إجازات */
+  contractor?: boolean;
   eos: { amount: number; fullAmount: number; factor: number; wage: number; years: number; months: number; days: number; explanation: string; reasonLabel: string };
   leaveDays: number; dailyWage: number; leaveEncashment: number;
   advances: { advanceId: string; remaining: number }[]; advancesTotal: number;

@@ -12,6 +12,7 @@ export interface SepItem {
   can: boolean;
 }
 export interface Settlement {
+  contractor?: boolean;
   eos: { amount: number; fullAmount: number; factor: number; wage: number; years: number; months: number; days: number; explanation: string; reasonLabel: string };
   leaveDays: number; dailyWage: number; leaveEncashment: number; advances: { advanceId: string; remaining: number }[]; advancesTotal: number;
   clearanceDeductions: number; adjustments: { kind: 'addition' | 'deduction'; label: string; amount: number }[]; gross: number; deductions: number; net: number;
