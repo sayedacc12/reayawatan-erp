@@ -57,7 +57,7 @@ export const DEFAULT_ROLES: DefaultRole[] = [
     permissions: [
       ...EVERYONE,
       A.read, A.setup, A.accounts, A.banks, A.approveVouchers, A.post, A.unpost, A.cancel, A.approveReceiptCancel, A.closePeriods,
-      A.reports, A.settings, A.assetsRead, A.assetsDepreciate, A.assetsReverse, A.assetsBudget,
+      A.reports, A.settings, A.assetsRead, A.assetsDepreciate, A.assetsReverse, A.assetsBudget, A.statements,
       B.read, B.issue, B.reports, B.settings,
       H.read, H.salaries, H.payPayroll, H.reports,
       PR.read, PR.suppliersRead, PR.approveBanks, PR.reports,

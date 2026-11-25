@@ -27,6 +27,7 @@ export const ACC_PERMISSIONS = {
   assetsMaintain: 'accounting.assets.maintain',
   assetsBudget: 'accounting.assets.budget',
   payables: 'accounting.payables.manage',
+  statements: 'accounting.statements.prepare',
 } as const;
 
 const P = ACC_PERMISSIONS;
@@ -66,6 +67,7 @@ export const accountingManifest: ErpModuleManifest = {
     { code: P.assetsMaintain, name: 'الأصول الثابتة: سجل الصيانة وتكاليفها وخطط الصيانة الوقائية' },
     { code: P.assetsBudget, name: 'الأصول الثابتة: إعداد الموازنة الرأسمالية واعتمادها' },
     { code: P.payables, name: 'مستحقات الموردين: تسجيل فواتير الموردين المطابقة وإلغاء تسجيلها وإصدار سندات سدادها' },
+    { code: P.statements, name: 'القوائم المالية: ربط الدليل ببنود القوائم ومشروع توزيع الأرباح وإصدار الملف النهائي للمراجع' },
   ],
   settingsPermission: P.settings,
   menu: [
@@ -100,6 +102,8 @@ export const accountingManifest: ErpModuleManifest = {
     { label: 'الصيانة', path: '/accounting/assets/maintenance', permission: P.assetsRead, group: 'الأصول الثابتة' },
     { label: 'الموازنة الرأسمالية', path: '/accounting/assets/budget', permission: P.assetsRead, group: 'الأصول الثابتة' },
     { label: 'استيراد الأصول من Excel', path: '/accounting/assets/import', permission: P.assetsManage, group: 'الأصول الثابتة' },
+    { label: 'إعداد الميزانية والقوائم المالية', path: '/accounting/statements', permission: P.reports, anyOf: [P.statements], group: 'القوائم المالية والموازنة' },
+    { label: 'انحرافات الموازنة', path: '/accounting/statements/variance', permission: P.reports, anyOf: [P.statements], group: 'القوائم المالية والموازنة' },
     { label: 'التقارير', path: '/accounting/reports', permission: P.reports, anyOf: [P.assetsRead] },
     { label: 'الإعدادات', path: '/accounting/settings', permission: P.settings },
   ],

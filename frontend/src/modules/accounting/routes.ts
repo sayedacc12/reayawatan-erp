@@ -46,6 +46,8 @@ export const accountingRoutes: RouteRecordRaw[] = [
   { path: '/accounting/assets/labels', component: () => import('./views/assets/LabelsView.vue'), meta: meta('ملصقات الأصول', P.assetsRead, ASSET_READ) },
   { path: '/accounting/assets/a/:code', component: () => import('./views/assets/AssetByCode.vue'), props: true, meta: meta('الأصل', P.assetsRead, ASSET_READ) },
   { path: '/accounting/assets/:id', component: () => import('./views/assets/AssetDetailView.vue'), props: true, meta: meta('بطاقة الأصل', P.assetsRead, ASSET_READ) },
+  { path: '/accounting/statements', component: () => import('./views/StatementsView.vue'), meta: meta('إعداد الميزانية والقوائم المالية', P.reports, [P.reports, P.statements]) },
+  { path: '/accounting/statements/variance', component: () => import('./views/StatementsView.vue'), props: { tab: 'variance' }, meta: meta('انحرافات الموازنة', P.reports, [P.reports, P.statements]) },
   { path: '/accounting/reports', component: () => import('../../components/reports/ReportsHub.vue'), props: { module: 'accounting', system: 'النظام المالي' }, meta: meta('تقارير النظام المالي', P.reports, [P.reports, P.assetsRead]) },
   { path: '/accounting/settings', component: () => import('./views/SettingsView.vue'), meta: meta('إعدادات النظام المالي', P.settings) },
 ];

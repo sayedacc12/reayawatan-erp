@@ -38,7 +38,7 @@ export class AssetsReports implements OnModuleInit {
     (await this.db.query(`SELECT DISTINCT e.id AS value, e.full_name AS label FROM hr_employees e JOIN acc_assets a ON a.custodian_employee_id = e.id WHERE e.organization_id = $1 ORDER BY 2`, [u.organizationId]).catch(() => [])) as { value: string; label: string }[];
 
   /** حركة الأصول ومجمع إهلاكها لكل أصل في فترة */
-  private async rollForward(orgId: string, from: string, to: string, groupId?: string) {
+  async rollForward(orgId: string, from: string, to: string, groupId?: string) {
     const assets = await this.db.getRepository(FixedAsset).find({ where: { organizationId: orgId, ...(groupId ? { groupId } : {}) }, order: { assetNo: 'ASC' } });
     const ids = new Set(assets.map((a) => a.id));
     const movesOf = byAsset(ids.size ? await this.db.getRepository(AssetMove).find({ where: { organizationId: orgId, status: 'done' } }) : [], ids);

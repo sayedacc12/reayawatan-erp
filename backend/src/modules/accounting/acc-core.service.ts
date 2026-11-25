@@ -4,7 +4,7 @@ import { ASSET_VOUCHER_TYPES, BILLING_VOUCHER_TYPES, PAYABLE_VOUCHER_TYPES, STOC
 
 /** المبالغ تُحسب بالهللات لتجنب أخطاء الكسور */
 export const cents = (n: number | string | null | undefined) => Math.round(Number(n ?? 0) * 100);
-export const fromCents = (c: number) => Math.round(c) / 100;
+export const fromCents = (c: number) => Math.round(c) / 100 + 0; // +0 يحوّل -0 إلى 0
 export const fmtSar = (c: number) => `${fromCents(c).toLocaleString('en-US', { minimumFractionDigits: 2 })} ريال`;
 
 /** تاريخ اليوم بتوقيت الرياض */
