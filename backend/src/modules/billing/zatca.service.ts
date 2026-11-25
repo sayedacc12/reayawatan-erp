@@ -14,7 +14,8 @@ import { FIRST_PIH, UblInput, signInvoice } from './einvoice/ubl';
 const can = (a: OrgUser, code: string) => a.isSuperadmin || a.permissions.includes(code);
 /** وقت الإصدار بتوقيت الرياض HH:mm:ss */
 export const riyadhTime = (d: Date) => new Date(d.getTime() + 3 * 3600_000).toISOString().slice(11, 19);
-const SOLUTION = 'Sanabel';
+/** اسم الحل في الرقم التسلسلي لوحدة الإصدار (1-الحل|2-الإصدار|3-المعرّف) والاسم الشائع في طلب الشهادة. لا يؤثر في شهادة صادرة، ويُستعمل في كل ربط أو تجديد قادم */
+const SOLUTION = 'ReayaWatan';
 const VERSION = '2.0';
 const WARN_DAYS = 30;
 

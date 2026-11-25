@@ -196,6 +196,9 @@ describe('Billing stage 2: ZATCA onboarding, signed XML and the hash chain', () 
     expect(st.checks).toHaveLength(6);
     expect(st.checks.every((c: { ok: boolean }) => c.ok)).toBe(true);
     expect(st.certificate).toMatchObject({ kind: 'production', expiringSoon: false });
+    // اسم الحل في طلب الشهادة باسم الشركة لا باسم سنابل
+    expect(st.egsSerial).toMatch(/^1-ReayaWatan\|2-2\.0\|3-[0-9a-f-]{36}$/);
+    expect(st.commonName).toBe('ReayaWatan-310123456700003-sandbox');
     expect(fake.calls.filter((c) => c === 'check')).toHaveLength(6);
     // الأسرار لا تُعاد ولا تُحفظ نصًا صريحًا
     const raw = JSON.stringify(st);
