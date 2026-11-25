@@ -1,3 +1,4 @@
+import { canonicalUrl, fullTitle, seoFor } from './seo';
 import { type Service, services } from './site';
 
 /** رقم المجال في دورة العمل (بترتيب الخدمات المنشورة) */
@@ -26,8 +27,38 @@ export function visitorBody(v: ReturnType<typeof blankVisitor>) {
   return out;
 }
 
-export function setTitle(t?: string) {
-  document.title = t ? `${t} · رعاية وطن` : 'رعاية وطن · National Care';
+/** يضبط وسم <meta> في رأس الصفحة (ينشئه إن لم يوجد) */
+function setMetaTag(attr: 'name' | 'property', key: string, content: string) {
+  let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attr, key);
+    document.head.appendChild(el);
+  }
+  el.content = content;
+}
+
+/** يمنع فهرسة الصفحة الحالية أو يسمح بها (شاشات النظام والروابط الخاصة لا تظهر في البحث) */
+export function setIndexable(ok: boolean) {
+  const el = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+  if (ok) el?.remove();
+  else setMetaTag('name', 'robots', 'noindex, nofollow');
+}
+
+/**
+ * عنوان الصفحة ووصفها ورابطها المعتمد ووسوم المشاركة، لمحركات البحث ومنصات التواصل.
+ * الوصف من seo.ts للصفحات المعروفة، أو الوصف الممرر (مثل وصف خدمة مضافة من لوحة التحكم).
+ */
+export function setTitle(t?: string, description?: string, indexable = true) {
+  const path = location.pathname.replace(/\/+$/, '') || '/';
+  const title = fullTitle(t);
+  const desc = description || seoFor(path)?.description || seoFor('/')!.description;
+  document.title = title;
+  setMetaTag('name', 'description', desc);
+  setMetaTag('property', 'og:title', title);
+  setMetaTag('property', 'og:description', desc);
+  setMetaTag('property', 'og:url', canonicalUrl(path));
+  setIndexable(indexable);
   // الرابط المعتمد لكل صفحة (بلا معاملات الحملات) حتى لا تُعد الصفحات نسخًا مكررة في محركات البحث
   let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if (!link) {
@@ -35,5 +66,5 @@ export function setTitle(t?: string) {
     link.rel = 'canonical';
     document.head.appendChild(link);
   }
-  link.href = `${location.origin}${location.pathname}`;
+  link.href = canonicalUrl(path);
 }

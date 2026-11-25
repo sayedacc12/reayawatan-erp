@@ -9,6 +9,7 @@ import ItemPanel from '../components/ItemPanel.vue';
 import KpiForm from '../components/KpiForm.vue';
 import KpiReadings from '../components/KpiReadings.vue';
 import MiniBar from '../components/MiniBar.vue';
+import PlanContext from '../components/PlanContext.vue';
 import PlanForm from '../components/PlanForm.vue';
 import PlanIntegrations from '../components/PlanIntegrations.vue';
 import PlanWorkflow from '../components/PlanWorkflow.vue';
@@ -22,7 +23,7 @@ import '../../risk/risk.css';
 import '../planning.css';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type Tab = 'structure' | 'kpis' | 'trace' | 'integrations' | 'timeline' | 'cost' | 'versions';
+type Tab = 'structure' | 'issues' | 'stakeholders' | 'kpis' | 'trace' | 'integrations' | 'timeline' | 'cost' | 'versions';
 const props = defineProps<{ id: string }>();
 const session = useSession();
 const toast = useToast();
@@ -35,7 +36,7 @@ const linkOptions = ref<any[]>([]);
 const allPlans = ref<any[]>([]);
 const strategicPlans = computed(() => allPlans.value.filter((p) => p.kind === 'strategic'));
 const error = ref('');
-const tab = ref<Tab>((['structure', 'kpis', 'trace', 'integrations', 'timeline', 'cost', 'versions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
+const tab = ref<Tab>((['structure', 'issues', 'stakeholders', 'kpis', 'trace', 'integrations', 'timeline', 'cost', 'versions'].includes(String(route.query.tab)) ? route.query.tab : 'structure') as Tab);
 const selId = ref<string | null>((route.query.item as string) ?? null);
 const collapsed = reactive(new Set<string>());
 
@@ -161,7 +162,7 @@ async function compare() {
 }
 watch(() => [tab.value, cmp.from, cmp.to], () => { if (tab.value === 'versions' && cmp.from) compare(); });
 const CHANGE: Record<string, string> = { added: 'أُضيف', removed: 'حُذف', modified: 'عُدّل' };
-const KIND_ROW: Record<string, string> = { plan: 'الخطة', item: 'عنصر', kpi: 'مؤشر', link: 'ربط' };
+const KIND_ROW: Record<string, string> = { plan: 'الخطة', item: 'عنصر', kpi: 'مؤشر', link: 'ربط', issue: 'قضية جوهرية', stakeholder: 'معني' };
 const show = (v: any) => (v === null || v === undefined || v === '' ? '—' : typeof v === 'number' ? num(v) : typeof v === 'object' ? (Array.isArray(v) ? `${v.length} بند` : Object.entries(v).map(([k, x]) => `${k}: ${typeof x === 'number' ? num(x) : x}`).join('، ')) : String(v));
 const summaryColor = computed(() => (plan.value?.summary.delayed ? EXEC.delayed.color : plan.value?.summary.atRisk ? EXEC.at_risk.color : '#38bdf8'));
 </script>
@@ -202,6 +203,8 @@ const summaryColor = computed(() => (plan.value?.summary.delayed ? EXEC.delayed.
 
     <div class="rk-tabs pl-tabs">
       <button :class="['rk-tab', { on: tab === 'structure' }]" @click="tab = 'structure'">هيكل الخطة</button>
+      <button :class="['rk-tab', { on: tab === 'issues' }]" @click="tab = 'issues'">القضايا الجوهرية ({{ plan.issues?.length ?? 0 }})</button>
+      <button :class="['rk-tab', { on: tab === 'stakeholders' }]" @click="tab = 'stakeholders'">خارطة المعنيين ({{ plan.stakeholders?.length ?? 0 }})</button>
       <button :class="['rk-tab', { on: tab === 'kpis' }]" @click="tab = 'kpis'">المؤشرات ({{ plan.kpis.length }})</button>
       <button :class="['rk-tab', { on: tab === 'trace' }]" @click="tab = 'trace'">الربط والتتبع ({{ plan.links.length }})</button>
       <button :class="['rk-tab', { on: tab === 'integrations' }]" @click="tab = 'integrations'">المخاطر والمراجعة والتحليل</button>
@@ -261,6 +264,8 @@ const summaryColor = computed(() => (plan.value?.summary.delayed ? EXEC.delayed.
       </div>
     </div>
 
+    <!-- القضايا الجوهرية وخارطة المعنيين -->
+    <PlanContext v-if="tab === 'issues' || tab === 'stakeholders'" :key="tab" :plan="plan" :kind="tab === 'issues' ? 'issue' : 'stakeholder'" :editable="!!editable" @changed="changed" />
     <!-- المؤشرات -->
     <section v-if="tab === 'kpis' && cfg" class="card pm-panel">
       <h2>مؤشرات الأداء <button v-if="editable || (session.can(P.kpis) && plan.status !== 'in_review')" class="btn btn-sm btn-primary" @click="kpiForm = { kpi: null, itemId: null }">+ مؤشر</button></h2>

@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import type { ItemState, Periodicity, PlanSnapshot, WfLog, WfStage, WfStatus } from './entities/planning.entity';
-import type { PlanningConfig, WorkflowRoute } from './planning-defaults';
+import { BOARD_STAGE, INITIAL_STAGE, type PlanningConfig, type WorkflowRoute } from './planning-defaults';
 
 /** دوال خالصة للحساب والاعتماد والمقارنة، حتى تُختبر وحدها */
 
@@ -290,6 +290,19 @@ export function markEdited(r: WfRecord, byName: string) {
   }
 }
 
+/**
+ * اجتاز الاعتماد الأولي: معتمد نهائيًا، أو قيد الاعتماد وفي دورته الحالية (بعد آخر رفع) اعتماد في مرحلة
+ * «الاعتماد الأولي من الإدارة التنفيذية» بعينها، لا بترتيب المرحلة. لا يُطبع تقرير الاعتماد للمجلس قبل ذلك.
+ */
+export function initiallyApproved(r: Pick<WfRecord, 'status' | 'approvals'>) {
+  if (r.status === 'approved') return true;
+  if (r.status !== 'in_review') return false;
+  const log = r.approvals ?? [];
+  let start = -1;
+  log.forEach((l, i) => { if (l.action === 'submit') start = i; });
+  return log.slice(start + 1).some((l) => l.action === 'approve' && l.stage === INITIAL_STAGE);
+}
+
 /** الرفع للاعتماد: تُجمّد مراحل المسار المطابق على الخطة حتى نهاية الدورة */
 export function wfSubmit(r: WfRecord, stages: WfStage[], byName: string, note: string | null) {
   if (!['draft', 'returned'].includes(r.status)) throw new ConflictException('تُرفع للاعتماد الخطة المسودة أو المُرجعة فقط');
@@ -318,6 +331,8 @@ export function wfDecide(r: WfRecord, d: Decider, decision: 'approve' | 'return'
   if (!canDecide(r, d)) throw new ForbiddenException('القرار في هذه المرحلة ليس من صلاحيتك');
   if (decision !== 'approve' && !note?.trim()) throw new BadRequestException('اكتب سبب الإرجاع أو الرفض');
   const stage = r.wfStages[r.stageIndex]?.name ?? null;
+  // قرار المجلس يُسجَّل بمرجعه: رقم القرار أو محضر الاجتماع
+  if (decision === 'approve' && stage === BOARD_STAGE && !note?.trim()) throw new BadRequestException('اكتب رقم قرار مجلس المديرين أو محضر الاجتماع الذي اعتمدها');
   r.approvals = [...r.approvals, log(decision, stage, d.name, note?.trim() || null)];
   if (decision === 'return') { r.status = 'returned'; r.stageIndex = null; return; }
   if (decision === 'reject') { r.status = 'rejected'; r.stageIndex = null; return; }
@@ -328,7 +343,7 @@ export function wfDecide(r: WfRecord, d: Decider, decision: 'approve' | 'return'
 // ---------------------------------------------------------------- مقارنة الإصدارات
 
 export interface FieldChange { field: string; label: string; before: unknown; after: unknown }
-export interface DiffRow { kind: 'item' | 'kpi' | 'link' | 'plan'; change: 'added' | 'removed' | 'modified'; code: string; title: string; changes: FieldChange[] }
+export interface DiffRow { kind: 'item' | 'kpi' | 'link' | 'plan' | 'issue' | 'stakeholder'; change: 'added' | 'removed' | 'modified'; code: string; title: string; changes: FieldChange[] }
 
 const ITEM_FIELDS: [keyof PlanSnapshot['items'][number], string][] = [
   ['title', 'العنوان'], ['parentId', 'الموقع في الهيكل'], ['ownerName', 'المسؤول'], ['unitName', 'الجهة'], ['startDate', 'البداية'], ['endDate', 'النهاية'],
@@ -337,6 +352,12 @@ const ITEM_FIELDS: [keyof PlanSnapshot['items'][number], string][] = [
 ];
 const KPI_FIELDS: [keyof PlanSnapshot['kpis'][number], string][] = [
   ['name', 'الاسم'], ['itemId', 'العنصر المرتبط'], ['unit', 'الوحدة'], ['direction', 'الاتجاه'], ['baseline', 'خط الأساس'], ['targets', 'المستهدفات'], ['weight', 'الوزن'],
+];
+const ISSUE_FIELDS: [keyof NonNullable<PlanSnapshot['issues']>[number], string][] = [
+  ['title', 'العنوان'], ['summary', 'الملخص'], ['recommendations', 'التوصيات المتوقعة'], ['sortOrder', 'الترتيب'],
+];
+const STAKEHOLDER_FIELDS: [keyof NonNullable<PlanSnapshot['stakeholders']>[number], string][] = [
+  ['name', 'الاسم'], ['category', 'التصنيف'], ['definition', 'التعريف'], ['expectsFromUs', 'ما يتوقعه من الشركة'], ['weExpect', 'ما تتوقعه الشركة منه'], ['sortOrder', 'الترتيب'],
 ];
 const PLAN_FIELDS: [keyof PlanSnapshot, string][] = [
   ['title', 'عنوان الخطة'], ['startYear', 'سنة البداية'], ['endYear', 'سنة النهاية'], ['periodicity', 'دورية المتابعة'], ['vision', 'الرؤية'], ['mission', 'الرسالة'], ['values', 'القيم'],
@@ -385,6 +406,20 @@ export function diffSnapshots(a: PlanSnapshot, b: PlanSnapshot): DiffRow[] {
     }
   }
   for (const [kk, l] of al) if (!bl.has(kk)) out.push({ kind: 'link', change: 'removed', code: '—', title: lt(l), changes: [] });
+  // الإصدارات الأقدم لا تحوي القضايا والمعنيين فتُعامل كقوائم فارغة
+  const rows = <T extends { id: string; code: string }>(kind: 'issue' | 'stakeholder', x: T[], y: T[], fields: [keyof T, string][], title: (r: T) => string) => {
+    const ax = new Map(x.map((r) => [r.id, r]));
+    const by = new Set(y.map((r) => r.id));
+    for (const r of y) {
+      const o = ax.get(r.id);
+      if (!o) { out.push({ kind, change: 'added', code: r.code, title: title(r), changes: [] }); continue; }
+      const ch = fields.filter(([f]) => !same(o[f], r[f])).map(([f, label]) => ({ field: String(f), label, before: o[f], after: r[f] }));
+      if (ch.length) out.push({ kind, change: 'modified', code: r.code, title: title(r), changes: ch });
+    }
+    for (const r of x) if (!by.has(r.id)) out.push({ kind, change: 'removed', code: r.code, title: title(r), changes: [] });
+  };
+  rows('issue', a.issues ?? [], b.issues ?? [], ISSUE_FIELDS, (r) => r.title);
+  rows('stakeholder', a.stakeholders ?? [], b.stakeholders ?? [], STAKEHOLDER_FIELDS, (r) => r.name);
   return out;
 }
 

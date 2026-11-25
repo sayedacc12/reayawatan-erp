@@ -1,8 +1,9 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Logger, BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import {
-  ITEM_DEF_KEYS, KPI_DEF_KEYS, Plan, PLAN_DEF_KEYS, PlanItem, PlanKpi, PlanKpiReading, PlanLink, PlanProgressUpdate, PlanRef, PlanSnapshot, PlanVersion,
+  ISSUE_DEF_KEYS, ITEM_DEF_KEYS, KPI_DEF_KEYS, Plan, PLAN_DEF_KEYS, PlanItem, PlanKpi, PlanKpiReading, PlanLink, PlanMaterialIssue, PlanProgressUpdate, PlanRef, PlanSnapshot,
+  PlanStakeholder, PlanVersion, STAKEHOLDER_DEF_KEYS,
 } from './entities/planning.entity';
 import { planYear, PlanningAnalysis } from './planning-analysis.service';
 import {
@@ -10,7 +11,9 @@ import {
 } from './planning-calc';
 import { PlanningCore, today } from './planning-core.service';
 import { PLAN_TEMPLATES, PlanningConfig, TemplateItem } from './planning-defaults';
-import { CarryDto, CopyPlanDto, DecideDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, TreatmentDto } from './planning.dto';
+import {
+  CarryDto, CopyPlanDto, DecideDto, IssueDto, ItemDto, KpiDto, LinkDto, PlanDto, ProgressDto, ReadingDto, RefDto, StakeholderDto, TreatmentDto,
+} from './planning.dto';
 import { PLANNING_PERMISSIONS as P } from './planning.manifest';
 import { PlanningLinks, RefOption } from './planning-links.service';
 
@@ -29,7 +32,18 @@ export interface PlanImportData {
   kpis: { itemKey: string | null; dto: KpiDto }[];
   refs: { itemKey: string; system: RefDto['system']; src: RefOption; contribution: number | null; note: string | null }[];
   parentLinks: { itemKey: string; toItemId: string; contribution: number | null; note: string | null }[];
+  issues?: IssueDto[];
+  stakeholders?: StakeholderDto[];
 }
+
+/** القضايا الجوهرية وخارطة المعنيين: سجلان بسيطان داخل تعريف الخطة */
+export type ContextKind = 'issue' | 'stakeholder';
+const CONTEXT = {
+  issue: { entity: PlanMaterialIssue, prefix: 'MI', keys: ISSUE_DEF_KEYS, missing: 'القضية الجوهرية غير موجودة' },
+  stakeholder: { entity: PlanStakeholder, prefix: 'SH', keys: STAKEHOLDER_DEF_KEYS, missing: 'المعني غير موجود' },
+} as const;
+const MAX_CONTEXT_ROWS = 200;
+type ContextRow = PlanMaterialIssue | PlanStakeholder;
 
 /** الخطط وعناصرها ومؤشراتها وعلاقاتها، والاعتماد والإصدارات، ومتابعة الإنجاز والترحيل */
 @Injectable()
@@ -76,6 +90,54 @@ export class PlansService {
       await em.getRepository(Plan).save(p);
     }
     return p;
+  }
+
+  /** حذف محتوى خطة في مسودة تعديل تمهيدًا لاستبداله من ملف. يرفض إن كان عليها عمل مسجل لا يصح فقده */
+  /**
+   * discardBefore: يحذف تحديثات الإنجاز وقراءات المؤشرات المسجلة على الخطة قبل هذا الوقت في المعاملة نفسها بدل رفض الاستبدال
+   * (لإدراج حزمة الشركة فقط، بقرار المالك أنها تجريبية). ما سُجّل بعده والأنشطة المرحّلة تمنع الاستبدال دائمًا.
+   * يعيد الصفوف المحذوفة بقيمها لتُحفظ في سجل الخطة.
+   */
+  private async clearContent(em: EntityManager, actor: OrgUser, p: Plan, discardBefore?: string) {
+    const org = actor.organizationId;
+    const ids = (await em.getRepository(PlanItem).find({ where: { organizationId: org, planId: p.id }, select: ['id'] })).map((i) => i.id);
+    // ما يُسمح بحذفه: ما قبل وقت القرار فقط، وبلا قرار لا شيء
+    const cut = discardBefore ?? '-infinity';
+    const [{ progress, readings, carried }] = await em.query(
+      `SELECT (SELECT COUNT(*) FROM plan_progress_updates WHERE organization_id = $1 AND item_id = ANY($2) AND created_at >= $4::timestamptz)::int AS progress,
+              (SELECT COUNT(*) FROM plan_kpi_readings r JOIN plan_kpis k ON k.id = r.kpi_id WHERE k.organization_id = $1 AND k.plan_id = $3 AND r.created_at >= $4::timestamptz)::int AS readings,
+              (SELECT COUNT(*) FROM plan_items WHERE organization_id = $1 AND (carried_from_id = ANY($2) OR (id = ANY($2) AND carried_from_id IS NOT NULL)))::int AS carried`,
+      [org, ids, p.id, cut]);
+    if (carried || progress || readings) throw new ConflictException('على الخطة إنجاز أو قراءات مؤشرات أو أنشطة مرحّلة، فلا يُستبدل محتواها. عدّلها من شاشتها');
+    const gone = { progress: [] as Record<string, unknown>[], readings: [] as Record<string, unknown>[] };
+    if (discardBefore) {
+      const rows = (r: unknown) => (Array.isArray(r) && Array.isArray(r[0]) ? r[0] : r) as Record<string, unknown>[];
+      gone.progress = rows(await em.query(
+        `DELETE FROM plan_progress_updates WHERE organization_id = $1 AND item_id = ANY($2) AND created_at < $3::timestamptz
+         RETURNING item_id, update_date::text AS date, progress, state, note, corrective_action, by_name, created_at`, [org, ids, discardBefore]));
+      gone.readings = rows(await em.query(
+        `DELETE FROM plan_kpi_readings WHERE organization_id = $1 AND created_at < $3::timestamptz AND kpi_id IN (SELECT id FROM plan_kpis WHERE organization_id = $1 AND plan_id = $2)
+         RETURNING kpi_id, period, value, note, entered_by_name, created_at`, [org, p.id, discardBefore]));
+    }
+    if (ids.length) {
+      // روابط من خطط أخرى: الخطط التشغيلية التابعة لهذه الخطة تفقد ربطها وتتحول لمسودة تعديل، وأي خطة أخرى تمنع الاستبدال
+      const incoming: { id: string; plan_id: string }[] = await em.query(
+        `SELECT l.id, f.plan_id FROM plan_links l JOIN plan_items f ON f.id = l.from_item_id
+          WHERE l.organization_id = $1 AND l.to_item_id = ANY($2) AND NOT (l.from_item_id = ANY($2))`, [org, ids]);
+      for (const planId of new Set(incoming.map((l) => l.plan_id))) {
+        const child = await this.plan(em, org, planId, true);
+        if (child.parentPlanId !== p.id) throw new ConflictException(`عناصر من الخطة ${child.code} مرتبطة بهذه الخطة وليست تابعة لها. احذف الربط أولًا`);
+        assertEditable(child);
+        markEdited(child, actor.fullName);
+        child.revisionNote = child.revisionNote ?? `أُزيلت روابطها بعناصر الخطة الأم ${p.code} عند استبدال محتواها، ويلزم ربطها من جديد`;
+        await em.getRepository(Plan).save(child);
+      }
+      await em.query(`DELETE FROM plan_links WHERE organization_id = $1 AND (from_item_id = ANY($2) OR to_item_id = ANY($2))`, [org, ids]);
+      await em.query(`DELETE FROM plan_refs WHERE organization_id = $1 AND item_id = ANY($2)`, [org, ids]);
+    }
+    await em.query(`DELETE FROM plan_kpis WHERE organization_id = $1 AND plan_id = $2`, [org, p.id]);
+    await em.query(`DELETE FROM plan_items WHERE organization_id = $1 AND plan_id = $2`, [org, p.id]);
+    return gone;
   }
 
   // ---------------- الخطط ----------------
@@ -132,6 +194,10 @@ export class PlansService {
     const children = [...a.plans.values()].filter((x) => x.parentPlanId === id).map((x) => ({ id: x.id, code: x.code, title: x.title, unitName: x.unitName, status: x.status, startYear: x.startYear, endYear: x.endYear, ...this.analysis.summary(a, x) }));
     const parent = p.parentPlanId ? a.plans.get(p.parentPlanId) : null;
     const updates = ids.size ? await this.db.getRepository(PlanProgressUpdate).find({ where: { organizationId: org, itemId: In([...ids]) }, order: { createdAt: 'DESC' } }) : [];
+    // القضايا والمعنيون للخطة الاستراتيجية، والخطة التشغيلية تعرض ما في خطتها الأم للقراءة فقط
+    const ctxPlan = p.kind === 'strategic' ? p : parent ?? null;
+    const issues = ctxPlan ? await this.db.getRepository(PlanMaterialIssue).find({ where: { organizationId: org, planId: ctxPlan.id }, order: { sortOrder: 'ASC', code: 'ASC' } }) : [];
+    const stakeholders = ctxPlan ? await this.db.getRepository(PlanStakeholder).find({ where: { organizationId: org, planId: ctxPlan.id }, order: { sortOrder: 'ASC', code: 'ASC' } }) : [];
     return {
       ...this.header(p), summary: this.analysis.summary(a, p),
       stageName: p.status === 'in_review' && p.stageIndex !== null ? p.wfStages[p.stageIndex]?.name ?? null : null,
@@ -149,6 +215,9 @@ export class PlansService {
       }),
       kpis: a.kpis.filter((k) => k.planId === id).map((k) => ({ ...k, stat: a.kpiStat.get(k.id) })),
       links,
+      issues,
+      stakeholders,
+      contextFrom: p.kind === 'strategic' ? null : ctxPlan ? { id: ctxPlan.id, code: ctxPlan.code, title: ctxPlan.title } : null,
       versions,
       periods: Array.from({ length: p.endYear - p.startYear + 1 }, (_, i) => p.startYear + i),
     };
@@ -253,21 +322,45 @@ export class PlansService {
    * خطة كاملة من ملف Excel في معاملة واحدة: الرأس والعناصر والمؤشرات والروابط، بنفس قواعد الإدخال اليدوي.
    * المراجع (المخاطر وعوامل التحليل) محلولة مسبقًا من النظام المرتبط، وعناصر الخطة الأم محمّلة بمعرف الشركة.
    */
-  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false) {
+  /**
+   * استيراد خطة من ملف. مع replaceId يستبدل محتوى خطة قائمة (الرأس والعناصر والمؤشرات والروابط) بمحتوى الملف كمسودة تعديل،
+   * ويبقى إصدارها المعتمد السابق محفوظًا للمقارنة، ثم تُرفع للاعتماد فتصبح إصدارًا جديدًا. لا يُستبدل محتوى خطة عليها إنجاز
+   * أو قراءات مؤشرات أو أنشطة مرحّلة. روابط الخطط التشغيلية التابعة لها تُزال وتتحول تلك الخطط لمسودة تعديل حتى يُعاد ربطها.
+   * يستخدمه إدراج حزمة الشركة فقط، ولا يُعرض في واجهة الاستيراد.
+   */
+  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false, replaceId?: string, revisionNote?: string, discardBefore?: string) {
+    let discarded = '';
     const org = actor.organizationId;
     if (!actor.isSuperadmin && !actor.permissions.includes(this.manageCode(data.header.kind))) throw new ForbiddenException('إعداد هذا النوع من الخطط ليس من صلاحيتك');
     const cfg = await this.core.config(org);
     const relation = cfg.relationTypes[0]?.code;
     const run = this.db.transaction(async (em) => {
-      if (await em.getRepository(Plan).exists({ where: { organizationId: org, kind: data.header.kind, title: data.header.title } })) {
+      const same = await em.getRepository(Plan).findOne({ where: { organizationId: org, kind: data.header.kind, title: data.header.title }, select: ['id'] });
+      if (same && same.id !== replaceId) {
         throw new ConflictException('توجد خطة بالنوع والعنوان نفسيهما. غيّر العنوان في الملف أو احذف الخطة السابقة');
       }
-      const p = em.getRepository(Plan).create({
-        organizationId: org, kind: data.header.kind, code: await this.core.nextCode(em, org, data.header.kind === 'strategic' ? 'SP' : 'OP'), status: 'draft', approvals: [], wfStages: [],
-        levels: [], values: [], sharedUnits: [], templateKey: null, createdByName: actor.fullName,
-      });
-      await this.applyHeader(em, org, p, data.header, cfg);
-      const saved = await em.getRepository(Plan).save(p);
+      let saved: Plan;
+      if (replaceId) {
+        const p = await this.editing(em, actor, replaceId);
+        if (p.kind !== data.header.kind) throw new BadRequestException('نوع الخطة في الملف يختلف عن الخطة المراد تعديلها');
+        const gone = await this.clearContent(em, actor, p, discardBefore);
+        if (gone.progress.length || gone.readings.length) {
+          // تُحفظ القيم المحذوفة كاملة في سجل الخطة (قبل/بعد)
+          discarded = `Plan ${p.code} content replaced: discarded ${gone.progress.length} progress updates and ${gone.readings.length} KPI readings entered before ${discardBefore} (owner-approved test entries)`;
+          p.approvals = [...p.approvals, { action: 'reopen', stage: null, byName: actor.fullName, at: new Date().toISOString(),
+            note: `حذف بيانات تجريبية بقرار المالك عند استبدال المحتوى: ${gone.progress.length} تحديث إنجاز و${gone.readings.length} قراءة مؤشرات. القيم المحذوفة: ${JSON.stringify(gone)}` }];
+        }
+        await this.applyHeader(em, org, p, data.header, cfg);
+        if (revisionNote) p.revisionNote = revisionNote;
+        saved = await em.getRepository(Plan).save(p);
+      } else {
+        const p = em.getRepository(Plan).create({
+          organizationId: org, kind: data.header.kind, code: await this.core.nextCode(em, org, data.header.kind === 'strategic' ? 'SP' : 'OP'), status: 'draft', approvals: [], wfStages: [],
+          levels: [], values: [], sharedUnits: [], templateKey: null, createdByName: actor.fullName,
+        });
+        await this.applyHeader(em, org, p, data.header, cfg);
+        saved = await em.getRepository(Plan).save(p);
+      }
       const byKey = new Map<string, PlanItem>();
       const siblings = new Map<string, string[]>();
       let order = 0;
@@ -318,13 +411,21 @@ export class PlansService {
           organizationId: org, fromItemId: byKey.get(l.itemKey)!.id, toItemId: to.id, relation, contribution: l.contribution, note: l.note,
         }));
       }
+      for (const [kind, rows] of [['issue', data.issues ?? []], ['stakeholder', data.stakeholders ?? []]] as const) {
+        if (rows.length > MAX_CONTEXT_ROWS) throw new BadRequestException(`الحد الأعلى ${MAX_CONTEXT_ROWS} صف`);
+        // استبدال المحتوى بملف فيه الورقة: تحل صفوفها محل الموجود، وبلا الورقة يبقى الموجود كما هو
+        if (replaceId && rows.length) await em.getRepository<ContextRow>(CONTEXT[kind].entity).delete({ organizationId: org, planId: saved.id });
+        for (const [i, dto] of rows.entries()) await this.insertContext(em, saved, kind, dto, i + 1);
+      }
       const result = { id: saved.id, code: saved.code, items: [...byKey.entries()].map(([key, it]) => ({ key, code: it.code, id: it.id })) };
       // الفحص يجري الحفظ كاملًا ثم يتراجع عنه، فيطابق الفحص الحفظ الفعلي تمامًا
       if (dryRun) throw new ImportDryRun(result);
       return result;
     });
     try {
-      return await run;
+      const res = await run;
+      if (discarded) new Logger('Plans').warn(discarded);
+      return res;
     } catch (e) {
       if (e instanceof ImportDryRun) return { ...e.result, id: null as string | null, code: null as string | null, items: e.result.items.map((i) => ({ ...i, id: null as string | null })) };
       throw e;
@@ -366,6 +467,8 @@ export class PlansService {
       await em.query(`DELETE FROM plan_kpi_readings WHERE kpi_id IN (SELECT id FROM plan_kpis WHERE plan_id = $1)`, [id]);
       await em.query(`DELETE FROM plan_kpis WHERE plan_id = $1`, [id]);
       await em.query(`DELETE FROM plan_items WHERE plan_id = $1`, [id]);
+      await em.query(`DELETE FROM plan_material_issues WHERE organization_id = $1 AND plan_id = $2`, [actor.organizationId, id]);
+      await em.query(`DELETE FROM plan_stakeholders WHERE organization_id = $1 AND plan_id = $2`, [actor.organizationId, id]);
       await em.query(`DELETE FROM plan_plans WHERE id = $1`, [id]);
     });
     return { ok: true };
@@ -419,6 +522,12 @@ export class PlansService {
         await em.getRepository(PlanLink).save(em.getRepository(PlanLink).create({
           organizationId: org, fromItemId: map.get(l.fromItemId)!, toItemId: map.get(l.toItemId) ?? l.toItemId, relation: l.relation, contribution: l.contribution, note: l.note,
         }));
+      }
+      for (const kind of ['issue', 'stakeholder'] as const) {
+        const repo = em.getRepository<ContextRow>(CONTEXT[kind].entity);
+        for (const r of await repo.find({ where: { organizationId: org, planId: id }, order: { sortOrder: 'ASC' } })) {
+          await repo.save(repo.create({ ...pick(r, CONTEXT[kind].keys as readonly (keyof ContextRow)[]), id: undefined, organizationId: org, planId: p.id } as never));
+        }
       }
       return p.id;
     });
@@ -891,24 +1000,99 @@ export class PlansService {
     return this.get(actor, k.planId);
   }
 
+  // ---------------- القضايا الجوهرية وخارطة المعنيين ----------------
+
+  /** إضافة صف برمز يلي آخر رمز في الخطة (الخطة مقفلة بالمعاملة فلا يتكرر الرمز) */
+  private async insertContext(em: EntityManager, p: Plan, kind: ContextKind, dto: IssueDto | StakeholderDto, fallbackOrder?: number) {
+    if (p.kind !== 'strategic') throw new BadRequestException('القضايا الجوهرية وخارطة المعنيين تُعد في الخطة الاستراتيجية، والخطة التشغيلية تعرضها من خطتها الأم');
+    const c = CONTEXT[kind];
+    const repo = em.getRepository<ContextRow>(c.entity);
+    const rows = await repo.find({ where: { organizationId: p.organizationId, planId: p.id }, select: ['code', 'sortOrder'] });
+    if (rows.length >= MAX_CONTEXT_ROWS) throw new BadRequestException(`الحد الأعلى ${MAX_CONTEXT_ROWS} صف في الخطة`);
+    const n = Math.max(0, ...rows.map((r) => Number(r.code.slice(c.prefix.length + 1)) || 0)) + 1;
+    const order = dto.sortOrder ?? fallbackOrder ?? Math.max(0, ...rows.map((r) => r.sortOrder)) + 1;
+    return repo.save(repo.create({ ...dto, organizationId: p.organizationId, planId: p.id, code: `${c.prefix}-${String(n).padStart(2, '0')}`, sortOrder: order } as never));
+  }
+
+  async addContext(actor: OrgUser, kind: ContextKind, planId: string, dto: IssueDto | StakeholderDto) {
+    await this.db.transaction(async (em) => {
+      const p = await this.editing(em, actor, planId);
+      await this.insertContext(em, p, kind, dto);
+    });
+    return this.get(actor, planId);
+  }
+
+  /** إضافة عدة صفوف في معاملة واحدة (الإدراج الآلي لبيانات الشركة). لا ترفع الخطة ولا تعتمدها */
+  async addContextBatch(actor: OrgUser, planId: string, issues: IssueDto[], stakeholders: StakeholderDto[]) {
+    await this.db.transaction(async (em) => {
+      const p = await this.editing(em, actor, planId);
+      for (const dto of issues) await this.insertContext(em, p, 'issue', dto);
+      for (const dto of stakeholders) await this.insertContext(em, p, 'stakeholder', dto);
+    });
+  }
+
+  private async contextRow(em: EntityManager, org: string, kind: ContextKind, id: string) {
+    const r = await em.getRepository<ContextRow>(CONTEXT[kind].entity).findOne({ where: { id, organizationId: org } });
+    if (!r) throw new NotFoundException(CONTEXT[kind].missing);
+    return r;
+  }
+
+  async updateContext(actor: OrgUser, kind: ContextKind, id: string, dto: Partial<IssueDto & StakeholderDto>) {
+    const org = actor.organizationId;
+    const planId = await this.db.transaction(async (em) => {
+      await this.editing(em, actor, (await this.contextRow(em, org, kind, id)).planId);
+      // إعادة القراءة بعد قفل الخطة، فلا يُعاد صف حُذف في طلب متزامن
+      const r = await this.contextRow(em, org, kind, id);
+      const allowed = CONTEXT[kind].keys.filter((k) => k !== 'id' && k !== 'code') as readonly string[];
+      for (const [k, v] of Object.entries(dto)) {
+        if (v === undefined || !allowed.includes(k)) continue;
+        if (v === null && ['title', 'summary', 'name', 'category', 'sortOrder'].includes(k)) throw new BadRequestException('أكمل الحقول الإلزامية');
+        (r as unknown as Record<string, unknown>)[k] = v;
+      }
+      await em.getRepository<ContextRow>(CONTEXT[kind].entity).save(r);
+      return r.planId;
+    });
+    return this.get(actor, planId);
+  }
+
+  async removeContext(actor: OrgUser, kind: ContextKind, id: string) {
+    const org = actor.organizationId;
+    const planId = await this.db.transaction(async (em) => {
+      await this.editing(em, actor, (await this.contextRow(em, org, kind, id)).planId);
+      const r = await this.contextRow(em, org, kind, id);
+      await em.getRepository<ContextRow>(CONTEXT[kind].entity).delete({ id: r.id, organizationId: org });
+      return r.planId;
+    });
+    return this.get(actor, planId);
+  }
+
   // ---------------- الاعتماد والإصدارات ----------------
 
   async snapshot(em: EntityManager, p: Plan): Promise<PlanSnapshot> {
     const items = await em.getRepository(PlanItem).find({ where: { planId: p.id }, order: { level: 'ASC', sortOrder: 'ASC' } });
     const kpis = await em.getRepository(PlanKpi).find({ where: { planId: p.id }, order: { sortOrder: 'ASC' } });
     const links = items.length ? await em.getRepository(PlanLink).find({ where: { fromItemId: In(items.map((i) => i.id)) } }) : [];
+    const issues = await em.getRepository(PlanMaterialIssue).find({ where: { organizationId: p.organizationId, planId: p.id }, order: { sortOrder: 'ASC', code: 'ASC' } });
+    const stakeholders = await em.getRepository(PlanStakeholder).find({ where: { organizationId: p.organizationId, planId: p.id }, order: { sortOrder: 'ASC', code: 'ASC' } });
     return clone({
       ...pick(p, PLAN_DEF_KEYS),
       items: items.map((i) => pick(i, ITEM_DEF_KEYS)),
       kpis: kpis.map((k) => pick(k, KPI_DEF_KEYS)),
       links: links.map((l) => ({ fromItemId: l.fromItemId, toItemId: l.toItemId, relation: l.relation, contribution: l.contribution, note: l.note })),
+      issues: issues.map((i) => pick(i, ISSUE_DEF_KEYS)),
+      stakeholders: stakeholders.map((x) => pick(x, STAKEHOLDER_DEF_KEYS)),
     });
   }
 
   async submit(actor: OrgUser, id: string, note: string | null) {
+    const cfg = await this.core.config(actor.organizationId);
+    await this.db.transaction((em) => this.submitIn(em, actor, id, note, cfg));
+    return this.get(actor, id);
+  }
+
+  private async submitIn(em: EntityManager, actor: OrgUser, id: string, note: string | null, cfg: PlanningConfig) {
     const org = actor.organizationId;
-    const cfg = await this.core.config(org);
-    await this.db.transaction(async (em) => {
+    {
       const p = await this.plan(em, org, id, true);
       this.assertManage(actor, p);
       const items = await em.getRepository(PlanItem).find({ where: { planId: id } });
@@ -926,20 +1110,22 @@ export class PlansService {
       wfSubmit(p, route?.stages ?? [], actor.fullName, note?.trim() || null);
       await em.getRepository(Plan).save(p);
       if (p.status === 'approved') await this.afterApprove(em, p, actor.fullName);
-    });
-    return this.get(actor, id);
+      return p;
+    }
   }
 
   async decide(actor: OrgUser, id: string, dto: DecideDto) {
-    const org = actor.organizationId;
     const d = await this.core.decider(actor);
-    await this.db.transaction(async (em) => {
-      const p = await this.plan(em, org, id, true);
-      wfDecide(p, d, dto.decision, dto.note ?? null);
-      await em.getRepository(Plan).save(p);
-      if (p.status === 'approved') await this.afterApprove(em, p, actor.fullName);
-    });
+    await this.db.transaction((em) => this.decideIn(em, actor, id, dto, d));
     return this.get(actor, id);
+  }
+
+  private async decideIn(em: EntityManager, actor: OrgUser, id: string, dto: DecideDto, d: Awaited<ReturnType<PlanningCore['decider']>>) {
+    const p = await this.plan(em, actor.organizationId, id, true);
+    wfDecide(p, d, dto.decision, dto.note ?? null);
+    await em.getRepository(Plan).save(p);
+    if (p.status === 'approved') await this.afterApprove(em, p, actor.fullName);
+    return p;
   }
 
   /** بعد الاعتماد النهائي: إصدار جديد بنسخة كاملة لا تتغير */
@@ -995,6 +1181,12 @@ export class PlansService {
       await em.query(`DELETE FROM plan_links WHERE from_item_id = ANY($1)`, [[...keep]]);
       for (const l of s.links) {
         await em.getRepository(PlanLink).save(em.getRepository(PlanLink).create({ ...l, organizationId: org }));
+      }
+      // الإصدارات السابقة لإضافة القضايا والمعنيين لا تحويهما، فالعودة إليها تعني سجلين فارغين
+      for (const [kind, rows] of [['issue', s.issues ?? []], ['stakeholder', s.stakeholders ?? []]] as const) {
+        const repo = em.getRepository<ContextRow>(CONTEXT[kind].entity);
+        await repo.delete({ organizationId: org, planId: id });
+        for (const r of rows) await repo.save(repo.create({ ...r, organizationId: org, planId: id } as never));
       }
       Object.assign(p, pick(s, PLAN_DEF_KEYS));
       p.status = 'approved';

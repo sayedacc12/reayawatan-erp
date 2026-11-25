@@ -134,7 +134,7 @@ export class BudgetsService {
       const t = Object.fromEntries(SECTIONS.map((s) => [s, totals.find((x) => x.budgetId === b.id && x.section === s)?.amount ?? 0])) as Record<Section, number>;
       const expenses = r2(t.hr + t.opex + t.activity);
       return {
-        id: b.id, code: b.code, title: b.title, fiscalYear: b.fiscalYear, methodology: b.methodology, methodologyName: METHODOLOGY_NAME[b.methodology], status: b.status, version: b.version,
+        id: b.id, code: b.code, title: b.title, fiscalYear: b.fiscalYear, methodology: b.methodology, methodologyName: METHODOLOGY_NAME[b.methodology], status: b.status, version: b.version, approvals: b.approvals,
         stageName: b.status === 'in_review' && b.stageIndex !== null ? b.wfStages[b.stageIndex]?.name ?? null : null, canDecide: canDecide(b, d),
         sections: t, expenses, revenues: r2(t.revenue), balance: r2(t.revenue - expenses), lines: totals.filter((x) => x.budgetId === b.id).reduce((s, x) => s + x.lines, 0),
         calculatedAt: b.calculatedAt, createdByName: b.createdByName, updatedAt: b.updatedAt,
@@ -811,6 +811,50 @@ export class BudgetsService {
       await em.getRepository(Budget).save(b);
     });
     return { ok: true };
+  }
+
+  /**
+   * عدد ما يشير إلى بنود الموازنة من خارجها: حجوزات غير محررة، ومناقلات، ومستندات مشتريات وعقود وحركات أصول، وبنود سيناريوهات.
+   * أي إشارة تمنع حذف البنود جملة (لا قيود مفاتيح في الجداول، فالفحص هنا هو الحماية).
+   */
+  async lineBlockers(org: string, budgetId: string, em: EntityManager = this.db.manager): Promise<number> {
+    const [{ n }] = await em.query(
+      `WITH l AS (SELECT id FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2)
+       SELECT ((SELECT COUNT(*) FROM plan_budget_commitments WHERE organization_id = $1 AND status <> 'released' AND line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM plan_budget_transfers WHERE organization_id = $1 AND (from_line_id IN (SELECT id FROM l) OR to_line_id IN (SELECT id FROM l)))
+             + (SELECT COUNT(*) FROM plan_budget_lines WHERE organization_id = $1 AND base_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM pr_requests WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM pr_orders WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM pr_contracts WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l))
+             + (SELECT COUNT(*) FROM acc_asset_moves WHERE organization_id = $1 AND budget_line_id IN (SELECT id FROM l)))::int AS n`,
+      [org, budgetId]);
+    return n;
+  }
+
+  /**
+   * حذف كل بنود الموازنة في معاملة واحدة تمهيدًا لإعادة بنائها (تعديل الموازنة المعتمدة إلى إصدار جديد، وإصدارها السابق محفوظ).
+   * يرفض دون تغيير شيء إن أشار إلى أي بند حجز أو مناقلة أو مستند. يستخدمه إدراج حزمة الشركة فقط.
+   */
+  async clearLinesForRevision(actor: OrgUser, id: string, revisionNote: string) {
+    const org = actor.organizationId;
+    await this.db.transaction(async (em) => {
+      const b = await this.budget(em, org, id, true);
+      if (b.isScenario) throw new BadRequestException('السيناريو لا يُعدّل بهذه الطريقة');
+      if (await em.getRepository(BudgetLine).exists({ where: { organizationId: org, budgetId: id, section: 'hr' } })) this.assertHr(actor);
+      if (await this.lineBlockers(org, id, em)) throw new ConflictException('على بنود الموازنة حجوزات أو مناقلات أو مستندات مرتبطة، فلا تُحذف بنودها');
+      this.editable(b, actor);
+      const res = await em.query(
+        `DELETE FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2
+         RETURNING section, kind, name, amount::text AS amount, included, unit_name AS unit`, [org, id]);
+      const all = (Array.isArray(res) && Array.isArray(res[0]) ? res[0] : res) as Record<string, unknown>[];
+      // بنود الموارد البشرية (رواتب) لا تُكتب بأسمائها ومبالغها في السجل الذي يراه من لا يملك صلاحية الرواتب؛ تُجمع في بند واحد
+      const hr = all.filter((l) => l.section === 'hr');
+      const gone = [...all.filter((l) => l.section !== 'hr'), ...(hr.length ? [{ section: 'hr', name: `${hr.length} بند موارد بشرية`, amount: String(hr.reduce((t, l) => t + Math.round(Number(l.amount) * 100), 0) / 100) }] : [])];
+      // البنود المحذوفة تُحفظ بقيمها في سجل الموازنة (للموازنة التي لم تُعتمد قط لا يوجد إصدار يحفظها)
+      if (all.length) b.approvals = [...b.approvals, { action: 'reopen', stage: null, byName: actor.fullName, at: new Date().toISOString(), note: `حُذفت ${all.length} بندًا لاستبدالها: ${revisionNote}. البنود المحذوفة: ${JSON.stringify(gone)}` }];
+      b.revisionNote = revisionNote;
+      await em.getRepository(Budget).save(b);
+    });
   }
 
   // ---------------- الاعتماد والإصدارات ----------------

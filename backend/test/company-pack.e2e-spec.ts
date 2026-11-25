@@ -5,16 +5,17 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/main';
 import { CompanyPackService } from '../src/modules/starter/company-pack.service';
-import { PACK_BUDGET } from '../src/modules/starter/company-pack.content';
+import { PACK_BUDGET, PACK_CODE } from '../src/modules/starter/company-pack.content';
 
 /**
  * حزمة رعاية وطن الجاهزة: تُدرج مرة واحدة في منشأة الشركة فقط، عبر خدمات الأنظمة نفسها:
- * التحليلات والمخاطر والخطتان معتمدة، والموازنة 2027 بأنشطتها، والضوابط والالتزام والاستمرارية وفريق الأزمات.
+ * التحليلات والمخاطر معتمدة، والخطتان والموازنة 2027 بأنشطتها مسودات بانتظار الاعتماد الأولي ثم المجلس (قرار المالك 2026-11-24)،
+ * ومسارا اعتمادها بمرحلتين، والضوابط والالتزام والاستمرارية وفريق الأزمات.
  * التشغيل الثاني لا يكرر شيئًا، والمنشآت الأخرى لا تتأثر.
  */
 const DB = process.env.TEST_DATABASE_URL ?? 'postgres://erp:erp@localhost:5432/charity_erp_test';
 
-describe('Company starter pack (strategy, risks and budget 2027)', () => {
+describe('Company starter pack (strategy 2027-2029, risks and budget 2027)', () => {
   let app: NestExpressApplication;
   let db: DataSource;
   let pack: CompanyPackService;
@@ -51,37 +52,49 @@ describe('Company starter pack (strategy, risks and budget 2027)', () => {
     await app.close();
   });
 
-  it('inserts the whole pack once, approved, in the company only', async () => {
-    // موازنة نصف منشأة من تشغيل سابق انقطع: تُكمل بنودها وأنشطتها واعتمادها ولا تتكرر
+  it('inserts the whole pack once in the company only, leaving the plans and the budget as drafts', async () => {
+    // موازنة نصف منشأة من تشغيل سابق انقطع: تُكمل بنودها وأنشطتها ولا تتكرر
     await db.query(`INSERT INTO plan_budgets (organization_id, code, title, fiscal_year, status, version, created_by_name, variables, raise_rules, hr_setup, ceilings)
       VALUES ($1, 'BG-OLD', $2, $3, 'draft', 0, 'تشغيل سابق', '[]', '[]', '{}', '[]')`, [company, PACK_BUDGET.title, PACK_BUDGET.fiscalYear]);
     // حجز متروك من تشغيل انقطع قبل أكثر من 20 دقيقة لا يمنع الإدراج
     await db.query(`INSERT INTO organization_starters (organization_id, module_code, status, applied_by, applied_by_id, results, applied_at)
-      VALUES ($1, 'rw-plan-2027', 'applying', 'تشغيل سابق', $2, '[]', now() - interval '1 hour')`, [company, (await db.query('SELECT id FROM users WHERE organization_id = $1 LIMIT 1', [company]))[0].id]);
+      VALUES ($1, $3, 'applying', 'تشغيل سابق', $2, '[]', now() - interval '1 hour')`, [company, (await db.query('SELECT id FROM users WHERE organization_id = $1 LIMIT 1', [company]))[0].id, PACK_CODE]);
     const results = await pack.run();
     expect(results).not.toBeNull();
-    expect(results!.map((r) => r.key)).toEqual(['starter-risk', 'starter-planning', 'policy', 'analyses', 'strategic', 'operational', 'budget', 'controls', 'compliance', 'continuity']);
+    expect(results!.map((r) => r.key)).toEqual(['starter-risk', 'starter-planning', 'routes', 'policy', 'analyses', 'strategic', 'operational', 'budget', 'retire', 'controls', 'compliance', 'continuity']);
 
     expect(await n('risk_analyses', company, `status = 'approved'`)).toBe(2);
     expect(await n('risk_register', company)).toBe(23);
     expect(await n('risk_register', company, `status = 'approved'`)).toBe(23);
     expect(await n('risk_policy_versions', company)).toBe(1);
     const plans = await db.query('SELECT kind, status, version FROM plan_plans WHERE organization_id = $1 ORDER BY kind', [company]);
-    expect(plans).toEqual([{ kind: 'operational', status: 'approved', version: 1 }, { kind: 'strategic', status: 'approved', version: 1 }]);
-    expect(await n('plan_kpis', company)).toBeGreaterThanOrEqual(29);
+    expect(plans).toEqual([{ kind: 'operational', status: 'draft', version: 0 }, { kind: 'strategic', status: 'draft', version: 0 }]);
+    // مسار اعتماد كل منها: الاعتماد الأولي من الإدارة التنفيذية ثم الاعتماد النهائي من مجلس المديرين
+    const [{ config }] = await db.query('SELECT config FROM plan_settings WHERE organization_id = $1', [company]);
+    for (const kind of ['strategic', 'operational', 'budget']) {
+      const routes = config.routes.filter((r: { planKind: string }) => r.planKind === kind);
+      expect(routes.map((r: { stages: { name: string }[] }) => r.stages.map((x) => x.name))).toEqual([['الاعتماد الأولي من الإدارة التنفيذية', 'الاعتماد النهائي من مجلس المديرين']]);
+    }
+    const [sp] = await db.query(`SELECT title, start_year, end_year FROM plan_plans WHERE organization_id = $1 AND kind = 'strategic'`, [company]);
+    expect(sp).toEqual({ title: 'الخطة الاستراتيجية لشركة رعاية وطن 2027 - 2029', start_year: 2027, end_year: 2029 });
+    // لا شيء من مخاطر المنتجات الوقفية أو الاستثمار
+    expect(await n('risk_register', company, `(title LIKE '%وقف%' OR title LIKE '%الاستثمار%')`)).toBe(0);
+    expect(await n('plan_kpis', company)).toBeGreaterThanOrEqual(33);
     // روابط المخاطر وعوامل التحليل كلها محلولة في الخطة الاستراتيجية
     expect(await n('plan_refs', company, `system = 'risk'`)).toBeGreaterThan(0);
     expect(await n('plan_refs', company, `system = 'risk_analysis'`)).toBeGreaterThan(0);
 
     const [b] = await db.query('SELECT id, status, fiscal_year FROM plan_budgets WHERE organization_id = $1', [company]);
-    expect(b).toMatchObject({ status: 'approved', fiscal_year: 2027 });
+    expect(b).toMatchObject({ status: 'draft', fiscal_year: 2027 });
     expect((await db.query('SELECT code FROM plan_budgets WHERE id = $1', [b.id]))[0].code).toBe('BG-OLD');
     const [{ rev, exp }] = await db.query(
       `SELECT sum(amount) FILTER (WHERE section = 'revenue')::numeric AS rev, sum(amount) FILTER (WHERE section <> 'revenue')::numeric AS exp
          FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2 AND included`, [company, b.id]);
-    expect(Number(rev)).toBe(1230000);
-    expect(Number(rev) - Number(exp)).toBe(397500);
-    expect(await n('plan_budget_lines', company, `section = 'activity'`)).toBeGreaterThan(0);
+    expect(Number(rev)).toBe(1220000);
+    // بنود الأنشطة (115,000) تُستورد من الخطة التشغيلية بعد أن يكون لها إصدار معتمد، فلا تُضاف في التثبيت الجديد
+    expect(Number(rev) - Number(exp)).toBe(402500 + 115000);
+    expect(await n('plan_budget_lines', company, `section = 'activity'`)).toBe(0);
+    expect(results!.find((r) => r.key === 'budget')!.note).toContain('بعد اعتماد الخطة التشغيلية');
 
     expect(await n('risk_controls', company)).toBe(10);
     expect(await n('risk_obligations', company)).toBe(9);
@@ -96,7 +109,7 @@ describe('Company starter pack (strategy, risks and budget 2027)', () => {
     expect(await n('risk_register', company)).toBe(23);
     expect(await n('plan_plans', company)).toBe(2);
     expect(await n('plan_budgets', company)).toBe(1);
-    const [s] = await db.query(`SELECT status FROM organization_starters WHERE organization_id = $1 AND module_code = 'rw-plan-2027'`, [company]);
+    const [s] = await db.query(`SELECT status FROM organization_starters WHERE organization_id = $1 AND module_code = $2`, [company, PACK_CODE]);
     expect(s.status).toBe('applied');
   });
 });

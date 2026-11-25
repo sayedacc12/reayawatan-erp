@@ -30,6 +30,7 @@ import { StarterController } from './starter.controller';
 import { OrganizationStarter } from './starter.entity';
 import { STARTER_PACKS, StarterService } from './starter.service';
 import { CompanyPackService } from './company-pack.service';
+import { CompanyPlanContextService } from './company-plan-context.service';
 import { CompanyQualityService } from './company-quality.service';
 
 /**
@@ -49,6 +50,6 @@ const PACKS = [
     TypeOrmModule.forFeature([OrganizationStarter]),
   ],
   controllers: [StarterController],
-  providers: [...PACKS, StarterService, CompanyPackService, CompanyQualityService, { provide: STARTER_PACKS, useFactory: (...packs: unknown[]) => packs, inject: PACKS }],
+  providers: [...PACKS, StarterService, CompanyPackService, CompanyQualityService, CompanyPlanContextService, { provide: STARTER_PACKS, useFactory: (...packs: unknown[]) => packs, inject: PACKS }],
 })
 export class StarterModule {}

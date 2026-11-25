@@ -46,7 +46,7 @@ export class BudgetSeed {
 
   private async approve(admin: OrgUser, id: string) {
     let b = await this.budgets.get(admin, id);
-    for (let i = 0; i < 8 && b.status === 'in_review'; i++) b = await this.budgets.decide(admin, id, { decision: 'approve', note: null });
+    for (let i = 0; i < 8 && b.status === 'in_review'; i++) b = await this.budgets.decide(admin, id, { decision: 'approve', note: 'قرار مجلس المديرين (بيانات تجريبية)' });
     return b;
   }
 
@@ -129,7 +129,7 @@ export class BudgetSeed {
     }
     await this.plans.submit(admin, op.id, null);
     let opv = await this.plans.get(admin, op.id);
-    for (let i = 0; i < 8 && opv.status === 'in_review'; i++) opv = await this.plans.decide(admin, op.id, { decision: 'approve', note: null });
+    for (let i = 0; i < 8 && opv.status === 'in_review'; i++) opv = await this.plans.decide(admin, op.id, { decision: 'approve', note: 'قرار مجلس المديرين (بيانات تجريبية)' });
 
     // ---- معادلة خاصة بالشركة
     await this.formulas.create(finance, {

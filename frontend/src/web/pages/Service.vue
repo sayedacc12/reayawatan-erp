@@ -5,12 +5,14 @@ import PageHead from '../PageHead.vue';
 import Shift from '../Shift.vue';
 import StageTag from '../StageTag.vue';
 import { setTitle } from '../parts';
-import { AR, bySlug, handoff, services } from '../site';
+import { seoFor } from '../seo';
+import { AR, bySlug, handoff, services, site } from '../site';
 
 const route = useRoute();
 const router = useRouter();
 const s = computed(() => bySlug(String(route.params.slug)));
-watchEffect(() => setTitle(s.value?.title ?? 'خدماتنا'));
+// خدمة غير موجودة لا تُفهرس، والخدمة المضافة من لوحة التحكم تأخذ وصفها المختصر
+watchEffect(() => setTitle(s.value?.title ?? 'خدماتنا', seoFor(route.path)?.description ?? s.value?.short, !!s.value || !site.data));
 function request() {
   Object.assign(handoff, { message: '', service: s.value!.slug, calculator: null, assessment: null });
   router.push('/contact');
