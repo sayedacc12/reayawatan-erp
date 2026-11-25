@@ -11,6 +11,7 @@ export const P = {
   assetsRead: 'accounting.assets.read', assetsManage: 'accounting.assets.manage', assetsOperate: 'accounting.assets.operate',
   assetsDepreciate: 'accounting.assets.depreciate', assetsReverse: 'accounting.assets.reverse', assetsCustody: 'accounting.assets.custody',
   assetsMaintain: 'accounting.assets.maintain', assetsBudget: 'accounting.assets.budget', payables: 'accounting.payables.manage',
+  statements: 'accounting.statements.prepare',
 } as const;
 
 export interface Account {

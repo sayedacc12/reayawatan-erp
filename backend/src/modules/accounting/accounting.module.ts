@@ -22,15 +22,18 @@ import { MastersService } from './masters.service';
 import { ReportsService } from './reports.service';
 import { SetupService } from './setup.service';
 import { VouchersService } from './vouchers.service';
+import { StatementsController } from './statements/statements.controller';
+import { FS_ENTITIES } from './statements/statements.entity';
+import { StatementsService } from './statements/statements.service';
 
 /**
  * النظام المالي (المحاسبي): مستقل حاليًا، يعتمد على النواة فقط (الدخول والصلاحيات وبيانات الشركة).
  * الربط مع المستفيدين والموارد المالية والمشاريع يأتي لاحقًا عبر createSystemEntry وحقول مصدر السند.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([...ACCOUNTING_ENTITIES, ...ASSET_ENTITIES]), CoreModule],
-  controllers: [AccountingController, AssetsController],
-  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks, AssetsService, AssetOpsService, AssetsReports, AssetMaintenanceService, AssetBudgetService, AssetImportService, ChartImportService],
-  exports: [AccCore, AccountsService, MastersService, EntriesService, SetupService, VouchersService, AssetsService, AssetOpsService, AssetMaintenanceService, AssetBudgetService],
+  imports: [TypeOrmModule.forFeature([...ACCOUNTING_ENTITIES, ...ASSET_ENTITIES, ...FS_ENTITIES]), CoreModule],
+  controllers: [AccountingController, AssetsController, StatementsController],
+  providers: [AccCore, AccountsService, MastersService, EntriesService, SetupService, InventoryService, VouchersService, ReportsService, AccountingReports, AccountingTasks, AssetsService, AssetOpsService, AssetsReports, AssetMaintenanceService, AssetBudgetService, AssetImportService, ChartImportService, StatementsService],
+  exports: [AccCore, AccountsService, MastersService, EntriesService, SetupService, VouchersService, AssetsService, AssetOpsService, AssetMaintenanceService, AssetBudgetService, StatementsService],
 })
 export class AccountingModule {}

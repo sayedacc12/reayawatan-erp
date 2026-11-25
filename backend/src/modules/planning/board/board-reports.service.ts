@@ -1,6 +1,4 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
 import { DataSource, In } from 'typeorm';
 import { OrgUser } from '../../../core/auth/decorators';
 import { FileStore } from '../../../core/files/file-store.service';
@@ -16,6 +14,7 @@ import { initiallyApproved, PERIOD_LABEL, yearTarget } from '../planning-calc';
 import { today } from '../planning-core.service';
 import { PLANNING_PERMISSIONS as P } from '../planning.manifest';
 import { Block, BoardDoc, DocSection, fv as formatValue, nowStamp as nowText, Tone } from './board-doc';
+import { boardBody, docLogo } from '../../../core/reports/doc-brand';
 
 /**
  * نماذج تقارير مجلس المديرين في نظام التخطيط والموازنات (مرمّزة بصيغة وحدة الجودة):
@@ -55,7 +54,6 @@ const ROLE: Record<string, string> = { chair: 'رئيس المجلس', vice: 'ن
 const ROLE_ORDER = ['chair', 'vice', 'member', 'rapporteur', 'secretary'];
 const TRANSFER: Record<string, string> = { transfer: 'مناقلة', increase: 'زيادة', decrease: 'تخفيض' };
 
-const MAX_LOGO = 2 * 1024 * 1024;
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const pct = (a: number, b: number) => (b ? r1((a / b) * 100) : null);
@@ -127,39 +125,9 @@ export class BoardReportsService {
     };
   }
 
-  /** الشعار من هوية الشركة، وإلا الشعار الافتراضي المرفق مع النظام */
-  private async logo(id: OrgIdentity | null) {
-    const read = async () => {
-      if (id?.logo?.key) {
-        const chunks: Buffer[] = [];
-        let size = 0;
-        // يتوقف عند تجاوز الحد بدل قراءة ملف كبير كاملًا في الذاكرة
-        for await (const c of this.files.open(id.logo.key)) {
-          size += (c as Buffer).length;
-          if (size > MAX_LOGO) throw new Error('logo too large');
-          chunks.push(c as Buffer);
-        }
-        return { buf: Buffer.concat(chunks), mime: id.logo.mime };
-      }
-      const dir = process.env.BRAND_DIR ?? join(process.cwd(), 'assets', 'brand');
-      return { buf: await readFile(join(dir, COMPANY_BRAND.logos.logo)), mime: 'image/png' };
-    };
-    try {
-      const { buf, mime } = await read();
-      if (!/^image\/(png|jpeg|webp)$/.test(mime) || buf.length > MAX_LOGO) return null;
-      return `data:${mime};base64,${buf.toString('base64')}`;
-    } catch (e) {
-      this.log.warn(`Logo not embedded: ${(e as Error).message}`);
-      return null;
-    }
-  }
+  private logo(id: OrgIdentity | null) { return docLogo(this.files, id, this.log); }
 
-  /** مجلس المديرين من نظام الاجتماعات (قراءة فقط) لتعبئة صفحة التوقيعات. الجهة السرية لا تُقرأ هنا، لأن نظام الاجتماعات يخفيها عن غير أعضائها */
-  private async board(org: string): Promise<{ name: string; members: { role: string; name: string; title: string | null }[] } | null> {
-    const rows: { name: string; members: { role: string; name: string; title: string | null }[] }[] = await this.db.query(
-      `SELECT name, members FROM mtg_bodies WHERE organization_id = $1 AND kind = 'board' AND is_active = true AND is_confidential = false ORDER BY created_at LIMIT 1`, [org]).catch((e) => { this.log.warn(`Board body not read: ${(e as Error).message}`); return []; });
-    return rows[0] ?? null;
-  }
+  private board(org: string) { return boardBody(this.db, org, this.log); }
 
   private async boardName(org: string) { return (await this.board(org))?.name || 'مجلس المديرين'; }
 

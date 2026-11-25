@@ -6,6 +6,7 @@ import { Account, AnalyticAccount } from '../accounting/entities/accounting.enti
 import { EntriesService } from '../accounting/entries.service';
 import { MastersService } from '../accounting/masters.service';
 import { SetupService } from '../accounting/setup.service';
+import { StatementsService } from '../accounting/statements/statements.service';
 import { VouchersService } from '../accounting/vouchers.service';
 import { DemoTeam } from './demo-context';
 
@@ -24,6 +25,7 @@ export class AccountingSeed {
     private readonly masters: MastersService,
     private readonly vouchers: VouchersService,
     private readonly entries: EntriesService,
+    private readonly statements: StatementsService,
   ) {}
 
   async run(team: DemoTeam) {
@@ -226,5 +228,10 @@ export class AccountingSeed {
     for (let m = 1; m < month - 1; m++) {
       await this.setup.closeMonth(team.admin, this.yearId, `${year}-${String(m).padStart(2, '0')}`);
     }
+    // مشروع توزيع أرباح السنة بالقيم المقترحة في سياسة POL-FIN-03 (تنمية 30%، بلا توزيع، الباقي للمصارف غير الربحية)
+    await this.statements.saveAppropriation(team.finance, this.yearId, {
+      developmentPct: 30, distributionPct: 0, reserveMonths: 6, unrealized: 0, programs: [],
+      boardDecision: null, notes: 'مشروع تجريبي يُرفع لمجلس المديرين مع الميزانية السنوية',
+    });
   }
 }

@@ -11,6 +11,8 @@ import { FormulasService } from './budget/formulas.service';
 import { ScenariosService } from './budget/scenarios.service';
 import { BudgetExecution } from './budget/budget-execution.service';
 import { BudgetTasks } from './budget/budget.tasks';
+import { BudgetVariance } from './budget/budget-variance.service';
+import { VarianceController } from './budget/variance.controller';
 import { PlanningAnalysis } from './planning-analysis.service';
 import { PlanningCore } from './planning-core.service';
 import { PlanningViews } from './planning-views.service';
@@ -31,8 +33,8 @@ import { BoardReportsService } from './board/board-reports.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature(PLANNING_ENTITIES), CoreModule],
-  controllers: [PlanningController, BudgetController, BoardReportsController],
-  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks, BoardReportsService],
+  controllers: [PlanningController, BudgetController, BoardReportsController, VarianceController],
+  providers: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, PlanningReports, BudgetSources, FormulasService, BudgetsService, BudgetAvailability, ScenariosService, BudgetExecution, BudgetReports, BudgetTasks, BoardReportsService, BudgetVariance],
   exports: [PlanningCore, PlanningAnalysis, PlanningLinks, PlansService, PlanImportService, BudgetImportService, PlanningViews, BudgetsService, FormulasService, BudgetAvailability, ScenariosService, BudgetExecution],
 })
 export class PlanningModule {}
