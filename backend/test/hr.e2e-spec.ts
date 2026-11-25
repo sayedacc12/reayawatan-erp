@@ -208,6 +208,54 @@ describe('HR', () => {
     await http.get(`${H}/payroll`).set(as(clerk)).expect(403);
   });
 
+  it('employee name and linked login account stay in sync both ways', async () => {
+    const u = (await http.post('/api/users').set(as(admin)).send({ fullName: 'اسم قديم', email: 'emp1@test.org', password: 'Emp12345678', roleIds: [] }).expect(201)).body;
+    const userName = async () => (await http.get('/api/users').set(as(admin)).expect(200)).body.find((x: { id: string }) => x.id === u.id).fullName;
+    // سجلات في أنظمة أخرى: عضو مجلس مربوط بالحساب، ووثيقة مسؤولها مكتوب نصاً بالاسم القديم، وأخرى لشخص آخر
+    const db = app.get(DataSource);
+    const [{ organization_id: org }] = await db.query('SELECT organization_id FROM users WHERE id = $1', [u.id]);
+    const [doc] = await db.query(`INSERT INTO kn_documents (organization_id, title, doc_type, created_by_name, owner_name) VALUES ($1, 'دليل', 'guide', 'اسم قديم', 'اسم قديم') RETURNING id`, [org]);
+    const [docOther] = await db.query(`INSERT INTO kn_documents (organization_id, title, doc_type, created_by_name, owner_name) VALUES ($1, 'دليل آخر', 'guide', 'غيره', 'شخص آخر') RETURNING id`, [org]);
+    const board = (await http.post('/api/meetings/bodies').set(as(admin)).send({
+      kind: 'board', code: 'BRD', name: 'مجلس الإدارة', quorumPercent: 60, isConfidential: false, isActive: true,
+      members: [{ type: 'user', userId: u.id, role: 'chair', voting: true }, { type: 'external', name: 'عضو خارجي', role: 'member', voting: true }],
+    }).expect(201)).body;
+    const memberName = async () => (await db.query('SELECT members FROM mtg_bodies WHERE id = $1', [board.id]))[0].members.find((m: { userId: string | null }) => m.userId === u.id).name;
+    const docRow = async (id: string) => (await db.query('SELECT owner_name, created_by_name FROM kn_documents WHERE id = $1', [id]))[0];
+    // ربط الحساب بملف الموظف وتعديل اسمه: يتغير اسم الحساب وكل السجلات المرتبطة
+    await http.patch(`${H}/employees/${ids.emp}`).set(as(admin)).send(employee({ fullName: 'سارة أحمد العتيبي', userId: u.id })).expect(200);
+    expect(await userName()).toBe('سارة أحمد العتيبي');
+    expect(await memberName()).toBe('سارة أحمد العتيبي');
+    expect(await docRow(doc.id)).toEqual({ owner_name: 'سارة أحمد العتيبي', created_by_name: 'اسم قديم' });
+    expect((await docRow(docOther.id)).owner_name).toBe('شخص آخر');
+    // تعديل اسم الحساب من المستخدمين: يتغير اسم الموظف والسجلات المرتبطة
+    await http.patch(`/api/users/${u.id}`).set(as(admin)).send({ fullName: 'سارة أحمد عبدالله العتيبي' }).expect(200);
+    expect((await http.get(`${H}/employees/${ids.emp}`).set(as(admin)).expect(200)).body.fullName).toBe('سارة أحمد عبدالله العتيبي');
+    expect(await memberName()).toBe('سارة أحمد عبدالله العتيبي');
+    expect((await docRow(doc.id)).owner_name).toBe('سارة أحمد عبدالله العتيبي');
+    // حساب غير مربوط لا يمس أي موظف
+    const other = (await http.get('/api/users').set(as(admin)).expect(200)).body.find((x: { email: string }) => x.email === 'clerk@test.org');
+    await http.patch(`/api/users/${other.id}`).set(as(admin)).send({ fullName: 'موظف الشؤون' }).expect(200);
+    expect((await http.get(`${H}/employees/${ids.emp2}`).set(as(admin)).expect(200)).body.fullName).toBe('محمد علي القحطاني');
+    // من يملك ملفات الموظفين دون إدارة المستخدمين لا يغيّر اسم حساب دخول، ولا يصل إلى حساب مدير النظام
+    const hrRole = (await http.post('/api/roles').set(as(admin)).send({ name: 'ملفات الموظفين فقط', permissions: ['hr.dashboard.read', 'hr.employees.manage'] }).expect(201)).body;
+    await http.post('/api/users').set(as(admin)).send({ fullName: 'كاتب الملفات', email: 'hrfiles@test.org', password: 'Files12345', roleIds: [hrRole.id] }).expect(201);
+    const hrOnly = await login('hrfiles@test.org', 'Files12345', 'albir');
+    const director = (await http.get('/api/users').set(as(admin)).expect(200)).body.find((x: { email: string }) => x.email === 'albir@test.org');
+    await http.patch(`${H}/employees/${ids.emp}`).set(as(hrOnly)).send(employee({ fullName: 'اسم منتحل للمدير', userId: director.id })).expect(200);
+    expect((await http.get('/api/users').set(as(admin)).expect(200)).body.find((x: { id: string }) => x.id === director.id).fullName).toBe('مدير النظام');
+    await http.patch(`${H}/employees/${ids.emp}`).set(as(admin)).send(employee({ fullName: 'سارة أحمد عبدالله العتيبي', userId: u.id })).expect(200);
+    // من يملك إدارة المستخدمين دون ملفات الموظفين لا يغيّر الاسم الرسمي للموظف
+    const usersRole = (await http.post('/api/roles').set(as(admin)).send({ name: 'المستخدمون فقط', permissions: ['core.users.read', 'core.users.manage'] }).expect(201)).body;
+    await http.post('/api/users').set(as(admin)).send({ fullName: 'مسؤول الحسابات', email: 'accounts@test.org', password: 'Accts12345', roleIds: [usersRole.id] }).expect(201);
+    const usersOnly = await login('accounts@test.org', 'Accts12345', 'albir');
+    await http.patch(`/api/users/${u.id}`).set(as(usersOnly)).send({ fullName: 'اسم آخر' }).expect(200);
+    expect((await http.get(`${H}/employees/${ids.emp}`).set(as(admin)).expect(200)).body.fullName).toBe('سارة أحمد عبدالله العتيبي');
+    // والسجلات المربوطة بالحساب تتبعه، أما المكتوبة نصاً فلا يعمّمها إلا مدير النظام
+    expect(await memberName()).toBe('اسم آخر');
+    expect((await docRow(doc.id)).owner_name).toBe('سارة أحمد عبدالله العتيبي');
+  });
+
   it('leave balances and requests follow the policy', async () => {
     const b = (await http.get(`${H}/employees/${ids.emp}/balances`).set(as(admin)).expect(200)).body;
     const annual = b.find((x: { code: string }) => x.code === 'annual');

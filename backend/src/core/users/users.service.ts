@@ -5,7 +5,11 @@ import { Repository } from 'typeorm';
 import { OrgUser } from '../auth/decorators';
 import { User } from '../entities';
 import { RolesService } from '../roles/roles.service';
+import { propagatePerson } from './person-sync';
 import { CreateUserDto, UpdateUserDto } from './users.dto';
+
+/** صلاحية ملفات الموظفين (وحدة الموارد البشرية) */
+const HR_EMPLOYEES_MANAGE = 'hr.employees.manage';
 
 @Injectable()
 export class UsersService {
@@ -60,6 +64,7 @@ export class UsersService {
       throw new BadRequestException('يجب أن يبقى مدير نظام واحد نشط على الأقل');
     }
 
+    const oldName = user.fullName;
     if (dto.fullName !== undefined) user.fullName = dto.fullName.trim();
     if (dto.email !== undefined) {
       const email = dto.email.trim().toLowerCase();
@@ -79,7 +84,26 @@ export class UsersService {
       await this.roles.assertCanAssign(actor, roles.filter((r) => !current.has(r.id)));
       user.roles = roles;
     }
-    await this.users.save(user);
+    await this.users.manager.transaction(async (em) => {
+      // اسم حساب الدخول هو اسم ملف الموظف المربوط به (ما لم تنتهِ خدمته فيبقى ملفه كما أُغلق).
+      // الاسم الرسمي في ملف الموظف لا يغيّره إلا من يملك صلاحية ملفات الموظفين، ولا يغيّر أحد ملفه بنفسه.
+      const renamed = user.fullName !== oldName;
+      const hrEditor = actor.isSuperadmin || (actor.permissions.includes(HR_EMPLOYEES_MANAGE) && id !== actor.id);
+      // يُقفل ملف الموظف قبل الحساب، بترتيب مسار الموارد البشرية نفسه، حتى لا يتعارض تعديلان متزامنان
+      const [emp]: { full_name: string }[] = renamed && hrEditor
+        ? await em.query(`SELECT full_name FROM hr_employees WHERE organization_id = $1 AND user_id = $2 AND status <> 'terminated' FOR UPDATE`, [actor.organizationId, id])
+        : [];
+      await em.save(user);
+      if (!renamed) return;
+      let employeeName: string | null = null;
+      if (emp && emp.full_name !== user.fullName) {
+        employeeName = emp.full_name;
+        await em.query(`UPDATE hr_employees SET full_name = $1 WHERE organization_id = $2 AND user_id = $3 AND status <> 'terminated'`, [user.fullName, actor.organizationId, id]);
+      }
+      // ومعه المسؤوليات والتكليفات والدعوات الجارية في الأنظمة الأخرى (لا يعمّمه أحد بتعديل حسابه بنفسه)
+      if (id === actor.id && !actor.isSuperadmin) return;
+      await propagatePerson(em, { org: actor.organizationId, userId: id, newName: user.fullName, oldNames: [oldName, employeeName ?? ''], byName: actor.isSuperadmin });
+    });
     return this.get(actor, id);
   }
 
