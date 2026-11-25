@@ -9,6 +9,7 @@ import { BudgetsService } from '../src/modules/planning/budget/budgets.service';
 import { BoardReportsService } from '../src/modules/planning/board/board-reports.service';
 import { PlansService } from '../src/modules/planning/plans.service';
 import { CompanyPackService } from '../src/modules/starter/company-pack.service';
+import { CompanyPlanContextService } from '../src/modules/starter/company-plan-context.service';
 import { PACK_LEGACY } from '../src/modules/starter/company-pack.content';
 
 /**
@@ -114,14 +115,14 @@ describe('Company starter pack upgrade (2027-2030 -> 2027-2029)', () => {
   let lines = 0;
   let links = 0;
 
-  it('stops before any change when the operational plan has recorded progress', async () => {
+  it('stops before any change when an operational activity was carried to another plan', async () => {
     lines = await n('plan_budget_lines');
     links = await n('plan_links');
     const [item] = await db.query(`SELECT i.id FROM plan_items i JOIN plan_plans p ON p.id = i.plan_id WHERE i.organization_id = $1 AND p.kind = 'operational' LIMIT 1`, [company]);
-    await db.query(`INSERT INTO plan_progress_updates (organization_id, item_id, update_date, progress, state, by_name) VALUES ($1, $2, '2027-01-15', 10, 'in_progress', 'مستخدم')`, [company, item.id]);
+    await db.query(`UPDATE plan_items SET carried_from_id = id WHERE organization_id = $1 AND id = $2`, [company, item.id]);
     await expect(pack.run()).rejects.toThrow(/before any change/);
     await untouched();
-    await db.query('DELETE FROM plan_progress_updates WHERE organization_id = $1 AND item_id = $2', [company, item.id]);
+    await db.query('UPDATE plan_items SET carried_from_id = NULL WHERE organization_id = $1 AND id = $2', [company, item.id]);
   }, 180000);
 
   it('stops before any change when a budget line has a commitment', async () => {
@@ -141,8 +142,34 @@ describe('Company starter pack upgrade (2027-2030 -> 2027-2029)', () => {
   }, 180000);
 
   it('revises plans and budget in place as drafts awaiting approval, and closes the waqf and investment risks', async () => {
+    // كما في الإنتاج: إنجاز وقراءة مؤشر تجريبيان على الخطة التشغيلية، والموازنة قيد الاعتماد (قرار المالك: تُحذف وتُعاد للتعديل)
+    const [item] = await db.query(`SELECT i.id FROM plan_items i JOIN plan_plans p ON p.id = i.plan_id WHERE i.organization_id = $1 AND p.kind = 'operational' LIMIT 1`, [company]);
+    await db.query(`INSERT INTO plan_progress_updates (organization_id, item_id, update_date, progress, state, by_name, note, created_at) VALUES ($1, $2, '2027-01-15', 10, 'in_progress', 'مستخدم', 'تجربة', '2026-11-23')`, [company, item.id]);
+    // ما سُجّل بعد قرار المالك ليس تجريبيًا فيوقف الحزمة
+    await db.query(`INSERT INTO plan_progress_updates (organization_id, item_id, update_date, progress, state, by_name, created_at) VALUES ($1, $2, '2027-01-16', 20, 'in_progress', 'مستخدم', '2026-11-25')`, [company, item.id]);
+    await expect(pack.run()).rejects.toThrow(/بعد قرار المالك/);
+    await db.query(`DELETE FROM plan_progress_updates WHERE organization_id = $1 AND created_at >= '2026-11-25'`, [company]);
+    const [kpi] = await db.query(`SELECT k.id FROM plan_kpis k JOIN plan_plans p ON p.id = k.plan_id WHERE k.organization_id = $1 AND p.kind = 'operational' LIMIT 1`, [company]);
+    if (kpi) await db.query(`INSERT INTO plan_kpi_readings (organization_id, kpi_id, period, value, entered_by_name) VALUES ($1, $2, '2027-Q1', 5, 'مستخدم')`, [company, kpi.id]);
+    if (kpi) await db.query(`UPDATE plan_kpi_readings SET created_at = '2026-11-23' WHERE organization_id = $1`, [company]);
+    const budgets0 = app.get(BudgetsService);
+    const bid = await budgetId();
+    await db.query(`UPDATE plan_budgets SET status = 'draft' WHERE organization_id = $1 AND id = $2`, [company, bid]);
+    await budgets0.submit(actor, bid, 'رفع تجريبي');
+    expect((await db.query('SELECT status FROM plan_budgets WHERE id = $1', [bid]))[0].status).toBe('in_review');
+
     const results = await pack.run();
     expect(results).not.toBeNull();
+    expect(await n('plan_progress_updates')).toBe(0);
+    expect(await n('plan_kpi_readings')).toBe(0);
+    const [opLog] = await db.query(`SELECT approvals FROM plan_plans WHERE organization_id = $1 AND kind = 'operational'`, [company]);
+    // القيم المحذوفة محفوظة في سجل الخطة
+    expect(JSON.stringify(opLog.approvals)).toContain('حذف بيانات تجريبية بقرار المالك');
+    expect(JSON.stringify(opLog.approvals)).toContain('تجربة');
+    // وبنود الموازنة المحذوفة محفوظة في سجلها، والرواتب مجمعة دون أسماء
+    const [bLog] = await db.query(`SELECT approvals FROM plan_budgets WHERE organization_id = $1`, [company]);
+    const del = (bLog.approvals as { note: string | null }[]).find((x) => x.note?.startsWith('حُذفت'));
+    expect(del?.note).toContain('البنود المحذوفة');
 
     const plans = await db.query('SELECT id, kind, title, end_year, status, version, revision_note, parent_plan_id FROM plan_plans WHERE organization_id = $1 ORDER BY kind', [company]);
     // لا اعتماد: مسودة تعديل على الإصدار الأول المعتمد، بسبب التعديل جاهزًا للرفع
@@ -168,7 +195,8 @@ describe('Company starter pack upgrade (2027-2030 -> 2027-2029)', () => {
     expect(links).toBe(await n('plan_items', `plan_id = '${op.id}'`));
 
     const [b] = await db.query('SELECT id, status, version, revision_note FROM plan_budgets WHERE organization_id = $1', [company]);
-    expect(b).toMatchObject({ status: 'draft', version: 1, revision_note: PACK_LEGACY.revisionNote });
+    // كانت قيد الاعتماد فأُعيدت للتعديل، وتُرفع من جديد بسبب التعديل المسجل
+    expect(b).toMatchObject({ status: 'returned', version: 1, revision_note: PACK_LEGACY.revisionNote });
     const [{ rev, exp }] = await db.query(
       `SELECT sum(amount) FILTER (WHERE section = 'revenue')::numeric AS rev, sum(amount) FILTER (WHERE section <> 'revenue')::numeric AS exp
          FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2 AND included`, [company, b.id]);
@@ -194,6 +222,15 @@ describe('Company starter pack upgrade (2027-2030 -> 2027-2029)', () => {
     // لا روابط من الخطة الجديدة لمخاطر مغلقة
     expect(await n('plan_refs', `system = 'risk' AND ref_id = ANY('{${closed.map((c: { id: string }) => c.id).join(',')}}')`)).toBe(0);
   }, 180000);
+
+  it('fills the material issues and the stakeholder map into the revised draft strategic plan, leaving it a draft', async () => {
+    const r = await app.get(CompanyPlanContextService).run();
+    expect(r).toMatchObject({ key: 'plan-context', added: 29 });
+    const { strategic: sp } = await planIds();
+    expect(await n('plan_material_issues', `plan_id = '${sp}'`)).toBe(10);
+    expect(await n('plan_stakeholders', `plan_id = '${sp}'`)).toBe(19);
+    expect((await db.query('SELECT status, version FROM plan_plans WHERE id = $1', [sp]))[0]).toEqual({ status: 'draft', version: 1 });
+  }, 60000);
 
   it('prints the board report only after the executive initial approval, then the board approval makes version 2', async () => {
     const plans = app.get(PlansService), budgets = app.get(BudgetsService), board = app.get(BoardReportsService);

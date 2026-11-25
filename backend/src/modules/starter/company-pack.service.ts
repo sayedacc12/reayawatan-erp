@@ -168,8 +168,11 @@ export class CompanyPackService implements OnApplicationBootstrap {
   }
 
   /**
-   * فحص قبل أي تعديل في ترقية الحزمة السابقة: لا تعديل جارٍ من المستخدمين على الخطتين أو الموازنة، ولا إنجاز أو قراءات أو أنشطة
-   * مرحّلة على الخطتين، ولا حجز أو مستند يشير إلى بنود الموازنة. أي مانع يوقف الحزمة قبل أن يتغير شيء.
+   * فحص قبل أي تعديل في ترقية الحزمة السابقة: لا تعديل جارٍ من المستخدمين على الخطة الاستراتيجية والتشغيلية، ولا أنشطة مرحّلة
+   * عليهما، ولا حجز أو مستند يشير إلى بنود الموازنة. أي مانع يوقف الحزمة قبل أن يتغير شيء.
+   * بقرار المالك (2026-11-24): الإنجاز وقراءات المؤشرات المسجلة على الخطة التشغيلية القديمة قبل وقت قراره تجريبية، فتُحذف عند
+   * استبدال المحتوى وتُحفظ قيمها في سجل الخطة؛ وما سُجّل بعده، أو أي إنجاز على الخطة الاستراتيجية، يوقف الحزمة.
+   * والموازنة غير المعتمدة أو قيد الاعتماد تُعاد للتعديل ثم تُستبدل بنودها، وتُحفظ البنود المحذوفة في سجلها.
    * ما عدّلته الحزمة نفسها في تشغيل سابق انقطع (الخطة الاستراتيجية بعنوانها الجديد) يُكمل دون هذا الشرط.
    */
   private async preflight(org: string, done: Set<string>) {
@@ -185,20 +188,21 @@ export class CompanyPackService implements OnApplicationBootstrap {
     if (op && !revised(op) && !done.has('operational')) plans.push(op);
     for (const p of plans) {
       if (fresh && p.status !== 'approved') problems.push(`الخطة ${p.code} عليها تعديل جارٍ أو قيد الاعتماد`);
-      const [{ n }] = await this.db.query(
+      const [{ n, carried }] = await this.db.query(
         `WITH i AS (SELECT id FROM plan_items WHERE organization_id = $1 AND plan_id = $2)
-         SELECT ((SELECT COUNT(*) FROM plan_progress_updates WHERE organization_id = $1 AND item_id IN (SELECT id FROM i))
-               + (SELECT COUNT(*) FROM plan_kpi_readings r JOIN plan_kpis k ON k.id = r.kpi_id WHERE k.organization_id = $1 AND k.plan_id = $2)
-               + (SELECT COUNT(*) FROM plan_items WHERE organization_id = $1 AND (carried_from_id IN (SELECT id FROM i) OR (plan_id = $2 AND carried_from_id IS NOT NULL))))::int AS n`,
-        [org, p.id]);
-      if (n) problems.push(`الخطة ${p.code} عليها إنجاز أو قراءات مؤشرات أو أنشطة مرحّلة`);
+         SELECT ((SELECT COUNT(*) FROM plan_progress_updates WHERE organization_id = $1 AND item_id IN (SELECT id FROM i) AND created_at >= $3::timestamptz)
+               + (SELECT COUNT(*) FROM plan_kpi_readings r JOIN plan_kpis k ON k.id = r.kpi_id WHERE k.organization_id = $1 AND k.plan_id = $2 AND r.created_at >= $3::timestamptz))::int AS n,
+                (SELECT COUNT(*) FROM plan_items WHERE organization_id = $1 AND (carried_from_id IN (SELECT id FROM i) OR (plan_id = $2 AND carried_from_id IS NOT NULL)))::int AS carried`,
+        [org, p.id, p === op ? PACK_LEGACY.testEntriesBefore : '-infinity']);
+      if (n) problems.push(`الخطة ${p.code} عليها إنجاز أو قراءات مؤشرات${p === op ? ' بعد قرار المالك' : ''}`);
+      if (carried) problems.push(`الخطة ${p.code} عليها أنشطة مرحّلة من خطة أخرى أو إليها`);
     }
     const [b] = await this.db.query(
       `SELECT b.id, b.code, b.status, b.revision_note AS rev, (SELECT v.note FROM plan_budget_versions v WHERE v.organization_id = $1 AND v.budget_id = b.id ORDER BY v.version DESC LIMIT 1) AS note
          FROM plan_budgets b WHERE b.organization_id = $1 AND b.fiscal_year = $2 AND b.title = $3 AND NOT b.is_scenario ORDER BY b.created_at LIMIT 1`,
       [org, PACK_BUDGET.fiscalYear, PACK_BUDGET.title]);
     if (b && !revised(b) && !done.has('budget')) {
-      if (fresh && b.status !== 'approved') problems.push(`الموازنة ${b.code} عليها تعديل جارٍ أو قيد الاعتماد`);
+      if (b.status === 'rejected') problems.push(`الموازنة ${b.code} مرفوضة`);
       if (await this.budgets.lineBlockers(org, b.id)) problems.push(`على بنود الموازنة ${b.code} حجوزات أو مناقلات أو مستندات مرتبطة`);
     }
     if (problems.length) throw new Error(`upgrade to plan 2027-2029 stopped before any change: ${problems.join('؛ ')}`);
@@ -227,7 +231,9 @@ export class CompanyPackService implements OnApplicationBootstrap {
         if (p && !done && p.version > 0 && ['approved', 'draft', 'returned'].includes(p.status)) target = p.id;
         else if (p) return { added: 0, note: done ? 'عُدّلت مسبقًا' : 'مضافة مسبقًا' };
       }
-      const r = await this.planImport.import(a, await this.file(file), 'apply', target ?? undefined, target ? PACK_LEGACY.revisionNote : undefined);
+      // الإنجاز والقراءات المسجلة قبل قرار المالك على الخطة التشغيلية القديمة تجريبية، فتُحذف في معاملة الاستبدال نفسها وتُحفظ قيمها في سجلها
+      const discard = target && kind === 'operational' ? PACK_LEGACY.testEntriesBefore : undefined;
+      const r = await this.planImport.import(a, await this.file(file), 'apply', target ?? undefined, target ? PACK_LEGACY.revisionNote : undefined, discard);
       if (target && !r.ok) throw new Error(`plan revision failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
       const id = r.plan?.id ?? (r.plan?.title ? await one('SELECT id FROM plan_plans WHERE organization_id = $1 AND title = $2 ORDER BY created_at LIMIT 1', [org, r.plan.title]) : null);
       if (!id) throw new Error(`plan import failed: ${JSON.stringify(r.errors).slice(0, 500)}`);
@@ -305,12 +311,14 @@ export class CompanyPackService implements OnApplicationBootstrap {
         const lines = (section: string) => this.db.query(
           `SELECT count(*)::int AS n FROM plan_budget_lines WHERE organization_id = $1 AND budget_id = $2 AND ($3 = '' OR section = $3)`, [org, id, section]).then((r) => r[0].n as number);
         const [st] = await this.db.query(
-          `SELECT b.status, b.version, (SELECT v.note FROM plan_budget_versions v WHERE v.organization_id = $1 AND v.budget_id = b.id ORDER BY v.version DESC LIMIT 1) AS note
-             FROM plan_budgets b WHERE b.organization_id = $1 AND b.id = $2`, [org, id]) as { status: string; version: number; note: string | null }[];
-        // الحزمة السابقة: تُحذف بنود الموازنة المعتمدة (فتصبح مسودة تعديل بسببها) وتُستورد بنود الخطة الجديدة وأنشطتها، إلا إن عُدّلت سابقًا
+          `SELECT b.status, b.version, b.revision_note AS rev, (SELECT v.note FROM plan_budget_versions v WHERE v.organization_id = $1 AND v.budget_id = b.id ORDER BY v.version DESC LIMIT 1) AS note
+             FROM plan_budgets b WHERE b.organization_id = $1 AND b.id = $2`, [org, id]) as { status: string; version: number; rev: string | null; note: string | null }[];
+        // الحزمة السابقة: تُحذف بنود الموازنة (فتصبح مسودة تعديل بسببها) وتُستورد بنود الخطة الجديدة وأنشطتها، إلا إن عُدّلت سابقًا.
+        // الموازنة قيد الاعتماد تُعاد للتعديل أولًا بملاحظة السبب (قرار المالك 2026-11-24)
         let revised = false;
-        if (legacy && !created && st.status === 'approved' && st.version > 0 && st.note !== PACK_LEGACY.revisionNote) {
+        if (legacy && !created && st.rev !== PACK_LEGACY.revisionNote && st.note !== PACK_LEGACY.revisionNote && ['approved', 'draft', 'returned', 'in_review'].includes(st.status)) {
           revised = true;
+          if (st.status === 'in_review') await this.budgets.decide(a, id, { decision: 'return', note: 'إعادة للتعديل لاستبدال بنودها بموازنة خطة 2027 - 2029 بقرار المالك' } as never);
           await this.budgets.clearLinesForRevision(a, id, PACK_LEGACY.revisionNote);
         } else if (st.status !== 'draft' && st.status !== 'returned') return { added: 0, note: 'مضافة مسبقًا' };
         if (!(await lines(''))) {

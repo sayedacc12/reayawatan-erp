@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Logger, BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager, In } from 'typeorm';
 import { OrgUser } from '../../core/auth/decorators';
 import {
@@ -93,15 +93,32 @@ export class PlansService {
   }
 
   /** حذف محتوى خطة في مسودة تعديل تمهيدًا لاستبداله من ملف. يرفض إن كان عليها عمل مسجل لا يصح فقده */
-  private async clearContent(em: EntityManager, actor: OrgUser, p: Plan) {
+  /**
+   * discardBefore: يحذف تحديثات الإنجاز وقراءات المؤشرات المسجلة على الخطة قبل هذا الوقت في المعاملة نفسها بدل رفض الاستبدال
+   * (لإدراج حزمة الشركة فقط، بقرار المالك أنها تجريبية). ما سُجّل بعده والأنشطة المرحّلة تمنع الاستبدال دائمًا.
+   * يعيد الصفوف المحذوفة بقيمها لتُحفظ في سجل الخطة.
+   */
+  private async clearContent(em: EntityManager, actor: OrgUser, p: Plan, discardBefore?: string) {
     const org = actor.organizationId;
     const ids = (await em.getRepository(PlanItem).find({ where: { organizationId: org, planId: p.id }, select: ['id'] })).map((i) => i.id);
+    // ما يُسمح بحذفه: ما قبل وقت القرار فقط، وبلا قرار لا شيء
+    const cut = discardBefore ?? '-infinity';
     const [{ progress, readings, carried }] = await em.query(
-      `SELECT (SELECT COUNT(*) FROM plan_progress_updates WHERE organization_id = $1 AND item_id = ANY($2))::int AS progress,
-              (SELECT COUNT(*) FROM plan_kpi_readings r JOIN plan_kpis k ON k.id = r.kpi_id WHERE k.organization_id = $1 AND k.plan_id = $3)::int AS readings,
+      `SELECT (SELECT COUNT(*) FROM plan_progress_updates WHERE organization_id = $1 AND item_id = ANY($2) AND created_at >= $4::timestamptz)::int AS progress,
+              (SELECT COUNT(*) FROM plan_kpi_readings r JOIN plan_kpis k ON k.id = r.kpi_id WHERE k.organization_id = $1 AND k.plan_id = $3 AND r.created_at >= $4::timestamptz)::int AS readings,
               (SELECT COUNT(*) FROM plan_items WHERE organization_id = $1 AND (carried_from_id = ANY($2) OR (id = ANY($2) AND carried_from_id IS NOT NULL)))::int AS carried`,
-      [org, ids, p.id]);
-    if (progress || readings || carried) throw new ConflictException('على الخطة إنجاز أو قراءات مؤشرات أو أنشطة مرحّلة، فلا يُستبدل محتواها. عدّلها من شاشتها');
+      [org, ids, p.id, cut]);
+    if (carried || progress || readings) throw new ConflictException('على الخطة إنجاز أو قراءات مؤشرات أو أنشطة مرحّلة، فلا يُستبدل محتواها. عدّلها من شاشتها');
+    const gone = { progress: [] as Record<string, unknown>[], readings: [] as Record<string, unknown>[] };
+    if (discardBefore) {
+      const rows = (r: unknown) => (Array.isArray(r) && Array.isArray(r[0]) ? r[0] : r) as Record<string, unknown>[];
+      gone.progress = rows(await em.query(
+        `DELETE FROM plan_progress_updates WHERE organization_id = $1 AND item_id = ANY($2) AND created_at < $3::timestamptz
+         RETURNING item_id, update_date::text AS date, progress, state, note, corrective_action, by_name, created_at`, [org, ids, discardBefore]));
+      gone.readings = rows(await em.query(
+        `DELETE FROM plan_kpi_readings WHERE organization_id = $1 AND created_at < $3::timestamptz AND kpi_id IN (SELECT id FROM plan_kpis WHERE organization_id = $1 AND plan_id = $2)
+         RETURNING kpi_id, period, value, note, entered_by_name, created_at`, [org, p.id, discardBefore]));
+    }
     if (ids.length) {
       // روابط من خطط أخرى: الخطط التشغيلية التابعة لهذه الخطة تفقد ربطها وتتحول لمسودة تعديل، وأي خطة أخرى تمنع الاستبدال
       const incoming: { id: string; plan_id: string }[] = await em.query(
@@ -120,6 +137,7 @@ export class PlansService {
     }
     await em.query(`DELETE FROM plan_kpis WHERE organization_id = $1 AND plan_id = $2`, [org, p.id]);
     await em.query(`DELETE FROM plan_items WHERE organization_id = $1 AND plan_id = $2`, [org, p.id]);
+    return gone;
   }
 
   // ---------------- الخطط ----------------
@@ -310,7 +328,8 @@ export class PlansService {
    * أو قراءات مؤشرات أو أنشطة مرحّلة. روابط الخطط التشغيلية التابعة لها تُزال وتتحول تلك الخطط لمسودة تعديل حتى يُعاد ربطها.
    * يستخدمه إدراج حزمة الشركة فقط، ولا يُعرض في واجهة الاستيراد.
    */
-  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false, replaceId?: string, revisionNote?: string) {
+  async importPlan(actor: OrgUser, data: PlanImportData, dryRun = false, replaceId?: string, revisionNote?: string, discardBefore?: string) {
+    let discarded = '';
     const org = actor.organizationId;
     if (!actor.isSuperadmin && !actor.permissions.includes(this.manageCode(data.header.kind))) throw new ForbiddenException('إعداد هذا النوع من الخطط ليس من صلاحيتك');
     const cfg = await this.core.config(org);
@@ -324,7 +343,13 @@ export class PlansService {
       if (replaceId) {
         const p = await this.editing(em, actor, replaceId);
         if (p.kind !== data.header.kind) throw new BadRequestException('نوع الخطة في الملف يختلف عن الخطة المراد تعديلها');
-        await this.clearContent(em, actor, p);
+        const gone = await this.clearContent(em, actor, p, discardBefore);
+        if (gone.progress.length || gone.readings.length) {
+          // تُحفظ القيم المحذوفة كاملة في سجل الخطة (قبل/بعد)
+          discarded = `Plan ${p.code} content replaced: discarded ${gone.progress.length} progress updates and ${gone.readings.length} KPI readings entered before ${discardBefore} (owner-approved test entries)`;
+          p.approvals = [...p.approvals, { action: 'reopen', stage: null, byName: actor.fullName, at: new Date().toISOString(),
+            note: `حذف بيانات تجريبية بقرار المالك عند استبدال المحتوى: ${gone.progress.length} تحديث إنجاز و${gone.readings.length} قراءة مؤشرات. القيم المحذوفة: ${JSON.stringify(gone)}` }];
+        }
         await this.applyHeader(em, org, p, data.header, cfg);
         if (revisionNote) p.revisionNote = revisionNote;
         saved = await em.getRepository(Plan).save(p);
@@ -398,7 +423,9 @@ export class PlansService {
       return result;
     });
     try {
-      return await run;
+      const res = await run;
+      if (discarded) new Logger('Plans').warn(discarded);
+      return res;
     } catch (e) {
       if (e instanceof ImportDryRun) return { ...e.result, id: null as string | null, code: null as string | null, items: e.result.items.map((i) => ({ ...i, id: null as string | null })) };
       throw e;
